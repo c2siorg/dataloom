@@ -17,7 +17,7 @@ const Navbar = ({ isSmall }) => {
         <Link to="/">DataLoom</Link>
       </div>
       {isSmall && (<div
-        className={`text-black font-semibold ${
+        className={`text-black font-bold ${
           isSmall ? "text-base" : "text-lg"
         } flex items-center ml-auto mr-4`}
       >
