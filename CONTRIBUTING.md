@@ -1,4 +1,4 @@
-# Contributing to Dataloom
+# Contributing to DataLoom
 
 *First of all, thank you for considering contributing to DataLoom! We welcome contributions from the community. By participating in this project, you agree to abide by our guidelines and our Code of Conduct.*
 
@@ -30,7 +30,7 @@ Please note that this project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## How to Contribute
 
-There are several ways you can contribute to Dataloom:
+There are several ways you can contribute to DataLoom:
 
 ### Reporting Bugs
 
@@ -51,8 +51,8 @@ If you want to fix a bug or add a new feature:
 
 2. **Clone your Fork:**
    ```bash
-   git clone https://github.com/your-username/Dataloom.git
-   cd Dataloom
+   git clone https://github.com/your-username/DataLoom.git
+   cd DataLoom
    ```
 
 3. **Create a Branch:**
@@ -152,4 +152,4 @@ You may obtain a copy of the License at
 
 If you have any questions, feel free to reach out by opening an issue or contacting one of the maintainers at [maintainer@example.com](mailto:maintainer@example.com).
 
-**Thank you for contributing to Dataloom!**
+**Thank you for contributing to DataLoom!**
