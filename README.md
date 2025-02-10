@@ -42,7 +42,7 @@ cd DataLoom
 Navigate to the `apps/backend` directory and create a `.env` file. This file will store configuration settings required for the backend services.
 
 ```bash
-cd apps/backend
+cd backend/app
 cp .env.sample .env
 ```
 
