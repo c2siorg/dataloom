@@ -39,7 +39,7 @@ cd DataLoom
 
 ### Step 2: Set Up Environment Variables
 
-Navigate to the `apps/backend` directory and create a `.env` file. This file will store configuration settings required for the backend services.
+Navigate to the `backend` directory and create a `.env` file. This file will store configuration settings required for the backend services.
 
 ```bash
 cd backend
@@ -61,6 +61,13 @@ Or use `npx` to run TurboRepo commands without global installation:
 ```bash
 npx turbo run dev
 ```
+
+Install project dependencies:
+
+```bash
+npm install
+```
+
 
 ### Step 4: Install Backend Dependencies
 
@@ -92,10 +99,10 @@ pip install -r requirements.txt
 
 ### Step 5: Install Frontend Dependencies
 
-Navigate to the `apps/frontend` directory and install the necessary Node.js packages:
+Navigate to the DataLoom directory and install the necessary Node.js packages:
 
 ```bash
-cd ../frontend
+cd ..
 npm install
 ```
 
@@ -119,7 +126,7 @@ Alternatively, you can start them manually:
 - **Start Frontend Server**:
 
   ```bash
-  cd ../frontend
+  cd ..
   npm run dev
   ```
 
