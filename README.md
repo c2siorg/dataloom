@@ -1,4 +1,3 @@
-
 # DataLoom: Web-Based GUI for Data Wrangling
 
 ## Overview
@@ -18,9 +17,10 @@ The frontend communicates with the backend to perform the necessary data manipul
 
 To set up and run **DataLoom** on your local machine, ensure that the following software is installed:
 
-- **Node.js** (v14.x or higher): Required for running the frontend React.js application.
+- **Node.js** (v18.x or higher): Required for running the frontend React.js application.
 - **Python 3.8 or higher**: Necessary for the backend FastAPI application and the data wrangling functionality.
 - **Git**: To clone the repository and manage the codebase.
+- **TurboRepo**: Required for managing monorepo tasks efficiently.
 
 ### Optional:
 
@@ -48,7 +48,27 @@ cp .env.sample .env
 
 Open the `.env` file in your preferred text editor and populate the required variables. You may reference the `.env.sample` file for guidance on the structure and required values.
 
-### Step 3: Install Backend Dependencies
+### Step 3: Install TurboRepo and Dependencies
+
+TurboRepo is required for efficient package management in monorepos. Install TurboRepo globally:
+
+```bash
+npm install -g turbo
+```
+
+Or use `npx` to run TurboRepo commands without global installation:
+
+```bash
+npx turbo run dev
+```
+
+Install project dependencies:
+
+```bash
+npm install
+```
+
+### Step 4: Install Backend Dependencies
 
 Create a Python virtual environment for the backend services:
 
@@ -76,7 +96,7 @@ Install the required Python dependencies using `pip`:
 pip install -r requirements.txt
 ```
 
-### Step 4: Install Frontend Dependencies
+### Step 5: Install Frontend Dependencies
 
 Navigate to the `apps/frontend` directory and install the necessary Node.js packages:
 
@@ -85,9 +105,15 @@ cd ../frontend
 npm install
 ```
 
-### Step 5: Run the Application
+### Step 6: Run the Application with TurboRepo
 
-Now that all dependencies are installed, start both the frontend and backend servers:
+Now that all dependencies are installed, use TurboRepo to start both the frontend and backend servers efficiently:
+
+```bash
+npx turbo run dev
+```
+
+Alternatively, you can start them manually:
 
 - **Start Backend Server**:
 
