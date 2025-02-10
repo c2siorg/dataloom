@@ -167,4 +167,3 @@ We would like to express our gratitude to the open-source community and all cont
 
 We also extend special thanks to the developers and researchers behind the underlying libraries and technologies, including **FastAPI**, **React.js**, and **Python Pandas**, which power the data wrangling and user interface functionalities.
 
-For more information and updates, please visit the [DataLoom GitHub repository](https://github.com/c2siorg/DataLoom).
