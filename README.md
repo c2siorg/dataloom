@@ -42,7 +42,7 @@ cd DataLoom
 Navigate to the `apps/backend` directory and create a `.env` file. This file will store configuration settings required for the backend services.
 
 ```bash
-cd backend/app
+cd backend
 cp .env.sample .env
 ```
 
@@ -60,12 +60,6 @@ Or use `npx` to run TurboRepo commands without global installation:
 
 ```bash
 npx turbo run dev
-```
-
-Install project dependencies:
-
-```bash
-npm install
 ```
 
 ### Step 4: Install Backend Dependencies
