@@ -1,113 +1,106 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { uploadDataset, getRecentProjects, getDatasetDetails } from "../api.js";
 
 const HomeScreen = () => {
   const [showModal, setShowModal] = useState(false);
   const [fileUpload, setFileUpload] = useState(null);
-  const [projectName, setProjectName] = useState("");
-  const [projectDescription, setProjectDescription] = useState("");
-  const [recentProjects, setRecentProjects] = useState([]);
+  const [formData, setFormData] = useState({
+    projectName: "",
+    projectDescription: ""
+  });
+  const [errors, setErrors] = useState({});
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchRecentProjects();
-  }, []);
-
-  const fetchRecentProjects = async () => {
-    try {
+  // React Query for fetching recent projects
+  const { data: recentProjects = [] } = useQuery({
+    queryKey: ["recentProjects"],
+    queryFn: async () => {
       const response = await getRecentProjects();
-      setRecentProjects(response.data);
-    } catch (error) {
-      console.error("Error fetching recent projects:", error);
-    }
-  };
+      return response.data;
+    },
+  });
 
-  const handleNewProjectClick = () => {
-    setShowModal(true);
-  };
+  // React Query mutation for uploading dataset
+  const uploadMutation = useMutation({
+    mutationFn: async ({ file, projectName, projectDescription }) => {
+      return await uploadDataset(file, projectName, projectDescription);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(["recentProjects"]);
+      toast.success("Project created successfully!");
+      setShowModal(false);
+      navigate("/data", { state: { datasetId: data.dataset_id, apiData: data } });
+    },
+    onError: (error) => {
+      toast.error("Error creating project: " + error.message);
+    },
+  });
 
+  const handleNewProjectClick = () => setShowModal(true);
   const handleCloseModal = () => {
     setShowModal(false);
+    setFormData({ projectName: "", projectDescription: "" });
+    setErrors({});
   };
 
-  const handleSubmitModal = async (event) => {
-    event.preventDefault();
-
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.projectName.trim()) {
+      newErrors.projectName = "Project name is required";
+    }
+    if (!formData.projectDescription.trim()) {
+      newErrors.projectDescription = "Project description is required";
+    }
     if (!fileUpload) {
-      alert("Please select a file to upload");
-      return;
+      newErrors.file = "Please select a file to upload";
     }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    if (!projectName.trim()) {
-      alert("Project Name cannot be empty");
-      return;
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
 
-    if (!projectDescription.trim()) {
-      alert("Project Description cannot be empty");
-      return;
-    }
-
-     const formData = new FormData();
-     formData.append("file", fileUpload);
-     formData.append("projectName", projectName);
-     formData.append("projectDescription", projectDescription);
-
-    try {
-      const data = await uploadDataset(
-        fileUpload,
-        projectName,
-        projectDescription
-      );
-      console.log("Backend response data:", data);
-
-      const datasetId = data.dataset_id;
-      console.log("Dataset ID:", datasetId);
-
-      if (datasetId) {
-        navigate("/data", { state: { datasetId, apiData: data } });
-        console.log(
-          "Navigating to data screen with datasetId and the data:",
-          datasetId,
-          data
-        );
-      } else {
-        console.error("Dataset ID is undefined.");
-        alert("Error: Dataset ID is undefined.");
-      }
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      alert("Error uploading file. Please try again.");
-    }
-
-    setShowModal(false);
-    fetchRecentProjects(); // Refresh the recent projects list
+    uploadMutation.mutate({
+      file: fileUpload,
+      projectName: formData.projectName,
+      projectDescription: formData.projectDescription,
+    });
   };
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     setFileUpload(file);
-    console.log(file);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleRecentProjectClick = async (datasetId) => {
-    try {
-      // Fetch dataset details
-      const data = await getDatasetDetails(datasetId);
-      console.log("Dataset details:", data);
+    if (!datasetId) {
+      toast.error("No project selected");
+      return;
+    }
 
-      // Navigate to the data screen with the fetched data
+    try {
+      const data = await getDatasetDetails(datasetId);
       navigate("/data", { state: { datasetId, apiData: data } });
     } catch (error) {
-      console.error("Error fetching dataset details:", error);
-      alert("Error fetching dataset details. Please try again.");
+      toast.error("Error fetching project details");
     }
   };
 
-
-  // Default project names for buttons if there are less than 3 recent projects
+  // Default project names for buttons
   const defaultProjectNames = ["No Project", "No Project", "No Project"];
   const projectNames = recentProjects
     .map((project) => project.name)
@@ -119,87 +112,103 @@ const HomeScreen = () => {
       <div>
         <h1 className="text-5xl">
           Welcome to{" "}
-          <span className="text-blue-600 font-semibold">DataLoom</span>,
+          <span className="text-blue-600 font-semibold">DataLoom</span>
         </h1>
         <h1 className="text-4xl mt-2">
           your one-stop for{" "}
           <span className="text-green-600 font-semibold">
             Dataset Transformations
           </span>
-          .
         </h1>
       </div>
-      <div className="mt-20 mr-32 grid grid-cols-2 gap-10 justify-start w-2/5 font-sans font-semibold">
+
+      <div className="mt-20 mr-32 grid grid-cols-2 gap-10 justify-start w-2/5">
         <button
-          className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
+          className="h-16 text-lg bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white rounded-lg"
           onClick={handleNewProjectClick}
         >
           New Project
         </button>
-        <button
-          className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
-          onClick={() =>
-            handleRecentProjectClick(recentProjects[0]?.dataset_id)
-          }
-        >
-          {projectNames[0]}
-        </button>
-        <button
-          className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
-          onClick={() =>
-            handleRecentProjectClick(recentProjects[1]?.dataset_id)
-          }
-        >
-          {projectNames[1]}
-        </button>
-        <button
-          className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
-          onClick={() =>
-            handleRecentProjectClick(recentProjects[2]?.dataset_id)
-          }
-        >
-          {projectNames[2]}
-        </button>
+        {[0, 1, 2].map((index) => (
+          <button
+            key={index}
+            className="h-16 text-lg bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white rounded-lg"
+            onClick={() => handleRecentProjectClick(recentProjects[index]?.dataset_id)}
+          >
+            {projectNames[index]}
+          </button>
+        ))}
       </div>
+
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div
-            className="fixed inset-0 bg-black opacity-50"
-            onClick={handleCloseModal}
-          ></div>
-          <div className="bg-white rounded-lg p-8 z-50">
-            <h2 className="text-2xl font-semibold mb-4">Project Name</h2>
-            <input
-              type="text"
-              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-lg cursor-text bg-gray-50 focus:outline-none mb-4"
-              onChange={(e) => setProjectName(e.target.value)}
-            />
-            <h2 className="text-2xl font-semibold mb-4">Upload Dataset</h2>
-            <input
-              type="file"
-              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none mb-4"
-              onChange={handleFileUpload}
-            />
-            <h2 className="text-2xl font-semibold mb-4">Project Description</h2>
-            <input
-              type="text"
-              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-lg cursor-text bg-gray-50 focus:outline-none mb-4"
-              onChange={(e) => setProjectDescription(e.target.value)}
-            />
-            <div className="flex flex-row justify-between">
-              <button
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg"
-                onClick={handleSubmitModal}
-              >
-                Submit
-              </button>
-              <button
-                className="px-4 py-2 bg-red-500 text-white rounded-lg"
-                onClick={handleCloseModal}
-              >
-                Close
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold mb-6">Create New Project</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project Name
+                </label>
+                <input
+                  type="text"
+                  name="projectName"
+                  value={formData.projectName}
+                  onChange={handleInputChange}
+                  placeholder="Enter project name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+                {errors.projectName && (
+                  <p className="text-red-500 text-sm mt-1">{errors.projectName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Upload Dataset
+                </label>
+                <input
+                  type="file"
+                  onChange={handleFileUpload}
+                  className="w-full cursor-pointer"
+                />
+                {errors.file && (
+                  <p className="text-red-500 text-sm mt-1">{errors.file}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project Description
+                </label>
+                <textarea
+                  name="projectDescription"
+                  value={formData.projectDescription}
+                  onChange={handleInputChange}
+                  placeholder="Enter project description"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md resize-none h-32"
+                />
+                {errors.projectDescription && (
+                  <p className="text-red-500 text-sm mt-1">{errors.projectDescription}</p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-4 mt-6">
+                <button
+                  type="submit"
+                  disabled={uploadMutation.isLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {uploadMutation.isLoading ? "Creating..." : "Create Project"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
