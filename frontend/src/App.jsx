@@ -4,11 +4,16 @@ import {BrowserRouter as Router, Route, Routes, useLocation} from 'react-router-
 import DataScreen from './Components/DataScreen';
 import HomeScreen from './Components/Homescreen';
 import Navbar from './Components/Navbar';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 function App() {
   return (
     <Router>
+       <QueryClientProvider client={queryClient}>
       <AppContent />
+      </QueryClientProvider>
     </Router>
   );
 }
