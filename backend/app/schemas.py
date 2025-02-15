@@ -1,8 +1,9 @@
-from pydantic import BaseModel 
+from pydantic import BaseModel
 from enum import Enum
-from typing import Optional, Union, Any, List
+from typing import Optional, TypeVar, Union, Any, List , Generic
 import datetime
 
+T = TypeVar("T")
 
 # Basic Functions
 class FilterParameters(BaseModel):
@@ -130,4 +131,10 @@ class LastResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class PaginatedResponse(BaseModel, Generic[T]):
+    data: List[T]
+    total: int
+    page: int
+    limit: int
+    has_more: bool
  

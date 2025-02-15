@@ -19,6 +19,7 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "backend"
+    "backend",
+    "frontend"
   ]
 }
