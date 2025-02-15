@@ -130,18 +130,30 @@ async def get_dataset_details(dataset_id: int, db: Session = Depends(database.ge
     return data
  
 
-@router.get("/recent", response_model=List[schemas.LastResponse])
-def get_recent_datasets(db: Session = Depends(database.get_db)):
-    recent_datasets = db.query(models.Dataset).order_by(models.Dataset.last_modified.desc()).limit(3).all()
-    return [
-        schemas.LastResponse(
-            dataset_id=dataset.dataset_id,
-            name=dataset.name,
-            description=dataset.description,
-            last_modified=dataset.last_modified
-        ) for dataset in recent_datasets
-    ]
+@router.get("/recent",response_model=schemas.PaginatedResponse[schemas.LastResponse])
+def get_recent_datasets(
+    page: int = Query(1, alias="page", ge=1),
+    limit: int = Query(10, alias="limit", le=100),
+    db: Session = Depends(database.get_db)
+    ):
+    skip = (page - 1) * limit
+    datasets = db.query(models.Dataset).order_by(models.Dataset.last_modified.desc()).offset(skip).limit(limit).all()
+    total = db.query(models.Dataset).count()
 
+    return schemas.PaginatedResponse[schemas.LastResponse](
+        data=[
+            schemas.LastResponse(
+                dataset_id=dataset.dataset_id,
+                name=dataset.name,
+                description=dataset.description,
+                last_modified=dataset.last_modified
+            ) for dataset in datasets
+        ],
+        total=total,
+        page=page,
+        limit=limit,
+        has_more=(page * limit) < total
+    )
 
 @router.post("/{dataset_id}/transform", response_model=schemas.BasicQueryResponse)
 async def transform_dataset(
