@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas, database
 import pandas as pd
 import shutil
+import os
 from typing import List
 
 router = APIRouter()
@@ -84,7 +85,8 @@ async def upload_dataset(file: UploadFile = File(...), projectName: str = Form(.
     
     dataset = create_dataset(db, filename=projectName, file_path=copy_location, description=projectDescription)
     
-    
+    df = df.replace([float('inf'), float('-inf'), float('nan')], None)
+   
     data = {
         "filename": dataset.name,
         "file_path": dataset.file_path,
@@ -93,7 +95,6 @@ async def upload_dataset(file: UploadFile = File(...), projectName: str = Form(.
         "row_count": len(df),
         "rows": df.values.tolist()  # Convert dataframe rows to list of lists
     }
-    print("return to frontend", data)
     return data
 
 

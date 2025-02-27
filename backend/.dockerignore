@@ -1,0 +1,18 @@
+# Exclude Python virtual environments
+env/
+venv/
+
+# Exclude Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Exclude environment files
+.env
+.env.*
+
+# Exclude uploads directory if not needed in the image
+uploads/
+
+# Exclude any other unnecessary files or directories
+*.log
