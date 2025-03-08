@@ -10,7 +10,7 @@ const Navbar = ({ isSmall }) => {
       }`}
     >
       <div
-        className={`text-black font-semibold ${
+        className={`text-white font-semibold ${
           isSmall ? "text-base" : "text-lg"
         } flex items-center ml-4 md:ml-10`}
       >
