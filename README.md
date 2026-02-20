@@ -139,7 +139,7 @@ Run these from the project root:
 > Make sure you have activated your Python virtual environment and installed dependencies in `backend/` before running `npm run dev` from the root.
 
 **`psycopg2` install fails on Windows**
-> Use the binary version: `pip install psycopg2-binary`
+> Ensure you're installing dependencies from the `backend/` directory with `pip install -r requirements.txt`, which already uses the binary `psycopg2-binary` package.
 
 **Database connection errors**
 > Ensure PostgreSQL is running and the `DATABASE_URL` in `backend/.env` is correct.
