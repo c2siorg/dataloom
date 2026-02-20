@@ -4,8 +4,13 @@ from app import models, schemas, database
 import pandas as pd
 import shutil
 from typing import List
+from pathlib import Path
 
 router = APIRouter()
+
+# Create uploads directory if it doesn't exist
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 # CRUD Functions ---------------------------------------
 def create_dataset(db: Session, filename: str, file_path: str, description: str):
@@ -70,9 +75,11 @@ async def upload_dataset(file: UploadFile = File(...), projectName: str = Form(.
 
     print("FILE ->", file.filename)
 
-    file_location = f"uploads/{file.filename}"
+    file_location = UPLOAD_DIR / file.filename
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
+    
+    file_location = str(file_location)  # Convert Path to string for compatibility
    
     try: 
         df = pd.read_csv(file_location)
@@ -84,6 +91,8 @@ async def upload_dataset(file: UploadFile = File(...), projectName: str = Form(.
     
     dataset = create_dataset(db, filename=projectName, file_path=copy_location, description=projectDescription)
     
+    # Replace inf/-inf/nan values for JSON serialization
+    df = df.replace([float('inf'), float('-inf'), float('nan')], " ")
     
     data = {
         "filename": dataset.name,
