@@ -84,6 +84,8 @@ Install Python dependencies:
 pip install -r requirements.txt
 ```
 
+> **Note:** Keep this virtual environment activated in your terminal for the remaining setup steps. The backend requires it to be active when `npm run dev` is run from the root directory.
+
 ### 5. Set Up Environment Variables
 
 Create a `.env` file inside the `backend/` directory. Use the provided sample as a reference:
