@@ -17,7 +17,7 @@
   },
   "packageManager": "npm@10.5.1",
   "workspaces": [
-    "apps/*",
+    "frontend",
     "packages/*",
     "backend"
   ]
