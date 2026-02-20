@@ -18,7 +18,7 @@ This project uses [TurboRepo](https://turbo.build/repo) to manage the monorepo a
 Make sure you have the following installed before getting started:
 
 - **Node.js** `>= 18` — [Download](https://nodejs.org/)
-- **npm** `>= 10` (comes with Node.js)
+- **npm** `>= 10` — upgrade if needed with `npm install -g npm@latest`
 - **Python** `>= 3.10` — [Download](https://www.python.org/)
 - **PostgreSQL** — [Download](https://www.postgresql.org/download/)
 - **TurboRepo** (see install step below)
