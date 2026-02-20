@@ -7,7 +7,7 @@ Project is to design and implement a web-based GUI for data wrangling, aimed at 
 | Name | Description |
 |---|---|
 | `frontend` | React.js app (Vite) — served at `http://localhost:5173` |
-| `backend` | Python FastAPI app — served at `http://127.0.0.1:8000` |
+| `backend` | Python FastAPI app — served at `http://localhost:8000` |
 
 This project uses [TurboRepo](https://turbo.build/repo) to manage the monorepo and run both apps together with a single command.
 
@@ -113,8 +113,8 @@ npm run dev
 TurboRepo will start both services in parallel:
 
 - **Frontend:** `http://localhost:5173`
-- **Backend API:** `http://127.0.0.1:8000`
-- **API Docs (Swagger):** `http://127.0.0.1:8000/docs`
+- **Backend API:** `http://localhost:8000`
+- **API Docs (Swagger):** `http://localhost:8000/docs`
 
 ---
 
