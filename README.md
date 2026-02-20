@@ -52,7 +52,7 @@ npx turbo <command>
 
 ### 3. Install Node.js Dependencies
 
-From the root of the project, install all dependencies for both `frontend` and all packages at once:
+From the root of the project, install all dependencies for all workspaces including the `frontend`:
 
 ```bash
 npm install
