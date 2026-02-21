@@ -1,21 +1,75 @@
 # DataLoom
-Project is to design and implement a web-based GUI for data wrangling, aimed at simplifying the process of managing and transforming tabular datasets. This application will serve as a graphical interface for the powerful Python library, allowing users to perform complex data manipulation tasks without the need for in-depth programming knowledge. 
 
-### Apps and Packages
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-- `frontend`: a React.js app
-- `backend`:  Python(FastAPI) app
+A web-based GUI for data wrangling — manage and transform tabular datasets (CSV) through a graphical interface powered by pandas, without writing code.
 
-### Run Application
-**Set Up Environment Variables** :
-Create a `.env` file in the `apps/backend` directory and add details as per `.env.sample` file.
+## Features
 
-**Installing FastApi Backend** : In the `apps/backend` directory, run `python3 -m venv env`, then run `. env/scripts/activate` (On Windows), then ensure all required dependencies are installed by running `pip install -r requirements.txt`.
+- Upload and manage CSV datasets through a graphical interface
+- Apply pandas-powered transformations: filter, sort, pivot, deduplicate, and more
+- Inline cell editing and row/column management
+- Checkpoint system — save and revert dataset states
+- Full action history tracking via change logs
 
-**To run the project**, run the following command:
+## Prerequisites
+
+- Node.js >= 18
+- Python 3.12+
+- PostgreSQL
+
+## Getting Started
+
+### Backend
+
+```bash
+cd dataloom-backend
+cp .env.example .env          # Configure DB credentials
+uv sync
+uv run uvicorn app.main:app --reload --port 4200
 ```
-cd DataLoom
+
+### Frontend
+
+```bash
+cd dataloom-frontend
+npm install
 npm run dev
 ```
 
-The backend server will start and be accessible at `http://127.0.0.1:8000`.
+| Service  | Port |
+|----------|------|
+| Frontend | 3200 |
+| Backend  | 4200 |
+
+## Running Tests
+
+```bash
+# Backend
+cd dataloom-backend && uv run pytest
+
+# Frontend
+cd dataloom-frontend && npm run test
+```
+
+## Project Structure
+
+```
+dataloom/
+  dataloom-backend/    # Python FastAPI server
+  dataloom-frontend/   # React + Vite SPA
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+[Apache 2.0](LICENSE)
+
+## Author
+
+[Oshan Mudannayake](mailto:oshan.ivantha@gmail.com)
+
+For questions or queries about this project, please reach out via email.
