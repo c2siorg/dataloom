@@ -143,6 +143,19 @@ def get_recent_datasets(db: Session = Depends(database.get_db)):
     ]
 
 
+@router.get("/all", response_model=List[schemas.LastResponse])
+def get_all_datasets(db: Session = Depends(database.get_db)):
+    all_datasets = db.query(models.Dataset).order_by(models.Dataset.last_modified.desc()).all()
+    return [
+        schemas.LastResponse(
+            dataset_id=dataset.dataset_id,
+            name=dataset.name,
+            description=dataset.description,
+            last_modified=dataset.last_modified
+        ) for dataset in all_datasets
+    ]
+
+
 @router.post("/{dataset_id}/transform", response_model=schemas.BasicQueryResponse)
 async def transform_dataset(
     dataset_id: int,

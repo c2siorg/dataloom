@@ -1,6 +1,6 @@
 import axios from 'axios';
 const API = axios.create({
-    baseURL : "http://localhost:8000/",
+    baseURL: "http://localhost:8000/",
 });
 
 export const uploadDataset = async (file, projectName, projectDescription) => {
@@ -51,7 +51,11 @@ export const getRecentProjects = () => {
     return API.get('/datasets/recent');
 };
 
- 
+export const getAllDatasets = () => {
+    return API.get('/datasets/all');
+};
+
+
 export const getLogs = (datasetId) => {
     return API.get(`/logs/${datasetId}`);
 };

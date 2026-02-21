@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadDataset, getRecentProjects, getDatasetDetails } from "../api.js";
+import { uploadDataset, getRecentProjects, getDatasetDetails, getAllDatasets } from "../api.js";
 
 const HomeScreen = () => {
   const [showModal, setShowModal] = useState(false);
@@ -9,10 +9,12 @@ const HomeScreen = () => {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [recentProjects, setRecentProjects] = useState([]);
+  const [allDatasets, setAllDatasets] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchRecentProjects();
+    fetchAllDatasets();
   }, []);
 
   const fetchRecentProjects = async () => {
@@ -21,6 +23,15 @@ const HomeScreen = () => {
       setRecentProjects(response.data);
     } catch (error) {
       console.error("Error fetching recent projects:", error);
+    }
+  };
+
+  const fetchAllDatasets = async () => {
+    try {
+      const response = await getAllDatasets();
+      setAllDatasets(response.data);
+    } catch (error) {
+      console.error("Error fetching all datasets:", error);
     }
   };
 
@@ -50,10 +61,10 @@ const HomeScreen = () => {
       return;
     }
 
-     const formData = new FormData();
-     formData.append("file", fileUpload);
-     formData.append("projectName", projectName);
-     formData.append("projectDescription", projectDescription);
+    const formData = new FormData();
+    formData.append("file", fileUpload);
+    formData.append("projectName", projectName);
+    formData.append("projectDescription", projectDescription);
 
     try {
       const data = await uploadDataset(
@@ -115,8 +126,8 @@ const HomeScreen = () => {
     .slice(0, 3);
 
   return (
-    <div className="flex flex-col mr-64 mt-32 items-center min-h-screen bg-white">
-      <div>
+    <div className="flex flex-col mt-32 items-center min-h-screen bg-white">
+      <div className="text-center w-3/5">
         <h1 className="text-5xl">
           Welcome to{" "}
           <span className="text-blue-600 font-semibold">DataLoom</span>,
@@ -129,37 +140,58 @@ const HomeScreen = () => {
           .
         </h1>
       </div>
-      <div className="mt-20 mr-32 grid grid-cols-2 gap-10 justify-start w-2/5 font-sans font-semibold">
+      <div className="mt-20 grid grid-cols-2 gap-10 justify-start w-2/5 font-sans font-semibold">
         <button
           className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
           onClick={handleNewProjectClick}
         >
           New Project
         </button>
-        <button
-          className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
-          onClick={() =>
-            handleRecentProjectClick(recentProjects[0]?.dataset_id)
-          }
-        >
-          {projectNames[0]}
-        </button>
-        <button
-          className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
-          onClick={() =>
-            handleRecentProjectClick(recentProjects[1]?.dataset_id)
-          }
-        >
-          {projectNames[1]}
-        </button>
-        <button
-          className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
-          onClick={() =>
-            handleRecentProjectClick(recentProjects[2]?.dataset_id)
-          }
-        >
-          {projectNames[2]}
-        </button>
+        {projectNames.map((name, index) => (
+          <button
+            key={index}
+            className="px-2 py-4 bg-gradient-to-r from-purple-400 hover:bg-pink-600 rounded-lg shadow-lg"
+            onClick={() =>
+              recentProjects[index] && handleRecentProjectClick(recentProjects[index].dataset_id)
+            }
+            disabled={!recentProjects[index]}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+      <div className="mt-16 w-4/5 max-w-6xl">
+        <h2 className="text-2xl font-semibold mb-4 text-purple-700">All Datasets</h2>
+        {allDatasets.length > 0 ? (
+          <div className="overflow-x-auto shadow-lg rounded-lg ring-1 ring-purple-200">
+            <table className="min-w-full bg-white border-collapse">
+              <thead className="bg-gradient-to-r from-purple-100 to-green-100">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-purple-700 border-b border-purple-200">Dataset Name</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-purple-700 border-b border-purple-200">Description</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-purple-700 border-b border-purple-200">Last Modified</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allDatasets.map((dataset, index) => (
+                  <tr
+                    key={index}
+                    className="hover:bg-green-50 cursor-pointer border-b border-purple-100 transition-colors"
+                    onClick={() => handleRecentProjectClick(dataset.dataset_id)}
+                  >
+                    <td className="px-6 py-3 text-sm text-purple-900">{dataset.name}</td>
+                    <td className="px-6 py-3 text-sm text-green-800">{dataset.description}</td>
+                    <td className="px-6 py-3 text-sm text-green-700">
+                      {new Date(dataset.last_modified).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-purple-600 text-center py-8">No datasets available</p>
+        )}
       </div>
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
