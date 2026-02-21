@@ -8,9 +8,9 @@ Project is to design and implement a web-based GUI for data wrangling, aimed at 
 
 ### Run Application
 **Set Up Environment Variables** :
-Create a `.env` file in the `apps/backend` directory and add details as per `.env.sample` file.
+Create a `.env` file in the `backend` directory and add details as per `.env.sample` file.
 
-**Installing FastApi Backend** : In the `apps/backend` directory, run `python3 -m venv env`, then run `. env/scripts/activate` (On Windows), then ensure all required dependencies are installed by running `pip install -r requirements.txt`.
+**Installing FastApi Backend** : In the `backend` directory, run `python3 -m venv env`, then run `source env/bin/activate` (Mac/Linux) or `. env/scripts/activate` (Windows), then ensure all required dependencies are installed by running `pip install -r requirements.txt`.
 
 **To run the project**, run the following command:
 ```

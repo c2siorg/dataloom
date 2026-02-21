@@ -70,6 +70,8 @@ async def upload_dataset(file: UploadFile = File(...), projectName: str = Form(.
 
     print("FILE ->", file.filename)
 
+    import os
+    os.makedirs("uploads", exist_ok=True)
     file_location = f"uploads/{file.filename}"
     with open(file_location, "wb+") as file_object:
         shutil.copyfileobj(file.file, file_object)
@@ -91,7 +93,7 @@ async def upload_dataset(file: UploadFile = File(...), projectName: str = Form(.
         "dataset_id": dataset.dataset_id,
         "columns": df.columns.tolist(),
         "row_count": len(df),
-        "rows": df.values.tolist()  # Convert dataframe rows to list of lists
+        "rows": df.head(100).values.tolist()  # Only return the first 100 rows for the preview
     }
     print("return to frontend", data)
     return data
@@ -123,7 +125,7 @@ async def get_dataset_details(dataset_id: int, db: Session = Depends(database.ge
         "dataset_id": dataset_id,
         "columns": df.columns.tolist(),
         "row_count": len(df),
-        "rows": df.values.tolist()
+        "rows": df.head(100).values.tolist()
     }
     
     print("return to frontend", data)
@@ -342,7 +344,7 @@ async def transform_dataset(
         # "result": result,
         "row_count": len(df),
         "columns": df.columns.tolist(),
-        "rows": df.values.tolist()  # Convert dataframe rows to list of lists
+        "rows": df.head(100).values.tolist()  # Convert dataframe rows to list of lists
     }
 
     print("msg to frontend", data)
@@ -458,7 +460,7 @@ async def Complextransform(
             "operation_type": transformation_input.operation_type,
             "row_count": len(df),
             "columns": df.columns.tolist(),   
-            "rows": df.astype(str).values.tolist()   
+            "rows": df.head(100).astype(str).values.tolist()   
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error preparing response data: {str(e)}")
@@ -563,7 +565,7 @@ async def save_dataset(dataset_id: int, commit_message: str, db: Session = Depen
         "dataset_id": dataset.dataset_id,
         "columns": df.columns.tolist(),
         "row_count": len(df),
-        "rows": df.values.tolist()
+        "rows": df.head(100).values.tolist()
     }
     return data
 
@@ -643,6 +645,6 @@ async def revert_to_checkpoint(dataset_id: int, db: Session = Depends(database.g
         "dataset_id": dataset.dataset_id,
         "columns": df.columns.tolist(),
         "row_count": len(df),
-        "rows": df.values.tolist()
+        "rows": df.head(100).values.tolist()
     }
     return data
