@@ -1,9 +1,0 @@
-{
-  "name": "backend",
-  "version": "1.0.0",
-  "scripts": {
-    "dev": "uvicorn app.main:app --reload",
-    "start": "uvicorn app.main:app",
-    "build": "pip install -r requirements.txt"
-  }
-}

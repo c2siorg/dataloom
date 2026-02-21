@@ -1,0 +1,201 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { uploadProject, getRecentProjects } from "../api";
+import { useToast } from "../context/ToastContext";
+
+const ProjectCard = ({ project, onClick }) => {
+  const modified = new Date(project.last_modified).toLocaleDateString(
+    undefined,
+    { year: "numeric", month: "short", day: "numeric" }
+  );
+
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md"
+    >
+      <h3 className="text-lg font-semibold text-gray-900 truncate w-full">
+        {project.name}
+      </h3>
+      {project.description && (
+        <p className="text-sm text-gray-500 line-clamp-2">
+          {project.description}
+        </p>
+      )}
+      <span className="mt-auto text-xs text-gray-400">{modified}</span>
+    </button>
+  );
+};
+
+const NewProjectCard = ({ onClick }) => (
+  <button
+    onClick={onClick}
+    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100"
+  >
+    <span className="text-3xl leading-none text-blue-500">+</span>
+    <span className="text-sm font-medium text-blue-600">New Project</span>
+  </button>
+);
+
+const HomeScreen = () => {
+  const [showModal, setShowModal] = useState(false);
+  const [fileUpload, setFileUpload] = useState(null);
+  const [projectName, setProjectName] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
+  const [recentProjects, setRecentProjects] = useState([]);
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    fetchRecentProjects();
+  }, []);
+
+  const fetchRecentProjects = async () => {
+    try {
+      const response = await getRecentProjects();
+      setRecentProjects(response);
+    } catch (error) {
+      console.error("Error fetching recent projects:", error);
+    }
+  };
+
+  const handleNewProjectClick = () => {
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+  };
+
+  const handleSubmitModal = async (event) => {
+    event.preventDefault();
+
+    if (!fileUpload) {
+      showToast("Please select a file to upload", "warning");
+      return;
+    }
+
+    if (!projectName.trim()) {
+      showToast("Project Name cannot be empty", "warning");
+      return;
+    }
+
+    if (!projectDescription.trim()) {
+      showToast("Project Description cannot be empty", "warning");
+      return;
+    }
+
+    try {
+      const data = await uploadProject(
+        fileUpload,
+        projectName,
+        projectDescription
+      );
+      console.log("Backend response data:", data);
+
+      const projectId = data.project_id;
+      console.log("Project ID:", projectId);
+
+      if (projectId) {
+        navigate(`/workspace/${projectId}`);
+      } else {
+        console.error("Project ID is undefined.");
+        showToast("Error: Project ID is undefined.", "error");
+      }
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      showToast("Error uploading file. Please try again.", "error");
+    }
+
+    setShowModal(false);
+    fetchRecentProjects();
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    setFileUpload(file);
+    console.log(file);
+  };
+
+  const handleRecentProjectClick = (projectId) => {
+    if (!projectId) return;
+    navigate(`/workspace/${projectId}`);
+  };
+
+  return (
+    <div className="flex flex-col items-center min-h-screen bg-white px-6 pt-24">
+      <div className="w-full max-w-4xl">
+        <h1 className="text-5xl text-gray-900">
+          Welcome to{" "}
+          <span className="text-blue-500 font-bold">DataLoom</span>,
+        </h1>
+        <h1 className="text-4xl mt-2 text-gray-900">
+          your one-stop for{" "}
+          <span className="text-gray-900 font-semibold">
+            Dataset Transformations
+          </span>
+          .
+        </h1>
+
+        <h2 className="mt-12 mb-4 text-lg font-medium text-gray-700">
+          Projects
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <NewProjectCard onClick={handleNewProjectClick} />
+          {recentProjects.map((project) => (
+            <ProjectCard
+              key={project.project_id}
+              project={project}
+              onClick={() => handleRecentProjectClick(project.project_id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div
+            className="fixed inset-0 bg-black/50"
+            onClick={handleCloseModal}
+          ></div>
+          <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Name</h2>
+            <input
+              type="text"
+              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+              onChange={(e) => setProjectName(e.target.value)}
+            />
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Upload Dataset</h2>
+            <input
+              type="file"
+              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none mb-4"
+              onChange={handleFileUpload}
+            />
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Description</h2>
+            <input
+              type="text"
+              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+              onChange={(e) => setProjectDescription(e.target.value)}
+            />
+            <div className="flex flex-row justify-between">
+              <button
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium transition-colors duration-150"
+                onClick={handleSubmitModal}
+              >
+                Submit
+              </button>
+              <button
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md font-medium transition-colors duration-150"
+                onClick={handleCloseModal}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default HomeScreen;
