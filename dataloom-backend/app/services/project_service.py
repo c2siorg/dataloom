@@ -61,20 +61,6 @@ def get_recent_projects(db: Session, limit: int = 3) -> list[models.Project]:
     )
 
 
-def delete_project(db: Session, project: models.Project) -> None:
-    """Delete a project record from the database.
-
-    Cascade rules on the model handle deleting associated logs and checkpoints.
-
-    Args:
-        db: Database session.
-        project: The Project model instance to delete.
-    """
-    db.delete(project)
-    db.commit()
-    logger.info("Deleted project: id=%s, name=%s", project.project_id, project.name)
-
-
 def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, details: dict) -> None:
     """Record a transformation action in the change log.
 

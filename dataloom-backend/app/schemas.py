@@ -31,8 +31,6 @@ class OperationType(str, Enum):
     advQueryFilter = 'advQueryFilter'
     pivotTables = 'pivotTables'
     changeCellValue = 'changeCellValue'
-    renameCol = 'renameCol'
-    castDataType = 'castDataType'
 
 
 class DropDup(str, Enum):
@@ -64,8 +62,6 @@ class ActionTypes(str, Enum):
     advQueryFilter = 'advQueryFilter'
     pivotTables = 'pivotTables'
     changeCellValue = 'changeCellValue'
-    renameCol = 'renameCol'
-    castDataType = 'castDataType'
 
 
 # --- Basic transformation parameter schemas ---
@@ -105,27 +101,6 @@ class FillEmptyParams(BaseModel):
     """Parameters for filling empty cells."""
     index: Optional[int]
     fill_value: Any
-
-
-class RenameColumnParams(BaseModel):
-    """Parameters for renaming a column."""
-    col_index: int
-    new_name: str
-
-
-class DataType(str, Enum):
-    """Supported target types for data type casting."""
-    string = "string"
-    integer = "integer"
-    float = "float"
-    boolean = "boolean"
-    datetime = "datetime"
-
-
-class CastDataTypeParams(BaseModel):
-    """Parameters for casting a column to a different data type."""
-    column: str
-    target_type: DataType
 
 
 # --- Complex transformation parameter schemas ---
@@ -181,8 +156,6 @@ class TransformationInput(BaseModel):
     adv_query: Optional[AdvQuery] = None
     pivot_query: Optional[Pivot] = None
     change_cell_value: Optional[ChangeCellValue] = None
-    rename_col_params: Optional[RenameColumnParams] = None
-    cast_data_type_params: Optional[CastDataTypeParams] = None
 
 
 class BasicQueryResponse(BaseModel):

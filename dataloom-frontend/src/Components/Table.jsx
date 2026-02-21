@@ -82,29 +82,6 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleRenameColumn = async (index) => {
-    if (index === 0) {
-      alert("Cannot rename the S.No. column.");
-      return;
-    }
-
-    const newName = prompt("Enter new column name:");
-    if (newName) {
-      try {
-        const response = await transformProject(projectId, {
-          operation_type: "renameCol",
-          rename_col_params: { col_index: index - 1, new_name: newName },
-        });
-        updateTableData(response);
-        const { columns, rows } = response;
-        setColumns(["S.No.", ...columns]);
-        setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-      } catch (error) {
-        alert("Failed to rename column. Please try again.");
-      }
-    }
-  };
-
   const handleDeleteColumn = async (index) => {
     if (index === 0) {
       alert("Cannot delete the S.No. column.");
@@ -203,7 +180,7 @@ const Table = ({ projectId, data: externalData }) => {
   };
 
   return (
-    <div className="px-8 pt-3" onClick={handleCloseContextMenu}>
+    <div className="container mx-auto p-2" onClick={handleCloseContextMenu}>
       <div className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "calc(100vh - 140px)" }}>
         <table className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
@@ -292,12 +269,6 @@ const Table = ({ projectId, data: externalData }) => {
             onClick={() => handleDeleteColumn(contextMenu.columnIndex)}
           >
             Delete Column
-          </button>
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleRenameColumn(contextMenu.columnIndex)}
-          >
-            Rename Column
           </button>
         </div>
       )}

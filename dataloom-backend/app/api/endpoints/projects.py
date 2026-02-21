@@ -6,7 +6,6 @@ Handles upload, retrieval, save (checkpoint), and revert operations.
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from sqlmodel import Session
 
 from app import database, models, schemas
@@ -14,10 +13,9 @@ from app.api.dependencies import get_project_or_404
 from app.services.project_service import (
     create_checkpoint,
     create_project,
-    delete_project,
     get_recent_projects,
 )
-from app.services.file_service import delete_project_files, get_original_path, store_upload
+from app.services.file_service import get_original_path, store_upload
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
@@ -182,19 +180,3 @@ async def revert_to_checkpoint(
         "project_id": project.project_id,
         **resp,
     }
-
-
-@router.get("/{project_id}/export")
-async def export_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Download the current working copy of a project as a CSV file."""
-    project = get_project_or_404(project_id, db)
-    return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
-
-
-@router.delete("/{project_id}")
-async def delete_project_endpoint(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Delete a project and its associated files."""
-    project = get_project_or_404(project_id, db)
-    delete_project_files(project.file_path)
-    delete_project(db, project)
-    return {"success": True, "message": "Project deleted"}

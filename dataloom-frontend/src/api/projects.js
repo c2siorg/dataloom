@@ -64,25 +64,3 @@ export const revertToCheckpoint = async (projectId, checkpointId) => {
   );
   return response.data;
 };
-
-/**
- * Export the current working copy of a project as a CSV download.
- * @param {string} projectId - The project ID.
- * @returns {Promise<Blob>} The CSV file as a Blob.
- */
-export const exportProject = async (projectId) => {
-  const response = await client.get(`/projects/${projectId}/export`, {
-    responseType: "blob",
-  });
-  return response.data;
-};
-
-/**
- * Delete a project and its associated files.
- * @param {string} projectId - The project ID.
- * @returns {Promise<Object>} Success confirmation.
- */
-export const deleteProject = async (projectId) => {
-  const response = await client.delete(`/projects/${projectId}`);
-  return response.data;
-};

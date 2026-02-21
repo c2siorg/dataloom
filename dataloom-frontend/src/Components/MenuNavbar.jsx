@@ -4,12 +4,10 @@ import SortForm from "./forms/SortForm";
 import DropDuplicateForm from "./forms/DropDuplicateForm";
 import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
-import CastDataTypeForm from "./forms/CastDataTypeForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import {
   saveProject,
-  exportProject,
   getLogs,
   getCheckpoints,
   revertToCheckpoint,
@@ -24,8 +22,6 @@ import {
   LuSave,
   LuHistory,
   LuBookmark,
-  LuDownload,
-  LuRefreshCw,
 } from "react-icons/lu";
 
 const Menu_NavBar = ({ projectId, onTransform }) => {
@@ -36,7 +32,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showPivotTableForm, setShowPivotTableForm] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [showCheckpoints, setShowCheckpoints] = useState(false);
-  const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
 
@@ -81,23 +76,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     }
   };
 
-  const handleExport = async () => {
-    try {
-      const blob = await exportProject(projectId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "export.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error exporting project:", error);
-      alert("Failed to export project.");
-    }
-  };
-
   const handleRevert = async (checkpointId) => {
     if (window.confirm("Are you sure you want to revert to this checkpoint?")) {
       try {
@@ -118,7 +96,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     setShowDropDuplicateForm(false);
     setShowAdvQueryFilterForm(false);
     setShowPivotTableForm(false);
-    setShowCastDataTypeForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
 
@@ -138,9 +115,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       case "PivotTableForm":
         setShowPivotTableForm(true);
         break;
-      case "CastDataTypeForm":
-        setShowCastDataTypeForm(true);
-        break;
       case "Logs":
         setShowLogs(true);
         break;
@@ -152,33 +126,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState("File");
+  const [activeTab, setActiveTab] = useState("Data");
 
   const tabs = {
-    File: [
-      {
-        group: "Save",
-        items: [
-          { label: "Save", icon: LuSave, onClick: handleSave },
-          { label: "Export", icon: LuDownload, onClick: handleExport },
-        ],
-      },
-      {
-        group: "History",
-        items: [
-          {
-            label: "Logs",
-            icon: LuHistory,
-            onClick: () => handleMenuClick("Logs"),
-          },
-          {
-            label: "Checkpoints",
-            icon: LuBookmark,
-            onClick: () => handleMenuClick("Checkpoints"),
-          },
-        ],
-      },
-    ],
     Data: [
       {
         group: "Transform",
@@ -198,11 +148,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             icon: LuCopyMinus,
             onClick: () => handleMenuClick("DropDuplicateForm"),
           },
-          {
-            label: "Cast Type",
-            icon: LuRefreshCw,
-            onClick: () => handleMenuClick("CastDataTypeForm"),
-          },
         ],
       },
       {
@@ -221,12 +166,35 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         ],
       },
     ],
+    File: [
+      {
+        group: "Save",
+        items: [
+          { label: "Save", icon: LuSave, onClick: handleSave },
+        ],
+      },
+      {
+        group: "History",
+        items: [
+          {
+            label: "Logs",
+            icon: LuHistory,
+            onClick: () => handleMenuClick("Logs"),
+          },
+          {
+            label: "Checkpoints",
+            icon: LuBookmark,
+            onClick: () => handleMenuClick("Checkpoints"),
+          },
+        ],
+      },
+    ],
   };
 
   return (
     <div className="bg-white border-b border-gray-200">
       {/* Tab bar */}
-      <div className="flex items-center gap-0 border-b border-gray-200 px-8">
+      <div className="flex items-center gap-0 border-b border-gray-200 px-2">
         {Object.keys(tabs).map((tabName) => (
           <button
             key={tabName}
@@ -243,7 +211,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       </div>
 
       {/* Ribbon body */}
-      <div className="flex items-stretch gap-3 px-8 py-2 min-h-[64px]">
+      <div className="flex items-stretch gap-3 px-3 py-2 min-h-[64px]">
         {tabs[activeTab].map((section, sectionIdx) => (
           <div key={section.group} className="flex items-stretch gap-3">
             {sectionIdx > 0 && (
@@ -301,13 +269,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         <PivotTableForm
           onClose={() => setShowPivotTableForm(false)}
           projectId={projectId}
-        />
-      )}
-      {showCastDataTypeForm && (
-        <CastDataTypeForm
-          projectId={projectId}
-          onClose={() => setShowCastDataTypeForm(false)}
-          onTransform={onTransform}
         />
       )}
       {showLogs && <LogsPanel logs={logs} onClose={() => setShowLogs(false)} />}

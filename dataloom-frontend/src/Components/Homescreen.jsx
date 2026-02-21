@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadProject, getRecentProjects, deleteProject } from "../api";
+import { uploadProject, getRecentProjects } from "../api";
 import { useToast } from "../context/ToastContext";
-import ConfirmDialog from "./common/ConfirmDialog";
 
-const ProjectCard = ({ project, onClick, onDelete }) => {
+const ProjectCard = ({ project, onClick }) => {
   const modified = new Date(project.last_modified).toLocaleDateString(
     undefined,
     { year: "numeric", month: "short", day: "numeric" }
@@ -13,21 +12,9 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
   return (
     <button
       onClick={onClick}
-      className="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md"
+      className="flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md"
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(project.project_id);
-        }}
-        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors duration-150 p-1 rounded-md hover:bg-red-50"
-        aria-label="Delete project"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-        </svg>
-      </button>
-      <h3 className="text-lg font-semibold text-gray-900 truncate w-full pr-6">
+      <h3 className="text-lg font-semibold text-gray-900 truncate w-full">
         {project.name}
       </h3>
       {project.description && (
@@ -56,7 +43,6 @@ const HomeScreen = () => {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [recentProjects, setRecentProjects] = useState([]);
-  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, projectId: null });
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -131,26 +117,6 @@ const HomeScreen = () => {
     console.log(file);
   };
 
-  const handleDeleteClick = (projectId) => {
-    setDeleteConfirm({ open: true, projectId });
-  };
-
-  const handleDeleteConfirm = async () => {
-    try {
-      await deleteProject(deleteConfirm.projectId);
-      showToast("Project deleted successfully", "success");
-      fetchRecentProjects();
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      showToast("Failed to delete project", "error");
-    }
-    setDeleteConfirm({ open: false, projectId: null });
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteConfirm({ open: false, projectId: null });
-  };
-
   const handleRecentProjectClick = (projectId) => {
     if (!projectId) return;
     navigate(`/workspace/${projectId}`);
@@ -181,18 +147,10 @@ const HomeScreen = () => {
               key={project.project_id}
               project={project}
               onClick={() => handleRecentProjectClick(project.project_id)}
-              onDelete={handleDeleteClick}
             />
           ))}
         </div>
       </div>
-
-      <ConfirmDialog
-        isOpen={deleteConfirm.open}
-        message="Are you sure you want to delete this project? This action cannot be undone."
-        onConfirm={handleDeleteConfirm}
-        onCancel={handleDeleteCancel}
-      />
 
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
