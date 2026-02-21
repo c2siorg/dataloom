@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dataloom
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: dataloom-backend
+    restart: unless-stopped
+    ports:
+      - "4200:4200"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/dataloom
+    depends_on:
+      - db
+
+  frontend:
+    build: dataloom-frontend
+    restart: unless-stopped
+    ports:
+      - "3200:3200"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

@@ -1,75 +1,27 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
 
-# Node.js Dependencies
-node_modules/
-.pnp
-.pnp.js
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Python Dependencies
-__pycache__/
-*.py[cod]
-*.egg-info/
-env/
-venv/
-.Python
+# Linux
+*~
 
-# Local env files
+# JetBrains IDEs
+.idea/
+
+# VS Code
+.vscode/
+
+# Vim
+*.swp
+*.swo
+
+# Environment files
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Python local environment
-*.env
-.venv
-
-# Testing
-coverage/
-htmlcov/
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.pyc
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Turbo
-.turbo
-
-# Vercel
-.vercel
-
-# Build Outputs
-.next/
-out/
-build/
-dist/
-pip-wheel-metadata/
-wheels/
-share/python-wheels/
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Misc
-.DS_Store
-*.pem
-
-# FastAPI specific
-instance/
-fastapi.log
+.env.*.local
