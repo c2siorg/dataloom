@@ -6,9 +6,9 @@ import Navbar from "../Navbar";
  */
 export default function AppLayout() {
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-slate-50/50">
       <Navbar />
-      <main className="flex-1">
+      <main className="flex-1 flex flex-col">
         <Outlet />
       </main>
     </div>
