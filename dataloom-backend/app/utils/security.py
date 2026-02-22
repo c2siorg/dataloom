@@ -79,6 +79,7 @@ def resolve_upload_path(filename: str) -> Path:
 
 # Patterns that could be used for code injection via df.query()
 _DANGEROUS_PATTERNS = [
+    r'@',
     r'__import__',
     r'__builtins__',
     r'__class__',
