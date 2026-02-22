@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas, database
 import pandas as pd
 import shutil
+import re
 from typing import List
 
 router = APIRouter()
@@ -392,6 +393,15 @@ async def Complextransform(
         query_string = transformation_input.adv_query.query
         print(f"Applying Advanced Query: {query_string}")
 
+        # block stuff that could lead to code exec via df.query() -> eval()
+        # the @ lets you access python vars including __builtins__ which is bad
+        blocked = [r'@', r'__\w+__', r'\bimport\b', r'\beval\b', r'\bexec\b', 
+                   r'\bopen\b', r'\bos\b', r'\bsys\b', r'\bsubprocess\b', r'\blambda\b']
+        for p in blocked:
+            if re.search(p, query_string, re.IGNORECASE):
+                raise HTTPException(status_code=400, 
+                    detail="Query contains disallowed pattern, only column comparisons like 'col1 > 10 and col2 < 5' are allowed")
+
         try:
             # Ensure all columns and query components are properly formatted
             query_string = query_string.replace("'", "\"")  # Replace single quotes with double quotes
@@ -416,6 +426,8 @@ async def Complextransform(
             print("Query applied successfully. Resulting dataframe:")
             print(df)
 
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Error applying query '{query_string}': {str(e)}")
 
