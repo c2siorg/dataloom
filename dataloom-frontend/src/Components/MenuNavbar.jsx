@@ -11,6 +11,7 @@ import {
   getLogs,
   getCheckpoints,
   revertToCheckpoint,
+  getProjectProfile,
 } from "../api";
 import proptype from "prop-types";
 import {
@@ -22,9 +23,11 @@ import {
   LuSave,
   LuHistory,
   LuBookmark,
+  LuChartColumn,
 } from "react-icons/lu";
+import ProfilePanel from "./ProfilePanel";
 
-const Menu_NavBar = ({ projectId, onTransform }) => {
+const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
   const [showFilterForm, setShowFilterForm] = useState(false);
   const [showSortForm, setShowSortForm] = useState(false);
   const [showDropDuplicateForm, setShowDropDuplicateForm] = useState(false);
@@ -32,6 +35,8 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showPivotTableForm, setShowPivotTableForm] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [showCheckpoints, setShowCheckpoints] = useState(false);
+  const [showProfilePanel, setShowProfilePanel] = useState(false);
+  const [profileData, setProfileData] = useState(null);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
 
@@ -59,6 +64,15 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       setCheckpoints(checkpointsResponse);
     } catch (error) {
       console.error("Error fetching checkpoints:", error);
+    }
+  };
+
+  const fetchProfileData = async () => {
+    try {
+      const data = await getProjectProfile(projectId);
+      setProfileData(data);
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
     }
   };
 
@@ -98,6 +112,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     setShowPivotTableForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
+    setShowProfilePanel(false);
 
     switch (formType) {
       case "FilterForm":
@@ -120,6 +135,10 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         break;
       case "Checkpoints":
         setShowCheckpoints(true);
+        break;
+      case "ProfilePanel":
+        setShowProfilePanel(true);
+        fetchProfileData();
         break;
       default:
         break;
@@ -162,6 +181,23 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             label: "Pivot Table",
             icon: LuTable2,
             onClick: () => handleMenuClick("PivotTableForm"),
+          },
+        ],
+      },
+      {
+        group: "Analyze",
+        items: [
+          {
+            label: "Profile",
+            icon: LuChartColumn,
+            "data-testid": "profile-button",
+            onClick: () => {
+              if (showProfilePanel) {
+                setShowProfilePanel(false);
+              } else {
+                handleMenuClick("ProfilePanel");
+              }
+            },
           },
         ],
       },
@@ -223,6 +259,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
                   <button
                     key={item.label}
                     onClick={item.onClick}
+                    data-testid={item["data-testid"]}
                     className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150"
                   >
                     <item.icon className="w-5 h-5 text-gray-600" />
@@ -279,6 +316,22 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           onRevert={handleRevert}
         />
       )}
+      {showProfilePanel && (
+        <ProfilePanel
+          profileData={profileData}
+          onClose={() => setShowProfilePanel(false)}
+          onColumnClick={(columnName) => {
+            if (onColumnClick && profileData) {
+              const columnProfile = profileData.columns.find(
+                (col) => col.name === columnName
+              );
+              if (columnProfile) {
+                onColumnClick(columnProfile);
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -286,6 +339,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
 Menu_NavBar.propTypes = {
   projectId: proptype.string.isRequired,
   onTransform: proptype.func.isRequired,
+  onColumnClick: proptype.func,
 };
 
 export default Menu_NavBar;
