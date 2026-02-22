@@ -628,10 +628,14 @@ async def revert_to_checkpoint(dataset_id: int, db: Session = Depends(database.g
     # Load the original dataset
     original_path = dataset.file_path.replace('_copy.csv', '.csv')
     df = pd.read_csv(original_path)
-    print("CSV on which applied", original_path)
 
-    # Simply save the original dataset as _copy.csv
     save_dataframe_to_csv(df, dataset.file_path)
+
+    # clear unapplied logs so save doesn't replay them
+    db.query(models.DatasetChangeLog).filter(
+        models.DatasetChangeLog.dataset_id == dataset_id,
+        models.DatasetChangeLog.applied == False
+    ).delete()
 
     db.commit()
 
