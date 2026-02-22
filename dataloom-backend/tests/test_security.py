@@ -56,3 +56,12 @@ class TestValidateQueryString:
     def test_arbitrary_dunder_blocked(self):
         with pytest.raises(HTTPException):
             validate_query_string("obj.__globals__")
+
+    def test_at_prefix_blocked(self):
+        """@pd.io.common.os bypasses dunder checks"""
+        with pytest.raises(HTTPException):
+            validate_query_string("@pd.io.common.os.system('echo test')")
+
+    def test_at_prefix_read_csv_blocked(self):
+        with pytest.raises(HTTPException):
+            validate_query_string("@pd.read_csv('/etc/passwd')")
