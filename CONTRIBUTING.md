@@ -58,7 +58,11 @@ npm run dev
 
 1. Make your changes in a feature branch.
 2. Test your changes:
+<<<<<<< HEAD
    - **Backend:** `cd dataloom-backend && uv run pytest`
+=======
+   - **Backend:** `cd backend && uv run pytest`
+>>>>>>> 2aaec8e (docs: standardize backend setup to use uv package manager)
    - **Frontend:** `cd dataloom-frontend && npm run test`
 3. Lint and format your code:
    - **Frontend:** `npm run lint` and `npm run format`
