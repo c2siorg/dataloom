@@ -24,8 +24,10 @@ import {
   LuHistory,
   LuBookmark,
   LuChartColumn,
+  LuChartBar,
 } from "react-icons/lu";
 import ProfilePanel from "./ProfilePanel";
+import ChartBuilder from "./ChartBuilder";
 
 const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
   const [showFilterForm, setShowFilterForm] = useState(false);
@@ -36,6 +38,7 @@ const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
   const [showLogs, setShowLogs] = useState(false);
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showProfilePanel, setShowProfilePanel] = useState(false);
+  const [showChartBuilder, setShowChartBuilder] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
@@ -113,6 +116,7 @@ const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
     setShowLogs(false);
     setShowCheckpoints(false);
     setShowProfilePanel(false);
+    setShowChartBuilder(false);
 
     switch (formType) {
       case "FilterForm":
@@ -139,6 +143,9 @@ const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
       case "ProfilePanel":
         setShowProfilePanel(true);
         fetchProfileData();
+        break;
+      case "ChartBuilder":
+        setShowChartBuilder(true);
         break;
       default:
         break;
@@ -196,6 +203,18 @@ const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
                 setShowProfilePanel(false);
               } else {
                 handleMenuClick("ProfilePanel");
+              }
+            },
+          },
+          {
+            label: "Visualize",
+            icon: LuChartBar,
+            "data-testid": "visualize-button",
+            onClick: () => {
+              if (showChartBuilder) {
+                setShowChartBuilder(false);
+              } else {
+                handleMenuClick("ChartBuilder");
               }
             },
           },
@@ -330,6 +349,12 @@ const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
               }
             }
           }}
+        />
+      )}
+      {showChartBuilder && (
+        <ChartBuilder
+          projectId={projectId}
+          onClose={() => setShowChartBuilder(false)}
         />
       )}
     </div>
