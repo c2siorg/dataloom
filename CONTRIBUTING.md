@@ -21,15 +21,8 @@ Thank you for your interest in contributing to DataLoom! This document provides 
 
 ```bash
 cd dataloom-backend
-python3 -m venv env
-source env/bin/activate        # On macOS/Linux
-pip install -r requirements.txt
-```
-
-Copy the example environment file and configure it with your PostgreSQL connection:
-
-```bash
-cp .env.example .env
+cp .env.example .env          # Configure DB credentials
+uv sync
 ```
 
 Edit `.env` and set your `DATABASE_URL` to point to a running PostgreSQL instance with a database named `dataloom`.
@@ -37,7 +30,7 @@ Edit `.env` and set your `DATABASE_URL` to point to a running PostgreSQL instanc
 Start the backend development server:
 
 ```bash
-uvicorn app.main:app --reload --port 4200
+uv run uvicorn app.main:app --reload --port 4200
 ```
 
 The API will be available at `http://localhost:4200`.
@@ -65,7 +58,7 @@ npm run dev
 
 1. Make your changes in a feature branch.
 2. Test your changes:
-   - **Backend:** `cd dataloom-backend && pytest`
+   - **Backend:** `cd dataloom-backend && uv run pytest`
    - **Frontend:** `cd dataloom-frontend && npm run test`
 3. Lint and format your code:
    - **Frontend:** `npm run lint` and `npm run format`
