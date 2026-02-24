@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app import models
 from app.utils.logging import get_logger
@@ -110,10 +110,10 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     db.flush()  # Assigns ID before updating logs
 
     # Mark all unapplied logs as applied under this checkpoint
-    logs = db.query(models.ProjectChangeLog).filter(
+    logs = db.exec(select(models.ProjectChangeLog).where(
         models.ProjectChangeLog.project_id == project_id,
         models.ProjectChangeLog.applied == False,
-    ).all()
+    )).all()
 
     for log in logs:
         log.applied = True

@@ -24,8 +24,52 @@ A web-based GUI for data wrangling — manage and transform tabular datasets (CS
 
 ```bash
 cd dataloom-backend
-cp .env.example .env          # Configure DB credentials
+```
+
+**1. Create a copy of the environment config and fill in your credentials:**
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set your PostgreSQL connection string and other settings:
+
+```env
+DATABASE_URL=postgresql://<user>:<password>@localhost:5432/<dbname>
+CORS_ORIGINS=["http://localhost:3200"]
+UPLOAD_DIR=uploads
+MAX_UPLOAD_SIZE_BYTES=10485760
+DEBUG=false
+```
+
+**2. Create the PostgreSQL database:**
+
+Log in to PostgreSQL and create the database:
+
+```bash
+psql -U postgres
+```
+
+```sql
+CREATE DATABASE <dbname>;
+\q
+```
+
+**3. Install dependencies:**
+
+```bash
 uv sync
+```
+
+**4. Run database migrations to create all tables:**
+
+```bash
+uv run alembic upgrade head
+```
+
+**5. Start the development server:**
+
+```bash
 uv run uvicorn app.main:app --reload --port 4200
 ```
 
@@ -56,8 +100,42 @@ cd dataloom-frontend && npm run test
 
 ```
 dataloom/
-  dataloom-backend/    # Python FastAPI server
-  dataloom-frontend/   # React + Vite SPA
+├── dataloom-backend/          # Python FastAPI server
+│   ├── app/
+│   │   ├── main.py            # App entry point & lifespan
+│   │   ├── models.py          # SQLModel ORM models
+│   │   ├── schemas.py         # Pydantic request/response schemas
+│   │   ├── database.py        # Database engine & session
+│   │   ├── config.py          # App settings (env vars)
+│   │   ├── exceptions.py      # Custom exception handlers
+│   │   ├── api/
+│   │   │   ├── dependencies.py        # Shared FastAPI dependencies
+│   │   │   └── endpoints/
+│   │   │       ├── projects.py        # Project CRUD endpoints
+│   │   │       ├── transformations.py # Transformation endpoints
+│   │   │       └── user_logs.py       # Change log endpoints
+│   │   ├── services/
+│   │   │   ├── file_service.py        # CSV file handling
+│   │   │   ├── project_service.py     # Project & checkpoint logic
+│   │   │   └── transformation_service.py  # Pandas transformations
+│   │   └── utils/
+│   │       ├── logging.py             # Logging setup
+│   │       ├── pandas_helpers.py      # DataFrame utilities
+│   │       └── security.py            # Input validation helpers
+│   ├── alembic/               # Database migrations
+│   ├── tests/                 # Pytest test suite
+│   ├── pyproject.toml
+│   └── alembic.ini
+└── dataloom-frontend/         # React + Vite SPA
+    └── src/
+        ├── api/               # Axios API client modules
+        ├── Components/        # UI components (Table, Navbar, forms…)
+        ├── context/           # React context providers
+        ├── hooks/             # Custom React hooks
+        ├── pages/             # Page-level components
+        ├── constants/         # Shared constants
+        ├── utils/             # Frontend utility helpers
+        └── config/            # API base URL config
 ```
 
 ## Contributing

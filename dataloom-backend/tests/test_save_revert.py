@@ -22,7 +22,8 @@ class TestCheckpoint:
         log_transformation(db, project.project_id, "addRow", {"row_params": {"index": 0}})
 
         # Verify log is unapplied
-        logs = db.query(models.ProjectChangeLog).filter_by(project_id=project.project_id).all()
+        from sqlmodel import select
+        logs = db.exec(select(models.ProjectChangeLog).where(models.ProjectChangeLog.project_id == project.project_id)).all()
         assert len(logs) == 1
         assert logs[0].applied == False
 

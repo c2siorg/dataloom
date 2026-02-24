@@ -1,7 +1,7 @@
 """Pydantic request/response schemas for all API endpoints."""
 
 import uuid
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from enum import Enum
 from typing import Optional, Union, Any, List
 import datetime
@@ -225,10 +225,9 @@ class LogResponse(BaseModel):
 
 class LastResponse(BaseModel):
     """Response for recently modified projects."""
+    model_config = ConfigDict(from_attributes=True)
+
     project_id: uuid.UUID
     name: str
     description: Optional[str]
     last_modified: datetime.datetime
-
-    class Config:
-        from_attributes = True
