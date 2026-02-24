@@ -31,13 +31,15 @@ const Navbar = () => {
           </div>
         )}
         <div className="ml-auto text-black items-end">
-          <button
-            className={`bg-white rounded-full ${
-              isSmall ? "py-1 px-3 text-sm" : "py-2 px-4"
-            }`}
-          >
-            Profile
-          </button>
+          <Link to="/profile">
+            <button
+              className={`bg-white rounded-full ${
+                isSmall ? "py-1 px-3 text-sm" : "py-2 px-4"
+              }`}
+            >
+              Profile
+            </button>
+          </Link>
         </div>
       </nav>
     </header>
