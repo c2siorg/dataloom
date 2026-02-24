@@ -31,7 +31,9 @@ export default function InputDialog({ isOpen, message, defaultValue = "", onSubm
           autoFocus
         />
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" type="button" onClick={onCancel}>Cancel</Button>
+          <Button variant="secondary" type="button" onClick={onCancel}>
+            Cancel
+          </Button>
           <Button type="submit">OK</Button>
         </div>
       </form>

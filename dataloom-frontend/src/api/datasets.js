@@ -47,7 +47,7 @@ export const getRecentProjects = async () => {
  */
 export const saveDataset = async (datasetId, commitMessage) => {
   const response = await client.post(
-    `/datasets/${datasetId}/save?commit_message=${encodeURIComponent(commitMessage)}`
+    `/datasets/${datasetId}/save?commit_message=${encodeURIComponent(commitMessage)}`,
   );
   return response.data;
 };
@@ -59,8 +59,6 @@ export const saveDataset = async (datasetId, commitMessage) => {
  * @returns {Promise<Object>} Reverted dataset response.
  */
 export const revertToCheckpoint = async (datasetId, checkpointId) => {
-  const response = await client.post(
-    `/datasets/${datasetId}/revert?checkpoint_id=${checkpointId}`
-  );
+  const response = await client.post(`/datasets/${datasetId}/revert?checkpoint_id=${checkpointId}`);
   return response.data;
 };

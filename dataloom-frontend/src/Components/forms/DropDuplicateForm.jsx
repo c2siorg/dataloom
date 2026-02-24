@@ -17,10 +17,7 @@ const DropDuplicateForm = ({ datasetId, onClose, onTransform }) => {
     };
 
     try {
-      const response = await complexTransformDataset(
-        datasetId,
-        transformationInput
-      );
+      const response = await complexTransformDataset(datasetId, transformationInput);
       console.log("Transformation response:", response);
       onTransform(response); // Pass data to parent component
     } catch (error) {
@@ -58,10 +55,7 @@ const DropDuplicateForm = ({ datasetId, onClose, onTransform }) => {
           </div>
         </div>
         <div className="flex justify-between">
-          <button
-            type="submit"
-            className="bg-green-600 text-white px-4 py-2 rounded"
-          >
+          <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
             Submit
           </button>
           <button

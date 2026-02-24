@@ -11,10 +11,7 @@ import client from "./client";
  * @returns {Promise<Object>} Transformation result with updated rows and columns.
  */
 export const transformDataset = async (datasetId, transformationInput) => {
-  const response = await client.post(
-    `/datasets/${datasetId}/transform`,
-    transformationInput
-  );
+  const response = await client.post(`/datasets/${datasetId}/transform`, transformationInput);
   return response.data;
 };
 
@@ -27,7 +24,7 @@ export const transformDataset = async (datasetId, transformationInput) => {
 export const complexTransformDataset = async (datasetId, transformationInput) => {
   const response = await client.post(
     `/datasets/${datasetId}/Complextransform`,
-    transformationInput
+    transformationInput,
   );
   return response.data;
 };

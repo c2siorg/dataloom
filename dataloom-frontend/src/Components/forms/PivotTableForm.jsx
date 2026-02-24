@@ -67,9 +67,7 @@ const PivotTableForm = ({ datasetId, onClose }) => {
             />
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium">
-              Aggregation Function:
-            </label>
+            <label className="block text-sm font-medium">Aggregation Function:</label>
             <select
               value={aggfun}
               onChange={(e) => setAggfun(e.target.value)}

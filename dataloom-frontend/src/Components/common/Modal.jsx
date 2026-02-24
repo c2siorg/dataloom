@@ -25,7 +25,9 @@ export default function Modal({ isOpen, onClose, title, children }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         ref={dialogRef}
@@ -37,7 +39,11 @@ export default function Modal({ isOpen, onClose, title, children }) {
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <h2 className="text-lg font-semibold">{title}</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl" aria-label="Close">
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-xl"
+              aria-label="Close"
+            >
               &times;
             </button>
           </div>

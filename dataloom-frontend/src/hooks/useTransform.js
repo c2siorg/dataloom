@@ -17,25 +17,28 @@ export function useTransform(datasetId, onDataUpdate) {
   const [error, setError] = useState(null);
   const { showToast } = useToast();
 
-  const applyTransform = useCallback(async (transformInput) => {
-    if (!datasetId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await transformDataset(datasetId, transformInput);
-      if (onDataUpdate) {
-        onDataUpdate(result.columns, result.rows);
+  const applyTransform = useCallback(
+    async (transformInput) => {
+      if (!datasetId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await transformDataset(datasetId, transformInput);
+        if (onDataUpdate) {
+          onDataUpdate(result.columns, result.rows);
+        }
+        showToast("Transformation applied", "success");
+        return result;
+      } catch (err) {
+        const msg = err.response?.data?.detail || err.message;
+        setError(msg);
+        showToast(msg, "error");
+      } finally {
+        setLoading(false);
       }
-      showToast("Transformation applied", "success");
-      return result;
-    } catch (err) {
-      const msg = err.response?.data?.detail || err.message;
-      setError(msg);
-      showToast(msg, "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [datasetId, onDataUpdate, showToast]);
+    },
+    [datasetId, onDataUpdate, showToast],
+  );
 
   return { applyTransform, loading, error };
 }

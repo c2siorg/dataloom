@@ -1,7 +1,10 @@
 import PropTypes from "prop-types";
 
 const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
-  const hasCheckpoints = checkpoints && Array.isArray(checkpoints) ? checkpoints.length > 0 : checkpoints && checkpoints.id;
+  const hasCheckpoints =
+    checkpoints && Array.isArray(checkpoints)
+      ? checkpoints.length > 0
+      : checkpoints && checkpoints.id;
 
   return (
     <div className="p-4 bg-gray-100 text-black shadow-md mx-auto relative group">
@@ -25,23 +28,15 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
         <table className="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
           <thead className="bg-green-300">
             <tr>
-              <th className="py-3 px-6 text-left font-semibold text-black">
-                Message
-              </th>
-              <th className="py-3 px-6 text-left font-semibold text-black">
-                Created At
-              </th>
-              <th className="py-3 px-6 text-center font-semibold text-black">
-                Action
-              </th>
+              <th className="py-3 px-6 text-left font-semibold text-black">Message</th>
+              <th className="py-3 px-6 text-left font-semibold text-black">Created At</th>
+              <th className="py-3 px-6 text-center font-semibold text-black">Action</th>
             </tr>
           </thead>
           <tbody>
             {hasCheckpoints ? (
               <tr className="bg-gray-50 hover:bg-gray-100 transition duration-300">
-                <td className="py-4 px-6 text-gray-800">
-                  {checkpoints.message}
-                </td>
+                <td className="py-4 px-6 text-gray-800">{checkpoints.message}</td>
                 <td className="py-4 px-6 text-gray-600">
                   {new Date(checkpoints.created_at).toLocaleString()}
                 </td>

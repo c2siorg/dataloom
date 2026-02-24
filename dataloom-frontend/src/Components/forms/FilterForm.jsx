@@ -31,10 +31,7 @@ const FilterForm = ({ datasetId, onClose }) => {
       setResult(response);
       console.log("Filter API response:", response);
     } catch (error) {
-      console.error(
-        "Error applying filter:",
-        error.response?.data || error.message
-      );
+      console.error("Error applying filter:", error.response?.data || error.message);
     } finally {
       setLoading(false);
     }

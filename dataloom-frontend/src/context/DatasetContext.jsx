@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback } from "react";
 import { getDatasetDetails } from "../api";
 
@@ -24,23 +25,26 @@ export function DatasetProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const refreshDataset = useCallback(async (id) => {
-    const targetId = id || datasetId;
-    if (!targetId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getDatasetDetails(targetId);
-      setDatasetId(data.dataset_id);
-      setDatasetName(data.filename);
-      setColumns(data.columns);
-      setRows(data.rows);
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [datasetId]);
+  const refreshDataset = useCallback(
+    async (id) => {
+      const targetId = id || datasetId;
+      if (!targetId) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getDatasetDetails(targetId);
+        setDatasetId(data.dataset_id);
+        setDatasetName(data.filename);
+        setColumns(data.columns);
+        setRows(data.rows);
+      } catch (err) {
+        setError(err.response?.data?.detail || err.message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [datasetId],
+  );
 
   const updateData = useCallback((newColumns, newRows) => {
     setColumns(newColumns);
@@ -53,10 +57,19 @@ export function DatasetProvider({ children }) {
   }, []);
 
   return (
-    <DatasetContext.Provider value={{
-      datasetId, datasetName, columns, rows, loading, error,
-      refreshDataset, updateData, setDatasetInfo,
-    }}>
+    <DatasetContext.Provider
+      value={{
+        datasetId,
+        datasetName,
+        columns,
+        rows,
+        loading,
+        error,
+        refreshDataset,
+        updateData,
+        setDatasetInfo,
+      }}
+    >
       {children}
     </DatasetContext.Provider>
   );

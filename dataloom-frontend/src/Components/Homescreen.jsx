@@ -52,11 +52,7 @@ const HomeScreen = () => {
     }
 
     try {
-      const data = await uploadDataset(
-        fileUpload,
-        projectName,
-        projectDescription
-      );
+      const data = await uploadDataset(fileUpload, projectName, projectDescription);
       console.log("Backend response data:", data);
 
       const datasetId = data.dataset_id;
@@ -99,15 +95,11 @@ const HomeScreen = () => {
     <div className="flex flex-col mr-64 mt-32 items-center min-h-screen bg-white">
       <div>
         <h1 className="text-5xl">
-          Welcome to{" "}
-          <span className="text-blue-600 font-semibold">DataLoom</span>,
+          Welcome to <span className="text-blue-600 font-semibold">DataLoom</span>,
         </h1>
         <h1 className="text-4xl mt-2">
           your one-stop for{" "}
-          <span className="text-green-600 font-semibold">
-            Dataset Transformations
-          </span>
-          .
+          <span className="text-green-600 font-semibold">Dataset Transformations</span>.
         </h1>
       </div>
       <div className="mt-20 mr-32 grid grid-cols-2 gap-10 justify-start w-2/5 font-sans font-semibold">
@@ -119,35 +111,26 @@ const HomeScreen = () => {
         </button>
         <button
           className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
-          onClick={() =>
-            handleRecentProjectClick(recentProjects[0]?.dataset_id)
-          }
+          onClick={() => handleRecentProjectClick(recentProjects[0]?.dataset_id)}
         >
           {projectNames[0]}
         </button>
         <button
           className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
-          onClick={() =>
-            handleRecentProjectClick(recentProjects[1]?.dataset_id)
-          }
+          onClick={() => handleRecentProjectClick(recentProjects[1]?.dataset_id)}
         >
           {projectNames[1]}
         </button>
         <button
           className="px-2 py-4 bg-gradient-to-r from-green-400 hover:bg-blue-600 rounded-lg shadow-lg"
-          onClick={() =>
-            handleRecentProjectClick(recentProjects[2]?.dataset_id)
-          }
+          onClick={() => handleRecentProjectClick(recentProjects[2]?.dataset_id)}
         >
           {projectNames[2]}
         </button>
       </div>
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div
-            className="fixed inset-0 bg-black opacity-50"
-            onClick={handleCloseModal}
-          ></div>
+          <div className="fixed inset-0 bg-black opacity-50" onClick={handleCloseModal}></div>
           <div className="bg-white rounded-lg p-8 z-50">
             <h2 className="text-2xl font-semibold mb-4">Project Name</h2>
             <input

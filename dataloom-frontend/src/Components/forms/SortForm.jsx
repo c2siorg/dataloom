@@ -24,10 +24,7 @@ const SortForm = ({ datasetId, onClose }) => {
       setResult(response);
       console.log("Sort API response:", response);
     } catch (error) {
-      console.error(
-        "Error applying sort:",
-        error.response?.data || error.message
-      );
+      console.error("Error applying sort:", error.response?.data || error.message);
     } finally {
       setLoading(false);
     }

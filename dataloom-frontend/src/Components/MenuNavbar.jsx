@@ -1,5 +1,5 @@
 // NavBar.js
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import FilterForm from "./forms/FilterForm";
 import SortForm from "./forms/SortForm";
 import DropDuplicateForm from "./forms/DropDuplicateForm";
@@ -7,12 +7,7 @@ import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
-import {
-  saveDataset,
-  getLogs,
-  getCheckpoints,
-  revertToCheckpoint,
-} from "../api"; // Import API functions
+import { saveDataset, getLogs, getCheckpoints, revertToCheckpoint } from "../api"; // Import API functions
 import proptype from "prop-types";
 
 const Menu_NavBar = ({ datasetId, onTransform }) => {
@@ -34,25 +29,25 @@ const Menu_NavBar = ({ datasetId, onTransform }) => {
     if (showCheckpoints) {
       fetchCheckpoints();
     }
-  }, [showLogs, showCheckpoints]);
+  }, [showLogs, showCheckpoints, fetchLogs, fetchCheckpoints]);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       const logsResponse = await getLogs(datasetId);
       setLogs(logsResponse);
     } catch (error) {
       console.error("Error fetching logs:", error);
     }
-  };
+  }, [datasetId]);
 
-  const fetchCheckpoints = async () => {
+  const fetchCheckpoints = useCallback(async () => {
     try {
       const checkpointsResponse = await getCheckpoints(datasetId);
       setCheckpoints(checkpointsResponse);
     } catch (error) {
       console.error("Error fetching checkpoints:", error);
     }
-  };
+  }, [datasetId]);
 
   const handleSave = async () => {
     const commitMessage = prompt("Enter a commit message for this save:");
@@ -398,9 +393,7 @@ const Menu_NavBar = ({ datasetId, onTransform }) => {
           <button
             key={tab}
             className={`px-4 py-2 text-sm font-medium hover:bg-green-600 ${
-              activeTab === tab
-                ? "bg-green-600 border-t border-x border-green-500"
-                : ""
+              activeTab === tab ? "bg-green-600 border-t border-x border-green-500" : ""
             }`}
             onClick={() => setActiveTab(tab)}
           >
@@ -435,17 +428,9 @@ const Menu_NavBar = ({ datasetId, onTransform }) => {
 
       {/* Render forms based on their respective state */}
       {showFilterForm && (
-        <FilterForm
-          onClose={() => setShowFilterForm(false)}
-          datasetId={datasetId}
-        />
+        <FilterForm onClose={() => setShowFilterForm(false)} datasetId={datasetId} />
       )}
-      {showSortForm && (
-        <SortForm
-          onClose={() => setShowSortForm(false)}
-          datasetId={datasetId}
-        />
-      )}
+      {showSortForm && <SortForm onClose={() => setShowSortForm(false)} datasetId={datasetId} />}
       {showDropDuplicateForm && (
         <DropDuplicateForm
           datasetId={datasetId}
@@ -460,10 +445,7 @@ const Menu_NavBar = ({ datasetId, onTransform }) => {
         />
       )}
       {showPivotTableForm && (
-        <PivotTableForm
-          onClose={() => setShowPivotTableForm(false)}
-          datasetId={datasetId}
-        />
+        <PivotTableForm onClose={() => setShowPivotTableForm(false)} datasetId={datasetId} />
       )}
       {showLogs && <LogsPanel logs={logs} onClose={() => setShowLogs(false)} />}
       {showCheckpoints && (

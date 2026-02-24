@@ -3,7 +3,6 @@ import { transformDataset } from "../api";
 import { useDatasetContext } from "../context/DatasetContext";
 import proptypes from "prop-types";
 
-
 const Table = ({ datasetId, data: externalData }) => {
   const { columns: ctxColumns, rows: ctxRows } = useDatasetContext();
   const [data, setData] = useState([]);
@@ -125,7 +124,6 @@ const Table = ({ datasetId, data: externalData }) => {
     }
   };
 
-
   const handleCellClick = (rowIndex, cellIndex, cellValue) => {
     if (cellIndex !== 0) {
       setEditingCell({ rowIndex, cellIndex });
@@ -146,12 +144,7 @@ const Table = ({ datasetId, data: externalData }) => {
     }
   };
 
-  const handleRightClick = (
-    event,
-    rowIndex = null,
-    columnIndex = null,
-    type = null
-  ) => {
+  const handleRightClick = (event, rowIndex = null, columnIndex = null, type = null) => {
     event.preventDefault();
     setContextMenu({
       visible: true,
@@ -193,13 +186,9 @@ const Table = ({ datasetId, data: externalData }) => {
                 <th
                   key={columnIndex}
                   className="py-2 px-4 border-b border-gray-300 text-left text-sm font-semibold text-gray-700"
-                  onContextMenu={(e) =>
-                    handleRightClick(e, null, columnIndex, "column")
-                  }
+                  onContextMenu={(e) => handleRightClick(e, null, columnIndex, "column")}
                 >
-                  <button
-                    className="w-full text-left bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 px-2 rounded transition duration-300"
-                  >
+                  <button className="w-full text-left bg-blue-100 hover:bg-blue-200 text-blue-700 py-1 px-2 rounded transition duration-300">
                     {column}
                   </button>
                 </th>
@@ -208,17 +197,12 @@ const Table = ({ datasetId, data: externalData }) => {
           </thead>
           <tbody>
             {data.map((row, rowIndex) => (
-              <tr
-                key={rowIndex}
-                className="hover:bg-gray-50 transition duration-300"
-              >
+              <tr key={rowIndex} className="hover:bg-gray-50 transition duration-300">
                 {row.map((cell, cellIndex) => (
                   <td
                     key={cellIndex}
                     className="py-2 px-4 border-b border-gray-300 text-sm  text-black"
-                    onContextMenu={(e) =>
-                      handleRightClick(e, rowIndex, null, "row")
-                    }
+                    onContextMenu={(e) => handleRightClick(e, rowIndex, null, "row")}
                   >
                     {editingCell &&
                     editingCell.rowIndex === rowIndex &&
@@ -227,24 +211,16 @@ const Table = ({ datasetId, data: externalData }) => {
                         type="text"
                         value={editValue}
                         onChange={handleInputChange}
-                        onBlur={() =>
-                          handleEditCell(rowIndex, cellIndex, editValue)
-                        }
-                        onKeyDown={(e) =>
-                          handleInputKeyDown(e, rowIndex, cellIndex)
-                        }
+                        onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
+                        onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
                         // autoFocus
                         className="w-full p-1 border border-blue-300 rounded"
                       />
                     ) : (
                       <div
-                        onClick={() =>
-                          handleCellClick(rowIndex, cellIndex, cell)
-                        }
+                        onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
                         className={
-                          cellIndex !== 0
-                            ? "cursor-pointer hover:bg-blue-100 p-1 rounded"
-                            : ""
+                          cellIndex !== 0 ? "cursor-pointer hover:bg-blue-100 p-1 rounded" : ""
                         }
                       >
                         {cell}
