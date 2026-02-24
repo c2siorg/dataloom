@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "workspaces": ["dataloom-frontend"],
+  "scripts": {
+    "dev": "npx -y concurrently --names backend,frontend --prefix-colors blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "npm run dev --workspace=dataloom-frontend",
+    "dev:backend": "cd dataloom-backend && uv run uvicorn app.main:app --reload --port 4200"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

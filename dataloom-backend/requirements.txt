@@ -1,0 +1,13 @@
+# Auto-generated from pyproject.toml – keep in sync with [project.dependencies]
+# Install: pip install -r requirements.txt
+# For dev extras: pip install -r requirements.txt -r requirements-dev.txt
+
+fastapi>=0.115
+uvicorn[standard]>=0.34
+sqlmodel>=0.0.22
+alembic>=1.14
+psycopg2-binary>=2.9
+pydantic-settings>=2.0
+pandas>=2.1
+python-dotenv>=1.0
+python-multipart>=0.0.6

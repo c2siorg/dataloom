@@ -19,26 +19,28 @@ Thank you for your interest in contributing to DataLoom! This document provides 
 
 ### Backend
 
+#### Option A – using [uv](https://docs.astral.sh/uv/) (recommended)
+
+```bash
+cd dataloom-backend
+cp .env.example .env            # Configure DB credentials
+uv sync                         # Installs all deps from pyproject.toml / uv.lock
+uv run uvicorn app.main:app --reload --port 4200
+```
+
+#### Option B – using pip
+
 ```bash
 cd dataloom-backend
 python3 -m venv env
-source env/bin/activate        # On macOS/Linux
+source env/bin/activate          # On macOS/Linux  (Windows: env\Scripts\activate)
 pip install -r requirements.txt
-```
-
-Copy the example environment file and configure it with your PostgreSQL connection:
-
-```bash
-cp .env.example .env
+pip install -r requirements-dev.txt   # Optional: test & lint tools
+cp .env.example .env             # Configure DB credentials
+uvicorn app.main:app --reload --port 4200
 ```
 
 Edit `.env` and set your `DATABASE_URL` to point to a running PostgreSQL instance with a database named `dataloom`.
-
-Start the backend development server:
-
-```bash
-uvicorn app.main:app --reload --port 4200
-```
 
 The API will be available at `http://localhost:4200`.
 
@@ -65,7 +67,7 @@ npm run dev
 
 1. Make your changes in a feature branch.
 2. Test your changes:
-   - **Backend:** `cd dataloom-backend && pytest`
+   - **Backend:** `cd dataloom-backend && uv run pytest` (or `pytest` if using pip)
    - **Frontend:** `cd dataloom-frontend && npm run test`
 3. Lint and format your code:
    - **Frontend:** `npm run lint` and `npm run format`
