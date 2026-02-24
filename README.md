@@ -57,8 +57,16 @@ CREATE DATABASE <dbname>;
 
 **3. Install dependencies:**
 
+Using `uv` (recommended):
+
 ```bash
 uv sync
+```
+
+If you also need dev tools (pytest, ruff, pre-commit, httpx) for running tests or linting:
+
+```bash
+uv sync --extras dev
 ```
 
 **4. Run database migrations to create all tables:**
