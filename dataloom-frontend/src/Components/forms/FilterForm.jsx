@@ -31,10 +31,7 @@ const FilterForm = ({ projectId, onClose }) => {
       setResult(response);
       console.log("Filter API response:", response);
     } catch (error) {
-      console.error(
-        "Error applying filter:",
-        error.response?.data || error.message
-      );
+      console.error("Error applying filter:", error.response?.data || error.message);
     } finally {
       setLoading(false);
     }
@@ -66,10 +63,12 @@ const FilterForm = ({ projectId, onClose }) => {
               required
             >
               <option value="=">=</option>
+              <option value="!=">!= (not equal)</option>
               <option value=">">&gt;</option>
               <option value="<">&lt;</option>
               <option value=">=">&gt;=</option>
               <option value="<=">&lt;=</option>
+              <option value="contains">contains</option>
             </select>
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
