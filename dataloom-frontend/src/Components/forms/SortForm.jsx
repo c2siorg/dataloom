@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import TransformResultPreview from "./TransformResultPreview";
 
-const SortForm = ({ projectId, onClose }) => {
+const SortForm = ({ projectId, onClose, onTransform }) => {
   const [column, setColumn] = useState("");
   const [ascending, setAscending] = useState(true);
   const [result, setResult] = useState(null);
@@ -23,6 +23,7 @@ const SortForm = ({ projectId, onClose }) => {
       });
       setResult(response);
       console.log("Sort API response:", response);
+      if (onTransform) onTransform(response);
     } catch (error) {
       console.error(
         "Error applying sort:",
@@ -85,6 +86,7 @@ const SortForm = ({ projectId, onClose }) => {
 SortForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func,
 };
 
 export default SortForm;

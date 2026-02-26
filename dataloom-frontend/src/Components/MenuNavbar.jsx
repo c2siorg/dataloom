@@ -5,6 +5,7 @@ import DropDuplicateForm from "./forms/DropDuplicateForm";
 import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
+import FillEmptyForm from "./forms/FillEmptyForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
@@ -23,6 +24,7 @@ import {
   LuBookmark,
   LuDownload,
   LuRefreshCw,
+  LuEraser,
 } from "react-icons/lu";
 
 const Menu_NavBar = ({ projectId, onTransform }) => {
@@ -34,6 +36,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showLogs, setShowLogs] = useState(false);
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
+  const [showFillEmptyForm, setShowFillEmptyForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -119,6 +122,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     setShowAdvQueryFilterForm(false);
     setShowPivotTableForm(false);
     setShowCastDataTypeForm(false);
+    setShowFillEmptyForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
 
@@ -140,6 +144,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         break;
       case "CastDataTypeForm":
         setShowCastDataTypeForm(true);
+        break;
+      case "FillEmptyForm":
+        setShowFillEmptyForm(true);
         break;
       case "Logs":
         setShowLogs(true);
@@ -186,6 +193,11 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             label: "Cast Type",
             icon: LuRefreshCw,
             onClick: () => handleMenuClick("CastDataTypeForm"),
+          },
+          {
+            label: "Fill Empty",
+            icon: LuEraser,
+            onClick: () => handleMenuClick("FillEmptyForm"),
           },
         ],
       },
@@ -258,7 +270,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         <DropDuplicateForm
           projectId={projectId}
           onClose={() => setShowDropDuplicateForm(false)}
-          onTransform={onTransform}
+          onTransform={handleTransformAndLogs}
         />
       )}
       {showAdvQueryFilterForm && (
@@ -274,7 +286,14 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         <CastDataTypeForm
           projectId={projectId}
           onClose={() => setShowCastDataTypeForm(false)}
-          onTransform={onTransform}
+          onTransform={handleTransformAndLogs}
+        />
+      )}
+      {showFillEmptyForm && (
+        <FillEmptyForm
+          projectId={projectId}
+          onClose={() => setShowFillEmptyForm(false)}
+          onTransform={handleTransformAndLogs}
         />
       )}
       {showLogs && <LogsPanel logs={logs} onClose={() => setShowLogs(false)} />}

@@ -198,25 +198,54 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
     return df
 
 
-def fill_empty(df: pd.DataFrame, fill_value, column_index: int = None) -> pd.DataFrame:
-    """Fill empty/NaN cells with a specified value.
+def fill_empty(df: pd.DataFrame, fill_value=None, column_index: int = None, strategy: str = "custom") -> pd.DataFrame:
+    """Fill empty/NaN cells with a specified value or strategy.
 
     Args:
         df: Source DataFrame.
-        fill_value: Value to fill empty cells with.
+        fill_value: Value to fill empty cells with (for custom strategy).
         column_index: Optional specific column index. If None, fills all columns.
+        strategy: Fill strategy (custom, mean, median, mode, forward_fill, backward_fill).
 
     Returns:
         DataFrame with empty cells filled.
     """
     df = df.copy()
+    strategies = ["custom", "mean", "median", "mode", "forward_fill", "backward_fill"]
+    if strategy not in strategies:
+        raise TransformationError(f"Unknown fill strategy: {strategy}")
+
+    def fill_column(series):
+        if strategy == "custom":
+            return series.fillna(fill_value)
+        elif strategy == "mean":
+            if not pd.api.types.is_numeric_dtype(series):
+                raise TransformationError("Mean fill only supported for numeric columns.")
+            return series.fillna(series.mean())
+        elif strategy == "median":
+            if not pd.api.types.is_numeric_dtype(series):
+                raise TransformationError("Median fill only supported for numeric columns.")
+            return series.fillna(series.median())
+        elif strategy == "mode":
+            mode_val = series.mode()
+            if mode_val.empty:
+                raise TransformationError("No mode found for column.")
+            return series.fillna(mode_val.iloc[0])
+        elif strategy == "forward_fill":
+            return series.ffill()
+        elif strategy == "backward_fill":
+            return series.bfill()
+        else:
+            raise TransformationError(f"Unknown fill strategy: {strategy}")
+
     if column_index is not None:
         if column_index < 0 or column_index >= len(df.columns):
             raise TransformationError(f"Column index {column_index} out of range")
         column_name = df.columns[column_index]
-        df[column_name] = df[column_name].fillna(fill_value)
+        df[column_name] = fill_column(df[column_name])
     else:
-        df = df.fillna(fill_value)
+        for col in df.columns:
+            df[col] = fill_column(df[col])
     return df
 
 
@@ -403,9 +432,12 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         return change_cell_value(df, row_index, col_index, new_value)
 
     elif action_type == 'fillEmpty':
-        fill_value = action_details['fill_empty_params']['fill_value']
-        column_index = action_details['fill_empty_params'].get('index')
-        return fill_empty(df, fill_value, column_index)
+        fill_empty_params = action_details['fill_empty_params']
+        fill_value = fill_empty_params.get('fill_value')
+        column_index = fill_empty_params.get('index')
+        strategy = fill_empty_params.get('strategy', 'custom')
+        # Optionally log the chosen strategy in action details (already present)
+        return fill_empty(df, fill_value, column_index, strategy)
 
     elif action_type == 'dropDuplicate':
         columns = action_details['drop_duplicate']['columns']
