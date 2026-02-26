@@ -257,7 +257,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       {showDropDuplicateForm && (
         <DropDuplicateForm
           projectId={projectId}
-          onClose={() => setShowDropDuplicateForm(false)}
+          onClose={() => { setShowDropDuplicateForm(false); onTransform(null); }}
           onTransform={onTransform}
         />
       )}

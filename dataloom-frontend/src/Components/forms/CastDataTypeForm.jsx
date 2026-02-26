@@ -10,9 +10,13 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
 
   const [column, setColumn] = useState("");
   const [targetType, setTargetType] = useState("string");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+    setLoading(true);
 
     try {
       const response = await transformProject(projectId, {
@@ -24,13 +28,13 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
       });
 
       onTransform(response);
-    } catch (error) {
-      console.error("Error casting data type:", error);
-
-      showToast(error.response?.data?.detail || "Failed to cast data type.", "error");
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.detail || "An unexpected error occurred.");
+      showToast(err.response?.data?.detail || "Failed to cast data type.", "error");
+    } finally {
+      setLoading(false);
     }
-
-    onClose();
   };
 
   return (
@@ -72,12 +76,18 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
           </div>
         </div>
 
+        {error && (
+          <div className="mb-3 px-3 py-2 bg-red-50 border border-red-300 text-red-700 rounded-md text-sm">
+            {error}
+          </div>
+        )}
         <div className="flex justify-between">
           <button
             type="submit"
+            disabled={loading}
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
           >
-            Apply
+            {loading ? "Applying..." : "Apply"}
           </button>
 
           <button

@@ -1,13 +1,19 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
+import TransformResultPreview from "./TransformResultPreview";
 
 const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
   const [columns, setColumns] = useState("");
   const [keep, setKeep] = useState("first");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+    setLoading(true);
     const transformationInput = {
       operation_type: "dropDuplicate",
       drop_duplicate: {
@@ -21,12 +27,13 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
         projectId,
         transformationInput
       );
-      console.log("Transformation response:", response);
-      onTransform(response); // Pass data to parent component
-    } catch (error) {
-      console.error("Error transforming project:", error);
+      onTransform(response);
+      setResult(response);
+    } catch (err) {
+      setError(err.response?.data?.detail || "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
     }
-    onClose(); // Close the form after submission
   };
 
   return (
@@ -57,12 +64,18 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
             </select>
           </div>
         </div>
+        {error && (
+          <div className="mb-3 px-3 py-2 bg-red-50 border border-red-300 text-red-700 rounded-md text-sm">
+            {error}
+          </div>
+        )}
         <div className="flex justify-between">
           <button
             type="submit"
+            disabled={loading}
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
           >
-            Submit
+            {loading ? "Applying..." : "Submit"}
           </button>
           <button
             type="button"
@@ -73,6 +86,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
           </button>
         </div>
       </form>
+      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };

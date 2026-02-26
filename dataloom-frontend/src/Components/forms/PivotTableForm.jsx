@@ -10,9 +10,11 @@ const PivotTableForm = ({ projectId, onClose }) => {
   const [aggfun, setAggfun] = useState("sum");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
     try {
       const response = await transformProject(projectId, {
@@ -20,9 +22,8 @@ const PivotTableForm = ({ projectId, onClose }) => {
         pivot_query: { index, column, value, aggfun },
       });
       setResult(response);
-      console.log("Pivot API response:", response);
-    } catch (error) {
-      console.error("Error applying pivot table:", error.message);
+    } catch (err) {
+      setError(err.response?.data?.detail || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -83,6 +84,11 @@ const PivotTableForm = ({ projectId, onClose }) => {
             </select>
           </div>
         </div>
+        {error && (
+          <div className="mb-3 px-3 py-2 bg-red-50 border border-red-300 text-red-700 rounded-md text-sm">
+            {error}
+          </div>
+        )}
         <div className="flex justify-between">
           <button
             type="submit"

@@ -11,6 +11,7 @@ const FilterForm = ({ projectId, onClose }) => {
   });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleInputChange = (e) => {
     setFilterParams({
@@ -21,7 +22,7 @@ const FilterForm = ({ projectId, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting filter with parameters:", filterParams);
+    setError(null);
     setLoading(true);
     try {
       const response = await transformProject(projectId, {
@@ -29,9 +30,8 @@ const FilterForm = ({ projectId, onClose }) => {
         parameters: filterParams,
       });
       setResult(response);
-      console.log("Filter API response:", response);
-    } catch (error) {
-      console.error("Error applying filter:", error.response?.data || error.message);
+    } catch (err) {
+      setError(err.response?.data?.detail || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -83,13 +83,18 @@ const FilterForm = ({ projectId, onClose }) => {
             />
           </div>
         </div>
+        {error && (
+          <div className="mb-3 px-3 py-2 bg-red-50 border border-red-300 text-red-700 rounded-md text-sm">
+            {error}
+          </div>
+        )}
         <div className="flex justify-between">
           <button
             type="submit"
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
             disabled={loading}
           >
-            Apply Filter
+            {loading ? "Applying..." : "Apply Filter"}
           </button>
           <button
             type="button"

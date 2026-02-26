@@ -7,10 +7,11 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Query:", query);
+    setError(null);
     setLoading(true);
     try {
       const response = await transformProject(projectId, {
@@ -18,9 +19,8 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
         adv_query: { query },
       });
       setResult(response);
-      console.log("Query API response:", response);
-    } catch (error) {
-      console.error("Error applying query:", error.message);
+    } catch (err) {
+      setError(err.response?.data?.detail || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -41,13 +41,18 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
             required
           />
         </div>
+        {error && (
+          <div className="mb-3 px-3 py-2 bg-red-50 border border-red-300 text-red-700 rounded-md text-sm">
+            {error}
+          </div>
+        )}
         <div className="flex justify-between">
           <button
             type="submit"
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
             disabled={loading}
           >
-          Submit
+          {loading ? "Applying..." : "Submit"}
           </button>
           <button
             type="button"

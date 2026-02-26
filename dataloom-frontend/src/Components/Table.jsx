@@ -24,11 +24,11 @@ const Table = ({ projectId, data: externalData }) => {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    if (ctxColumns.length > 0 && ctxRows.length > 0) {
+    if (!externalData && ctxColumns.length > 0 && ctxRows.length > 0) {
       setColumns(["S.No.", ...ctxColumns]);
       setData(ctxRows.map((row, index) => [index + 1, ...row]));
     }
-  }, [ctxColumns, ctxRows]);
+  }, [ctxColumns, ctxRows, externalData]);
 
   useEffect(() => {
     if (externalData) {

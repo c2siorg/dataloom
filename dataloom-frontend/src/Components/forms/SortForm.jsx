@@ -8,10 +8,11 @@ const SortForm = ({ projectId, onClose }) => {
   const [ascending, setAscending] = useState(true);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting sort with parameters:", { column, ascending });
+    setError(null);
     setLoading(true);
     try {
       const response = await transformProject(projectId, {
@@ -22,12 +23,8 @@ const SortForm = ({ projectId, onClose }) => {
         },
       });
       setResult(response);
-      console.log("Sort API response:", response);
-    } catch (error) {
-      console.error(
-        "Error applying sort:",
-        error.response?.data || error.message
-      );
+    } catch (err) {
+      setError(err.response?.data?.detail || "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -60,13 +57,18 @@ const SortForm = ({ projectId, onClose }) => {
             </select>
           </div>
         </div>
+        {error && (
+          <div className="mb-3 px-3 py-2 bg-red-50 border border-red-300 text-red-700 rounded-md text-sm">
+            {error}
+          </div>
+        )}
         <div className="flex justify-between">
           <button
             type="submit"
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
             disabled={loading}
           >
-            Submit
+            {loading ? "Applying..." : "Submit"}
           </button>
           <button
             type="button"
