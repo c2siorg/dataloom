@@ -29,7 +29,7 @@ export function useTransform(projectId, onDataUpdate) {
       showToast("Transformation applied", "success");
       return result;
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message;
+      const msg = err.response?.data?.detail ?? "Something went wrong. Please try again.";
       setError(msg);
       showToast(msg, "error");
     } finally {

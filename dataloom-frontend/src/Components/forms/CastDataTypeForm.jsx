@@ -1,36 +1,33 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import { transformProject } from "../../api";
+import { useTransform } from "../../hooks/useTransform";
 import { useProjectContext } from "../../context/ProjectContext";
-import { useToast } from "../../context/ToastContext";
+import ErrorAlert from "../ui/ErrorAlert";
 
 const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
   const { columns } = useProjectContext();
-  const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
   const [targetType, setTargetType] = useState("string");
 
+  const { applyTransform, error } = useTransform(projectId, (columns, rows) => {
+    onTransform({ columns, rows });
+  });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    try {
-      const response = await transformProject(projectId, {
-        operation_type: "castDataType",
-        cast_data_type_params: {
-          column,
-          target_type: targetType,
-        },
-      });
+    const result = await applyTransform({
+      operation_type: "castDataType",
+      cast_data_type_params: {
+        column,
+        target_type: targetType,
+      },
+    });
 
-      onTransform(response);
-    } catch (error) {
-      console.error("Error casting data type:", error);
-
-      showToast(error.response?.data?.detail || "Failed to cast data type.", "error");
+    if (result) {
+      onClose();
     }
-
-    onClose();
   };
 
   return (
@@ -71,6 +68,8 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
             </select>
           </div>
         </div>
+
+        <ErrorAlert message={error} />
 
         <div className="flex justify-between">
           <button

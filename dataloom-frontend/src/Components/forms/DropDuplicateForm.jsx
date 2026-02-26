@@ -1,10 +1,15 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import { transformProject } from "../../api";
+import { useTransform } from "../../hooks/useTransform";
+import ErrorAlert from "../ui/ErrorAlert";
 
 const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
   const [columns, setColumns] = useState("");
   const [keep, setKeep] = useState("first");
+
+  const { applyTransform, error } = useTransform(projectId, (columns, rows) => {
+    onTransform({ columns, rows });
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,17 +21,10 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
       },
     };
 
-    try {
-      const response = await transformProject(
-        projectId,
-        transformationInput
-      );
-      console.log("Transformation response:", response);
-      onTransform(response); // Pass data to parent component
-    } catch (error) {
-      console.error("Error transforming project:", error);
+    const result = await applyTransform(transformationInput);
+    if (result) {
+      onClose();
     }
-    onClose(); // Close the form after submission
   };
 
   return (
@@ -57,6 +55,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
             </select>
           </div>
         </div>
+        <ErrorAlert message={error} />
         <div className="flex justify-between">
           <button
             type="submit"

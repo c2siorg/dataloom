@@ -1,7 +1,8 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
-import { transformProject } from "../../api";
+import { useTransform } from "../../hooks/useTransform";
+import ErrorAlert from "../ui/ErrorAlert";
 
 const PivotTableForm = ({ projectId, onClose }) => {
   const [index, setIndex] = useState("");
@@ -9,23 +10,17 @@ const PivotTableForm = ({ projectId, onClose }) => {
   const [value, setValue] = useState("");
   const [aggfun, setAggfun] = useState("sum");
   const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
+
+  const { applyTransform, loading, error } = useTransform(projectId, (columns, rows) => {
+    setResult({ columns, rows });
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      const response = await transformProject(projectId, {
-        operation_type: "pivotTables",
-        pivot_query: { index, column, value, aggfun },
-      });
-      setResult(response);
-      console.log("Pivot API response:", response);
-    } catch (error) {
-      console.error("Error applying pivot table:", error.message);
-    } finally {
-      setLoading(false);
-    }
+    await applyTransform({
+      operation_type: "pivotTables",
+      pivot_query: { index, column, value, aggfun },
+    });
   };
 
   return (
@@ -100,6 +95,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
           </button>
         </div>
       </form>
+      <ErrorAlert message={error} />
       {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
