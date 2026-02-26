@@ -3,11 +3,13 @@ import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
+import TableSkeleton from "./common/TableSkeleton";
+import EmptyState from "./common/EmptyState";
 import DtypeBadge from "./common/DtypeBadge";
 import proptypes from "prop-types";
 
 const Table = ({ projectId, data: externalData }) => {
-  const { columns: ctxColumns, rows: ctxRows, dtypes, updateData } = useProjectContext();
+  const { columns: ctxColumns, rows: ctxRows, loading, dtypes, updateData } = useProjectContext();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
@@ -222,6 +224,11 @@ const Table = ({ projectId, data: externalData }) => {
     });
   };
 
+  const isEmpty = columns.length === 0 && data.length === 0;
+
+  if (loading) return <TableSkeleton rows={5} columns={6} />;
+  if (isEmpty) return <EmptyState icon="inbox" title="No Data" description="Load or create a project to see data displayed here." />;
+
   return (
     <div className="px-8 pt-3" onClick={handleCloseContextMenu}>
       <div
@@ -259,8 +266,8 @@ const Table = ({ projectId, data: externalData }) => {
                     onContextMenu={(e) => handleRightClick(e, rowIndex, null, "row")}
                   >
                     {editingCell &&
-                    editingCell.rowIndex === rowIndex &&
-                    editingCell.cellIndex === cellIndex ? (
+                      editingCell.rowIndex === rowIndex &&
+                      editingCell.cellIndex === cellIndex ? (
                       <input
                         type="text"
                         value={editValue}

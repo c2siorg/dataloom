@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import EmptyState from "../common/EmptyState";
 
 const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
   const hasCheckpoints = checkpoints && Array.isArray(checkpoints) ? checkpoints.length > 0 : checkpoints && checkpoints.id;
@@ -21,23 +22,31 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
         </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white rounded-lg overflow-hidden">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Message
-              </th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Created At
-              </th>
-              <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {hasCheckpoints ? (
+      {!hasCheckpoints ? (
+        <div className="py-8">
+          <EmptyState
+            icon="package"
+            title="No Checkpoints"
+            description="Save a checkpoint to preserve your work progress. You can revert to checkpoints anytime."
+          />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white rounded-lg overflow-hidden">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Message
+                </th>
+                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Created At
+                </th>
+                <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
                 <td className="py-3 px-4 text-sm text-gray-700">
                   {checkpoints.message}
@@ -54,16 +63,10 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
                   </button>
                 </td>
               </tr>
-            ) : (
-              <tr>
-                <td colSpan="3" className="py-4 px-4 text-center text-sm text-gray-500">
-                  No checkpoint available
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
