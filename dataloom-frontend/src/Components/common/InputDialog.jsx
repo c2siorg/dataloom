@@ -1,18 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "./Modal";
 import Button from "./Button";
 
-/**
- * Input dialog replacing window.prompt().
- * @param {Object} props
- * @param {boolean} props.isOpen - Whether dialog is visible.
- * @param {string} props.message - Prompt message.
- * @param {string} [props.defaultValue=''] - Default input value.
- * @param {Function} props.onSubmit - Callback with input value.
- * @param {Function} props.onCancel - Callback on cancellation.
- */
 export default function InputDialog({ isOpen, message, defaultValue = "", onSubmit, onCancel }) {
   const [value, setValue] = useState(defaultValue);
+
+  useEffect(() => {
+    if (isOpen) {
+      setValue(defaultValue);
+    }
+  }, [isOpen, defaultValue]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -31,7 +28,9 @@ export default function InputDialog({ isOpen, message, defaultValue = "", onSubm
           autoFocus
         />
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" type="button" onClick={onCancel}>Cancel</Button>
+          <Button variant="secondary" type="button" onClick={onCancel}>
+            Cancel
+          </Button>
           <Button type="submit">OK</Button>
         </div>
       </form>
