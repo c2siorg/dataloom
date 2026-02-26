@@ -1,7 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
-import { complexTransformProject } from "../../api";
+import { transformProject } from "../../api";
 
 const PivotTableForm = ({ projectId, onClose }) => {
   const [index, setIndex] = useState("");
@@ -15,7 +15,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await complexTransformProject(projectId, {
+      const response = await transformProject(projectId, {
         operation_type: "pivotTables",
         pivot_query: { index, column, value, aggfun },
       });
