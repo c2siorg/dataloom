@@ -29,9 +29,25 @@ export function useTransform(projectId, onDataUpdate) {
       showToast("Transformation applied", "success");
       return result;
     } catch (err) {
-      const msg = err.response?.data?.detail ?? "Something went wrong. Please try again.";
+      console.error("Transform error:", err);
+
+      let msg;
+      if (err.response?.data?.detail) {
+        // Backend returned a structured error response
+        msg = err.response.data.detail;
+      } else if (err.response?.status) {
+        // HTTP error but no detail message
+        msg = `Server error (${err.response.status}). Please try again.`;
+      } else if (err.message?.includes("Network Error") || err.message?.includes("CORS")) {
+        // CORS or network connectivity issues
+        msg = "Unable to connect to server. Please check your connection and try again.";
+      } else {
+        // Generic fallback
+        msg = "Something went wrong. Please try again.";
+      }
+
       setError(msg);
-      showToast(msg, "error");
+      // Remove duplicate error toast - keep only ErrorAlert for consistency
     } finally {
       setLoading(false);
     }

@@ -52,8 +52,10 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
             Cancel
           </button>
         </div>
+
+        {/* Consistent error positioning with proper spacing */}
+        {error && <div className="mt-4"><ErrorAlert message={error} /></div>}
       </form>
-      <ErrorAlert message={error} />
       {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );

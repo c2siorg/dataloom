@@ -22,6 +22,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
     };
 
     const result = await applyTransform(transformationInput);
+    // Only close if transformation succeeded
     if (result) {
       onClose();
     }
@@ -55,7 +56,6 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
             </select>
           </div>
         </div>
-        <ErrorAlert message={error} />
         <div className="flex justify-between">
           <button
             type="submit"
@@ -71,6 +71,9 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
             Cancel
           </button>
         </div>
+
+        {/* Consistent error positioning with proper spacing */}
+        {error && <div className="mt-4"><ErrorAlert message={error} /></div>}
       </form>
     </div>
   );

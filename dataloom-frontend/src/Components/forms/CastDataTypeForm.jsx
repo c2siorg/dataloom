@@ -25,6 +25,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
       },
     });
 
+    // Only close if transformation succeeded
     if (result) {
       onClose();
     }
@@ -69,8 +70,6 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
           </div>
         </div>
 
-        <ErrorAlert message={error} />
-
         <div className="flex justify-between">
           <button
             type="submit"
@@ -87,6 +86,9 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
             Cancel
           </button>
         </div>
+
+        {/* Consistent error positioning with proper spacing */}
+        {error && <div className="mt-4"><ErrorAlert message={error} /></div>}
       </form>
     </div>
   );
