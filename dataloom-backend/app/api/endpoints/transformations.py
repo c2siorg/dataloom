@@ -77,18 +77,6 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         p = transformation_input.fill_empty_params
         return ts.fill_empty(df, p.fill_value, p.index), True
 
-    elif op == 'renameCol':
-        if not transformation_input.rename_col_params:
-            raise HTTPException(status_code=400, detail="Rename column parameters required")
-        p = transformation_input.rename_col_params
-        return ts.rename_column(df, p.col_index, p.new_name), True
-
-    elif op == 'castDataType':
-        if not transformation_input.cast_data_type_params:
-            raise HTTPException(status_code=400, detail="Cast data type parameters required")
-        p = transformation_input.cast_data_type_params
-        return ts.cast_data_type(df, p.column, p.target_type), True
-
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
 

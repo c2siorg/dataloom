@@ -43,19 +43,3 @@ def get_original_path(copy_path: str) -> Path:
         Path to the original CSV file.
     """
     return Path(copy_path.replace('_copy.csv', '.csv'))
-
-
-def delete_project_files(copy_path: str) -> None:
-    """Delete both the working copy and original file for a project.
-
-    Args:
-        copy_path: Path to the _copy.csv working file.
-    """
-    original_path = get_original_path(copy_path)
-
-    for path in [Path(copy_path), original_path]:
-        try:
-            path.unlink()
-            logger.info("Deleted file: %s", path)
-        except FileNotFoundError:
-            logger.warning("File already missing: %s", path)

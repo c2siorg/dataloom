@@ -33,8 +33,6 @@ class OperationType(str, Enum):
     advQueryFilter = 'advQueryFilter'
     pivotTables = 'pivotTables'
     changeCellValue = 'changeCellValue'
-    renameCol = 'renameCol'
-    castDataType = 'castDataType'
 
 
 class DropDup(str, Enum):
@@ -66,8 +64,6 @@ class ActionTypes(str, Enum):
     advQueryFilter = 'advQueryFilter'
     pivotTables = 'pivotTables'
     changeCellValue = 'changeCellValue'
-    renameCol = 'renameCol'
-    castDataType = 'castDataType'
 
 
 # --- Basic transformation parameter schemas ---
@@ -107,27 +103,6 @@ class FillEmptyParams(BaseModel):
     """Parameters for filling empty cells."""
     index: Optional[int]
     fill_value: Any
-
-
-class RenameColumnParams(BaseModel):
-    """Parameters for renaming a column."""
-    col_index: int
-    new_name: str
-
-
-class DataType(str, Enum):
-    """Supported target types for data type casting."""
-    string = "string"
-    integer = "integer"
-    float = "float"
-    boolean = "boolean"
-    datetime = "datetime"
-
-
-class CastDataTypeParams(BaseModel):
-    """Parameters for casting a column to a different data type."""
-    column: str
-    target_type: DataType
 
 
 # --- Complex transformation parameter schemas ---
@@ -183,8 +158,6 @@ class TransformationInput(BaseModel):
     adv_query: Optional[AdvQuery] = None
     pivot_query: Optional[Pivot] = None
     change_cell_value: Optional[ChangeCellValue] = None
-    rename_col_params: Optional[RenameColumnParams] = None
-    cast_data_type_params: Optional[CastDataTypeParams] = None
 
 
 class BasicQueryResponse(BaseModel):
@@ -234,3 +207,56 @@ class LastResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- Profiling schemas ---
+
+
+class NumericStatsSchema(BaseModel):
+    """Statistics for a numeric column."""
+    mean: Optional[float] = None
+    median: Optional[float] = None
+    std: Optional[float] = None
+    min: Optional[float] = None
+    max: Optional[float] = None
+    q1: Optional[float] = None
+    q3: Optional[float] = None
+    skewness: Optional[float] = None
+
+
+class FrequentValueSchema(BaseModel):
+    """A value and its occurrence count."""
+    value: str
+    count: int
+
+
+class CategoricalStatsSchema(BaseModel):
+    """Statistics for a categorical column."""
+    top_values: list[FrequentValueSchema] = []
+    mode: Optional[str] = None
+
+
+class ColumnProfileSchema(BaseModel):
+    """Profile for a single column."""
+    name: str
+    dtype: str
+    missing_count: int
+    missing_percentage: float
+    unique_count: int
+    numeric_stats: Optional[NumericStatsSchema] = None
+    categorical_stats: Optional[CategoricalStatsSchema] = None
+
+
+class DatasetSummarySchema(BaseModel):
+    """Dataset-level summary metrics."""
+    row_count: int
+    column_count: int
+    missing_count: int
+    memory_usage_bytes: int
+    duplicate_row_count: int
+
+
+class ProfileResponse(BaseModel):
+    """Full profile response for a project."""
+    summary: DatasetSummarySchema
+    columns: list[ColumnProfileSchema]

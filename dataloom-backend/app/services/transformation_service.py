@@ -220,67 +220,6 @@ def fill_empty(df: pd.DataFrame, fill_value, column_index: int = None) -> pd.Dat
     return df
 
 
-def rename_column(df: pd.DataFrame, col_index: int, new_name: str) -> pd.DataFrame:
-    """Rename a column by its positional index.
-
-    Args:
-        df: Source DataFrame.
-        col_index: 0-based column position.
-        new_name: The new column name.
-
-    Returns:
-        DataFrame with the column renamed.
-    """
-    if col_index < 0 or col_index >= len(df.columns):
-        raise TransformationError(f"Column index {col_index} out of range (0-{len(df.columns)-1})")
-    if not new_name or not new_name.strip():
-        raise TransformationError("New column name cannot be empty")
-
-    old_name = df.columns[col_index]
-    return df.rename(columns={old_name: new_name})
-
-
-def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFrame:
-    """Cast a column to a different data type.
-
-    Args:
-        df: Source DataFrame.
-        column: Column name to cast.
-        target_type: One of 'string', 'integer', 'float', 'boolean', 'datetime'.
-
-    Returns:
-        DataFrame with the column cast to the target type.
-    """
-    if column not in df.columns:
-        raise TransformationError(f"Column '{column}' not found")
-
-    df = df.copy()
-    try:
-        if target_type == "string":
-            df[column] = df[column].astype(str)
-        elif target_type == "integer":
-            df[column] = pd.to_numeric(df[column], errors="coerce").astype("Int64")
-        elif target_type == "float":
-            df[column] = pd.to_numeric(df[column], errors="coerce")
-        elif target_type == "boolean":
-            truthy = {"true", "1", "yes", "y", "on"}
-            falsy = {"false", "0", "no", "n", "off"}
-            df[column] = df[column].apply(
-                lambda v: True if str(v).strip().lower() in truthy
-                else (False if str(v).strip().lower() in falsy else None)
-            ).astype("boolean")
-        elif target_type == "datetime":
-            df[column] = pd.to_datetime(df[column], errors="coerce")
-        else:
-            raise TransformationError(f"Unsupported target type: {target_type}")
-    except TransformationError:
-        raise
-    except Exception as e:
-        raise TransformationError(f"Failed to cast column '{column}' to {target_type}: {e}") from e
-
-    return df
-
-
 def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
     """Remove duplicate rows based on specified columns.
 
@@ -411,16 +350,6 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         columns = action_details['drop_duplicate']['columns']
         keep = action_details['drop_duplicate']['keep']
         return drop_duplicates(df, columns, keep)
-
-    elif action_type == 'renameCol':
-        col_index = action_details['rename_col_params']['col_index']
-        new_name = action_details['rename_col_params']['new_name']
-        return rename_column(df, col_index, new_name)
-
-    elif action_type == 'castDataType':
-        column = action_details['cast_data_type_params']['column']
-        target_type = action_details['cast_data_type_params']['target_type']
-        return cast_data_type(df, column, target_type)
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)

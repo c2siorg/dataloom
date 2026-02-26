@@ -4,15 +4,14 @@ import SortForm from "./forms/SortForm";
 import DropDuplicateForm from "./forms/DropDuplicateForm";
 import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
-import CastDataTypeForm from "./forms/CastDataTypeForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import {
   saveProject,
-  exportProject,
   getLogs,
   getCheckpoints,
   revertToCheckpoint,
+  getProjectProfile,
 } from "../api";
 import proptype from "prop-types";
 import {
@@ -24,11 +23,13 @@ import {
   LuSave,
   LuHistory,
   LuBookmark,
-  LuDownload,
-  LuRefreshCw,
+  LuChartColumn,
+  LuChartBar,
 } from "react-icons/lu";
+import ProfilePanel from "./ProfilePanel";
+import ChartBuilder from "./ChartBuilder";
 
-const Menu_NavBar = ({ projectId, onTransform }) => {
+const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
   const [showFilterForm, setShowFilterForm] = useState(false);
   const [showSortForm, setShowSortForm] = useState(false);
   const [showDropDuplicateForm, setShowDropDuplicateForm] = useState(false);
@@ -36,7 +37,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showPivotTableForm, setShowPivotTableForm] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [showCheckpoints, setShowCheckpoints] = useState(false);
-  const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
+  const [showProfilePanel, setShowProfilePanel] = useState(false);
+  const [showChartBuilder, setShowChartBuilder] = useState(false);
+  const [profileData, setProfileData] = useState(null);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
 
@@ -67,6 +70,15 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     }
   };
 
+  const fetchProfileData = async () => {
+    try {
+      const data = await getProjectProfile(projectId);
+      setProfileData(data);
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+    }
+  };
+
   const handleSave = async () => {
     const commitMessage = prompt("Enter a commit message for this save:");
     if (commitMessage) {
@@ -78,23 +90,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         console.error("Error saving project:", error);
         alert("Failed to save project.");
       }
-    }
-  };
-
-  const handleExport = async () => {
-    try {
-      const blob = await exportProject(projectId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "export.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error exporting project:", error);
-      alert("Failed to export project.");
     }
   };
 
@@ -118,9 +113,10 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     setShowDropDuplicateForm(false);
     setShowAdvQueryFilterForm(false);
     setShowPivotTableForm(false);
-    setShowCastDataTypeForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
+    setShowProfilePanel(false);
+    setShowChartBuilder(false);
 
     switch (formType) {
       case "FilterForm":
@@ -138,47 +134,27 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       case "PivotTableForm":
         setShowPivotTableForm(true);
         break;
-      case "CastDataTypeForm":
-        setShowCastDataTypeForm(true);
-        break;
       case "Logs":
         setShowLogs(true);
         break;
       case "Checkpoints":
         setShowCheckpoints(true);
         break;
+      case "ProfilePanel":
+        setShowProfilePanel(true);
+        fetchProfileData();
+        break;
+      case "ChartBuilder":
+        setShowChartBuilder(true);
+        break;
       default:
         break;
     }
   };
 
-  const [activeTab, setActiveTab] = useState("File");
+  const [activeTab, setActiveTab] = useState("Data");
 
   const tabs = {
-    File: [
-      {
-        group: "Save",
-        items: [
-          { label: "Save", icon: LuSave, onClick: handleSave },
-          { label: "Export", icon: LuDownload, onClick: handleExport },
-        ],
-      },
-      {
-        group: "History",
-        items: [
-          {
-            label: "Logs",
-            icon: LuHistory,
-            onClick: () => handleMenuClick("Logs"),
-          },
-          {
-            label: "Checkpoints",
-            icon: LuBookmark,
-            onClick: () => handleMenuClick("Checkpoints"),
-          },
-        ],
-      },
-    ],
     Data: [
       {
         group: "Transform",
@@ -198,11 +174,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             icon: LuCopyMinus,
             onClick: () => handleMenuClick("DropDuplicateForm"),
           },
-          {
-            label: "Cast Type",
-            icon: LuRefreshCw,
-            onClick: () => handleMenuClick("CastDataTypeForm"),
-          },
         ],
       },
       {
@@ -220,13 +191,65 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           },
         ],
       },
+      {
+        group: "Analyze",
+        items: [
+          {
+            label: "Profile",
+            icon: LuChartColumn,
+            "data-testid": "profile-button",
+            onClick: () => {
+              if (showProfilePanel) {
+                setShowProfilePanel(false);
+              } else {
+                handleMenuClick("ProfilePanel");
+              }
+            },
+          },
+          {
+            label: "Visualize",
+            icon: LuChartBar,
+            "data-testid": "visualize-button",
+            onClick: () => {
+              if (showChartBuilder) {
+                setShowChartBuilder(false);
+              } else {
+                handleMenuClick("ChartBuilder");
+              }
+            },
+          },
+        ],
+      },
+    ],
+    File: [
+      {
+        group: "Save",
+        items: [
+          { label: "Save", icon: LuSave, onClick: handleSave },
+        ],
+      },
+      {
+        group: "History",
+        items: [
+          {
+            label: "Logs",
+            icon: LuHistory,
+            onClick: () => handleMenuClick("Logs"),
+          },
+          {
+            label: "Checkpoints",
+            icon: LuBookmark,
+            onClick: () => handleMenuClick("Checkpoints"),
+          },
+        ],
+      },
     ],
   };
 
   return (
     <div className="bg-white border-b border-gray-200">
       {/* Tab bar */}
-      <div className="flex items-center gap-0 border-b border-gray-200 px-8">
+      <div className="flex items-center gap-0 border-b border-gray-200 px-2">
         {Object.keys(tabs).map((tabName) => (
           <button
             key={tabName}
@@ -243,7 +266,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       </div>
 
       {/* Ribbon body */}
-      <div className="flex items-stretch gap-3 px-8 py-2 min-h-[64px]">
+      <div className="flex items-stretch gap-3 px-3 py-2 min-h-[64px]">
         {tabs[activeTab].map((section, sectionIdx) => (
           <div key={section.group} className="flex items-stretch gap-3">
             {sectionIdx > 0 && (
@@ -255,6 +278,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
                   <button
                     key={item.label}
                     onClick={item.onClick}
+                    data-testid={item["data-testid"]}
                     className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150"
                   >
                     <item.icon className="w-5 h-5 text-gray-600" />
@@ -303,19 +327,34 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           projectId={projectId}
         />
       )}
-      {showCastDataTypeForm && (
-        <CastDataTypeForm
-          projectId={projectId}
-          onClose={() => setShowCastDataTypeForm(false)}
-          onTransform={onTransform}
-        />
-      )}
       {showLogs && <LogsPanel logs={logs} onClose={() => setShowLogs(false)} />}
       {showCheckpoints && (
         <CheckpointsPanel
           checkpoints={checkpoints}
           onClose={() => setShowCheckpoints(false)}
           onRevert={handleRevert}
+        />
+      )}
+      {showProfilePanel && (
+        <ProfilePanel
+          profileData={profileData}
+          onClose={() => setShowProfilePanel(false)}
+          onColumnClick={(columnName) => {
+            if (onColumnClick && profileData) {
+              const columnProfile = profileData.columns.find(
+                (col) => col.name === columnName
+              );
+              if (columnProfile) {
+                onColumnClick(columnProfile);
+              }
+            }
+          }}
+        />
+      )}
+      {showChartBuilder && (
+        <ChartBuilder
+          projectId={projectId}
+          onClose={() => setShowChartBuilder(false)}
         />
       )}
     </div>
@@ -325,6 +364,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
 Menu_NavBar.propTypes = {
   projectId: proptype.string.isRequired,
   onTransform: proptype.func.isRequired,
+  onColumnClick: proptype.func,
 };
 
 export default Menu_NavBar;
