@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
+import InputDialog from "./common/InputDialog";
+import Toast from "./common/Toast";
 import proptypes from "prop-types";
-
 
 const Table = ({ projectId, data: externalData }) => {
   const { columns: ctxColumns, rows: ctxRows } = useProjectContext();
@@ -19,6 +20,9 @@ const Table = ({ projectId, data: externalData }) => {
     type: null,
   });
 
+  const [inputConfig, setInputConfig] = useState(null);
+  const [toast, setToast] = useState(null);
+
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
       setColumns(["S.No.", ...ctxColumns]);
@@ -34,6 +38,12 @@ const Table = ({ projectId, data: externalData }) => {
     }
   }, [externalData]);
 
+  const updateTableData = (response) => {
+    const { columns, rows } = response;
+    setColumns(["S.No.", ...columns]);
+    setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
+  };
+
   const handleAddRow = async (index) => {
     try {
       const response = await transformProject(projectId, {
@@ -41,30 +51,40 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
-      const { columns, rows } = response;
-      setColumns(["S.No.", ...columns]);
-      setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-    } catch (error) {
-      alert("Failed to add row. Please try again.");
+    } catch {
+      setToast({
+        message: "Failed to add row. Please try again.",
+        type: "error",
+      });
     }
   };
 
-  const handleAddColumn = async (index) => {
-    const newColumnName = prompt("Enter column name:");
-    if (newColumnName) {
-      try {
-        const response = await transformProject(projectId, {
-          operation_type: "addCol",
-          col_params: { index, name: newColumnName },
-        });
-        updateTableData(response);
-        const { columns, rows } = response;
-        setColumns(["S.No.", ...columns]);
-        setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-      } catch (error) {
-        alert("Failed to add column. Please try again.");
-      }
-    }
+  const handleAddColumn = (index) => {
+    setInputConfig({
+      message: "Enter column name:",
+      defaultValue: "",
+      onSubmit: async (newColumnName) => {
+        if (!newColumnName) {
+          setInputConfig(null);
+          return;
+        }
+
+        try {
+          const response = await transformProject(projectId, {
+            operation_type: "addCol",
+            col_params: { index, name: newColumnName },
+          });
+          updateTableData(response);
+        } catch {
+          setToast({
+            message: "Failed to add column. Please try again.",
+            type: "error",
+          });
+        }
+
+        setInputConfig(null);
+      },
+    });
   };
 
   const handleDeleteRow = async (index) => {
@@ -74,56 +94,70 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
-      const { columns, rows } = response;
-      setColumns(["S.No.", ...columns]);
-      setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-    } catch (error) {
-      alert("Failed to delete row. Please try again.");
+    } catch {
+      setToast({
+        message: "Failed to delete row. Please try again.",
+        type: "error",
+      });
     }
   };
 
-  const handleRenameColumn = async (index) => {
+  const handleRenameColumn = (index) => {
     if (index === 0) {
-      alert("Cannot rename the S.No. column.");
+      setToast({
+        message: "Cannot rename the S.No. column.",
+        type: "error",
+      });
       return;
     }
 
-    const newName = prompt("Enter new column name:");
-    if (newName) {
-      try {
-        const response = await transformProject(projectId, {
-          operation_type: "renameCol",
-          rename_col_params: { col_index: index - 1, new_name: newName },
-        });
-        updateTableData(response);
-        const { columns, rows } = response;
-        setColumns(["S.No.", ...columns]);
-        setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-      } catch (error) {
-        alert("Failed to rename column. Please try again.");
-      }
-    }
+    setInputConfig({
+      message: "Enter new column name:",
+      defaultValue: "",
+      onSubmit: async (newName) => {
+        if (!newName) {
+          setInputConfig(null);
+          return;
+        }
+
+        try {
+          const response = await transformProject(projectId, {
+            operation_type: "renameCol",
+            rename_col_params: { col_index: index - 1, new_name: newName },
+          });
+          updateTableData(response);
+        } catch {
+          setToast({
+            message: "Failed to rename column. Please try again.",
+            type: "error",
+          });
+        }
+
+        setInputConfig(null);
+      },
+    });
   };
 
   const handleDeleteColumn = async (index) => {
     if (index === 0) {
-      alert("Cannot delete the S.No. column.");
+      setToast({
+        message: "Cannot delete the S.No. column.",
+        type: "error",
+      });
       return;
     }
 
-    // the table has 0 indexed columns, but the API expects 1 indexed columns
-    index -= 1;
     try {
       const response = await transformProject(projectId, {
         operation_type: "delCol",
-        col_params: { index },
+        col_params: { index: index - 1 },
       });
       updateTableData(response);
-      const { columns, rows } = response;
-      setColumns(["S.No.", ...columns]);
-      setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-    } catch (error) {
-      alert("Failed to delete column. Please try again.");
+    } catch {
+      setToast({
+        message: "Failed to delete column. Please try again.",
+        type: "error",
+      });
     }
   };
 
@@ -140,26 +174,13 @@ const Table = ({ projectId, data: externalData }) => {
       updateTableData(response);
       setEditingCell(null);
       setEditValue("");
-      const { columns, rows } = response;
-      setColumns(["S.No.", ...columns]);
-      setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-    } catch (error) {
-      alert("Failed to edit cell. Please try again.");
+    } catch {
+      setToast({
+        message: "Failed to edit cell. Please try again.",
+        type: "error",
+      });
     }
   };
-
-
-  const handleCellClick = (rowIndex, cellIndex, cellValue) => {
-    if (cellIndex !== 0) {
-      setEditingCell({ rowIndex, cellIndex });
-      setEditValue(cellValue);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    setEditValue(e.target.value);
-  };
-
   const handleInputKeyDown = (e, rowIndex, cellIndex) => {
     if (e.key === "Enter") {
       handleEditCell(rowIndex, cellIndex, editValue);
@@ -169,20 +190,22 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleRightClick = (
-    event,
-    rowIndex = null,
-    columnIndex = null,
-    type = null
-  ) => {
+  const handleCellClick = (rowIndex, cellIndex, cellValue) => {
+    if (cellIndex !== 0) {
+      setEditingCell({ rowIndex, cellIndex });
+      setEditValue(cellValue);
+    }
+  };
+
+  const handleRightClick = (event, rowIndex = null, columnIndex = null, type = null) => {
     event.preventDefault();
     setContextMenu({
       visible: true,
       x: event.clientX,
       y: event.clientY,
-      rowIndex: rowIndex,
-      columnIndex: columnIndex,
-      type: type,
+      rowIndex,
+      columnIndex,
+      type,
     });
   };
 
@@ -197,14 +220,12 @@ const Table = ({ projectId, data: externalData }) => {
     });
   };
 
-  const updateTableData = (newData) => {
-    setColumns(newData.columns);
-    setData(newData.rows);
-  };
-
   return (
     <div className="px-8 pt-3" onClick={handleCloseContextMenu}>
-      <div className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm" style={{ maxHeight: "calc(100vh - 140px)" }}>
+      <div
+        className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
+        style={{ maxHeight: "calc(100vh - 140px)" }}
+      >
         <table className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
             <tr>
@@ -212,19 +233,16 @@ const Table = ({ projectId, data: externalData }) => {
                 <th
                   key={columnIndex}
                   className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  onContextMenu={(e) =>
-                    handleRightClick(e, null, columnIndex, "column")
-                  }
+                  onContextMenu={(e) => handleRightClick(e, null, columnIndex, "column")}
                 >
-                  <button
-                    className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150"
-                  >
+                  <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
                     {column}
                   </button>
                 </th>
               ))}
             </tr>
           </thead>
+
           <tbody>
             {data.map((row, rowIndex) => (
               <tr
@@ -235,9 +253,7 @@ const Table = ({ projectId, data: externalData }) => {
                   <td
                     key={cellIndex}
                     className="py-1 px-3 text-xs text-gray-700"
-                    onContextMenu={(e) =>
-                      handleRightClick(e, rowIndex, null, "row")
-                    }
+                    onContextMenu={(e) => handleRightClick(e, rowIndex, null, "row")}
                   >
                     {editingCell &&
                     editingCell.rowIndex === rowIndex &&
@@ -245,24 +261,16 @@ const Table = ({ projectId, data: externalData }) => {
                       <input
                         type="text"
                         value={editValue}
-                        onChange={handleInputChange}
-                        onBlur={() =>
-                          handleEditCell(rowIndex, cellIndex, editValue)
-                        }
-                        onKeyDown={(e) =>
-                          handleInputKeyDown(e, rowIndex, cellIndex)
-                        }
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
                         className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                        onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
                       />
                     ) : (
                       <div
-                        onClick={() =>
-                          handleCellClick(rowIndex, cellIndex, cell)
-                        }
+                        onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
                         className={
-                          cellIndex !== 0
-                            ? "cursor-pointer hover:bg-gray-50 p-1 rounded"
-                            : ""
+                          cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""
                         }
                       >
                         {cell}
@@ -321,6 +329,22 @@ const Table = ({ projectId, data: externalData }) => {
           </button>
         </div>
       )}
+
+      {inputConfig && (
+        <InputDialog
+          isOpen={true}
+          message={inputConfig.message}
+          defaultValue={inputConfig.defaultValue}
+          onSubmit={inputConfig.onSubmit}
+          onCancel={() => setInputConfig(null)}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
+        </div>
+      )}
     </div>
   );
 };
@@ -329,8 +353,9 @@ Table.propTypes = {
   projectId: proptypes.string.isRequired,
   data: proptypes.shape({
     columns: proptypes.arrayOf(proptypes.string),
-    rows: proptypes.arrayOf(proptypes.arrayOf(proptypes.string)),
+    rows: proptypes.arrayOf(
+      proptypes.arrayOf(proptypes.oneOfType([proptypes.string, proptypes.number])),
+    ),
   }),
 };
-
 export default Table;
