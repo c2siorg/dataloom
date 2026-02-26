@@ -1,6 +1,6 @@
 """Transformation API endpoints for project operations.
 
-Handles both basic transforms (/transform) and complex transforms (/Complextransform).
+All transformations are handled through a single unified /transform endpoint.
 """
 
 import uuid
@@ -18,6 +18,8 @@ from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+COMPLEX_OPERATIONS = {'dropDuplicate', 'advQueryFilter', 'pivotTables'}
 
 
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
@@ -128,43 +130,24 @@ async def transform_project(
     transformation_input: schemas.TransformationInput,
     db: Session = Depends(database.get_db),
 ):
-    """Apply a basic transformation to a project."""
+    """Apply a transformation to a project.
+
+    Routes to the appropriate internal handler based on operation_type.
+    """
     project = get_project_or_404(project_id, db)
     df = read_csv_safe(project.file_path)
 
-    try:
-        result_df, should_save = _handle_basic_transform(
-            df, transformation_input, project, db, project_id
-        )
-    except ts.TransformationError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    if should_save:
-        save_csv_safe(result_df, project.file_path)
-        log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
-
-    resp = dataframe_to_response(result_df)
-    return {
-        "project_id": project_id,
-        "operation_type": transformation_input.operation_type,
-        **resp,
-    }
-
-
-@router.post("/{project_id}/Complextransform", response_model=schemas.BasicQueryResponse)
-async def complex_transform_project(
-    project_id: uuid.UUID,
-    transformation_input: schemas.TransformationInput,
-    db: Session = Depends(database.get_db),
-):
-    """Apply a complex transformation (drop duplicates, query filter, pivot)."""
-    project = get_project_or_404(project_id, db)
-    df = read_csv_safe(project.file_path)
+    op = transformation_input.operation_type
 
     try:
-        result_df, should_save = _handle_complex_transform(
-            df, transformation_input, project, db, project_id
-        )
+        if op in COMPLEX_OPERATIONS:
+            result_df, should_save = _handle_complex_transform(
+                df, transformation_input, project, db, project_id
+            )
+        else:
+            result_df, should_save = _handle_basic_transform(
+                df, transformation_input, project, db, project_id
+            )
     except ts.TransformationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
