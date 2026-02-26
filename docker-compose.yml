@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -20,14 +20,6 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/dataloom
     depends_on:
       - db
-
-  frontend:
-    build: dataloom-frontend
-    restart: unless-stopped
-    ports:
-      - "3200:3200"
-    depends_on:
-      - backend
 
 volumes:
   pgdata:
