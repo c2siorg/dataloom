@@ -104,10 +104,10 @@ async def save_project(
     original_path = get_original_path(project.file_path)
     df = read_csv_safe(original_path)
 
-    # Get all unapplied logs for this project
+    # Get all logs not yet associated with a checkpoint
     logs = db.query(models.ProjectChangeLog).filter(
         models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
+        models.ProjectChangeLog.checkpoint_id == None,
     ).order_by(models.ProjectChangeLog.timestamp).all()
 
     # Replay each logged transformation on the original

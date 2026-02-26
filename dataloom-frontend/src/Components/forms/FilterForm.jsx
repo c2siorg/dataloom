@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import TransformResultPreview from "./TransformResultPreview";
 
-const FilterForm = ({ projectId, onClose }) => {
+const FilterForm = ({ projectId, onClose, onTransform }) => {
   const [filterParams, setFilterParams] = useState({
     column: "",
     condition: "=",
@@ -30,6 +30,7 @@ const FilterForm = ({ projectId, onClose }) => {
       });
       setResult(response);
       console.log("Filter API response:", response);
+      if (onTransform) onTransform(response);
     } catch (error) {
       console.error(
         "Error applying filter:",
@@ -109,6 +110,7 @@ const FilterForm = ({ projectId, onClose }) => {
 FilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func,
 };
 
 export default FilterForm;

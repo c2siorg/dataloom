@@ -101,10 +101,19 @@ class ChangeCellValue(BaseModel):
     fill_value: Any
 
 
+class FillEmptyStrategy(str, Enum):
+    CUSTOM = "custom"
+    MEAN = "mean"
+    MEDIAN = "median"
+    MODE = "mode"
+    FORWARD_FILL = "forward_fill"
+    BACKWARD_FILL = "backward_fill"
+
 class FillEmptyParams(BaseModel):
     """Parameters for filling empty cells."""
     index: Optional[int]
-    fill_value: Any
+    fill_value: Any = None
+    strategy: FillEmptyStrategy = FillEmptyStrategy.CUSTOM
 
 
 class RenameColumnParams(BaseModel):

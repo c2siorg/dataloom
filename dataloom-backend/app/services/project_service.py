@@ -88,6 +88,7 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
         project_id=project_id,
         action_type=operation_type,
         action_details=details,
+        applied=True,
     )
     db.add(log)
     db.commit()
@@ -109,14 +110,13 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     db.add(checkpoint)
     db.flush()  # Assigns ID before updating logs
 
-    # Mark all unapplied logs as applied under this checkpoint
+    # Assign checkpoint to all logs not yet associated with a checkpoint
     logs = db.query(models.ProjectChangeLog).filter(
         models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
+        models.ProjectChangeLog.checkpoint_id == None,
     ).all()
 
     for log in logs:
-        log.applied = True
         log.checkpoint_id = checkpoint.id
 
     db.commit()

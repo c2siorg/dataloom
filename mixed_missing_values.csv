@@ -1,0 +1,11 @@
+ID,Name,Age,Email,JoinDate,Active,Score
+1,John Doe,28.0,john@example.com,2026-01-15,True,85.5
+2,Jane Smith,,jane.smith@example.com,2026-02-01,False,
+3,Bob Lee,35.0,,2025-12-20,True,90.0
+4,,42.0,alice@example.com,,True,88.0
+5,Mary Johnson,29.0,mary.j@example.com,2026-02-10,,95.0
+6,Tom Brown,31.0,tom.brown@example.com,2026-01-05,False,
+7,Linda Green,,,2026-02-18,True,80.0
+8,Michael White,38.0,michael@example.com,2026-01-22,False,82.5
+9,Emma Black,25.0,emma.black@example.com,2026-02-20,True,
+10,Chris Blue,30.0,,2026-02-25,,87.0
