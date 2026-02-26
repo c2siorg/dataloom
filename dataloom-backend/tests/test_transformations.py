@@ -46,9 +46,19 @@ class TestFilter:
         with pytest.raises(TransformationError, match="not found"):
             apply_filter(sample_df, "nonexistent", "=", "value")
 
+    def test_filter_not_equal(self, sample_df):
+        result = apply_filter(sample_df, "name", "!=", "Alice")
+        assert len(result) == 2
+        assert "Alice" not in result["name"].values
+
+    def test_filter_contains(self, sample_df):
+        result = apply_filter(sample_df, "name", "contains", "li")
+        assert len(result) == 2  # Alice and Charlie
+        assert "Bob" not in result["name"].values
+
     def test_filter_invalid_condition(self, sample_df):
         with pytest.raises(TransformationError, match="Unsupported"):
-            apply_filter(sample_df, "name", "!=", "Alice")
+            apply_filter(sample_df, "name", "invalid", "Alice")
 
 
 class TestSort:

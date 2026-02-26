@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import FilterForm from "./forms/FilterForm";
 import SortForm from "./forms/SortForm";
 import DropDuplicateForm from "./forms/DropDuplicateForm";
@@ -7,13 +7,10 @@ import PivotTableForm from "./forms/PivotTableForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
-import {
-  saveProject,
-  exportProject,
-  getLogs,
-  getCheckpoints,
-  revertToCheckpoint,
-} from "../api";
+import InputDialog from "./common/InputDialog";
+import ConfirmDialog from "./common/ConfirmDialog";
+import Toast from "./common/Toast";
+import { saveProject, exportProject, getLogs, getCheckpoints, revertToCheckpoint } from "../api";
 import proptype from "prop-types";
 import {
   LuFilter,
@@ -38,46 +35,48 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [checkpoints, setCheckpoints] = useState([]);
+  const [checkpoints, setCheckpoints] = useState(null);
+  const [isInputOpen, setIsInputOpen] = useState(false);
+  const [confirmData, setConfirmData] = useState(null);
+  const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    if (showLogs) {
-      fetchLogs();
-    }
-    if (showCheckpoints) {
-      fetchCheckpoints();
-    }
-  }, [showLogs, showCheckpoints]);
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       const logsResponse = await getLogs(projectId);
       setLogs(logsResponse);
     } catch (error) {
       console.error("Error fetching logs:", error);
     }
-  };
+  }, [projectId]);
 
-  const fetchCheckpoints = async () => {
+  const fetchCheckpoints = useCallback(async () => {
     try {
       const checkpointsResponse = await getCheckpoints(projectId);
+      console.log("CHECKPOINT RESPONSE:", checkpointsResponse);
       setCheckpoints(checkpointsResponse);
     } catch (error) {
       console.error("Error fetching checkpoints:", error);
     }
+  }, [projectId]);
+
+  useEffect(() => {
+    if (showLogs) fetchLogs();
+    if (showCheckpoints) fetchCheckpoints();
+  }, [showLogs, showCheckpoints, fetchLogs, fetchCheckpoints]);
+
+  const handleSave = () => {
+    setIsInputOpen(true);
   };
 
-  const handleSave = async () => {
-    const commitMessage = prompt("Enter a commit message for this save:");
-    if (commitMessage) {
-      try {
-        const response = await saveProject(projectId, commitMessage);
-        console.log("Save response:", response);
-        alert("Project saved successfully!");
-      } catch (error) {
-        console.error("Error saving project:", error);
-        alert("Failed to save project.");
-      }
+  const handleSubmitCommit = async (message) => {
+    setIsInputOpen(false);
+    if (!message) return;
+
+    try {
+      await saveProject(projectId, message);
+      setToast({ message: "Project saved successfully!", type: "success" });
+    } catch {
+      setToast({ message: "Failed to save project.", type: "error" });
     }
   };
 
@@ -92,24 +91,25 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error exporting project:", error);
-      alert("Failed to export project.");
+    } catch {
+      setToast({ message: "Failed to export project.", type: "error" });
     }
   };
 
-  const handleRevert = async (checkpointId) => {
-    if (window.confirm("Are you sure you want to revert to this checkpoint?")) {
-      try {
-        const response = await revertToCheckpoint(projectId, checkpointId);
-        console.log("Revert response:", response);
-        onTransform(response);
-        alert("Project reverted successfully!");
-      } catch (error) {
-        console.error("Error reverting project:", error);
-        alert("Failed to revert project.");
-      }
-    }
+  const handleRevert = (checkpointId) => {
+    setConfirmData({
+      message: "Are you sure you want to revert to this checkpoint?",
+      onConfirm: async () => {
+        try {
+          const response = await revertToCheckpoint(projectId, checkpointId);
+          onTransform(response);
+          setToast({ message: "Project reverted successfully!", type: "success" });
+        } catch {
+          setToast({ message: "Failed to revert project.", type: "error" });
+        }
+        setConfirmData(null);
+      },
+    });
   };
 
   const handleMenuClick = (formType) => {
@@ -166,16 +166,8 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       {
         group: "History",
         items: [
-          {
-            label: "Logs",
-            icon: LuHistory,
-            onClick: () => handleMenuClick("Logs"),
-          },
-          {
-            label: "Checkpoints",
-            icon: LuBookmark,
-            onClick: () => handleMenuClick("Checkpoints"),
-          },
+          { label: "Logs", icon: LuHistory, onClick: () => handleMenuClick("Logs") },
+          { label: "Checkpoints", icon: LuBookmark, onClick: () => handleMenuClick("Checkpoints") },
         ],
       },
     ],
@@ -183,16 +175,8 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       {
         group: "Transform",
         items: [
-          {
-            label: "Filter",
-            icon: LuFilter,
-            onClick: () => handleMenuClick("FilterForm"),
-          },
-          {
-            label: "Sort",
-            icon: LuArrowUpDown,
-            onClick: () => handleMenuClick("SortForm"),
-          },
+          { label: "Filter", icon: LuFilter, onClick: () => handleMenuClick("FilterForm") },
+          { label: "Sort", icon: LuArrowUpDown, onClick: () => handleMenuClick("SortForm") },
           {
             label: "Drop Dup",
             icon: LuCopyMinus,
@@ -225,13 +209,12 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
 
   return (
     <div className="bg-white border-b border-gray-200">
-      {/* Tab bar */}
       <div className="flex items-center gap-0 border-b border-gray-200 px-8">
         {Object.keys(tabs).map((tabName) => (
           <button
             key={tabName}
             onClick={() => setActiveTab(tabName)}
-            className={`px-4 py-1.5 text-sm font-medium transition-colors duration-150 ${
+            className={`px-4 py-1.5 text-sm font-medium ${
               activeTab === tabName
                 ? "text-blue-600 border-b-2 border-blue-500"
                 : "text-gray-500 hover:text-gray-700"
@@ -242,25 +225,20 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         ))}
       </div>
 
-      {/* Ribbon body */}
       <div className="flex items-stretch gap-3 px-8 py-2 min-h-[64px]">
         {tabs[activeTab].map((section, sectionIdx) => (
           <div key={section.group} className="flex items-stretch gap-3">
-            {sectionIdx > 0 && (
-              <div className="w-px bg-gray-200 self-stretch" />
-            )}
+            {sectionIdx > 0 && <div className="w-px bg-gray-200 self-stretch" />}
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-1 flex-1">
                 {section.items.map((item) => (
                   <button
                     key={item.label}
                     onClick={item.onClick}
-                    className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150"
+                    className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-md hover:bg-gray-100"
                   >
                     <item.icon className="w-5 h-5 text-gray-600" />
-                    <span className="text-xs text-gray-700">
-                      {item.label}
-                    </span>
+                    <span className="text-xs text-gray-700">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -273,17 +251,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       </div>
 
       {showFilterForm && (
-        <FilterForm
-          onClose={() => setShowFilterForm(false)}
-          projectId={projectId}
-        />
+        <FilterForm onClose={() => setShowFilterForm(false)} projectId={projectId} />
       )}
-      {showSortForm && (
-        <SortForm
-          onClose={() => setShowSortForm(false)}
-          projectId={projectId}
-        />
-      )}
+      {showSortForm && <SortForm onClose={() => setShowSortForm(false)} projectId={projectId} />}
       {showDropDuplicateForm && (
         <DropDuplicateForm
           projectId={projectId}
@@ -298,10 +268,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         />
       )}
       {showPivotTableForm && (
-        <PivotTableForm
-          onClose={() => setShowPivotTableForm(false)}
-          projectId={projectId}
-        />
+        <PivotTableForm onClose={() => setShowPivotTableForm(false)} projectId={projectId} />
       )}
       {showCastDataTypeForm && (
         <CastDataTypeForm
@@ -317,6 +284,26 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           onClose={() => setShowCheckpoints(false)}
           onRevert={handleRevert}
         />
+      )}
+
+      <InputDialog
+        isOpen={isInputOpen}
+        message="Enter a commit message for this save:"
+        onSubmit={handleSubmitCommit}
+        onCancel={() => setIsInputOpen(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmData}
+        message={confirmData?.message}
+        onConfirm={confirmData?.onConfirm}
+        onCancel={() => setConfirmData(null)}
+      />
+
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
+        </div>
       )}
     </div>
   );
