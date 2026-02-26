@@ -1,7 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
-import { complexTransformProject } from "../../api";
+import { transformProject } from "../../api";
 
 const AdvQueryFilterForm = ({ projectId, onClose }) => {
   const [query, setQuery] = useState("");
@@ -13,7 +13,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
     console.log("Query:", query);
     setLoading(true);
     try {
-      const response = await complexTransformProject(projectId, {
+      const response = await transformProject(projectId, {
         operation_type: "advQueryFilter",
         adv_query: { query },
       });

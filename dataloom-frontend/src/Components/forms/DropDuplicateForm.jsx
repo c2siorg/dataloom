@@ -1,6 +1,6 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import { complexTransformProject } from "../../api";
+import { transformProject } from "../../api";
 
 const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
   const [columns, setColumns] = useState("");
@@ -17,7 +17,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
     };
 
     try {
-      const response = await complexTransformProject(
+      const response = await transformProject(
         projectId,
         transformationInput
       );
