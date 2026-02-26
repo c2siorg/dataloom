@@ -2,22 +2,23 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir "fastapi>=0.115" "uvicorn[standard]>=0.34" \
-    "sqlmodel>=0.0.22" "alembic>=1.14" "psycopg2-binary>=2.9" \
-    "pydantic-settings>=2.0" "pandas>=2.1" "python-dotenv>=1.0" \
-    "python-multipart>=0.0.6"
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install dependencies (layer cached separately from app code)
+COPY pyproject.toml uv.lock ./
+RUN mkdir -p app && touch app/__init__.py
+RUN uv pip install --system --no-cache .
 
 # Copy application code
 COPY . .
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser && \
+# Create non-root user with home directory
+RUN groupadd -r appuser && useradd -r -g appuser -m appuser && \
     chown -R appuser:appuser /app
 
 USER appuser
 
 EXPOSE 4200
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4200"]
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4200"]
