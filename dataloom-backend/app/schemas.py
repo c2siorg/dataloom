@@ -12,10 +12,12 @@ import datetime
 class FilterCondition(str, Enum):
     """Supported filter comparison operators."""
     EQ = '='
+    NEQ = '!='
     GT = '>'
     LT = '<'
     GTE = '>='
     LTE = '<='
+    CONTAINS = 'contains'
 
 
 class OperationType(str, Enum):
