@@ -3,6 +3,8 @@ import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
+import useError from "../../hooks/useError";
+import FormErrorAlert from "../common/FormErrorAlert";
 
 const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
   const { columns } = useProjectContext();
@@ -10,10 +12,12 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
 
   const [column, setColumn] = useState("");
   const [targetType, setTargetType] = useState("string");
+  const { error, clearError, handleError } = useError();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    clearError();
     try {
       const response = await transformProject(projectId, {
         operation_type: "castDataType",
@@ -24,13 +28,12 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
       });
 
       onTransform(response);
-    } catch (error) {
-      console.error("Error casting data type:", error);
-
-      showToast(error.response?.data?.detail || "Failed to cast data type.", "error");
+      onClose();
+    } catch (err) {
+      console.error("Error casting data type:", err);
+      showToast(err.response?.data?.detail || "Failed to cast data type.", "error");
+      handleError(err);
     }
-
-    onClose();
   };
 
   return (
@@ -89,6 +92,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
           </button>
         </div>
       </form>
+      <FormErrorAlert message={error} />
     </div>
   );
 };

@@ -2,6 +2,8 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import TransformResultPreview from "./TransformResultPreview";
+import useError from "../../hooks/useError";
+import FormErrorAlert from "../common/FormErrorAlert";
 
 const FilterForm = ({ projectId, onClose }) => {
   const [filterParams, setFilterParams] = useState({
@@ -11,6 +13,7 @@ const FilterForm = ({ projectId, onClose }) => {
   });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { error, clearError, handleError } = useError();
 
   const handleInputChange = (e) => {
     setFilterParams({
@@ -23,6 +26,7 @@ const FilterForm = ({ projectId, onClose }) => {
     e.preventDefault();
     console.log("Submitting filter with parameters:", filterParams);
     setLoading(true);
+    clearError();
     try {
       const response = await transformProject(projectId, {
         operation_type: "filter",
@@ -30,8 +34,9 @@ const FilterForm = ({ projectId, onClose }) => {
       });
       setResult(response);
       console.log("Filter API response:", response);
-    } catch (error) {
-      console.error("Error applying filter:", error.response?.data || error.message);
+    } catch (err) {
+      console.error("Error applying filter:", err.response?.data || err.message);
+      handleError(err);
     } finally {
       setLoading(false);
     }
@@ -100,6 +105,7 @@ const FilterForm = ({ projectId, onClose }) => {
           </button>
         </div>
       </form>
+      <FormErrorAlert message={error} />
       {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
