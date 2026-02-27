@@ -2,26 +2,29 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-COPY pyproject.toml uv.lock* ./
-RUN uv sync --frozen --no-dev
+# Install dependencies (layer cached separately from app code)
+COPY pyproject.toml uv.lock ./
+RUN mkdir -p app && touch app/__init__.py
+RUN uv pip install --system --no-cache .
 
 FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+COPY --from=builder /usr/local /usr/local
 
-COPY --from=builder /app/.venv /app/.venv
+# Copy application code
 COPY . .
 
-RUN chown -R appuser:appuser /app
-
-ENV PATH="/app/.venv/bin:$PATH"
-
-EXPOSE 4200
+# Create non-root user with home directory
+RUN groupadd -r appuser && useradd -r -g appuser -m appuser && \
+    chown -R appuser:appuser /app
 
 USER appuser
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4200"]
+EXPOSE 4200
+
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4200"]
