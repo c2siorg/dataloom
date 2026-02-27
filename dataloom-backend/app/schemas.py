@@ -39,7 +39,6 @@ class OperationType(StrEnum):
     renameCol = "renameCol"
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
-    dropNa = "dropNa"
 
 
 class DropDup(StrEnum):
@@ -78,6 +77,7 @@ class ActionTypes(StrEnum):
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
     dropNa = "dropNa"
+    stringReplace = "stringReplace"
 
 
 # --- Basic transformation parameter schemas ---
@@ -184,6 +184,14 @@ class DropNaParams(BaseModel):
         return v
 
 
+class StringReplaceParams(BaseModel):
+    """Parameters for find-and-replace on a string column."""
+
+    column: str
+    find_value: str
+    replace_value: str
+
+
 # --- Complex transformation parameter schemas ---
 
 
@@ -252,6 +260,7 @@ class TransformationInput(BaseModel):
     cast_data_type_params: CastDataTypeParams | None = None
     trim_whitespace_params: TrimWhitespaceParams | None = None
     drop_na_params: DropNaParams | None = None
+    string_replace_params: StringReplaceParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
