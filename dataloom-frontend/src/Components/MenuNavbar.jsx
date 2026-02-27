@@ -115,6 +115,8 @@ const MenuNavbar = ({ projectId, onTransform }) => {
     });
   };
 
+  const [activeForm, setActiveForm] = useState(null);
+
   const handleMenuClick = (formType) => {
     setShowFilterForm(false);
     setShowSortForm(false);
@@ -125,6 +127,8 @@ const MenuNavbar = ({ projectId, onTransform }) => {
     setShowTrimWhitespaceForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
+
+    setActiveForm(formType);
 
     switch (formType) {
       case "FilterForm":
@@ -173,8 +177,18 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       {
         group: "History",
         items: [
-          { label: "Logs", icon: LuHistory, onClick: () => handleMenuClick("Logs") },
-          { label: "Checkpoints", icon: LuBookmark, onClick: () => handleMenuClick("Checkpoints") },
+          {
+            label: "Logs",
+            icon: LuHistory,
+            formType: "Logs",
+            onClick: () => handleMenuClick("Logs"),
+          },
+          {
+            label: "Checkpoints",
+            icon: LuBookmark,
+            formType: "Checkpoints",
+            onClick: () => handleMenuClick("Checkpoints"),
+          },
         ],
       },
     ],
@@ -182,21 +196,34 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       {
         group: "Transform",
         items: [
-          { label: "Filter", icon: LuFilter, onClick: () => handleMenuClick("FilterForm") },
-          { label: "Sort", icon: LuArrowUpDown, onClick: () => handleMenuClick("SortForm") },
+          {
+            label: "Filter",
+            icon: LuFilter,
+            formType: "FilterForm",
+            onClick: () => handleMenuClick("FilterForm"),
+          },
+          {
+            label: "Sort",
+            icon: LuArrowUpDown,
+            formType: "SortForm",
+            onClick: () => handleMenuClick("SortForm"),
+          },
           {
             label: "Drop Dup",
             icon: LuCopyMinus,
+            formType: "DropDuplicateForm",
             onClick: () => handleMenuClick("DropDuplicateForm"),
           },
           {
             label: "Cast Type",
             icon: LuRefreshCw,
+            formType: "CastDataTypeForm",
             onClick: () => handleMenuClick("CastDataTypeForm"),
           },
           {
             label: "Trim Space",
             icon: LuScissors,
+            formType: "TrimWhitespaceForm",
             onClick: () => handleMenuClick("TrimWhitespaceForm"),
           },
         ],
@@ -207,11 +234,13 @@ const MenuNavbar = ({ projectId, onTransform }) => {
           {
             label: "Adv Query",
             icon: LuCode,
+            formType: "AdvQueryFilterForm",
             onClick: () => handleMenuClick("AdvQueryFilterForm"),
           },
           {
             label: "Pivot Table",
             icon: LuTable2,
+            formType: "PivotTableForm",
             onClick: () => handleMenuClick("PivotTableForm"),
           },
         ],
@@ -243,16 +272,25 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             {sectionIdx > 0 && <div className="w-px bg-gray-200 self-stretch" />}
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-1 flex-1">
-                {section.items.map((item) => (
-                  <button
-                    key={item.label}
-                    onClick={item.onClick}
-                    className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-md hover:bg-gray-100"
-                  >
-                    <item.icon className="w-5 h-5 text-gray-600" />
-                    <span className="text-xs text-gray-700">{item.label}</span>
-                  </button>
-                ))}
+                {section.items.map((item) => {
+                  const isActive = item.formType && activeForm === item.formType;
+                  return (
+                    <button
+                      key={item.label}
+                      onClick={item.onClick}
+                      className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md ${
+                        isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
+                      }`}
+                    >
+                      <item.icon
+                        className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-gray-600"}`}
+                      />
+                      <span className={`text-xs ${isActive ? "text-blue-600" : "text-gray-700"}`}>
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
               <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
                 {section.group}
@@ -263,44 +301,87 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       </div>
 
       {showFilterForm && (
-        <FilterForm onClose={() => setShowFilterForm(false)} projectId={projectId} />
+        <FilterForm
+          onClose={() => {
+            setShowFilterForm(false);
+            setActiveForm(null);
+          }}
+          projectId={projectId}
+        />
       )}
-      {showSortForm && <SortForm onClose={() => setShowSortForm(false)} projectId={projectId} />}
+      {showSortForm && (
+        <SortForm
+          onClose={() => {
+            setShowSortForm(false);
+            setActiveForm(null);
+          }}
+          projectId={projectId}
+        />
+      )}
       {showDropDuplicateForm && (
         <DropDuplicateForm
           projectId={projectId}
-          onClose={() => setShowDropDuplicateForm(false)}
+          onClose={() => {
+            setShowDropDuplicateForm(false);
+            setActiveForm(null);
+          }}
           onTransform={onTransform}
         />
       )}
       {showAdvQueryFilterForm && (
         <AdvQueryFilterForm
-          onClose={() => setShowAdvQueryFilterForm(false)}
+          onClose={() => {
+            setShowAdvQueryFilterForm(false);
+            setActiveForm(null);
+          }}
           projectId={projectId}
         />
       )}
       {showPivotTableForm && (
-        <PivotTableForm onClose={() => setShowPivotTableForm(false)} projectId={projectId} />
+        <PivotTableForm
+          onClose={() => {
+            setShowPivotTableForm(false);
+            setActiveForm(null);
+          }}
+          projectId={projectId}
+        />
       )}
       {showCastDataTypeForm && (
         <CastDataTypeForm
           projectId={projectId}
-          onClose={() => setShowCastDataTypeForm(false)}
+          onClose={() => {
+            setShowCastDataTypeForm(false);
+            setActiveForm(null);
+          }}
           onTransform={onTransform}
         />
       )}
       {showTrimWhitespaceForm && (
         <TrimWhitespaceForm
           projectId={projectId}
-          onClose={() => setShowTrimWhitespaceForm(false)}
+          onClose={() => {
+            setShowTrimWhitespaceForm(false);
+            setActiveForm(null);
+          }}
           onTransform={onTransform}
         />
       )}
-      {showLogs && <LogsPanel logs={logs} onClose={() => setShowLogs(false)} />}
+      {showLogs && (
+        <LogsPanel
+          logs={logs}
+          onClose={() => {
+            setShowLogs(false);
+            setActiveForm(null);
+          }}
+        />
+      )}
       {showCheckpoints && (
         <CheckpointsPanel
           checkpoints={checkpoints}
-          onClose={() => setShowCheckpoints(false)}
+          onClose={() => {
+            setShowCheckpoints(false);
+            setActiveForm(null);
+          }}
           onRevert={handleRevert}
         />
       )}
