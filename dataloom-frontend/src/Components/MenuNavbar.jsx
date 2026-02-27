@@ -5,6 +5,7 @@ import DropDuplicateForm from "./forms/DropDuplicateForm";
 import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
+import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
@@ -23,6 +24,7 @@ import {
   LuBookmark,
   LuDownload,
   LuRefreshCw,
+  LuScissors,
 } from "react-icons/lu";
 
 const Menu_NavBar = ({ projectId, onTransform }) => {
@@ -34,6 +36,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showLogs, setShowLogs] = useState(false);
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
+  const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -119,6 +122,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     setShowAdvQueryFilterForm(false);
     setShowPivotTableForm(false);
     setShowCastDataTypeForm(false);
+    setShowTrimWhitespaceForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
 
@@ -140,6 +144,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         break;
       case "CastDataTypeForm":
         setShowCastDataTypeForm(true);
+        break;
+      case "TrimWhitespaceForm":
+        setShowTrimWhitespaceForm(true);
         break;
       case "Logs":
         setShowLogs(true);
@@ -187,6 +194,11 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             icon: LuRefreshCw,
             onClick: () => handleMenuClick("CastDataTypeForm"),
           },
+          {
+            label: "Trim Space",
+            icon: LuScissors,
+            onClick: () => handleMenuClick("TrimWhitespaceForm"),
+          },
         ],
       },
       {
@@ -214,11 +226,10 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           <button
             key={tabName}
             onClick={() => setActiveTab(tabName)}
-            className={`px-4 py-1.5 text-sm font-medium ${
-              activeTab === tabName
+            className={`px-4 py-1.5 text-sm font-medium ${activeTab === tabName
                 ? "text-blue-600 border-b-2 border-blue-500"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
+              }`}
           >
             {tabName}
           </button>
@@ -274,6 +285,13 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         <CastDataTypeForm
           projectId={projectId}
           onClose={() => setShowCastDataTypeForm(false)}
+          onTransform={onTransform}
+        />
+      )}
+      {showTrimWhitespaceForm && (
+        <TrimWhitespaceForm
+          projectId={projectId}
+          onClose={() => setShowTrimWhitespaceForm(false)}
           onTransform={onTransform}
         />
       )}
