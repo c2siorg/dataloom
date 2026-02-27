@@ -32,9 +32,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.ruff.format]
 quote-style = "double"
 
-[tool.hatch.build.targets.wheel]
-packages = ["app"]
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
