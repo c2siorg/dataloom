@@ -11,35 +11,21 @@ const Navbar = () => {
     <header role="banner">
       <nav
         aria-label="Main navigation"
-        className={`bg-white border-b border-gray-200 flex p-4 transition-all duration-300 ${
-          isSmall ? "h-12" : "h-16"
-        }`}
+        className="bg-white border-b border-gray-200 flex items-center h-14 px-4 md:px-10"
       >
-        <div
-          className={`text-gray-900 font-semibold ${
-            isSmall ? "text-base" : "text-lg"
-          } flex items-center ml-4 md:ml-10`}
-        >
+        <div className="text-gray-900 font-semibold text-base flex items-center">
           <Link to="/projects" className="flex items-center gap-2">
-            <DataLoomLogo className={isSmall ? "w-5 h-5" : "w-6 h-6"} />
+            <DataLoomLogo className="w-5 h-5" />
             DataLoom
           </Link>
         </div>
         {isSmall && (
-          <div
-            className={`text-gray-700 font-medium ${
-              isSmall ? "text-base" : "text-lg"
-            } flex items-center ml-auto mr-4`}
-          >
+          <div className="text-gray-700 font-medium text-base flex items-center ml-auto mr-4">
             {projectName || "Untitled Project"}
           </div>
         )}
-        <div className="ml-auto text-gray-500 items-end">
-          <button
-            className={`bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-150 ${
-              isSmall ? "py-1 px-3 text-sm" : "py-2 px-4"
-            }`}
-          >
+        <div className="ml-auto flex items-center text-gray-500">
+          <button className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150">
             Profile
           </button>
         </div>
