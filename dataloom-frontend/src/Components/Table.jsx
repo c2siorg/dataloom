@@ -148,9 +148,11 @@ const Table = ({ projectId, data: externalData }) => {
     }
 
     try {
+      const colIndex = index - 1;
+      const colName = columns[index];
       const response = await transformProject(projectId, {
         operation_type: "delCol",
-        col_params: { index: index - 1 },
+        col_params: { index: colIndex, name: colName },
       });
       updateTableData(response);
     } catch {

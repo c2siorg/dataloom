@@ -57,8 +57,8 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         return ts.delete_row(df, transformation_input.row_params.index), True
 
     elif op == 'addCol':
-        if not transformation_input.col_params:
-            raise HTTPException(status_code=400, detail="Column parameters required")
+        if not transformation_input.col_params or transformation_input.col_params.name is None:
+            raise HTTPException(status_code=400, detail="Column index and name required for addCol")
         p = transformation_input.col_params
         return ts.add_column(df, p.index, p.name), True
 
