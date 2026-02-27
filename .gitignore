@@ -25,3 +25,11 @@ Desktop.ini
 .env
 .env.local
 .env.*.local
+
+# SQLite database
+*.db
+
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
