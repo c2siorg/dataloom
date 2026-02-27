@@ -343,12 +343,6 @@ def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
 
-    if not (pd.api.types.is_string_dtype(df[column]) or pd.api.types.is_object_dtype(df[column])):
-        raise TransformationError(
-            f"Column '{column}' is not a string column (dtype: {df[column].dtype}). "
-            "Cast it to string first before using string replace."
-        )
-
     df = df.copy()
     df[column] = df[column].astype(str).str.replace(find_value, replace_value, regex=False)
     return df
@@ -581,6 +575,12 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == "trimWhitespace":
         column = action_details["trim_whitespace_params"]["column"]
         return trim_whitespace(df, column)
+
+    elif action_type == "stringReplace":
+        column = action_details["string_replace_params"]["column"]
+        find_value = action_details["string_replace_params"]["find_value"]
+        replace_value = action_details["string_replace_params"]["replace_value"]
+        return string_replace(df, column, find_value, replace_value)
 
     elif action_type == "dropNa":
         columns = action_details.get("drop_na_params", {}).get("columns")
