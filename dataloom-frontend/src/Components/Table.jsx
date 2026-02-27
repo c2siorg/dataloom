@@ -336,11 +336,7 @@ const Table = ({ projectId, data: externalData }) => {
                             : ctxColumns.map((_, index) => index);
                         const newOrder = [...currentOrder];
                         const [moved] = newOrder.splice(source, 1);
-                      let insertIndex = target;
-                      if (source < target) {
-                        insertIndex = target - 1;
-                      }
-                      newOrder.splice(insertIndex, 0, moved);
+                        newOrder.splice(target, 0, moved);
                         setColumnOrder(newOrder);
                         setDraggedColIndex(null);
                         setHoveredTargetIndex(null);
