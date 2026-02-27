@@ -31,3 +31,14 @@ export const complexTransformProject = async (projectId, transformationInput) =>
   );
   return response.data;
 };
+
+/**
+ * Undo the most recent transformation.
+ * Removes the last log entry and rebuilds data from the original file.
+ * @param {string} projectId - The project ID.
+ * @returns {Promise<Object>} Updated project data with columns and rows after undo.
+ */
+export const undoProject = async (projectId) => {
+  const response = await client.post(`/projects/${projectId}/undo`);
+  return response.data;
+};

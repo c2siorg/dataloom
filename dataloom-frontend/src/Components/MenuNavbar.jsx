@@ -13,6 +13,7 @@ import {
   getLogs,
   getCheckpoints,
   revertToCheckpoint,
+  undoProject,
 } from "../api";
 import proptype from "prop-types";
 import {
@@ -26,6 +27,7 @@ import {
   LuBookmark,
   LuDownload,
   LuRefreshCw,
+  LuUndo2,
 } from "react-icons/lu";
 
 const Menu_NavBar = ({ projectId, onTransform }) => {
@@ -39,33 +41,68 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
+  const [undoableCount, setUndoableCount] = useState(0);
 
   useEffect(() => {
+    const fetchLogsData = async () => {
+      try {
+        const logsResponse = await getLogs(projectId);
+        setLogs(logsResponse);
+        // Count unapplied (undoable) logs
+        const unappliedCount = logsResponse.filter((log) => !log.applied).length;
+        setUndoableCount(unappliedCount);
+      } catch (error) {
+        console.error("Error fetching logs:", error);
+      }
+    };
+
+    const fetchCheckpointsData = async () => {
+      try {
+        const checkpointsResponse = await getCheckpoints(projectId);
+        setCheckpoints(checkpointsResponse);
+      } catch (error) {
+        console.error("Error fetching checkpoints:", error);
+      }
+    };
+
     if (showLogs) {
-      fetchLogs();
+      fetchLogsData();
     }
     if (showCheckpoints) {
-      fetchCheckpoints();
+      fetchCheckpointsData();
     }
-  }, [showLogs, showCheckpoints]);
+  }, [showLogs, showCheckpoints, projectId]);
 
-  const fetchLogs = async () => {
+  // Helper to refresh undoable count
+  const refreshUndoableCount = async () => {
     try {
       const logsResponse = await getLogs(projectId);
-      setLogs(logsResponse);
+      const unappliedCount = logsResponse.filter((log) => !log.applied).length;
+      setUndoableCount(unappliedCount);
     } catch (error) {
-      console.error("Error fetching logs:", error);
+      console.error("Error counting undoable logs:", error);
     }
   };
 
-  const fetchCheckpoints = async () => {
-    try {
-      const checkpointsResponse = await getCheckpoints(projectId);
-      setCheckpoints(checkpointsResponse);
-    } catch (error) {
-      console.error("Error fetching checkpoints:", error);
-    }
+  // Helper to close all forms
+  const closeAllForms = () => {
+    setShowFilterForm(false);
+    setShowSortForm(false);
+    setShowDropDuplicateForm(false);
+    setShowAdvQueryFilterForm(false);
+    setShowPivotTableForm(false);
+    setShowCastDataTypeForm(false);
+    setShowLogs(false);
+    setShowCheckpoints(false);
   };
+
+  // Refresh undoable count periodically and when component mounts
+  useEffect(() => {
+    refreshUndoableCount();
+    // Refresh every 2 seconds to stay in sync with transformations
+    const interval = setInterval(refreshUndoableCount, 2000);
+    return () => clearInterval(interval);
+  }, [projectId]);
 
   const handleSave = async () => {
     const commitMessage = prompt("Enter a commit message for this save:");
@@ -103,12 +140,41 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       try {
         const response = await revertToCheckpoint(projectId, checkpointId);
         console.log("Revert response:", response);
+        // Close all forms to clear any stale previews
+        closeAllForms();
         onTransform(response);
+        // Refresh undoable count after revert
+        await refreshUndoableCount();
         alert("Project reverted successfully!");
       } catch (error) {
         console.error("Error reverting project:", error);
         alert("Failed to revert project.");
       }
+    }
+  };
+
+  // Wrapped onTransform that also refreshes the undoable count
+  const handleTransform = async (data) => {
+    onTransform(data);
+    // Refresh undoable count after any transform operation
+    await refreshUndoableCount();
+  };
+
+  const handleUndo = async () => {
+    if (undoableCount === 0) {
+      alert("No transformations to undo.");
+      return;
+    }
+    try {
+      const response = await undoProject(projectId);
+      console.log("Undo response:", response);
+      // Close all forms to clear any stale previews
+      closeAllForms();
+      // Use handleTransform to also refresh the undoable count
+      await handleTransform(response);
+    } catch (error) {
+      console.error("Error undoing transformation:", error);
+      alert(error.response?.data?.detail || "Failed to undo transformation.");
     }
   };
 
@@ -167,6 +233,12 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         group: "History",
         items: [
           {
+            label: "Undo",
+            icon: LuUndo2,
+            onClick: handleUndo,
+            disabled: undoableCount === 0,
+          },
+          {
             label: "Logs",
             icon: LuHistory,
             onClick: () => handleMenuClick("Logs"),
@@ -220,6 +292,17 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           },
         ],
       },
+      {
+        group: "Edit",
+        items: [
+          {
+            label: "Undo",
+            icon: LuUndo2,
+            onClick: handleUndo,
+            disabled: undoableCount === 0,
+          },
+        ],
+      },
     ],
   };
 
@@ -246,19 +329,24 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       <div className="flex items-stretch gap-3 px-8 py-2 min-h-[64px]">
         {tabs[activeTab].map((section, sectionIdx) => (
           <div key={section.group} className="flex items-stretch gap-3">
-            {sectionIdx > 0 && (
-              <div className="w-px bg-gray-200 self-stretch" />
-            )}
+            {sectionIdx > 0 && <div className="w-px bg-gray-200 self-stretch" />}
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-1 flex-1">
                 {section.items.map((item) => (
                   <button
                     key={item.label}
                     onClick={item.onClick}
-                    className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150"
+                    disabled={item.disabled}
+                    className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md transition-colors duration-150 ${
+                      item.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"
+                    }`}
                   >
-                    <item.icon className="w-5 h-5 text-gray-600" />
-                    <span className="text-xs text-gray-700">
+                    <item.icon
+                      className={`w-5 h-5 ${item.disabled ? "text-gray-400" : "text-gray-600"}`}
+                    />
+                    <span
+                      className={`text-xs ${item.disabled ? "text-gray-400" : "text-gray-700"}`}
+                    >
                       {item.label}
                     </span>
                   </button>
@@ -276,38 +364,42 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         <FilterForm
           onClose={() => setShowFilterForm(false)}
           projectId={projectId}
+          onTransform={handleTransform}
         />
       )}
       {showSortForm && (
         <SortForm
           onClose={() => setShowSortForm(false)}
           projectId={projectId}
+          onTransform={handleTransform}
         />
       )}
       {showDropDuplicateForm && (
         <DropDuplicateForm
           projectId={projectId}
           onClose={() => setShowDropDuplicateForm(false)}
-          onTransform={onTransform}
+          onTransform={handleTransform}
         />
       )}
       {showAdvQueryFilterForm && (
         <AdvQueryFilterForm
           onClose={() => setShowAdvQueryFilterForm(false)}
           projectId={projectId}
+          onTransform={handleTransform}
         />
       )}
       {showPivotTableForm && (
         <PivotTableForm
           onClose={() => setShowPivotTableForm(false)}
           projectId={projectId}
+          onTransform={handleTransform}
         />
       )}
       {showCastDataTypeForm && (
         <CastDataTypeForm
           projectId={projectId}
           onClose={() => setShowCastDataTypeForm(false)}
-          onTransform={onTransform}
+          onTransform={handleTransform}
         />
       )}
       {showLogs && <LogsPanel logs={logs} onClose={() => setShowLogs(false)} />}

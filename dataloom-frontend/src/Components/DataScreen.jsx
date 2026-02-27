@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { useProjectContext } from "../context/ProjectContext";
+import { useProjectContext } from "../hooks/useProjectContext";
 import Menu_NavBar from "./MenuNavbar";
 import Table from "./Table";
 
@@ -18,6 +18,8 @@ export default function DataScreen() {
 
   const handleTransform = (data) => {
     setTableData(data);
+    // Also refresh the project context to keep data in sync across components
+    refreshProject(projectId);
   };
 
   return (

@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
 import { complexTransformProject } from "../../api";
 
-const AdvQueryFilterForm = ({ projectId, onClose }) => {
+const AdvQueryFilterForm = ({ projectId, onClose, onTransform }) => {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -18,6 +18,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
         adv_query: { query },
       });
       setResult(response);
+      onTransform(response); // Update parent component with filtered data
       console.log("Query API response:", response);
     } catch (error) {
       console.error("Error applying query:", error.message);
@@ -47,7 +48,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
             disabled={loading}
           >
-          Submit
+            Submit
           </button>
           <button
             type="button"
@@ -66,6 +67,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
 AdvQueryFilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default AdvQueryFilterForm;

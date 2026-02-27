@@ -8,10 +8,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
-from app import database, schemas
+from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
-from app.services.project_service import log_transformation
+from app.services.file_service import get_original_path
+from app.services.project_service import log_transformation, undo_last_transformation
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
 
@@ -23,9 +24,9 @@ router = APIRouter()
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
     """Apply a basic transformation and optionally persist changes.
 
-    For operations that modify data (addRow, delRow, addCol, delCol, changeCellValue, fillEmpty),
-    saves to disk and logs the transformation. For read-only operations (filter, sort),
-    only returns the result.
+    For operations that modify data (filter, sort, addRow, delRow, addCol, delCol,
+    changeCellValue, fillEmpty, renameCol, castDataType), saves to disk and logs
+    the transformation so they can be undone.
 
     Returns:
         Tuple of (result_df, should_save).
@@ -36,13 +37,13 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.parameters:
             raise HTTPException(status_code=400, detail="Filter parameters required")
         p = transformation_input.parameters
-        return ts.apply_filter(df, p.column, p.condition, p.value), False
+        return ts.apply_filter(df, p.column, p.condition, p.value), True
 
     elif op == 'sort':
         if not transformation_input.sort_params:
             raise HTTPException(status_code=400, detail="Sort parameters required")
         p = transformation_input.sort_params
-        return ts.apply_sort(df, p.column, p.ascending), False
+        return ts.apply_sort(df, p.column, p.ascending), True
 
     elif op == 'addRow':
         if not transformation_input.row_params:
@@ -110,13 +111,13 @@ def _handle_complex_transform(df, transformation_input, project, db, project_id)
     elif op == 'advQueryFilter':
         if not transformation_input.adv_query:
             raise HTTPException(status_code=400, detail="Query parameter required")
-        return ts.advanced_query(df, transformation_input.adv_query.query), False
+        return ts.advanced_query(df, transformation_input.adv_query.query), True
 
     elif op == 'pivotTables':
         if not transformation_input.pivot_query:
             raise HTTPException(status_code=400, detail="Pivot parameters required")
         p = transformation_input.pivot_query
-        return ts.pivot_table(df, p.index, p.value, p.column, p.aggfun), False
+        return ts.pivot_table(df, p.index, p.value, p.column, p.aggfun), True
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
@@ -178,5 +179,58 @@ async def complex_transform_project(
     return {
         "project_id": project_id,
         "operation_type": transformation_input.operation_type,
+        **resp,
+    }
+
+
+@router.post("/{project_id}/undo", response_model=schemas.ProjectResponse)
+async def undo_transformation(
+    project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+):
+    """Undo the most recent transformation by removing the last log entry and replaying remaining logs.
+
+    This endpoint removes the most recent unapplied transformation log entry,
+    then rebuilds the working copy from the original file by replaying all
+    remaining unapplied transformations.
+
+    Returns:
+        ProjectResponse with updated columns and rows after undo.
+
+    Raises:
+        HTTPException: 400 if there are no transformations to undo.
+    """
+    project = get_project_or_404(project_id, db)
+
+    # Attempt to undo the last transformation
+    deleted_log, remaining_count = undo_last_transformation(db, project_id)
+
+    if deleted_log is None:
+        raise HTTPException(status_code=400, detail="No transformations to undo")
+
+    # Load original file for replaying remaining transformations
+    original_path = get_original_path(project.file_path)
+    df = read_csv_safe(original_path)
+
+    # Get all remaining unapplied logs for this project
+    logs = db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.applied == False,
+    ).order_by(models.ProjectChangeLog.timestamp).all()
+
+    # Replay each remaining logged transformation on the original
+    for log in logs:
+        df = ts.apply_logged_transformation(df, log.action_type, log.action_details)
+
+    # Save the rebuilt working copy
+    save_csv_safe(df, project.file_path)
+
+    resp = dataframe_to_response(df)
+    logger.info("Undo completed: project_id=%s, undone_operation=%s, remaining_logs=%d",
+                project_id, deleted_log.action_type, remaining_count)
+    return {
+        "filename": project.name,
+        "file_path": project.file_path,
+        "project_id": project.project_id,
         **resp,
     }

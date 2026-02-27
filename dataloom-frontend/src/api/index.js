@@ -3,5 +3,5 @@
  * @module api
  */
 export { uploadProject, getProjectDetails, getRecentProjects, saveProject, revertToCheckpoint, exportProject, deleteProject } from "./projects";
-export { transformProject, complexTransformProject } from "./transforms";
+export { transformProject, complexTransformProject, undoProject } from "./transforms";
 export { getLogs, getCheckpoints } from "./logs";

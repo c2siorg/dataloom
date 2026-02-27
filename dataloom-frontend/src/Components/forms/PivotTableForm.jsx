@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
 import { complexTransformProject } from "../../api";
 
-const PivotTableForm = ({ projectId, onClose }) => {
+const PivotTableForm = ({ projectId, onClose, onTransform }) => {
   const [index, setIndex] = useState("");
   const [column, setColumn] = useState("");
   const [value, setValue] = useState("");
@@ -20,6 +20,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
         pivot_query: { index, column, value, aggfun },
       });
       setResult(response);
+      onTransform(response); // Update parent component with pivot data
       console.log("Pivot API response:", response);
     } catch (error) {
       console.error("Error applying pivot table:", error.message);
@@ -67,9 +68,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
             />
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Aggregation Function:
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Aggregation Function:</label>
             <select
               value={aggfun}
               onChange={(e) => setAggfun(e.target.value)}
@@ -108,6 +107,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
 PivotTableForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default PivotTableForm;
