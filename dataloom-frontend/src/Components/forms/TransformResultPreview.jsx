@@ -12,34 +12,42 @@ const TransformResultPreview = ({ columns, rows }) => {
   return (
     <div className="p-4 mt-4 border border-gray-200 rounded-lg bg-gray-50">
       <h4 className="font-medium text-sm text-gray-700 mb-2">API Response:</h4>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-100">
-          <tr>
-            {columns.map((col, index) => (
-              <th
-                key={index}
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                {col}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {rows.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {row.map((cell, cellIndex) => (
-                <td
-                  key={cellIndex}
-                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
+      <div
+        className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
+        style={{ maxHeight: "calc(100vh - 140px)" }}
+      >
+        <table className="min-w-full bg-white">
+          <thead className="bg-gray-50">
+            <tr>
+              {columns.map((col, index) => (
+                <th
+                  key={index}
+                  className="py-1.5 px-3 border-b border-gray-200 text-left text-sm font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  {cell}
-                </td>
+                  {col}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr
+                key={rowIndex}
+                className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+              >
+                {row.map((cell, cellIndex) => (
+                  <td
+                    key={cellIndex}
+                    className="py-1 px-3 text-sm text-gray-700"
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

@@ -4,6 +4,7 @@ import SortForm from "./forms/SortForm";
 import DropDuplicateForm from "./forms/DropDuplicateForm";
 import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
+import GroupByForm from "./forms/GroupByForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
 import LogsPanel from "./history/LogsPanel";
@@ -33,6 +34,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showDropDuplicateForm, setShowDropDuplicateForm] = useState(false);
   const [showAdvQueryFilterForm, setShowAdvQueryFilterForm] = useState(false);
   const [showPivotTableForm, setShowPivotTableForm] = useState(false);
+  const [showGroupByForm, setShowGroupByForm] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
@@ -120,7 +122,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     setShowSortForm(false);
     setShowDropDuplicateForm(false);
     setShowAdvQueryFilterForm(false);
-    setShowPivotTableForm(false);
+    setShowGroupByForm(false);
     setShowCastDataTypeForm(false);
     setShowTrimWhitespaceForm(false);
     setShowLogs(false);
@@ -141,6 +143,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         break;
       case "PivotTableForm":
         setShowPivotTableForm(true);
+        break;
+      case "GroupByForm":
+        setShowGroupByForm(true);
         break;
       case "CastDataTypeForm":
         setShowCastDataTypeForm(true);
@@ -214,6 +219,11 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             icon: LuTable2,
             onClick: () => handleMenuClick("PivotTableForm"),
           },
+          {
+            label: "GroupBy",
+            icon: LuTable2,
+            onClick: () => handleMenuClick("GroupByForm"),
+          },
         ],
       },
     ],
@@ -227,8 +237,8 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             key={tabName}
             onClick={() => setActiveTab(tabName)}
             className={`px-4 py-1.5 text-sm font-medium ${activeTab === tabName
-                ? "text-blue-600 border-b-2 border-blue-500"
-                : "text-gray-500 hover:text-gray-700"
+              ? "text-blue-600 border-b-2 border-blue-500"
+              : "text-gray-500 hover:text-gray-700"
               }`}
           >
             {tabName}
@@ -280,6 +290,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       )}
       {showPivotTableForm && (
         <PivotTableForm onClose={() => setShowPivotTableForm(false)} projectId={projectId} />
+      )}
+      {showGroupByForm && (
+        <GroupByForm onClose={() => setShowGroupByForm(false)} projectId={projectId} />
       )}
       {showCastDataTypeForm && (
         <CastDataTypeForm
