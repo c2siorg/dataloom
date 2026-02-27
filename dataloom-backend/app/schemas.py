@@ -126,6 +126,26 @@ class DataType(str, Enum):
     datetime = "datetime"
 
 
+class ExportDelimiter(str, Enum):
+    """Supported CSV delimiter options for export."""
+    comma = "comma"
+    tab = "tab"
+    semicolon = "semicolon"
+    pipe = "pipe"
+
+    def to_char(self) -> str:
+        """Return the actual delimiter character."""
+        return {"comma": ",", "tab": "\t", "semicolon": ";", "pipe": "|"}[self.value]
+
+
+class ExportEncoding(str, Enum):
+    """Supported file encoding options for export."""
+    utf8 = "utf-8"
+    latin1 = "latin-1"
+    ascii = "ascii"
+    utf16 = "utf-16"
+
+
 class CastDataTypeParams(BaseModel):
     """Parameters for casting a column to a different data type."""
     column: str
