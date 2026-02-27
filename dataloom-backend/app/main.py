@@ -5,7 +5,7 @@ Configures middleware, exception handlers, and mounts all API routers.
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from app.api.endpoints import projects, user_logs, transformations
+from app.api.endpoints import projects, user_logs, transformations, export
 from app.config import get_settings
 from app.exceptions import AppException, app_exception_handler
 from app.services.transformation_service import TransformationError
@@ -55,6 +55,7 @@ app.add_exception_handler(AppException, app_exception_handler)
 
 app.include_router(projects.router, prefix="/projects", tags=["projects"])
 app.include_router(transformations.router, prefix="/projects", tags=["transformations"])
+app.include_router(export.router, prefix="/export", tags=["export"])
 app.include_router(user_logs.router, prefix="/logs", tags=["user_logs"])
 
 if __name__ == "__main__":
