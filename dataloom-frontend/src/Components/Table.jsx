@@ -1,3 +1,5 @@
+import ContextMenu from "./ContextMenu";
+import { useContextMenu } from "../hooks/useContextMenu";
 import { useEffect, useState } from "react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
@@ -12,14 +14,7 @@ const Table = ({ projectId, data: externalData }) => {
   const [columns, setColumns] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState("");
-  const [contextMenu, setContextMenu] = useState({
-    visible: false,
-    x: 0,
-    y: 0,
-    rowIndex: null,
-    columnIndex: null,
-    type: null,
-  });
+  const { isOpen, position, contextData, open, close } = useContextMenu();
 
   const [inputConfig, setInputConfig] = useState(null);
   const [toast, setToast] = useState(null);
@@ -199,31 +194,8 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleRightClick = (event, rowIndex = null, columnIndex = null, type = null) => {
-    event.preventDefault();
-    setContextMenu({
-      visible: true,
-      x: event.clientX,
-      y: event.clientY,
-      rowIndex,
-      columnIndex,
-      type,
-    });
-  };
-
-  const handleCloseContextMenu = () => {
-    setContextMenu({
-      visible: false,
-      x: 0,
-      y: 0,
-      rowIndex: null,
-      columnIndex: null,
-      type: null,
-    });
-  };
-
   return (
-    <div className="px-8 pt-3" onClick={handleCloseContextMenu}>
+    <div className="px-8 pt-3">
       <div
         className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
         style={{ maxHeight: "calc(100vh - 140px)" }}
@@ -235,7 +207,7 @@ const Table = ({ projectId, data: externalData }) => {
                 <th
                   key={columnIndex}
                   className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  onContextMenu={(e) => handleRightClick(e, null, columnIndex, "column")}
+                  onContextMenu={(e) => open(e, { type: "column", columnIndex })}
                 >
                   <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
                     {column}
@@ -256,7 +228,7 @@ const Table = ({ projectId, data: externalData }) => {
                   <td
                     key={cellIndex}
                     className="py-1 px-3 text-xs text-gray-700"
-                    onContextMenu={(e) => handleRightClick(e, rowIndex, null, "row")}
+                    onContextMenu={(e) => open(e, { type: "row", rowIndex })}
                   >
                     {editingCell &&
                     editingCell.rowIndex === rowIndex &&
@@ -287,51 +259,40 @@ const Table = ({ projectId, data: externalData }) => {
         </table>
       </div>
 
-      {contextMenu.visible && contextMenu.type === "column" && (
-        <div
-          className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleAddColumn(contextMenu.columnIndex)}
-          >
-            Add Column
-          </button>
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleDeleteColumn(contextMenu.columnIndex)}
-          >
-            Delete Column
-          </button>
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleRenameColumn(contextMenu.columnIndex)}
-          >
-            Rename Column
-          </button>
-        </div>
-      )}
+      <ContextMenu
+        isOpen={isOpen}
+        position={position}
+        contextData={contextData}
+        onClose={close}
+        actions={(data) => {
+          if (!data) return null;
 
-      {contextMenu.visible && contextMenu.type === "row" && (
-        <div
-          className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleAddRow(contextMenu.rowIndex)}
-          >
-            Add Row
-          </button>
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleDeleteRow(contextMenu.rowIndex)}
-          >
-            Delete Row
-          </button>
-        </div>
-      )}
+          if (data.type === "column") {
+            return (
+              <>
+                <MenuButton onClick={() => handleAddColumn(data.columnIndex)}>
+                  Add Column
+                </MenuButton>
+                <MenuButton onClick={() => handleDeleteColumn(data.columnIndex)}>
+                  Delete Column
+                </MenuButton>
+                <MenuButton onClick={() => handleRenameColumn(data.columnIndex)}>
+                  Rename Column
+                </MenuButton>
+              </>
+            );
+          }
+
+          if (data.type === "row") {
+            return (
+              <>
+                <MenuButton onClick={() => handleAddRow(data.rowIndex)}>Add Row</MenuButton>
+                <MenuButton onClick={() => handleDeleteRow(data.rowIndex)}>Delete Row</MenuButton>
+              </>
+            );
+          }
+        }}
+      />
 
       {inputConfig && (
         <InputDialog
@@ -361,4 +322,13 @@ Table.propTypes = {
     ),
   }),
 };
+
+const MenuButton = ({ children, onClick }) => (
+  <button
+    className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150 whitespace-nowrap"
+    onClick={onClick}
+  >
+    {children}
+  </button>
+);
 export default Table;
