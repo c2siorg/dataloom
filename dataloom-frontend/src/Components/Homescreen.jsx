@@ -56,6 +56,27 @@ const NewProjectCard = ({ onClick }) => (
   </button>
 );
 
+const EmptyState = ({ onClick }) => (
+  <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
+    <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-50">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v4m-2-2h4" />
+      </svg>
+    </div>
+    <h3 className="text-lg font-semibold text-gray-800 mb-1">No projects yet</h3>
+    <p className="text-sm text-gray-500 mb-6 max-w-xs">
+      Upload a CSV file to get started. Your recent projects will appear here.
+    </p>
+    <button
+      onClick={onClick}
+      className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors duration-150 shadow-sm"
+    >
+      Create your first project
+    </button>
+  </div>
+);
+
 const HomeScreen = () => {
   const [showModal, setShowModal] = useState(false);
   const [fileUpload, setFileUpload] = useState(null);
@@ -107,15 +128,12 @@ const HomeScreen = () => {
 
     try {
       const data = await uploadProject(fileUpload, projectName, projectDescription);
-      console.log("Backend response data:", data);
 
       const projectId = data.project_id;
-      console.log("Project ID:", projectId);
 
       if (projectId) {
         navigate(`/workspace/${projectId}`);
       } else {
-        console.error("Project ID is undefined.");
         showToast("Error: Project ID is undefined.", "error");
       }
     } catch (error) {
@@ -130,7 +148,6 @@ const HomeScreen = () => {
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     setFileUpload(file);
-    console.log(file);
   };
 
   const handleDeleteClick = (projectId) => {
@@ -164,23 +181,41 @@ const HomeScreen = () => {
         <h1 className="text-5xl text-gray-900">
           Welcome to <span className="text-blue-500 font-bold">DataLoom</span>,
         </h1>
-        <h1 className="text-4xl mt-2 text-gray-900">
+        <p className="text-4xl mt-2 text-gray-900">
           your one-stop for{" "}
-          <span className="text-gray-900 font-semibold">Dataset Transformations</span>.
-        </h1>
+          <span className="text-gray-900 font-semibold">
+            Dataset Transformations
+          </span>
+          .
+        </p>
 
-        <h2 className="mt-12 mb-4 text-lg font-medium text-gray-700">Projects</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <NewProjectCard onClick={handleNewProjectClick} />
-          {recentProjects.map((project) => (
-            <ProjectCard
-              key={project.project_id}
-              project={project}
-              onClick={() => handleRecentProjectClick(project.project_id)}
-              onDelete={handleDeleteClick}
-            />
-          ))}
+        <div className="flex items-center justify-between mt-12 mb-4">
+          <h2 className="text-lg font-medium text-gray-700">Recent Projects</h2>
+          {recentProjects.length > 0 && (
+            <button
+              onClick={handleNewProjectClick}
+              className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors duration-150"
+            >
+              + New Project
+            </button>
+          )}
         </div>
+
+        {recentProjects.length === 0 ? (
+          <EmptyState onClick={handleNewProjectClick} />
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <NewProjectCard onClick={handleNewProjectClick} />
+            {recentProjects.map((project) => (
+              <ProjectCard
+                key={project.project_id}
+                project={project}
+                onClick={() => handleRecentProjectClick(project.project_id)}
+                onDelete={handleDeleteClick}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
@@ -194,36 +229,54 @@ const HomeScreen = () => {
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal}></div>
           <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Name</h2>
-            <input
-              type="text"
-              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
-              onChange={(e) => setProjectName(e.target.value)}
-            />
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Upload Dataset</h2>
-            <input
-              type="file"
-              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none mb-4"
-              onChange={handleFileUpload}
-            />
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Description</h2>
-            <input
-              type="text"
-              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
-              onChange={(e) => setProjectDescription(e.target.value)}
-            />
-            <div className="flex flex-row justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">New Project</h2>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Project Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sales Analysis Q1"
+                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(e) => setProjectName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  placeholder="Brief description of this dataset"
+                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(e) => setProjectDescription(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Upload Dataset <span className="text-gray-400 font-normal">(CSV)</span>
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none"
+                  onChange={handleFileUpload}
+                />
+              </div>
+            </div>
+            <div className="flex flex-row justify-end gap-3 mt-6">
               <button
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium transition-colors duration-150"
-                onClick={handleSubmitModal}
-              >
-                Submit
-              </button>
-              <button
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md font-medium transition-colors duration-150"
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors duration-150"
                 onClick={handleCloseModal}
               >
-                Close
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium transition-colors duration-150"
+                onClick={handleSubmitModal}
+              >
+                Create Project
               </button>
             </div>
           </div>
