@@ -7,12 +7,15 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from app.api.endpoints import projects, user_logs, transformations
 from app.config import get_settings
+from app.database import engine
 from app.exceptions import AppException, app_exception_handler
 from app.services.transformation_service import TransformationError
 from app.utils.logging import setup_logging, get_logger
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import inspect
+from sqlmodel import SQLModel
 
 logger = get_logger(__name__)
 
@@ -24,7 +27,12 @@ async def lifespan(app):
     from alembic.config import Config
 
     alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
+    inspector = inspect(engine)
+    if not inspector.has_table("alembic_version"):
+        SQLModel.metadata.create_all(engine)
+        command.stamp(alembic_cfg, "head")
+    else:
+        command.upgrade(alembic_cfg, "head")
 
     settings = get_settings()
     setup_logging(settings.debug)

@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
@@ -9,6 +9,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 RUN mkdir -p app && touch app/__init__.py
 RUN uv pip install --system --no-cache .
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY --from=builder /usr/local /usr/local
 
 # Copy application code
 COPY . .

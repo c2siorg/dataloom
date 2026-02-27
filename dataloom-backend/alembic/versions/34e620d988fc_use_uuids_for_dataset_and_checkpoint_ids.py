@@ -20,44 +20,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    bind = op.get_bind()
-    inspector = sa.inspect(bind)
-
-    if "datasets" not in inspector.get_table_names() and "projects" not in inspector.get_table_names():
-        op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
-
-        op.create_table(
-            "datasets",
-            sa.Column("dataset_id", sa.Uuid(), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-            sa.Column("name", sa.String(), nullable=False),
-            sa.Column("description", sa.String(), nullable=True),
-            sa.Column("file_path", sa.String(), nullable=False),
-            sa.Column("upload_date", sa.DateTime(), server_default=sa.text("now()"), nullable=True),
-            sa.Column("last_modified", sa.DateTime(), server_default=sa.text("now()"), nullable=True),
-        )
-        op.create_index(op.f("ix_datasets_dataset_id"), "datasets", ["dataset_id"], unique=False)
-
-        op.create_table(
-            "checkpoints",
-            sa.Column("id", sa.Uuid(), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-            sa.Column("dataset_id", sa.Uuid(), sa.ForeignKey("datasets.dataset_id"), nullable=False),
-            sa.Column("message", sa.String(), nullable=False),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=True),
-        )
-        op.create_index(op.f("ix_checkpoints_id"), "checkpoints", ["id"], unique=False)
-
-        op.create_table(
-            "user_logs",
-            sa.Column("change_log_id", sa.Integer(), primary_key=True),
-            sa.Column("dataset_id", sa.Uuid(), sa.ForeignKey("datasets.dataset_id"), nullable=False),
-            sa.Column("action_type", sa.String(length=50), nullable=False),
-            sa.Column("action_details", sa.JSON(), nullable=False),
-            sa.Column("timestamp", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
-            sa.Column("checkpoint_id", sa.Uuid(), sa.ForeignKey("checkpoints.id"), nullable=True),
-            sa.Column("applied", sa.Boolean(), server_default=sa.text("false"), nullable=False),
-        )
-        return
-
     # Step 1: Drop all foreign keys that reference columns being altered
     op.drop_constraint(op.f('checkpoints_dataset_id_fkey'), 'checkpoints', type_='foreignkey')
     op.drop_constraint(op.f('user_logs_dataset_id_fkey'), 'user_logs', type_='foreignkey')
