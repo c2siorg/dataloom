@@ -192,6 +192,10 @@ class BasicQueryResponse(BaseModel):
     row_count: int
     columns: list[str]
     rows: list[list]
+    total_rows: int
+    total_pages: int
+    page: int
+    page_size: int
 
 
 class ProjectResponse(BaseModel):
@@ -202,6 +206,10 @@ class ProjectResponse(BaseModel):
     columns: list[str]
     row_count: int
     rows: list[list]
+    total_rows: int
+    total_pages: int
+    page: int
+    page_size: int
 
 
 # --- Other response schemas ---

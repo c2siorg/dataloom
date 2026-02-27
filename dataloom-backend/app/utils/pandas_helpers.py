@@ -1,9 +1,13 @@
 """Pandas utility functions for safe CSV operations and response building."""
 
+import math
 import pandas as pd
 from pathlib import Path
 from typing import Any
 from fastapi import HTTPException
+
+
+DEFAULT_PAGE_SIZE = 50
 
 
 def read_csv_safe(path: Path) -> pd.DataFrame:
@@ -56,6 +60,67 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
     columns = df.columns.tolist()
     rows = df.values.tolist()
     return {"columns": columns, "rows": rows, "row_count": len(rows)}
+
+
+def dataframe_to_paginated_response(
+    df: pd.DataFrame,
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> dict[str, Any]:
+    """Convert a DataFrame to a paginated API response dict.
+
+    Applies transformations to the full DataFrame but returns only the
+    requested page of rows along with pagination metadata.
+
+    Args:
+        df: Source DataFrame (full dataset).
+        page: Page number (1-indexed).
+        page_size: Number of rows per page.
+
+    Returns:
+        Dict with columns, paginated rows, row_count (page size),
+        total_rows, total_pages, page, and page_size.
+    """
+    df = df.fillna("")
+    df = df.replace([float('inf'), float('-inf')], "")
+    columns = df.columns.tolist()
+    total_rows = len(df)
+
+    # Handle empty dataset
+    if total_rows == 0:
+        return {
+            "columns": columns,
+            "rows": [],
+            "row_count": 0,
+            "total_rows": 0,
+            "total_pages": 0,
+            "page": page,
+            "page_size": page_size,
+        }
+
+    # Calculate total pages
+    total_pages = math.ceil(total_rows / page_size) if page_size > 0 else 1
+
+    # Clamp page to valid range
+    page = max(1, min(page, total_pages))
+
+    # Calculate slice indices
+    start_idx = (page - 1) * page_size
+    end_idx = min(start_idx + page_size, total_rows)
+
+    # Slice the DataFrame
+    paginated_df = df.iloc[start_idx:end_idx]
+    rows = paginated_df.values.tolist()
+
+    return {
+        "columns": columns,
+        "rows": rows,
+        "row_count": len(rows),
+        "total_rows": total_rows,
+        "total_pages": total_pages,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 def validate_row_index(df: pd.DataFrame, index: int) -> None:

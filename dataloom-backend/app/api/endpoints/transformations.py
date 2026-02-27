@@ -5,7 +5,7 @@ Handles both basic transforms (/transform) and complex transforms (/Complextrans
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app import database, schemas
@@ -13,7 +13,12 @@ from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
 from app.services.project_service import log_transformation
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import (
+    dataframe_to_paginated_response,
+    DEFAULT_PAGE_SIZE,
+    read_csv_safe,
+    save_csv_safe,
+)
 
 logger = get_logger(__name__)
 
@@ -126,9 +131,17 @@ def _handle_complex_transform(df, transformation_input, project, db, project_id)
 async def transform_project(
     project_id: uuid.UUID,
     transformation_input: schemas.TransformationInput,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=1000, description="Number of rows per page"),
     db: Session = Depends(database.get_db),
 ):
-    """Apply a basic transformation to a project."""
+    """Apply a basic transformation to a project.
+
+    Transformations operate on the full dataset, but only the requested
+    page of results is returned. For data-modifying operations (addRow, delRow,
+    addCol, delCol, changeCellValue, fillEmpty, renameCol, castDataType),
+    the page is reset to 1 to ensure consistency.
+    """
     project = get_project_or_404(project_id, db)
     df = read_csv_safe(project.file_path)
 
@@ -142,8 +155,10 @@ async def transform_project(
     if should_save:
         save_csv_safe(result_df, project.file_path)
         log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
+        # Reset to page 1 for data-modifying operations since indices may have changed
+        page = 1
 
-    resp = dataframe_to_response(result_df)
+    resp = dataframe_to_paginated_response(result_df, page=page, page_size=page_size)
     return {
         "project_id": project_id,
         "operation_type": transformation_input.operation_type,
@@ -155,9 +170,16 @@ async def transform_project(
 async def complex_transform_project(
     project_id: uuid.UUID,
     transformation_input: schemas.TransformationInput,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=1000, description="Number of rows per page"),
     db: Session = Depends(database.get_db),
 ):
-    """Apply a complex transformation (drop duplicates, query filter, pivot)."""
+    """Apply a complex transformation (drop duplicates, query filter, pivot).
+
+    Transformations operate on the full dataset, but only the requested
+    page of results is returned. For dropDuplicate operations, the page
+    is reset to 1 since row indices may have changed.
+    """
     project = get_project_or_404(project_id, db)
     df = read_csv_safe(project.file_path)
 
@@ -173,8 +195,10 @@ async def complex_transform_project(
     if should_save:
         save_csv_safe(result_df, project.file_path)
         log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
+        # Reset to page 1 for dropDuplicate since row indices may have changed
+        page = 1
 
-    resp = dataframe_to_response(result_df)
+    resp = dataframe_to_paginated_response(result_df, page=page, page_size=page_size)
     return {
         "project_id": project_id,
         "operation_type": transformation_input.operation_type,
