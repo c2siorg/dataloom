@@ -93,7 +93,7 @@ class AddOrDeleteRow(BaseModel):
 class AddOrDeleteColumn(BaseModel):
     """Parameters for adding or deleting a column by index and name."""
     index: int
-    name: str
+    name: Optional[str] = None
 
 
 class ChangeCellValue(BaseModel):
