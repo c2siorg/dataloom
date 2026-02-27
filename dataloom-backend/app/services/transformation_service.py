@@ -305,6 +305,26 @@ def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
     return df
 
 
+def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
+    """Replace occurrences of a substring in a column.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to perform replacement on.
+        find_value: The substring to find.
+        replace_value: The string to replace it with.
+
+    Returns:
+        DataFrame with replacements applied.
+    """
+    if column not in df.columns:
+        raise TransformationError(f"Column '{column}' not found")
+
+    df = df.copy()
+    df[column] = df[column].astype(str).str.replace(find_value, replace_value, regex=False)
+    return df
+
+
 def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
     """Remove duplicate rows based on specified columns.
 
@@ -449,6 +469,12 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == 'trimWhitespace':
         column = action_details['trim_whitespace_params']['column']
         return trim_whitespace(df, column)
+
+    elif action_type == 'stringReplace':
+        column = action_details['string_replace_params']['column']
+        find_value = action_details['string_replace_params']['find_value']
+        replace_value = action_details['string_replace_params']['replace_value']
+        return string_replace(df, column, find_value, replace_value)
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
