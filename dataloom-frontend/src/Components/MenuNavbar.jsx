@@ -27,7 +27,7 @@ import {
   LuScissors,
 } from "react-icons/lu";
 
-const Menu_NavBar = ({ projectId, onTransform }) => {
+const MenuNavbar = ({ projectId, onTransform }) => {
   const [showFilterForm, setShowFilterForm] = useState(false);
   const [showSortForm, setShowSortForm] = useState(false);
   const [showDropDuplicateForm, setShowDropDuplicateForm] = useState(false);
@@ -328,9 +328,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   );
 };
 
-Menu_NavBar.propTypes = {
+MenuNavbar.propTypes = {
   projectId: proptype.string.isRequired,
   onTransform: proptype.func.isRequired,
 };
 
-export default Menu_NavBar;
+export default MenuNavbar;
