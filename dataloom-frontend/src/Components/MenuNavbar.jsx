@@ -221,39 +221,50 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
 
   return (
     <div className="bg-white border-b border-gray-200">
-      <div className="flex items-center gap-0 border-b border-gray-200 px-8">
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 border-b border-slate-200 px-4 bg-slate-50/50">
         {Object.keys(tabs).map((tabName) => (
           <button
             key={tabName}
             onClick={() => setActiveTab(tabName)}
-            className={`px-4 py-1.5 text-sm font-medium ${activeTab === tabName
-                ? "text-blue-600 border-b-2 border-blue-500"
-                : "text-gray-500 hover:text-gray-700"
+            className={`px-4 py-2 text-sm font-semibold transition-all duration-200 relative ${activeTab === tabName
+              ? "text-accent"
+              : "text-slate-500 hover:text-slate-700 hover:bg-slate-100/50"
               }`}
           >
             {tabName}
+            {activeTab === tabName && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent rounded-t-full" />
+            )}
           </button>
         ))}
       </div>
 
-      <div className="flex items-stretch gap-3 px-8 py-2 min-h-[64px]">
+      {/* Ribbon body */}
+      <div className="flex items-stretch gap-6 px-6 py-3 min-h-[80px] bg-white border-b border-slate-200">
         {tabs[activeTab].map((section, sectionIdx) => (
-          <div key={section.group} className="flex items-stretch gap-3">
-            {sectionIdx > 0 && <div className="w-px bg-gray-200 self-stretch" />}
+          <div key={section.group} className="flex items-stretch gap-6">
+            {sectionIdx > 0 && (
+              <div className="w-px bg-slate-200 self-stretch my-1" />
+            )}
             <div className="flex flex-col items-center">
-              <div className="flex items-center gap-1 flex-1">
+              <div className="flex items-center gap-2 flex-1">
                 {section.items.map((item) => (
                   <button
                     key={item.label}
                     onClick={item.onClick}
-                    className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-md hover:bg-gray-100"
+                    className="group flex flex-col items-center gap-1.5 px-4 py-2 rounded-xl hover:bg-accent/[0.04] transition-all duration-200"
                   >
-                    <item.icon className="w-5 h-5 text-gray-600" />
-                    <span className="text-xs text-gray-700">{item.label}</span>
+                    <div className="p-2 rounded-lg bg-slate-50 group-hover:bg-accent/10 transition-colors duration-200">
+                      <item.icon className="w-5 h-5 text-slate-600 group-hover:text-accent" />
+                    </div>
+                    <span className="text-[11px] font-medium text-slate-600 group-hover:text-accent">
+                      {item.label}
+                    </span>
                   </button>
                 ))}
               </div>
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1.5 px-2 py-0.5 bg-slate-50 rounded text-center min-w-full">
                 {section.group}
               </span>
             </div>

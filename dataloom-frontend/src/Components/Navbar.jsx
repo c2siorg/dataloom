@@ -8,37 +8,40 @@ const Navbar = () => {
   const isSmall = location.pathname.startsWith("/workspace/");
 
   return (
-    <header role="banner">
+    <header role="banner" className="sticky top-0 z-50">
       <nav
         aria-label="Main navigation"
-        className={`bg-white border-b border-gray-200 flex p-4 transition-all duration-300 ${
-          isSmall ? "h-12" : "h-16"
-        }`}
+        className={`glass border-b border-slate-200/50 flex items-center px-6 transition-all duration-300 ${isSmall ? "h-14" : "h-16"
+          }`}
       >
         <div
-          className={`text-gray-900 font-semibold ${
-            isSmall ? "text-base" : "text-lg"
-          } flex items-center ml-4 md:ml-10`}
+          className={`text-slate-900 font-bold tracking-tight ${isSmall ? "text-lg" : "text-xl"
+            } flex items-center`}
         >
-          <Link to="/projects" className="flex items-center gap-2">
-            <DataLoomLogo className={isSmall ? "w-5 h-5" : "w-6 h-6"} />
-            DataLoom
+          <Link to="/projects" className="flex items-center gap-2.5 group">
+            <div className="bg-accent/10 p-1.5 rounded-lg group-hover:bg-accent/20 transition-colors duration-200">
+              <DataLoomLogo className={isSmall ? "w-5 h-5" : "w-6 h-6"} />
+            </div>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-accent to-indigo-600">
+              DataLoom
+            </span>
           </Link>
         </div>
         {isSmall && (
           <div
-            className={`text-gray-700 font-medium ${
-              isSmall ? "text-base" : "text-lg"
-            } flex items-center ml-auto mr-4`}
+            className={`text-slate-600 font-medium ${isSmall ? "text-sm" : "text-base"
+              } flex items-center ml-8 pl-8 border-l border-slate-200`}
           >
             {projectName || "Untitled Project"}
           </div>
         )}
-        <div className="ml-auto text-gray-500 items-end">
+        <div className="ml-auto flex items-center gap-4">
+          <button className="btn-secondary !py-1.5 !px-4 !text-sm">
+            Docs
+          </button>
           <button
-            className={`bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-150 ${
-              isSmall ? "py-1 px-3 text-sm" : "py-2 px-4"
-            }`}
+            className={`btn-primary !py-1.5 !px-4 !text-sm ${isSmall ? "" : ""
+              }`}
           >
             Profile
           </button>

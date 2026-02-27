@@ -223,57 +223,64 @@ const Table = ({ projectId, data: externalData }) => {
   };
 
   return (
-    <div className="px-8 pt-3" onClick={handleCloseContextMenu}>
-      <div
-        className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
-        style={{ maxHeight: "calc(100vh - 140px)" }}
-      >
-        <table className="min-w-full bg-white">
-          <thead className="sticky top-0 bg-gray-50">
+    <div className="flex-1 overflow-hidden p-4" onClick={handleCloseContextMenu}>
+      <div className="h-full overflow-auto border border-slate-200 rounded-2xl shadow-premium glass bg-white/50">
+        <table className="min-w-full border-separate border-spacing-0">
+          <thead className="sticky top-0 z-10">
             <tr>
               {columns.map((column, columnIndex) => (
                 <th
                   key={columnIndex}
-                  className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  onContextMenu={(e) => handleRightClick(e, null, columnIndex, "column")}
+                  className="py-3 px-4 border-b border-slate-200 bg-slate-50/80 backdrop-blur-md text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider first:rounded-tl-2xl transition-all"
+                  onContextMenu={(e) =>
+                    handleRightClick(e, null, columnIndex, "column")
+                  }
                 >
-                  <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
+                  <div className="flex items-center gap-2 group cursor-default">
                     {column}
                     {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
-                  </button>
+                  </div>
                 </th>
               ))}
             </tr>
           </thead>
-
-          <tbody>
+          <tbody className="bg-white/30">
             {data.map((row, rowIndex) => (
               <tr
                 key={rowIndex}
-                className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                className="group border-b border-slate-100 hover:bg-accent/[0.02] transition-colors duration-150"
               >
                 {row.map((cell, cellIndex) => (
                   <td
                     key={cellIndex}
-                    className="py-1 px-3 text-xs text-gray-700"
-                    onContextMenu={(e) => handleRightClick(e, rowIndex, null, "row")}
+                    className="py-2.5 px-4 text-sm text-slate-600 border-r border-slate-51 last:border-r-0"
+                    onContextMenu={(e) =>
+                      handleRightClick(e, rowIndex, null, "row")
+                    }
                   >
                     {editingCell &&
-                    editingCell.rowIndex === rowIndex &&
-                    editingCell.cellIndex === cellIndex ? (
+                      editingCell.rowIndex === rowIndex &&
+                      editingCell.cellIndex === cellIndex ? (
                       <input
                         type="text"
+                        autoFocus
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
-                        className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-                        onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
+                        onBlur={() =>
+                          handleEditCell(rowIndex, cellIndex, editValue)
+                        }
+                        onKeyDown={(e) =>
+                          handleInputKeyDown(e, rowIndex, cellIndex)
+                        }
+                        className="w-full px-2 py-1 text-sm bg-white border-2 border-accent rounded-lg shadow-lg outline-none"
                       />
                     ) : (
                       <div
                         onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
                         className={
-                          cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""
+                          cellIndex !== 0
+                            ? "cursor-pointer hover:text-accent transition-colors duration-150"
+                            : "font-medium text-slate-400"
                         }
                       >
                         {cell}
@@ -287,49 +294,50 @@ const Table = ({ projectId, data: externalData }) => {
         </table>
       </div>
 
-      {contextMenu.visible && contextMenu.type === "column" && (
+      {contextMenu.visible && (
         <div
-          className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
+          className="fixed z-[200] bg-white border border-slate-200 rounded-xl shadow-2xl p-1.5 min-w-[160px] animate-in fade-in zoom-in duration-100"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleAddColumn(contextMenu.columnIndex)}
-          >
-            Add Column
-          </button>
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleDeleteColumn(contextMenu.columnIndex)}
-          >
-            Delete Column
-          </button>
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleRenameColumn(contextMenu.columnIndex)}
-          >
-            Rename Column
-          </button>
-        </div>
-      )}
-
-      {contextMenu.visible && contextMenu.type === "row" && (
-        <div
-          className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-        >
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleAddRow(contextMenu.rowIndex)}
-          >
-            Add Row
-          </button>
-          <button
-            className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
-            onClick={() => handleDeleteRow(contextMenu.rowIndex)}
-          >
-            Delete Row
-          </button>
+          {contextMenu.type === "column" ? (
+            <>
+              <button
+                className="flex items-center gap-2 w-full text-left text-sm text-slate-700 px-3 py-2 hover:bg-accent/10 hover:text-accent rounded-lg transition-all duration-150 font-medium"
+                onClick={() => handleAddColumn(contextMenu.columnIndex)}
+              >
+                Add Column
+              </button>
+              <button
+                className="flex items-center gap-2 w-full text-left text-sm text-slate-700 px-3 py-2 hover:bg-accent/10 hover:text-accent rounded-lg transition-all duration-150 font-medium"
+                onClick={() => handleRenameColumn(contextMenu.columnIndex)}
+              >
+                Rename Column
+              </button>
+              <div className="h-px bg-slate-100 my-1 mx-1" />
+              <button
+                className="flex items-center gap-2 w-full text-left text-sm text-red-600 px-3 py-2 hover:bg-red-50 rounded-lg transition-all duration-150 font-medium"
+                onClick={() => handleDeleteColumn(contextMenu.columnIndex)}
+              >
+                Delete Column
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="flex items-center gap-2 w-full text-left text-sm text-slate-700 px-3 py-2 hover:bg-accent/10 hover:text-accent rounded-lg transition-all duration-150 font-medium"
+                onClick={() => handleAddRow(contextMenu.rowIndex)}
+              >
+                Add Row
+              </button>
+              <div className="h-px bg-slate-100 my-1 mx-1" />
+              <button
+                className="flex items-center gap-2 w-full text-left text-sm text-red-600 px-3 py-2 hover:bg-red-50 rounded-lg transition-all duration-150 font-medium"
+                onClick={() => handleDeleteRow(contextMenu.rowIndex)}
+              >
+                Delete Row
+              </button>
+            </>
+          )}
         </div>
       )}
 
