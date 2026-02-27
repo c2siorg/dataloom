@@ -2,17 +2,21 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import TransformResultPreview from "./TransformResultPreview";
+import useError from "../../hooks/useError";
+import FormErrorAlert from "../common/FormErrorAlert";
 
 const SortForm = ({ projectId, onClose, onTransform }) => {
   const [column, setColumn] = useState("");
   const [ascending, setAscending] = useState(true);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { error, clearError, handleError } = useError();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Submitting sort with parameters:", { column, ascending });
     setLoading(true);
+    clearError();
     try {
       const response = await transformProject(projectId, {
         operation_type: "sort",
@@ -26,6 +30,12 @@ const SortForm = ({ projectId, onClose, onTransform }) => {
       console.log("Sort API response:", response);
     } catch (error) {
       console.error("Error applying sort:", error.response?.data || error.message);
+    } catch (err) {
+      console.error(
+        "Error applying sort:",
+        err.response?.data || err.message
+      );
+      handleError(err);
     } finally {
       setLoading(false);
     }
@@ -75,6 +85,7 @@ const SortForm = ({ projectId, onClose, onTransform }) => {
           </button>
         </div>
       </form>
+      <FormErrorAlert message={error} />
       {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
