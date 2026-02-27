@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { uploadProject, getRecentProjects, deleteProject } from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
+import EmptyState from "./common/EmptyState";
 
 const ProjectCard = ({ project, onClick, onDelete }) => {
   const modified = new Date(project.last_modified).toLocaleDateString(
@@ -174,17 +175,28 @@ const HomeScreen = () => {
         <h2 className="mt-12 mb-4 text-lg font-medium text-gray-700">
           Projects
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <NewProjectCard onClick={handleNewProjectClick} />
-          {recentProjects.map((project) => (
-            <ProjectCard
-              key={project.project_id}
-              project={project}
-              onClick={() => handleRecentProjectClick(project.project_id)}
-              onDelete={handleDeleteClick}
+        {recentProjects.length === 0 ? (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+            <EmptyState
+              icon="folder"
+              title="No Projects Yet"
+              description="Create your first project by uploading a dataset to get started with DataLoom."
+              action={{ label: "New Project", onClick: handleNewProjectClick }}
             />
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <NewProjectCard onClick={handleNewProjectClick} />
+            {recentProjects.map((project) => (
+              <ProjectCard
+                key={project.project_id}
+                project={project}
+                onClick={() => handleRecentProjectClick(project.project_id)}
+                onDelete={handleDeleteClick}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
