@@ -383,6 +383,36 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
     return result.reset_index()
 
 
+def sample_rows(df: pd.DataFrame, sample_size: int, random_seed: int = None) -> pd.DataFrame:
+    """Sample rows from the DataFrame.
+
+    Args:
+        df: Source DataFrame.
+        sample_size: Number of rows to sample.
+        random_seed: Optional seed for reproducibility.
+
+    Returns:
+        DataFrame with sampled rows and reset indices.
+
+    Raises:
+        TransformationError: If sample_size is not positive.
+    """
+    if sample_size <= 0:
+        raise TransformationError("Sample size must be greater than 0")
+
+    # If sample_size is greater than dataset length, return all rows
+    n_rows = len(df)
+    actual_sample_size = min(sample_size, n_rows)
+
+    # Use random_seed if provided
+    kwargs = {'n': actual_sample_size, 'random_state': random_seed} if random_seed is not None else {'n': actual_sample_size}
+
+    sampled = df.sample(**kwargs)
+    sampled = sampled.copy()
+    sampled.insert(0, "__row_number", sampled.index + 1)
+    return sampled.reset_index(drop=True)
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
@@ -445,6 +475,11 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         column = action_details['cast_data_type_params']['column']
         target_type = action_details['cast_data_type_params']['target_type']
         return cast_data_type(df, column, target_type)
+
+    elif action_type == 'sample':
+        sample_size = action_details['sample_rows_params']['sample_size']
+        random_seed = action_details['sample_rows_params'].get('random_seed')
+        return sample_rows(df, sample_size, random_seed)
 
     elif action_type == 'trimWhitespace':
         column = action_details['trim_whitespace_params']['column']
