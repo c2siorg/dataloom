@@ -42,7 +42,14 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.sort_params:
             raise HTTPException(status_code=400, detail="Sort parameters required")
         p = transformation_input.sort_params
-        return ts.apply_sort(df, p.column, p.ascending), False
+
+        # Multi-column sorting via criteria list
+        if p.criteria is not None:
+            criteria_list = [c.dict() for c in p.criteria]
+            return ts.apply_sort(df, criteria=criteria_list), False
+
+        # Single-column sorting (backward compatible)
+        return ts.apply_sort(df, column=p.column, ascending=p.ascending), False
 
     elif op == 'addRow':
         if not transformation_input.row_params:
