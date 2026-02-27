@@ -202,6 +202,7 @@ class BasicQueryResponse(BaseModel):
     row_count: int
     columns: list[str]
     rows: list[list]
+    dtypes: dict[str, str] = {}
 
 
 class ProjectResponse(BaseModel):
@@ -212,6 +213,7 @@ class ProjectResponse(BaseModel):
     columns: list[str]
     row_count: int
     rows: list[list]
+    dtypes: dict[str, str] = {}
 
 
 # --- Other response schemas ---

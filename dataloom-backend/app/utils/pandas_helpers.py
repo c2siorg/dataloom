@@ -42,6 +42,23 @@ def save_csv_safe(df: pd.DataFrame, path: Path) -> None:
         raise HTTPException(status_code=500, detail=f"Error saving CSV: {str(e)}")
 
 
+def _map_dtype(dtype) -> str:
+    """Map a pandas dtype to a short label string."""
+    kind = dtype.kind
+    if kind == "i" or kind == "u":
+        return "int"
+    elif kind == "f":
+        return "float"
+    elif kind == "b":
+        return "bool"
+    elif kind == "M":
+        return "datetime"
+    elif kind == "O" or kind == "U" or kind == "S":
+        return "str"
+    else:
+        return "unknown"
+
+
 def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
     """Convert a DataFrame to an API response dict.
 
@@ -49,13 +66,14 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
         df: Source DataFrame.
 
     Returns:
-        Dict with columns (list of str), rows (list of lists), and row_count.
+        Dict with columns (list of str), rows (list of lists), row_count, and dtypes.
     """
+    dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
     df = df.fillna("")
     df = df.replace([float('inf'), float('-inf')], "")
     columns = df.columns.tolist()
     rows = df.values.tolist()
-    return {"columns": columns, "rows": rows, "row_count": len(rows)}
+    return {"columns": columns, "rows": rows, "row_count": len(rows), "dtypes": dtypes}
 
 
 def validate_row_index(df: pd.DataFrame, index: int) -> None:
