@@ -15,6 +15,7 @@ from app.services.project_service import (
     create_checkpoint,
     create_project,
     delete_project,
+    get_all_checkpoints,
     get_recent_projects,
 )
 from app.services.file_service import delete_project_files, get_original_path, store_upload
@@ -129,53 +130,66 @@ async def save_project(
     }
 
 
-@router.post("/{project_id}/revert", response_model=schemas.ProjectResponse)
+@router.post("/{project_id}/checkpoints/{checkpoint_id}/revert", response_model=schemas.ProjectResponse)
 async def revert_to_checkpoint(
     project_id: uuid.UUID,
-    checkpoint_id: uuid.UUID = None,
+    checkpoint_id: uuid.UUID,
     db: Session = Depends(database.get_db),
 ):
-    """Revert project to its original state or to a specific checkpoint.
+    """Revert project to a specific checkpoint.
 
-    When checkpoint_id is provided, replays only the logs up to and including
-    that checkpoint onto the original file. When None, reverts to the original
-    uploaded state.
+    Replays logs up to and including the target checkpoint onto the original file,
+    and deletes all logs created after the checkpoint's timestamp.
     """
     project = get_project_or_404(project_id, db)
 
+    # Fetch the target checkpoint
+    checkpoint = db.query(models.Checkpoint).filter(
+        models.Checkpoint.id == checkpoint_id,
+        models.Checkpoint.project_id == project_id,
+    ).first()
+    
+    if not checkpoint:
+        raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+    # Load original file
     original_path = get_original_path(project.file_path)
     df = read_csv_safe(original_path)
 
-    if checkpoint_id is not None:
-        checkpoint = db.query(models.Checkpoint).filter(
-            models.Checkpoint.id == checkpoint_id,
+    # Find all checkpoint IDs created at or before the target checkpoint
+    eligible_checkpoint_ids = [
+        c.id for c in db.query(models.Checkpoint).filter(
             models.Checkpoint.project_id == project_id,
-        ).first()
-        if not checkpoint:
-            raise HTTPException(status_code=404, detail="Checkpoint not found")
+            models.Checkpoint.created_at <= checkpoint.created_at,
+        ).all()
+    ]
 
-        # Find all checkpoint IDs created at or before the target checkpoint
-        eligible_checkpoint_ids = [
-            c.id for c in db.query(models.Checkpoint).filter(
-                models.Checkpoint.project_id == project_id,
-                models.Checkpoint.created_at <= checkpoint.created_at,
-            ).all()
-        ]
+    # Replay logs from eligible checkpoints (BEFORE cleanup)
+    logs = db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
+        models.ProjectChangeLog.applied == True,
+    ).order_by(models.ProjectChangeLog.timestamp).all()
 
-        logs = db.query(models.ProjectChangeLog).filter(
-            models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
-            models.ProjectChangeLog.applied == True,
-        ).order_by(models.ProjectChangeLog.timestamp).all()
+    for log in logs:
+        df = apply_logged_transformation(df, log.action_type, log.action_details)
 
-        for log in logs:
-            df = apply_logged_transformation(df, log.action_type, log.action_details)
-
+    # Save the reverted state to working copy
     save_csv_safe(df, project.file_path)
+
+    # NOW delete all logs created after this checkpoint's timestamp
+    logs_to_delete = db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.timestamp > checkpoint.created_at,
+    ).all()
+    
+    for log in logs_to_delete:
+        db.delete(log)
+
     db.commit()
 
     resp = dataframe_to_response(df)
-    logger.info("Project reverted: id=%s, checkpoint_id=%s", project_id, checkpoint_id)
+    logger.info("Project reverted: id=%s, checkpoint_id=%s, logs_deleted=%d", project_id, checkpoint_id, len(logs_to_delete))
     return {
         "filename": project.name,
         "file_path": project.file_path,
@@ -198,3 +212,19 @@ async def delete_project_endpoint(project_id: uuid.UUID, db: Session = Depends(d
     delete_project_files(project.file_path)
     delete_project(db, project)
     return {"success": True, "message": "Project deleted"}
+
+
+@router.get("/{project_id}/checkpoints", response_model=list[schemas.CheckpointResponse])
+async def get_project_checkpoints(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+    """Get all checkpoints for a project ordered by creation time."""
+    get_project_or_404(project_id, db)  # Verify project exists
+    checkpoints = get_all_checkpoints(db, project_id)
+    
+    return [
+        schemas.CheckpointResponse(
+            id=checkpoint.id,
+            message=checkpoint.message,
+            created_at=checkpoint.created_at
+        )
+        for checkpoint in checkpoints
+    ]

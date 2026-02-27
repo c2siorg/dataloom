@@ -9,9 +9,9 @@ import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
-import ConfirmDialog from "./common/ConfirmDialog";
 import Toast from "./common/Toast";
-import { saveProject, exportProject, getLogs, getCheckpoints, revertToCheckpoint } from "../api";
+import { saveProject, exportProject, revertToCheckpoint, getAllCheckpoints } from "../api/projects";
+import { getLogs } from "../api";
 import proptype from "prop-types";
 import {
   LuFilter,
@@ -38,9 +38,10 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [checkpoints, setCheckpoints] = useState(null);
+  const [checkpoints, setCheckpoints] = useState([]);
+  const [checkpointsLoading, setCheckpointsLoading] = useState(false);
+  const [checkpointsError, setCheckpointsError] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
-  const [confirmData, setConfirmData] = useState(null);
   const [toast, setToast] = useState(null);
 
   const fetchLogs = useCallback(async () => {
@@ -53,12 +54,17 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   }, [projectId]);
 
   const fetchCheckpoints = useCallback(async () => {
+    setCheckpointsLoading(true);
+    setCheckpointsError(null);
     try {
-      const checkpointsResponse = await getCheckpoints(projectId);
+      const checkpointsResponse = await getAllCheckpoints(projectId);
       console.log("CHECKPOINT RESPONSE:", checkpointsResponse);
       setCheckpoints(checkpointsResponse);
     } catch (error) {
       console.error("Error fetching checkpoints:", error);
+      setCheckpointsError(error.message || "Failed to load checkpoints");
+    } finally {
+      setCheckpointsLoading(false);
     }
   }, [projectId]);
 
@@ -99,20 +105,19 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     }
   };
 
-  const handleRevert = (checkpointId) => {
-    setConfirmData({
-      message: "Are you sure you want to revert to this checkpoint?",
-      onConfirm: async () => {
-        try {
-          const response = await revertToCheckpoint(projectId, checkpointId);
-          onTransform(response);
-          setToast({ message: "Project reverted successfully!", type: "success" });
-        } catch {
-          setToast({ message: "Failed to revert project.", type: "error" });
-        }
-        setConfirmData(null);
-      },
-    });
+  const handleRevert = async (checkpointId) => {
+    try {
+      const response = await revertToCheckpoint(projectId, checkpointId);
+      onTransform(response);
+      // Refresh both checkpoints and logs after revert
+      await fetchCheckpoints();
+      if (showLogs) await fetchLogs();
+      setToast({ message: "Project reverted successfully!", type: "success" });
+    } catch (error) {
+      console.error("Revert failed:", error);
+      setToast({ message: "Failed to revert project.", type: "error" });
+      throw error; // Re-throw so CheckpointsPanel can handle the error state
+    }
   };
 
   const handleMenuClick = (formType) => {
@@ -227,8 +232,8 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             key={tabName}
             onClick={() => setActiveTab(tabName)}
             className={`px-4 py-1.5 text-sm font-medium ${activeTab === tabName
-                ? "text-blue-600 border-b-2 border-blue-500"
-                : "text-gray-500 hover:text-gray-700"
+              ? "text-blue-600 border-b-2 border-blue-500"
+              : "text-gray-500 hover:text-gray-700"
               }`}
           >
             {tabName}
@@ -299,6 +304,8 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       {showCheckpoints && (
         <CheckpointsPanel
           checkpoints={checkpoints}
+          loading={checkpointsLoading}
+          error={checkpointsError}
           onClose={() => setShowCheckpoints(false)}
           onRevert={handleRevert}
         />
@@ -309,13 +316,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         message="Enter a commit message for this save:"
         onSubmit={handleSubmitCommit}
         onCancel={() => setIsInputOpen(false)}
-      />
-
-      <ConfirmDialog
-        isOpen={!!confirmData}
-        message={confirmData?.message}
-        onConfirm={confirmData?.onConfirm}
-        onCancel={() => setConfirmData(null)}
       />
 
       {toast && (

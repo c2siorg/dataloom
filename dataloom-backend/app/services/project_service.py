@@ -122,3 +122,61 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     db.commit()
     logger.info("Checkpoint created: id=%s, project_id=%s, logs_applied=%d", checkpoint.id, project_id, len(logs))
     return checkpoint
+
+
+def get_all_checkpoints(db: Session, project_id: uuid.UUID) -> list[models.Checkpoint]:
+    """Fetch all checkpoints for a project ordered by creation time.
+
+    Args:
+        db: Database session.
+        project_id: The project to get checkpoints for.
+
+    Returns:
+        List of Checkpoint model instances ordered by created_at ascending.
+    """
+    return (
+        db.query(models.Checkpoint)
+        .filter(models.Checkpoint.project_id == project_id)
+        .order_by(models.Checkpoint.created_at.asc())
+        .all()
+    )
+
+
+def revert_to_checkpoint_with_cleanup(db: Session, project_id: uuid.UUID, checkpoint_id: uuid.UUID) -> models.Checkpoint:
+    """Revert to a checkpoint and clean up subsequent logs.
+
+    Args:
+        db: Database session.
+        project_id: The project to revert.
+        checkpoint_id: The checkpoint to revert to.
+
+    Returns:
+        The target Checkpoint model instance.
+
+    Raises:
+        ValueError: If checkpoint not found or doesn't belong to project.
+    """
+    # Fetch the target checkpoint
+    checkpoint = db.query(models.Checkpoint).filter(
+        models.Checkpoint.id == checkpoint_id,
+        models.Checkpoint.project_id == project_id,
+    ).first()
+    
+    if not checkpoint:
+        raise ValueError("Checkpoint not found or doesn't belong to project")
+    
+    # Delete all logs created after this checkpoint's timestamp
+    logs_to_delete = db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.timestamp > checkpoint.created_at,
+    ).all()
+    
+    for log in logs_to_delete:
+        db.delete(log)
+    
+    db.commit()
+    logger.info(
+        "Reverted to checkpoint: id=%s, project_id=%s, logs_deleted=%d",
+        checkpoint_id, project_id, len(logs_to_delete)
+    )
+    return checkpoint

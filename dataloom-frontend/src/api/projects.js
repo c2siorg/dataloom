@@ -59,9 +59,7 @@ export const saveProject = async (projectId, commitMessage) => {
  * @returns {Promise<Object>} Reverted project response.
  */
 export const revertToCheckpoint = async (projectId, checkpointId) => {
-  const response = await client.post(
-    `/projects/${projectId}/revert?checkpoint_id=${checkpointId}`
-  );
+  const response = await client.post(`/projects/${projectId}/checkpoints/${checkpointId}/revert`);
   return response.data;
 };
 
@@ -84,5 +82,15 @@ export const exportProject = async (projectId) => {
  */
 export const deleteProject = async (projectId) => {
   const response = await client.delete(`/projects/${projectId}`);
+  return response.data;
+};
+
+/**
+ * Get all checkpoints for a project ordered by creation time.
+ * @param {string} projectId - The project ID.
+ * @returns {Promise<Array>} List of checkpoint objects.
+ */
+export const getAllCheckpoints = async (projectId) => {
+  const response = await client.get(`/projects/${projectId}/checkpoints`);
   return response.data;
 };
