@@ -12,10 +12,12 @@ import datetime
 class FilterCondition(str, Enum):
     """Supported filter comparison operators."""
     EQ = '='
+    NEQ = '!='
     GT = '>'
     LT = '<'
     GTE = '>='
     LTE = '<='
+    CONTAINS = 'contains'
 
 
 class OperationType(str, Enum):
@@ -33,6 +35,7 @@ class OperationType(str, Enum):
     changeCellValue = 'changeCellValue'
     renameCol = 'renameCol'
     castDataType = 'castDataType'
+    trimWhitespace = 'trimWhitespace'
 
 
 class DropDup(str, Enum):
@@ -66,6 +69,7 @@ class ActionTypes(str, Enum):
     changeCellValue = 'changeCellValue'
     renameCol = 'renameCol'
     castDataType = 'castDataType'
+    trimWhitespace = 'trimWhitespace'
 
 
 # --- Basic transformation parameter schemas ---
@@ -139,6 +143,11 @@ class CastDataTypeParams(BaseModel):
     target_type: DataType
 
 
+class TrimWhitespaceParams(BaseModel):
+    """Parameters for trimming whitespace from columns."""
+    column: str
+
+
 # --- Complex transformation parameter schemas ---
 
 class DropDuplicates(BaseModel):
@@ -194,6 +203,7 @@ class TransformationInput(BaseModel):
     change_cell_value: Optional[ChangeCellValue] = None
     rename_col_params: Optional[RenameColumnParams] = None
     cast_data_type_params: Optional[CastDataTypeParams] = None
+    trim_whitespace_params: Optional[TrimWhitespaceParams] = None
 
 
 class BasicQueryResponse(BaseModel):
@@ -203,6 +213,7 @@ class BasicQueryResponse(BaseModel):
     row_count: int
     columns: list[str]
     rows: list[list]
+    dtypes: dict[str, str] = {}
 
 
 class ProjectResponse(BaseModel):
@@ -213,6 +224,7 @@ class ProjectResponse(BaseModel):
     columns: list[str]
     row_count: int
     rows: list[list]
+    dtypes: dict[str, str] = {}
 
 
 # --- Other response schemas ---

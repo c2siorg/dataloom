@@ -1,10 +1,13 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import { complexTransformProject } from "../../api";
+import { transformProject } from "../../api";
+import useError from "../../hooks/useError";
+import FormErrorAlert from "../common/FormErrorAlert";
 
 const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
   const [columns, setColumns] = useState("");
   const [keep, setKeep] = useState("first");
+  const { error, clearError, handleError } = useError();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,17 +19,19 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
       },
     };
 
+    clearError();
     try {
-      const response = await complexTransformProject(
+      const response = await transformProject(
         projectId,
         transformationInput
       );
       console.log("Transformation response:", response);
       onTransform(response); // Pass data to parent component
-    } catch (error) {
-      console.error("Error transforming project:", error);
+      onClose(); // Close the form after submission
+    } catch (err) {
+      console.error("Error transforming project:", err);
+      handleError(err);
     }
-    onClose(); // Close the form after submission
   };
 
   return (
@@ -73,6 +78,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
           </button>
         </div>
       </form>
+      <FormErrorAlert message={error} />
     </div>
   );
 };

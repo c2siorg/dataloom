@@ -2,6 +2,8 @@ import { useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import TransformResultPreview from "./TransformResultPreview";
+import useError from "../../hooks/useError";
+import FormErrorAlert from "../common/FormErrorAlert";
 
 /**
  * SortForm component for multi-column sorting.
@@ -13,7 +15,7 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
   const [nextId, setNextId] = useState(2);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { error, clearError, handleError } = useError();
 
   /**
    * Add a new sort criterion row.
@@ -115,6 +117,7 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
     }));
 
     setLoading(true);
+    clearError();
     try {
       const response = await transformProject(projectId, {
         operation_type: "sort",
@@ -123,8 +126,13 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
         },
       });
       setResult(response);
+      console.log("Sort API response:", response);
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || "Failed to apply sort");
+      console.error(
+        "Error applying sort:",
+        err.response?.data || err.message
+      );
+      handleError(err);
     } finally {
       setLoading(false);
     }
@@ -261,6 +269,7 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
           </button>
         </div>
       </form>
+      <FormErrorAlert message={error} />
       {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
