@@ -31,3 +31,5 @@ export const RENAME_COLUMN = "renameCol";
 export const CAST_DATA_TYPE = "castDataType";
 /** @type {string} Trim whitespace from columns */
 export const TRIM_WHITESPACE = "trimWhitespace";
+/** @type {string} Find and replace string values in a column */
+export const STRING_REPLACE = "stringReplace";
