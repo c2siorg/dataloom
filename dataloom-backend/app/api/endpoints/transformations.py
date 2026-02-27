@@ -97,6 +97,12 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         p = transformation_input.trim_whitespace_params
         return ts.trim_whitespace(df, p.column), True
 
+    elif op == 'stringReplace':
+        if not transformation_input.string_replace_params:
+            raise HTTPException(status_code=400, detail="String replace parameters required")
+        p = transformation_input.string_replace_params
+        return ts.string_replace(df, p.column, p.find_value, p.replace_value), True
+
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
 

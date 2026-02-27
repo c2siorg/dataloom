@@ -36,6 +36,7 @@ class OperationType(str, Enum):
     renameCol = 'renameCol'
     castDataType = 'castDataType'
     trimWhitespace = 'trimWhitespace'
+    stringReplace = 'stringReplace'
 
 
 class DropDup(str, Enum):
@@ -70,6 +71,7 @@ class ActionTypes(str, Enum):
     renameCol = 'renameCol'
     castDataType = 'castDataType'
     trimWhitespace = 'trimWhitespace'
+    stringReplace = 'stringReplace'
 
 
 # --- Basic transformation parameter schemas ---
@@ -137,6 +139,13 @@ class TrimWhitespaceParams(BaseModel):
     column: str
 
 
+class StringReplaceParams(BaseModel):
+    """Parameters for find-and-replace on a string column."""
+    column: str
+    find_value: str
+    replace_value: str
+
+
 # --- Complex transformation parameter schemas ---
 
 class DropDuplicates(BaseModel):
@@ -193,6 +202,7 @@ class TransformationInput(BaseModel):
     rename_col_params: Optional[RenameColumnParams] = None
     cast_data_type_params: Optional[CastDataTypeParams] = None
     trim_whitespace_params: Optional[TrimWhitespaceParams] = None
+    string_replace_params: Optional[StringReplaceParams] = None
 
 
 class BasicQueryResponse(BaseModel):
