@@ -7,7 +7,15 @@ import DtypeBadge from "./common/DtypeBadge";
 import proptypes from "prop-types";
 
 const Table = ({ projectId, data: externalData }) => {
-  const { columns: ctxColumns, rows: ctxRows, dtypes, updateData } = useProjectContext();
+  const {
+    projectId: ctxProjectId,
+    columns: ctxColumns,
+    rows: ctxRows,
+    columnOrder,
+    setColumnOrder,
+    dtypes,
+    updateData,
+  } = useProjectContext();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
@@ -20,31 +28,45 @@ const Table = ({ projectId, data: externalData }) => {
     columnIndex: null,
     type: null,
   });
+  const [draggedColIndex, setDraggedColIndex] = useState(null);
+  const [hoveredTargetIndex, setHoveredTargetIndex] = useState(null);
 
   const [inputConfig, setInputConfig] = useState(null);
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    if (ctxColumns.length > 0 && ctxRows.length > 0) {
-      setColumns(["S.No.", ...ctxColumns]);
-      setData(ctxRows.map((row, index) => [index + 1, ...row]));
+    // Avoid using stale columns/rows from a different project while
+    // the context is still loading the current route's project data.
+    if (!ctxProjectId || ctxProjectId !== projectId) {
+      return;
     }
-  }, [ctxColumns, ctxRows]);
+
+    if (ctxColumns.length > 0 && ctxRows.length > 0) {
+      let safeOrder = columnOrder;
+      if (columnOrder.length !== ctxColumns.length) {
+        safeOrder = ctxColumns.map((_, index) => index);
+        setColumnOrder(safeOrder);
+      }
+      const orderedColumns = safeOrder.map((index) => ctxColumns[index]);
+      setColumns(["S.No.", ...orderedColumns]);
+      setData(
+        ctxRows.map((row, rowIndex) => [
+          rowIndex + 1,
+          ...safeOrder.map((index) => row[index]),
+        ])
+      );
+    }
+  }, [ctxColumns, ctxRows, columnOrder, projectId, ctxProjectId, setColumnOrder]);
 
   useEffect(() => {
     if (externalData) {
-      const { columns, rows } = externalData;
-      setColumns(["S.No.", ...columns]);
-      setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
+      const { columns: extColumns, rows: extRows } = externalData;
+      const normalizedRows = extRows.map((row) =>
+        Array.isArray(row) ? row : Object.values(row)
+      );
+      updateData(extColumns, normalizedRows, { resetColumnOrder: false });
     }
-  }, [externalData]);
-
-  const updateTableData = (response) => {
-    const { columns, rows, dtypes: newDtypes } = response;
-    setColumns(["S.No.", ...columns]);
-    setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-    updateData(columns, rows, newDtypes);
-  };
+  }, [externalData, updateData]);
 
   const handleAddRow = async (index) => {
     try {
@@ -52,7 +74,10 @@ const Table = ({ projectId, data: externalData }) => {
         operation_type: "addRow",
         row_params: { index },
       });
-      updateTableData(response);
+      const normalizedRows = response.rows.map((row) =>
+        Array.isArray(row) ? row : Object.values(row)
+      );
+      updateData(response.columns, normalizedRows, { resetColumnOrder: false });
     } catch {
       setToast({
         message: "Failed to add row. Please try again.",
@@ -72,11 +97,22 @@ const Table = ({ projectId, data: externalData }) => {
         }
 
         try {
+          let backendIndex;
+          if (index === 0) {
+            backendIndex = 0;
+          } else {
+            const displayDataIndex = index - 1;
+            const baseIndex = columnOrder[displayDataIndex];
+            backendIndex = baseIndex + 1;
+          }
           const response = await transformProject(projectId, {
             operation_type: "addCol",
-            col_params: { index, name: newColumnName },
+            col_params: { index: backendIndex, name: newColumnName },
           });
-          updateTableData(response);
+          const normalizedRows = response.rows.map((row) =>
+            Array.isArray(row) ? row : Object.values(row)
+          );
+          updateData(response.columns, normalizedRows, { resetColumnOrder: true });
         } catch {
           setToast({
             message: "Failed to add column. Please try again.",
@@ -95,7 +131,10 @@ const Table = ({ projectId, data: externalData }) => {
         operation_type: "delRow",
         row_params: { index },
       });
-      updateTableData(response);
+      const normalizedRows = response.rows.map((row) =>
+        Array.isArray(row) ? row : Object.values(row)
+      );
+      updateData(response.columns, normalizedRows, { resetColumnOrder: false });
     } catch {
       setToast({
         message: "Failed to delete row. Please try again.",
@@ -123,11 +162,16 @@ const Table = ({ projectId, data: externalData }) => {
         }
 
         try {
+          const displayDataIndex = index - 1;
+          const backendIndex = columnOrder[displayDataIndex];
           const response = await transformProject(projectId, {
             operation_type: "renameCol",
-            rename_col_params: { col_index: index - 1, new_name: newName },
+            rename_col_params: { col_index: backendIndex, new_name: newName },
           });
-          updateTableData(response);
+          const normalizedRows = response.rows.map((row) =>
+            Array.isArray(row) ? row : Object.values(row)
+          );
+          updateData(response.columns, normalizedRows, { resetColumnOrder: false });
         } catch {
           setToast({
             message: "Failed to rename column. Please try again.",
@@ -149,12 +193,17 @@ const Table = ({ projectId, data: externalData }) => {
       return;
     }
 
+    const displayDataIndex = index - 1;
+    const backendIndex = columnOrder[displayDataIndex];
     try {
       const response = await transformProject(projectId, {
         operation_type: "delCol",
-        col_params: { index: index - 1 },
+        col_params: { index: backendIndex },
       });
-      updateTableData(response);
+      const normalizedRows = response.rows.map((row) =>
+        Array.isArray(row) ? row : Object.values(row)
+      );
+      updateData(response.columns, normalizedRows, { resetColumnOrder: true });
     } catch {
       setToast({
         message: "Failed to delete column. Please try again.",
@@ -164,18 +213,26 @@ const Table = ({ projectId, data: externalData }) => {
   };
 
   const handleEditCell = async (rowIndex, cellIndex, newValue) => {
+    if (cellIndex === 0) {
+      return;
+    }
     try {
+      const displayDataIndex = cellIndex - 1;
+      const backendColIndex = columnOrder[displayDataIndex];
       const response = await transformProject(projectId, {
         operation_type: "changeCellValue",
         change_cell_value: {
-          col_index: cellIndex,
+          col_index: backendColIndex + 1,
           row_index: rowIndex,
           fill_value: newValue,
         },
       });
-      updateTableData(response);
       setEditingCell(null);
       setEditValue("");
+      const normalizedRows = response.rows.map((row) =>
+        Array.isArray(row) ? row : Object.values(row)
+      );
+      updateData(response.columns, normalizedRows, { resetColumnOrder: false });
     } catch {
       setToast({
         message: "Failed to edit cell. Please try again.",
@@ -183,6 +240,7 @@ const Table = ({ projectId, data: externalData }) => {
       });
     }
   };
+
   const handleInputKeyDown = (e, rowIndex, cellIndex) => {
     if (e.key === "Enter") {
       handleEditCell(rowIndex, cellIndex, editValue);
@@ -231,18 +289,70 @@ const Table = ({ projectId, data: externalData }) => {
         <table className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
             <tr>
-              {columns.map((column, columnIndex) => (
-                <th
-                  key={columnIndex}
-                  className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  onContextMenu={(e) => handleRightClick(e, null, columnIndex, "column")}
-                >
-                  <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
-                    {column}
-                    {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
-                  </button>
-                </th>
-              ))}
+              {columns.map((column, columnIndex) => {
+                const isSNo = columnIndex === 0;
+                const isDragged =
+                  !isSNo && draggedColIndex === columnIndex - 1;
+                const isDropTarget =
+                  !isSNo && hoveredTargetIndex === columnIndex - 1;
+                return (
+                  <th
+                    key={columnIndex}
+                    className={`py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                      isDropTarget ? "ring-2 ring-blue-400" : ""
+                    }`}
+                    onContextMenu={(e) =>
+                      handleRightClick(e, null, columnIndex, "column")
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={`w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150 ${
+                        isSNo ? "" : "cursor-grab active:cursor-grabbing"
+                      } ${isDragged ? "opacity-50" : ""}`}
+                      draggable={!isSNo}
+                      onDragStart={(event) => {
+                        if (isSNo) return;
+                        setDraggedColIndex(columnIndex - 1);
+                        event.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragOver={(event) => {
+                        if (isSNo) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                        setHoveredTargetIndex(columnIndex - 1);
+                      }}
+                      onDrop={(event) => {
+                        if (isSNo) return;
+                        event.preventDefault();
+                        if (draggedColIndex === null) return;
+                        const source = draggedColIndex;
+                        const target = columnIndex - 1;
+                        if (source === target) {
+                          setHoveredTargetIndex(null);
+                          return;
+                        }
+                        const currentOrder =
+                          columnOrder.length === ctxColumns.length
+                            ? columnOrder
+                            : ctxColumns.map((_, index) => index);
+                        const newOrder = [...currentOrder];
+                        const [moved] = newOrder.splice(source, 1);
+                        newOrder.splice(target, 0, moved);
+                        setColumnOrder(newOrder);
+                        setDraggedColIndex(null);
+                        setHoveredTargetIndex(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedColIndex(null);
+                        setHoveredTargetIndex(null);
+                      }}
+                    >
+                      {column}
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
