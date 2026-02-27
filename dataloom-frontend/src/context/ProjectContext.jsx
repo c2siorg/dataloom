@@ -21,6 +21,7 @@ export function ProjectProvider({ children }) {
   const [projectName, setProjectName] = useState("");
   const [columns, setColumns] = useState([]);
   const [rows, setRows] = useState([]);
+  const [dtypes, setDtypes] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [columnOrders, setColumnOrders] = useState({});
@@ -41,6 +42,7 @@ export function ProjectProvider({ children }) {
       setProjectName(data.filename);
       setColumns(data.columns);
       setRows(data.rows);
+      setDtypes(data.dtypes || {});
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
     } finally {
@@ -108,6 +110,7 @@ export function ProjectProvider({ children }) {
         projectName,
         columns,
         rows,
+        dtypes,
         columnOrder,
         loading,
         error,

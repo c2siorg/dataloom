@@ -25,3 +25,9 @@ export const DROP_DUPLICATE = "dropDuplicate";
 export const ADV_QUERY_FILTER = "advQueryFilter";
 /** @type {string} Create a pivot table */
 export const PIVOT_TABLE = "pivotTables";
+/** @type {string} Rename a column */
+export const RENAME_COLUMN = "renameCol";
+/** @type {string} Cast column to different data type */
+export const CAST_DATA_TYPE = "castDataType";
+/** @type {string} Trim whitespace from columns */
+export const TRIM_WHITESPACE = "trimWhitespace";

@@ -3,6 +3,7 @@ import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
+import DtypeBadge from "./common/DtypeBadge";
 import proptypes from "prop-types";
 
 const Table = ({ projectId, data: externalData }) => {
@@ -12,6 +13,7 @@ const Table = ({ projectId, data: externalData }) => {
     rows: ctxRows,
     columnOrder,
     setColumnOrder,
+    dtypes,
     updateData,
   } = useProjectContext();
   const [data, setData] = useState([]);
