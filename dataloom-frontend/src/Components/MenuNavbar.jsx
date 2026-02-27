@@ -5,6 +5,7 @@ import DropDuplicateForm from "./forms/DropDuplicateForm";
 import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
+import SampleRowsForm from "./forms/SampleRowsForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
@@ -24,6 +25,7 @@ import {
   LuBookmark,
   LuDownload,
   LuRefreshCw,
+  LuDices,
   LuScissors,
 } from "react-icons/lu";
 
@@ -33,6 +35,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showDropDuplicateForm, setShowDropDuplicateForm] = useState(false);
   const [showAdvQueryFilterForm, setShowAdvQueryFilterForm] = useState(false);
   const [showPivotTableForm, setShowPivotTableForm] = useState(false);
+  const [showSampleRowsForm, setShowSampleRowsForm] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
@@ -121,6 +124,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     setShowDropDuplicateForm(false);
     setShowAdvQueryFilterForm(false);
     setShowPivotTableForm(false);
+    setShowSampleRowsForm(false);
     setShowCastDataTypeForm(false);
     setShowTrimWhitespaceForm(false);
     setShowLogs(false);
@@ -141,6 +145,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         break;
       case "PivotTableForm":
         setShowPivotTableForm(true);
+        break;
+      case "SampleRowsForm":
+        setShowSampleRowsForm(true);
         break;
       case "CastDataTypeForm":
         setShowCastDataTypeForm(true);
@@ -188,6 +195,11 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             label: "Drop Dup",
             icon: LuCopyMinus,
             onClick: () => handleMenuClick("DropDuplicateForm"),
+          },
+          {
+            label: "Sample",
+            icon: LuDices,
+            onClick: () => handleMenuClick("SampleRowsForm"),
           },
           {
             label: "Cast Type",
@@ -286,6 +298,12 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           projectId={projectId}
           onClose={() => setShowCastDataTypeForm(false)}
           onTransform={onTransform}
+        />
+      )}
+      {showSampleRowsForm && (
+        <SampleRowsForm
+          projectId={projectId}
+          onClose={() => setShowSampleRowsForm(false)}
         />
       )}
       {showTrimWhitespaceForm && (

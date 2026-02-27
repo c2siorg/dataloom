@@ -91,6 +91,12 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         p = transformation_input.cast_data_type_params
         return ts.cast_data_type(df, p.column, p.target_type), True
 
+    elif op == 'sample':
+        if not transformation_input.sample_rows_params:
+            raise HTTPException(status_code=400, detail="Sample parameters required")
+        p = transformation_input.sample_rows_params
+        return ts.sample_rows(df, p.sample_size, p.random_seed), False
+
     elif op == 'trimWhitespace':
         if not transformation_input.trim_whitespace_params:
             raise HTTPException(status_code=400, detail="Trim whitespace parameters required")

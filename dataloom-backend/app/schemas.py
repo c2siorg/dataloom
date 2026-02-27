@@ -36,6 +36,7 @@ class OperationType(str, Enum):
     renameCol = 'renameCol'
     castDataType = 'castDataType'
     trimWhitespace = 'trimWhitespace'
+    sample = 'sample'
 
 
 class DropDup(str, Enum):
@@ -69,6 +70,7 @@ class ActionTypes(str, Enum):
     changeCellValue = 'changeCellValue'
     renameCol = 'renameCol'
     castDataType = 'castDataType'
+    sample = 'sample'
     trimWhitespace = 'trimWhitespace'
 
 
@@ -132,6 +134,12 @@ class CastDataTypeParams(BaseModel):
     target_type: DataType
 
 
+class SampleRowsParams(BaseModel):
+    """Parameters for sampling rows from a dataset."""
+    sample_size: int
+    random_seed: Optional[int] = None
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
     column: str
@@ -192,6 +200,7 @@ class TransformationInput(BaseModel):
     change_cell_value: Optional[ChangeCellValue] = None
     rename_col_params: Optional[RenameColumnParams] = None
     cast_data_type_params: Optional[CastDataTypeParams] = None
+    sample_rows_params: Optional[SampleRowsParams] = None
     trim_whitespace_params: Optional[TrimWhitespaceParams] = None
 
 

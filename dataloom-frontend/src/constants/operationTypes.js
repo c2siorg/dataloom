@@ -25,6 +25,8 @@ export const DROP_DUPLICATE = "dropDuplicate";
 export const ADV_QUERY_FILTER = "advQueryFilter";
 /** @type {string} Create a pivot table */
 export const PIVOT_TABLE = "pivotTables";
+/** @type {string} Sample random rows from dataset */
+export const SAMPLE_ROWS = "sample";
 /** @type {string} Rename a column */
 export const RENAME_COLUMN = "renameCol";
 /** @type {string} Cast column to different data type */
