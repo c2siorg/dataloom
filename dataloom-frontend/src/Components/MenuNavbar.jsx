@@ -7,6 +7,7 @@ import PivotTableForm from "./forms/PivotTableForm";
 import MeltForm from "./forms/MeltForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
+import StringReplaceForm from "./forms/StringReplaceForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
@@ -27,6 +28,7 @@ import {
   LuRefreshCw,
   LuScissors,
   LuLayoutList,
+  LuReplace,
 } from "react-icons/lu";
 
 const MenuNavbar = ({ projectId, onTransform }) => {
@@ -40,6 +42,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
   const [showMeltForm, setShowMeltForm] = useState(false);
+  const [showStringReplaceForm, setShowStringReplaceForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -129,6 +132,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
     setShowCastDataTypeForm(false);
     setShowTrimWhitespaceForm(false);
     setShowMeltForm(false);
+    setShowStringReplaceForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
 
@@ -158,6 +162,9 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         break;
       case "MeltForm":
         setShowMeltForm(true);
+        break;
+      case "StringReplaceForm":
+        setShowStringReplaceForm(true);
         break;
       case "Logs":
         setShowLogs(true);
@@ -232,6 +239,12 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             icon: LuScissors,
             formType: "TrimWhitespaceForm",
             onClick: () => handleMenuClick("TrimWhitespaceForm"),
+          },
+          {
+            label: "Replace",
+            icon: LuReplace,
+            formType: "StringReplaceForm",
+            onClick: () => handleMenuClick("StringReplaceForm"),
           },
         ],
       },
@@ -374,6 +387,16 @@ const MenuNavbar = ({ projectId, onTransform }) => {
           projectId={projectId}
           onClose={() => {
             setShowTrimWhitespaceForm(false);
+            setActiveForm(null);
+          }}
+          onTransform={onTransform}
+        />
+      )}
+      {showStringReplaceForm && (
+        <StringReplaceForm
+          projectId={projectId}
+          onClose={() => {
+            setShowStringReplaceForm(false);
             setActiveForm(null);
           }}
           onTransform={onTransform}
