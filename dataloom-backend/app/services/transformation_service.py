@@ -281,6 +281,30 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
     return df
 
 
+def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """Trim leading and trailing whitespace from string columns.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to trim, or "All string columns" to trim all string columns.
+
+    Returns:
+        DataFrame with whitespace trimmed from specified column(s).
+    """
+    df = df.copy()
+    
+    if column == "All string columns":
+        for col in df.columns:
+            if pd.api.types.is_string_dtype(df[col]) or pd.api.types.is_object_dtype(df[col]):
+                df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
+    else:
+        if column not in df.columns:
+            raise TransformationError(f"Column '{column}' not found")
+        df[column] = df[column].apply(lambda x: x.strip() if isinstance(x, str) else x)
+    
+    return df
+
+
 def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
     """Remove duplicate rows based on specified columns.
 
@@ -421,6 +445,10 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         column = action_details['cast_data_type_params']['column']
         target_type = action_details['cast_data_type_params']['target_type']
         return cast_data_type(df, column, target_type)
+
+    elif action_type == 'trimWhitespace':
+        column = action_details['trim_whitespace_params']['column']
+        return trim_whitespace(df, column)
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
