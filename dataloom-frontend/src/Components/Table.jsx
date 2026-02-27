@@ -3,10 +3,11 @@ import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
+import DtypeBadge from "./common/DtypeBadge";
 import proptypes from "prop-types";
 
 const Table = ({ projectId, data: externalData }) => {
-  const { columns: ctxColumns, rows: ctxRows } = useProjectContext();
+  const { columns: ctxColumns, rows: ctxRows, dtypes, updateData } = useProjectContext();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
@@ -39,9 +40,10 @@ const Table = ({ projectId, data: externalData }) => {
   }, [externalData]);
 
   const updateTableData = (response) => {
-    const { columns, rows } = response;
+    const { columns, rows, dtypes: newDtypes } = response;
     setColumns(["S.No.", ...columns]);
     setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
+    updateData(columns, rows, newDtypes);
   };
 
   const handleAddRow = async (index) => {
@@ -237,6 +239,7 @@ const Table = ({ projectId, data: externalData }) => {
                 >
                   <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
                     {column}
+                    {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
                   </button>
                 </th>
               ))}

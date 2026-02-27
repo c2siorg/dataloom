@@ -21,6 +21,7 @@ export function ProjectProvider({ children }) {
   const [projectName, setProjectName] = useState("");
   const [columns, setColumns] = useState([]);
   const [rows, setRows] = useState([]);
+  const [dtypes, setDtypes] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -35,6 +36,7 @@ export function ProjectProvider({ children }) {
       setProjectName(data.filename);
       setColumns(data.columns);
       setRows(data.rows);
+      setDtypes(data.dtypes || {});
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
     } finally {
@@ -42,9 +44,10 @@ export function ProjectProvider({ children }) {
     }
   }, [projectId]);
 
-  const updateData = useCallback((newColumns, newRows) => {
+  const updateData = useCallback((newColumns, newRows, newDtypes) => {
     setColumns(newColumns);
     setRows(newRows);
+    if (newDtypes) setDtypes(newDtypes);
   }, []);
 
   const setProjectInfo = useCallback((id, name) => {
@@ -54,7 +57,7 @@ export function ProjectProvider({ children }) {
 
   return (
     <ProjectContext.Provider value={{
-      projectId, projectName, columns, rows, loading, error,
+      projectId, projectName, columns, rows, dtypes, loading, error,
       refreshProject, updateData, setProjectInfo,
     }}>
       {children}
