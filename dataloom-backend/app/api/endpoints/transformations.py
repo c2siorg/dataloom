@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
-COMPLEX_OPERATIONS = {'dropDuplicate', 'advQueryFilter', 'pivotTables'}
+COMPLEX_OPERATIONS = {'dropDuplicate', 'advQueryFilter', 'pivotTables', 'groupby'}
 
 
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
@@ -125,6 +125,12 @@ def _handle_complex_transform(df, transformation_input, project, db, project_id)
             raise HTTPException(status_code=400, detail="Pivot parameters required")
         p = transformation_input.pivot_query
         return ts.pivot_table(df, p.index, p.value, p.column, p.aggfun), False
+
+    elif op == 'groupby':
+        if not transformation_input.groupby_query:
+            raise HTTPException(status_code=400, detail="GroupBy parameters required")
+        p = transformation_input.groupby_query
+        return ts.group_by(df, p.group_columns, p.agg_column, p.agg_func), False
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")

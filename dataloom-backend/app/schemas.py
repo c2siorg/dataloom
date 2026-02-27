@@ -32,6 +32,7 @@ class OperationType(str, Enum):
     dropDuplicate = 'dropDuplicate'
     advQueryFilter = 'advQueryFilter'
     pivotTables = 'pivotTables'
+    groupby = 'groupby'
     changeCellValue = 'changeCellValue'
     renameCol = 'renameCol'
     castDataType = 'castDataType'
@@ -66,6 +67,7 @@ class ActionTypes(str, Enum):
     dropDuplicate = 'dropDuplicate'
     advQueryFilter = 'advQueryFilter'
     pivotTables = 'pivotTables'
+    groupby = 'groupby'
     changeCellValue = 'changeCellValue'
     renameCol = 'renameCol'
     castDataType = 'castDataType'
@@ -158,6 +160,13 @@ class Pivot(BaseModel):
     aggfun: AggFunc
 
 
+class GroupBy(BaseModel):
+    """Parameters for creating a group by aggregation."""
+    group_columns: str
+    agg_column: str
+    agg_func: AggFunc
+
+
 class RevertRequest(BaseModel):
     """Request body for reverting to a checkpoint."""
     checkpoint_id: uuid.UUID
@@ -189,6 +198,7 @@ class TransformationInput(BaseModel):
     drop_duplicate: Optional[DropDuplicates] = None
     adv_query: Optional[AdvQuery] = None
     pivot_query: Optional[Pivot] = None
+    groupby_query: Optional[GroupBy] = None
     change_cell_value: Optional[ChangeCellValue] = None
     rename_col_params: Optional[RenameColumnParams] = None
     cast_data_type_params: Optional[CastDataTypeParams] = None

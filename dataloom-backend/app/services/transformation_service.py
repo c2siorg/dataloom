@@ -383,6 +383,29 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
     return result.reset_index()
 
 
+def group_by(df: pd.DataFrame, group_columns: str, agg_column: str, agg_func: str = "sum") -> pd.DataFrame:
+    """Perform a group by aggregation on the DataFrame.
+
+    Args:
+        df: Source DataFrame.
+        group_columns: Comma-separated column names to group by.
+        agg_column: Column to aggregate.
+        agg_func: Aggregation function name.
+
+    Returns:
+        Grouped and aggregated DataFrame with flat structure.
+    """
+    group_cols = [c.strip() for c in group_columns.split(',')]
+    agg_col = agg_column.strip()
+
+    missing = [c for c in group_cols + [agg_col] if c not in df.columns]
+    if missing:
+        raise TransformationError(f"Columns {missing} not found in dataset")
+
+    result = df.groupby(group_cols, as_index=False)[agg_col].agg(agg_func)
+    return result
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
