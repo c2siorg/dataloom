@@ -1,6 +1,6 @@
 """Transformation API endpoints for project operations.
 
-Handles both basic transforms (/transform) and complex transforms (/Complextransform).
+All transformations are handled through a single unified /transform endpoint.
 """
 
 import uuid
@@ -23,6 +23,8 @@ from app.utils.pandas_helpers import (
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+COMPLEX_OPERATIONS = {'dropDuplicate', 'advQueryFilter', 'pivotTables'}
 
 
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
@@ -93,6 +95,12 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
             raise HTTPException(status_code=400, detail="Cast data type parameters required")
         p = transformation_input.cast_data_type_params
         return ts.cast_data_type(df, p.column, p.target_type), True
+
+    elif op == 'trimWhitespace':
+        if not transformation_input.trim_whitespace_params:
+            raise HTTPException(status_code=400, detail="Trim whitespace parameters required")
+        p = transformation_input.trim_whitespace_params
+        return ts.trim_whitespace(df, p.column), True
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
@@ -183,10 +191,17 @@ async def complex_transform_project(
     project = get_project_or_404(project_id, db)
     df = read_csv_safe(project.file_path)
 
+    op = transformation_input.operation_type
+
     try:
-        result_df, should_save = _handle_complex_transform(
-            df, transformation_input, project, db, project_id
-        )
+        if op in COMPLEX_OPERATIONS:
+            result_df, should_save = _handle_complex_transform(
+                df, transformation_input, project, db, project_id
+            )
+        else:
+            result_df, should_save = _handle_basic_transform(
+                df, transformation_input, project, db, project_id
+            )
     except ts.TransformationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

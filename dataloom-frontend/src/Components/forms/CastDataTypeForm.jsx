@@ -2,14 +2,22 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useToast } from "../../context/ToastContext";
+import useError from "../../hooks/useError";
+import FormErrorAlert from "../common/FormErrorAlert";
 
 const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
   const { columns } = useProjectContext();
+  const { showToast } = useToast();
+
   const [column, setColumn] = useState("");
   const [targetType, setTargetType] = useState("string");
+  const { error, clearError, handleError } = useError();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    clearError();
     try {
       const response = await transformProject(projectId, {
         operation_type: "castDataType",
@@ -18,18 +26,21 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
           target_type: targetType,
         },
       });
+
       onTransform(response);
-    } catch (error) {
-      console.error("Error casting data type:", error);
-      alert(error.response?.data?.detail || "Failed to cast data type.");
+      onClose();
+    } catch (err) {
+      console.error("Error casting data type:", err);
+      showToast(err.response?.data?.detail || "Failed to cast data type.", "error");
+      handleError(err);
     }
-    onClose();
   };
 
   return (
     <div className="p-4 border border-gray-200 rounded-lg bg-white">
       <form onSubmit={handleSubmit}>
         <h3 className="font-semibold text-gray-900 mb-2">Cast Data Type</h3>
+
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Column:</label>
@@ -47,6 +58,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
               ))}
             </select>
           </div>
+
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Target Type:</label>
             <select
@@ -62,6 +74,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
             </select>
           </div>
         </div>
+
         <div className="flex justify-between">
           <button
             type="submit"
@@ -69,6 +82,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
           >
             Apply
           </button>
+
           <button
             type="button"
             onClick={onClose}
@@ -78,6 +92,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
           </button>
         </div>
       </form>
+      <FormErrorAlert message={error} />
     </div>
   );
 };

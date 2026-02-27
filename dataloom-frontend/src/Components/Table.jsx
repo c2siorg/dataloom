@@ -29,6 +29,9 @@ const Table = ({ projectId, data: externalData }) => {
     type: null,
   });
 
+  const [inputConfig, setInputConfig] = useState(null);
+  const [toast, setToast] = useState(null);
+
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
       setColumns(["S.No.", ...ctxColumns]);
@@ -44,6 +47,13 @@ const Table = ({ projectId, data: externalData }) => {
       setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
     }
   }, [externalData]);
+
+  const updateTableData = (response) => {
+    const { columns, rows, dtypes: newDtypes } = response;
+    setColumns(["S.No.", ...columns]);
+    setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
+    updateData(columns, rows, newDtypes);
+  };
 
   const handleAddRow = async (index) => {
     try {
@@ -94,9 +104,12 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleRenameColumn = async (index) => {
+  const handleRenameColumn = (index) => {
     if (index === 0) {
-      alert("Cannot rename the S.No. column.");
+      setToast({
+        message: "Cannot rename the S.No. column.",
+        type: "error",
+      });
       return;
     }
 
@@ -116,16 +129,17 @@ const Table = ({ projectId, data: externalData }) => {
 
   const handleDeleteColumn = async (index) => {
     if (index === 0) {
-      alert("Cannot delete the S.No. column.");
+      setToast({
+        message: "Cannot delete the S.No. column.",
+        type: "error",
+      });
       return;
     }
 
-    // the table has 0 indexed columns, but the API expects 1 indexed columns
-    index -= 1;
     try {
       const response = await transformProject(projectId, {
         operation_type: "delCol",
-        col_params: { index },
+        col_params: { index: index - 1 },
       });
       updateTableDataWithPagination(response);
     } catch (error) {
@@ -159,11 +173,6 @@ const Table = ({ projectId, data: externalData }) => {
       setEditValue(cellValue);
     }
   };
-
-  const handleInputChange = (e) => {
-    setEditValue(e.target.value);
-  };
-
   const handleInputKeyDown = (e, rowIndex, cellIndex) => {
     if (e.key === "Enter") {
       handleEditCell(rowIndex, cellIndex, editValue);
@@ -179,9 +188,9 @@ const Table = ({ projectId, data: externalData }) => {
       visible: true,
       x: event.clientX,
       y: event.clientY,
-      rowIndex: rowIndex,
-      columnIndex: columnIndex,
-      type: type,
+      rowIndex,
+      columnIndex,
+      type,
     });
   };
 
@@ -231,11 +240,13 @@ const Table = ({ projectId, data: externalData }) => {
                 >
                   <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
                     {column}
+                    {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
                   </button>
                 </th>
               ))}
             </tr>
           </thead>
+
           <tbody>
             {data.map((row, rowIndex) => (
               <tr
@@ -258,6 +269,7 @@ const Table = ({ projectId, data: externalData }) => {
                         onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
                         onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
                         className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                        onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
                       />
                     ) : (
                       <div
@@ -377,8 +389,9 @@ Table.propTypes = {
   projectId: proptypes.string.isRequired,
   data: proptypes.shape({
     columns: proptypes.arrayOf(proptypes.string),
-    rows: proptypes.arrayOf(proptypes.arrayOf(proptypes.string)),
+    rows: proptypes.arrayOf(
+      proptypes.arrayOf(proptypes.oneOfType([proptypes.string, proptypes.number])),
+    ),
   }),
 };
-
 export default Table;

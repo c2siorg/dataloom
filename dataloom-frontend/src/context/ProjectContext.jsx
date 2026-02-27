@@ -12,6 +12,7 @@ export function ProjectProvider({ children }) {
   const [projectName, setProjectName] = useState("");
   const [columns, setColumns] = useState([]);
   const [rows, setRows] = useState([]);
+  const [dtypes, setDtypes] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 

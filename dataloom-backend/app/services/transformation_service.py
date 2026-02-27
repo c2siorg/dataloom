@@ -38,11 +38,12 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     """Filter DataFrame rows by a column condition.
 
     Automatically casts value to float for numeric columns.
+    Column names are matched after stripping whitespace.
 
     Args:
         df: Source DataFrame.
         column: Column name to filter on.
-        condition: One of '=', '>', '<', '>=', '<='.
+        condition: One of '=', '!=', '>', '<', '>=', '<=', 'contains'.
         value: The comparison value (as string, cast if needed).
 
     Returns:
@@ -51,12 +52,20 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     Raises:
         TransformationError: If column not found or condition unsupported.
     """
-    if column not in df.columns:
-        raise TransformationError(f"Column '{column}' not found")
+    # Strip whitespace from column name and create a mapping of stripped -> original
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
 
-    # Cast value to numeric if column is numeric
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+
+    # Use the original column name from the DataFrame
+    column = stripped_to_original[column_stripped]
+
+    # Cast value to numeric if column is numeric (for comparison operators)
     col_type = get_column_type(df, column)
-    if col_type == 'numeric':
+    if col_type == 'numeric' and condition in ('=', '!=', '>', '<', '>=', '<='):
         try:
             value = float(value)
         except ValueError:
@@ -64,16 +73,20 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
 
     ops = {
         '=': lambda: df[df[column] == value],
+        '!=': lambda: df[df[column] != value],
         '>': lambda: df[df[column] > value],
         '<': lambda: df[df[column] < value],
         '>=': lambda: df[df[column] >= value],
         '<=': lambda: df[df[column] <= value],
+        'contains': lambda: df[df[column].astype(str).str.contains(value, na=False)],
     }
 
-    if condition not in ops:
-        raise TransformationError(f"Unsupported filter condition: {condition}")
+    condition_str = condition.value if hasattr(condition, 'value') else str(condition)
 
-    return ops[condition]()
+    if condition_str not in ops:
+        raise TransformationError(f"Unsupported filter condition: {condition_str}")
+
+    return ops[condition_str]()
 
 
 def apply_sort(df: pd.DataFrame, column: str, ascending: bool) -> pd.DataFrame:
@@ -268,6 +281,30 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
     return df
 
 
+def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """Trim leading and trailing whitespace from string columns.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to trim, or "All string columns" to trim all string columns.
+
+    Returns:
+        DataFrame with whitespace trimmed from specified column(s).
+    """
+    df = df.copy()
+    
+    if column == "All string columns":
+        for col in df.columns:
+            if pd.api.types.is_string_dtype(df[col]) or pd.api.types.is_object_dtype(df[col]):
+                df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
+    else:
+        if column not in df.columns:
+            raise TransformationError(f"Column '{column}' not found")
+        df[column] = df[column].apply(lambda x: x.strip() if isinstance(x, str) else x)
+    
+    return df
+
+
 def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
     """Remove duplicate rows based on specified columns.
 
@@ -408,6 +445,10 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         column = action_details['cast_data_type_params']['column']
         target_type = action_details['cast_data_type_params']['target_type']
         return cast_data_type(df, column, target_type)
+
+    elif action_type == 'trimWhitespace':
+        column = action_details['trim_whitespace_params']['column']
+        return trim_whitespace(df, column)
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)

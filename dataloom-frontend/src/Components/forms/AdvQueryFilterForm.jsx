@@ -1,26 +1,31 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
-import { complexTransformProject } from "../../api";
+import { transformProject } from "../../api";
+import useError from "../../hooks/useError";
+import FormErrorAlert from "../common/FormErrorAlert";
 
 const AdvQueryFilterForm = ({ projectId, onClose }) => {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { error, clearError, handleError } = useError();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Query:", query);
     setLoading(true);
+    clearError();
     try {
-      const response = await complexTransformProject(projectId, {
+      const response = await transformProject(projectId, {
         operation_type: "advQueryFilter",
         adv_query: { query },
       });
       setResult(response);
       console.log("Query API response:", response);
-    } catch (error) {
-      console.error("Error applying query:", error.message);
+    } catch (err) {
+      console.error("Error applying query:", err.message);
+      handleError(err);
     } finally {
       setLoading(false);
     }
@@ -58,6 +63,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
           </button>
         </div>
       </form>
+      <FormErrorAlert message={error} />
       {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
