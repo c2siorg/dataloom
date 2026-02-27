@@ -10,6 +10,7 @@ import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
 import ConfirmDialog from "./common/ConfirmDialog";
+import ExportDialog from "./common/ExportDialog";
 import Toast from "./common/Toast";
 import { saveProject, exportProject, getLogs, getCheckpoints, revertToCheckpoint } from "../api";
 import proptype from "prop-types";
@@ -25,6 +26,7 @@ import {
   LuDownload,
   LuRefreshCw,
   LuScissors,
+  LuSettings,
 } from "react-icons/lu";
 
 const Menu_NavBar = ({ projectId, onTransform }) => {
@@ -37,6 +39,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -125,6 +128,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     setShowTrimWhitespaceForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
+    setShowExportDialog(false);
 
     switch (formType) {
       case "FilterForm":
@@ -154,6 +158,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       case "Checkpoints":
         setShowCheckpoints(true);
         break;
+      case "ExportOptions":
+        setShowExportDialog(true);
+        break;
       default:
         break;
     }
@@ -168,6 +175,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         items: [
           { label: "Save", icon: LuSave, onClick: handleSave },
           { label: "Export", icon: LuDownload, onClick: handleExport },
+          { label: "Export Options", icon: LuSettings, onClick: () => handleMenuClick("ExportOptions") },
         ],
       },
       {
@@ -227,8 +235,8 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             key={tabName}
             onClick={() => setActiveTab(tabName)}
             className={`px-4 py-1.5 text-sm font-medium ${activeTab === tabName
-                ? "text-blue-600 border-b-2 border-blue-500"
-                : "text-gray-500 hover:text-gray-700"
+              ? "text-blue-600 border-b-2 border-blue-500"
+              : "text-gray-500 hover:text-gray-700"
               }`}
           >
             {tabName}
@@ -303,6 +311,12 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           onRevert={handleRevert}
         />
       )}
+
+      <ExportDialog
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+        projectId={projectId}
+      />
 
       <InputDialog
         isOpen={isInputOpen}

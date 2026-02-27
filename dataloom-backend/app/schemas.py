@@ -54,6 +54,22 @@ class AggFunc(str, Enum):
     count = 'count'
 
 
+class DelimiterType(str, Enum):
+    """Supported CSV delimiter types for export."""
+    comma = 'comma'
+    tab = 'tab'
+    semicolon = 'semicolon'
+    pipe = 'pipe'
+
+
+class EncodingType(str, Enum):
+    """Supported text encoding types for export."""
+    utf_8 = 'utf-8'
+    latin_1 = 'latin-1'
+    ascii = 'ascii'
+    utf_16 = 'utf-16'
+
+
 class ActionTypes(str, Enum):
     """Action types for user log entries."""
     filter = 'filter'
@@ -156,6 +172,13 @@ class Pivot(BaseModel):
     column: Optional[str] = None
     value: str
     aggfun: AggFunc
+
+
+class ExportParameters(BaseModel):
+    """Parameters for exporting CSV with custom format options."""
+    delimiter: DelimiterType = DelimiterType.comma
+    include_header: bool = True
+    encoding: EncodingType = EncodingType.utf_8
 
 
 class RevertRequest(BaseModel):

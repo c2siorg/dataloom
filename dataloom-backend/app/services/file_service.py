@@ -1,9 +1,14 @@
 """File storage and management service for dataset uploads."""
 
 import shutil
+import io
 from pathlib import Path
+from typing import Iterator
+import pandas as pd
+from app import schemas
 from app.utils.logging import get_logger
 from app.utils.security import sanitize_filename, resolve_upload_path
+from app.utils.pandas_helpers import read_csv_safe
 
 logger = get_logger(__name__)
 
@@ -59,3 +64,47 @@ def delete_project_files(copy_path: str) -> None:
             logger.info("Deleted file: %s", path)
         except FileNotFoundError:
             logger.warning("File already missing: %s", path)
+
+
+def export_csv_with_format(file_path: str, params: schemas.ExportParameters) -> Iterator[str]:
+    """Export CSV with custom formatting options.
+    
+    Args:
+        file_path: Path to the CSV file to export.
+        params: Export formatting parameters (delimiter, header, encoding).
+        
+    Yields:
+        CSV content as string chunks for streaming response.
+    """
+    # Map delimiter enum to actual characters
+    delimiter_map = {
+        schemas.DelimiterType.comma: ',',
+        schemas.DelimiterType.tab: '\t', 
+        schemas.DelimiterType.semicolon: ';',
+        schemas.DelimiterType.pipe: '|'
+    }
+    
+    delimiter = delimiter_map[params.delimiter]
+    df = read_csv_safe(Path(file_path))
+    
+    # Use StringIO to generate CSV in memory
+    output = io.StringIO()
+    df.to_csv(
+        output,
+        sep=delimiter,
+        header=params.include_header,
+        index=False,
+        encoding=params.encoding
+    )
+    
+    # Get the string content
+    csv_content = output.getvalue()
+    output.close()
+    
+    # Yield in chunks for streaming (optional, but follows streaming pattern)
+    chunk_size = 8192
+    for i in range(0, len(csv_content), chunk_size):
+        yield csv_content[i:i + chunk_size]
+    
+    logger.info("Exported CSV: path=%s, delimiter=%s, header=%s, encoding=%s", 
+                file_path, params.delimiter.value, params.include_header, params.encoding.value)

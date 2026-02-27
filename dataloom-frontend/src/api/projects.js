@@ -78,6 +78,36 @@ export const exportProject = async (projectId) => {
 };
 
 /**
+ * Export project CSV with custom format options.
+ * @param {string} projectId - The project ID.
+ * @param {Object} options - Export format options.
+ * @param {string} options.delimiter - Delimiter type: "comma", "tab", "semicolon", "pipe".
+ * @param {boolean} options.includeHeader - Whether to include header row.
+ * @param {string} options.encoding - Encoding type: "utf-8", "latin-1", "ascii", "utf-16".
+ * @returns {Promise<void>} Triggers browser download.
+ */
+export const exportCSVWithFormat = async (projectId, { delimiter, includeHeader, encoding }) => {
+  const response = await client.get(`/export/csv/${projectId}`, {
+    params: {
+      delimiter,
+      include_header: includeHeader,
+      encoding
+    },
+    responseType: "blob",
+  });
+
+  // Trigger browser download
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "export.csv");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+/**
  * Delete a project and its associated files.
  * @param {string} projectId - The project ID.
  * @returns {Promise<Object>} Success confirmation.
