@@ -52,7 +52,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
             disabled={loading}
           >
-          Submit
+            Submit
           </button>
           <button
             type="button"

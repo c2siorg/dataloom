@@ -4,6 +4,8 @@ import math
 import pandas as pd
 from pathlib import Path
 from typing import Any
+
+import pandas as pd
 from fastapi import HTTPException
 
 
@@ -25,9 +27,9 @@ def read_csv_safe(path: Path) -> pd.DataFrame:
     try:
         return pd.read_csv(path)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"CSV file not found: {path}")
+        raise HTTPException(status_code=404, detail=f"CSV file not found: {path}") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}") from e
 
 
 def save_csv_safe(df: pd.DataFrame, path: Path) -> None:
@@ -43,7 +45,7 @@ def save_csv_safe(df: pd.DataFrame, path: Path) -> None:
     try:
         df.to_csv(path, index=False)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error saving CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error saving CSV: {str(e)}") from e
 
 
 def _map_dtype(dtype) -> str:
@@ -74,7 +76,7 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
     """
     dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
     df = df.fillna("")
-    df = df.replace([float('inf'), float('-inf')], "")
+    df = df.replace([float("inf"), float("-inf")], "")
     columns = df.columns.tolist()
     rows = df.values.tolist()
     return {"columns": columns, "rows": rows, "row_count": len(rows), "dtypes": dtypes}
@@ -154,7 +156,7 @@ def validate_row_index(df: pd.DataFrame, index: int) -> None:
     if index < 0 or index >= len(df):
         raise HTTPException(
             status_code=400,
-            detail=f"Row index {index} out of range (0-{len(df)-1})",
+            detail=f"Row index {index} out of range (0-{len(df) - 1})",
         )
 
 
@@ -171,5 +173,5 @@ def validate_column_index(df: pd.DataFrame, index: int) -> None:
     if index < 0 or index >= len(df.columns):
         raise HTTPException(
             status_code=400,
-            detail=f"Column index {index} out of range (0-{len(df.columns)-1})",
+            detail=f"Column index {index} out of range (0-{len(df.columns) - 1})",
         )

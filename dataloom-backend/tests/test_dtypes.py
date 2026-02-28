@@ -8,11 +8,13 @@ from app.utils.pandas_helpers import _map_dtype, dataframe_to_response
 
 @pytest.fixture
 def sample_df():
-    return pd.DataFrame({
-        "name": ["Alice", "Bob", "Charlie"],
-        "age": [30, 25, 35],
-        "city": ["New York", "Los Angeles", "Chicago"],
-    })
+    return pd.DataFrame(
+        {
+            "name": ["Alice", "Bob", "Charlie"],
+            "age": [30, 25, 35],
+            "city": ["New York", "Los Angeles", "Chicago"],
+        }
+    )
 
 
 class TestMapDtype:
@@ -44,12 +46,14 @@ class TestDataframeToResponse:
         assert response["dtypes"]["city"] == "str"
 
     def test_dtypes_with_mixed_types(self):
-        df = pd.DataFrame({
-            "id": [1, 2],
-            "score": [9.5, 8.3],
-            "active": [True, False],
-            "label": ["a", "b"],
-        })
+        df = pd.DataFrame(
+            {
+                "id": [1, 2],
+                "score": [9.5, 8.3],
+                "active": [True, False],
+                "label": ["a", "b"],
+            }
+        )
         response = dataframe_to_response(df)
         assert response["dtypes"]["id"] == "int"
         assert response["dtypes"]["score"] == "float"
