@@ -31,10 +31,7 @@ const SortForm = ({ projectId, onClose, onTransform }) => {
     } catch (error) {
       console.error("Error applying sort:", error.response?.data || error.message);
     } catch (err) {
-      console.error(
-        "Error applying sort:",
-        err.response?.data || err.message
-      );
+      console.error("Error applying sort:", err.response?.data || err.message);
       handleError(err);
     } finally {
       setLoading(false);

@@ -53,12 +53,7 @@ def get_recent_projects(db: Session, limit: int = 3) -> list[models.Project]:
     Returns:
         List of Project model instances ordered by last_modified desc.
     """
-    return (
-        db.query(models.Project)
-        .order_by(models.Project.last_modified.desc())
-        .limit(limit)
-        .all()
-    )
+    return db.query(models.Project).order_by(models.Project.last_modified.desc()).limit(limit).all()
 
 
 def delete_project(db: Session, project: models.Project) -> None:
@@ -110,10 +105,14 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     db.flush()  # Assigns ID before updating logs
 
     # Mark all unapplied logs as applied under this checkpoint
-    logs = db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
-    ).all()
+    logs = (
+        db.query(models.ProjectChangeLog)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            models.ProjectChangeLog.applied == False,  # noqa: E712
+        )
+        .all()
+    )
 
     for log in logs:
         log.applied = True

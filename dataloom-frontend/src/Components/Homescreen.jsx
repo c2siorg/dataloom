@@ -5,10 +5,11 @@ import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
 
 const ProjectCard = ({ project, onClick, onDelete }) => {
-  const modified = new Date(project.last_modified).toLocaleDateString(
-    undefined,
-    { year: "numeric", month: "short", day: "numeric" }
-  );
+  const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 
   return (
     <button
@@ -23,17 +24,22 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
         className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors duration-150 p-1 rounded-md hover:bg-red-50"
         aria-label="Delete project"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-4 w-4"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+            clipRule="evenodd"
+          />
         </svg>
       </button>
-      <h3 className="text-lg font-semibold text-gray-900 truncate w-full pr-6">
-        {project.name}
-      </h3>
+      <h3 className="text-lg font-semibold text-gray-900 truncate w-full pr-6">{project.name}</h3>
       {project.description && (
-        <p className="text-sm text-gray-500 line-clamp-2">
-          {project.description}
-        </p>
+        <p className="text-sm text-gray-500 line-clamp-2">{project.description}</p>
       )}
       <span className="mt-auto text-xs text-gray-400">{modified}</span>
     </button>
@@ -100,11 +106,7 @@ const HomeScreen = () => {
     }
 
     try {
-      const data = await uploadProject(
-        fileUpload,
-        projectName,
-        projectDescription
-      );
+      const data = await uploadProject(fileUpload, projectName, projectDescription);
       console.log("Backend response data:", data);
 
       const projectId = data.project_id;
@@ -160,20 +162,14 @@ const HomeScreen = () => {
     <div className="flex flex-col items-center min-h-screen bg-white px-6 pt-24">
       <div className="w-full max-w-4xl">
         <h1 className="text-5xl text-gray-900">
-          Welcome to{" "}
-          <span className="text-blue-500 font-bold">DataLoom</span>,
+          Welcome to <span className="text-blue-500 font-bold">DataLoom</span>,
         </h1>
         <h1 className="text-4xl mt-2 text-gray-900">
           your one-stop for{" "}
-          <span className="text-gray-900 font-semibold">
-            Dataset Transformations
-          </span>
-          .
+          <span className="text-gray-900 font-semibold">Dataset Transformations</span>.
         </h1>
 
-        <h2 className="mt-12 mb-4 text-lg font-medium text-gray-700">
-          Projects
-        </h2>
+        <h2 className="mt-12 mb-4 text-lg font-medium text-gray-700">Projects</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <NewProjectCard onClick={handleNewProjectClick} />
           {recentProjects.map((project) => (
@@ -196,10 +192,7 @@ const HomeScreen = () => {
 
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div
-            className="fixed inset-0 bg-black/50"
-            onClick={handleCloseModal}
-          ></div>
+          <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal}></div>
           <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Name</h2>
             <input
