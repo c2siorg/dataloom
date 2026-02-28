@@ -56,7 +56,7 @@ const renderWithRouter = (component, { route = "/workspace/proj-123" } = {}) => 
       <Routes>
         <Route path="/workspace/:projectId" element={component} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 
@@ -96,17 +96,13 @@ describe("DataScreen", () => {
   it("passes the correct projectId to MenuNavbar", () => {
     renderWithRouter(<DataScreen />);
 
-    expect(screen.getByTestId("navbar-project-id")).toHaveTextContent(
-      "proj-123"
-    );
+    expect(screen.getByTestId("navbar-project-id")).toHaveTextContent("proj-123");
   });
 
   it("passes the correct projectId to Table", () => {
     renderWithRouter(<DataScreen />);
 
-    expect(screen.getByTestId("table-project-id")).toHaveTextContent(
-      "proj-123"
-    );
+    expect(screen.getByTestId("table-project-id")).toHaveTextContent("proj-123");
   });
 
   it("sets project info on mount", async () => {
@@ -233,7 +229,7 @@ describe("DataScreen", () => {
         <Routes>
           <Route path="/workspace/:projectId?" element={<DataScreen />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
     // Wait a bit and check that setProjectInfo was not called with undefined
@@ -262,7 +258,7 @@ describe("DataScreen", () => {
         <Routes>
           <Route path="/workspace/:projectId" element={<DataScreen />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
     // Transform data should persist
@@ -315,15 +311,11 @@ describe("DataScreen", () => {
         <Routes>
           <Route path="/workspace/:projectId" element={<DataScreen />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("navbar-project-id")).toHaveTextContent(
-      "project-abc"
-    );
-    expect(screen.getByTestId("table-project-id")).toHaveTextContent(
-      "project-abc"
-    );
+    expect(screen.getByTestId("navbar-project-id")).toHaveTextContent("project-abc");
+    expect(screen.getByTestId("table-project-id")).toHaveTextContent("project-abc");
 
     // Clear mocks for next render
     mockSetProjectInfo.mockClear();
@@ -337,15 +329,11 @@ describe("DataScreen", () => {
         <Routes>
           <Route path="/workspace/:projectId" element={<DataScreen />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("navbar-project-id")).toHaveTextContent(
-      "project-xyz"
-    );
-    expect(screen.getByTestId("table-project-id")).toHaveTextContent(
-      "project-xyz"
-    );
+    expect(screen.getByTestId("navbar-project-id")).toHaveTextContent("project-xyz");
+    expect(screen.getByTestId("table-project-id")).toHaveTextContent("project-xyz");
   });
 
   it("renders both MenuNavbar and Table in correct order", () => {
@@ -360,15 +348,10 @@ describe("DataScreen", () => {
   });
 
   it("handles null/undefined transform data gracefully", async () => {
-    const user = userEvent.setup();
-
     // Create a mock that sends null data
     const NullTransformMenu = ({ onTransform }) => (
       <div data-testid="menu-navbar">
-        <button
-          data-testid="null-transform-btn"
-          onClick={() => onTransform(null)}
-        >
+        <button data-testid="null-transform-btn" onClick={() => onTransform(null)}>
           Null Transform
         </button>
       </div>
@@ -379,7 +362,7 @@ describe("DataScreen", () => {
       default: NullTransformMenu,
     }));
 
-    // Re-import to pick up new mock - but note: in practice, 
+    // Re-import to pick up new mock - but note: in practice,
     // we just test that the current mock still works with data
     renderWithRouter(<DataScreen />);
 

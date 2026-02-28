@@ -176,7 +176,7 @@ describe("HomeScreen", () => {
       expect(api.uploadProject).toHaveBeenCalledWith(
         expect.any(File),
         "Test Project",
-        "Test Description"
+        "Test Description",
       );
     });
   });
@@ -235,10 +235,7 @@ describe("HomeScreen", () => {
     // Submit without file
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
-    expect(mockShowToast).toHaveBeenCalledWith(
-      "Please select a file to upload",
-      "warning"
-    );
+    expect(mockShowToast).toHaveBeenCalledWith("Please select a file to upload", "warning");
   });
 
   it("shows warning toast when project name is empty", async () => {
@@ -264,10 +261,7 @@ describe("HomeScreen", () => {
     // Submit without project name
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
-    expect(mockShowToast).toHaveBeenCalledWith(
-      "Project Name cannot be empty",
-      "warning"
-    );
+    expect(mockShowToast).toHaveBeenCalledWith("Project Name cannot be empty", "warning");
   });
 
   it("navigates to existing project when project card is clicked", async () => {
@@ -322,9 +316,7 @@ describe("HomeScreen", () => {
     await user.click(deleteButton);
 
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Are you sure you want to delete this project/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Are you sure you want to delete this project/i)).toBeInTheDocument();
   });
 
   it("deletes project when confirming delete", async () => {
@@ -359,10 +351,7 @@ describe("HomeScreen", () => {
       expect(api.deleteProject).toHaveBeenCalledWith("proj-1");
     });
 
-    expect(mockShowToast).toHaveBeenCalledWith(
-      "Project deleted successfully",
-      "success"
-    );
+    expect(mockShowToast).toHaveBeenCalledWith("Project deleted successfully", "success");
   });
 
   it("closes modal when clicking close button", async () => {
@@ -390,10 +379,7 @@ describe("HomeScreen", () => {
     });
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Error fetching recent projects:",
-        expect.any(Error)
-      );
+      expect(consoleSpy).toHaveBeenCalledWith("Error fetching recent projects:", expect.any(Error));
     });
 
     // Component should still render
@@ -433,7 +419,7 @@ describe("HomeScreen", () => {
     await waitFor(() => {
       expect(mockShowToast).toHaveBeenCalledWith(
         "Error uploading file. Please try again.",
-        "error"
+        "error",
       );
     });
   });
