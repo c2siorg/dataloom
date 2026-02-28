@@ -7,7 +7,7 @@ describe("Modal", () => {
     render(
       <Modal isOpen={false} onClose={() => {}} title="Hidden">
         <p>Body</p>
-      </Modal>
+      </Modal>,
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -16,7 +16,7 @@ describe("Modal", () => {
     render(
       <Modal isOpen={true} onClose={() => {}} title="Visible">
         <p>Body content</p>
-      </Modal>
+      </Modal>,
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Visible")).toBeInTheDocument();
@@ -27,7 +27,7 @@ describe("Modal", () => {
     render(
       <Modal isOpen={true} onClose={() => {}} title="Accessible">
         <p>Content</p>
-      </Modal>
+      </Modal>,
     );
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAttribute("aria-modal", "true");
@@ -40,7 +40,7 @@ describe("Modal", () => {
     render(
       <Modal isOpen={true} onClose={onClose} title="Escapable">
         <p>Press escape</p>
-      </Modal>
+      </Modal>,
     );
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledOnce();
@@ -52,7 +52,7 @@ describe("Modal", () => {
     render(
       <Modal isOpen={true} onClose={onClose} title="Overlay">
         <p>Click outside</p>
-      </Modal>
+      </Modal>,
     );
     // Click on the overlay (the outermost div)
     const overlay = screen.getByRole("dialog").parentElement;
@@ -66,7 +66,7 @@ describe("Modal", () => {
     render(
       <Modal isOpen={true} onClose={onClose} title="No close">
         <p>Click me</p>
-      </Modal>
+      </Modal>,
     );
     await user.click(screen.getByText("Click me"));
     expect(onClose).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ describe("Modal", () => {
     render(
       <Modal isOpen={true} onClose={() => {}} title="Closeable">
         <p>Content</p>
-      </Modal>
+      </Modal>,
     );
     expect(screen.getByLabelText("Close")).toBeInTheDocument();
   });
@@ -87,7 +87,7 @@ describe("Modal", () => {
     render(
       <Modal isOpen={true} onClose={onClose} title="Close btn">
         <p>Content</p>
-      </Modal>
+      </Modal>,
     );
     await user.click(screen.getByLabelText("Close"));
     expect(onClose).toHaveBeenCalledOnce();
@@ -97,7 +97,7 @@ describe("Modal", () => {
     render(
       <Modal isOpen={true} onClose={() => {}}>
         <p>No title</p>
-      </Modal>
+      </Modal>,
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("No title")).toBeInTheDocument();

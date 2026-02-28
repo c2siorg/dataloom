@@ -11,13 +11,13 @@ from sqlmodel import Session
 
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
+from app.services.file_service import delete_project_files, get_original_path, store_upload
 from app.services.project_service import (
     create_checkpoint,
     create_project,
     delete_project,
     get_recent_projects,
 )
-from app.services.file_service import delete_project_files, get_original_path, store_upload
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
@@ -105,10 +105,15 @@ async def save_project(
     df = read_csv_safe(original_path)
 
     # Get all unapplied logs for this project
-    logs = db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
-    ).order_by(models.ProjectChangeLog.timestamp).all()
+    logs = (
+        db.query(models.ProjectChangeLog)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            models.ProjectChangeLog.applied == False,  # noqa: E712
+        )
+        .order_by(models.ProjectChangeLog.timestamp)
+        .all()
+    )
 
     # Replay each logged transformation on the original
     for log in logs:
@@ -147,26 +152,38 @@ async def revert_to_checkpoint(
     df = read_csv_safe(original_path)
 
     if checkpoint_id is not None:
-        checkpoint = db.query(models.Checkpoint).filter(
-            models.Checkpoint.id == checkpoint_id,
-            models.Checkpoint.project_id == project_id,
-        ).first()
+        checkpoint = (
+            db.query(models.Checkpoint)
+            .filter(
+                models.Checkpoint.id == checkpoint_id,
+                models.Checkpoint.project_id == project_id,
+            )
+            .first()
+        )
         if not checkpoint:
             raise HTTPException(status_code=404, detail="Checkpoint not found")
 
         # Find all checkpoint IDs created at or before the target checkpoint
         eligible_checkpoint_ids = [
-            c.id for c in db.query(models.Checkpoint).filter(
+            c.id
+            for c in db.query(models.Checkpoint)
+            .filter(
                 models.Checkpoint.project_id == project_id,
                 models.Checkpoint.created_at <= checkpoint.created_at,
-            ).all()
+            )
+            .all()
         ]
 
-        logs = db.query(models.ProjectChangeLog).filter(
-            models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
-            models.ProjectChangeLog.applied == True,
-        ).order_by(models.ProjectChangeLog.timestamp).all()
+        logs = (
+            db.query(models.ProjectChangeLog)
+            .filter(
+                models.ProjectChangeLog.project_id == project_id,
+                models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
+                models.ProjectChangeLog.applied == True,  # noqa: E712
+            )
+            .order_by(models.ProjectChangeLog.timestamp)
+            .all()
+        )
 
         for log in logs:
             df = apply_logged_transformation(df, log.action_type, log.action_details)

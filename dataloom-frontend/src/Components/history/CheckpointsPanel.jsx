@@ -1,7 +1,10 @@
 import PropTypes from "prop-types";
 
 const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
-  const hasCheckpoints = checkpoints && Array.isArray(checkpoints) ? checkpoints.length > 0 : checkpoints && checkpoints.id;
+  const hasCheckpoints =
+    checkpoints && Array.isArray(checkpoints)
+      ? checkpoints.length > 0
+      : checkpoints && checkpoints.id;
 
   return (
     <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group">
@@ -39,9 +42,7 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
           <tbody>
             {hasCheckpoints ? (
               <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
-                <td className="py-3 px-4 text-sm text-gray-700">
-                  {checkpoints.message}
-                </td>
+                <td className="py-3 px-4 text-sm text-gray-700">{checkpoints.message}</td>
                 <td className="py-3 px-4 text-sm text-gray-500">
                   {new Date(checkpoints.created_at).toLocaleString()}
                 </td>
