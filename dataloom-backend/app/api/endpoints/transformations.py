@@ -154,9 +154,7 @@ async def transform_project(
     df = read_csv_safe(project.file_path)
 
     try:
-        result_df, should_save = _handle_basic_transform(
-            df, transformation_input, project, db, project_id
-        )
+        result_df, should_save = _handle_basic_transform(df, transformation_input, project, db, project_id)
     except ts.TransformationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -200,13 +198,9 @@ async def complex_transform_project(
 
     try:
         if op in COMPLEX_OPERATIONS:
-            result_df, should_save = _handle_complex_transform(
-                df, transformation_input, project, db, project_id
-            )
+            result_df, should_save = _handle_complex_transform(df, transformation_input, project, db, project_id)
         else:
-            result_df, should_save = _handle_basic_transform(
-                df, transformation_input, project, db, project_id
-            )
+            result_df, should_save = _handle_basic_transform(df, transformation_input, project, db, project_id)
     except ts.TransformationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
