@@ -1,13 +1,23 @@
 import { useEffect, useState } from "react";
 import { transformProject } from "../api";
-import { useProjectContext } from "../context/ProjectContext";
-import InputDialog from "./common/InputDialog";
-import Toast from "./common/Toast";
-import DtypeBadge from "./common/DtypeBadge";
+import { useProjectContext } from "../hooks/useProjectContext";
 import proptypes from "prop-types";
+import DtypeBadge from "./common/DtypeBadge";
 
 const Table = ({ projectId, data: externalData }) => {
-  const { columns: ctxColumns, rows: ctxRows, dtypes, updateData } = useProjectContext();
+  const {
+    columns: ctxColumns,
+    rows: ctxRows,
+    dtypes,
+    page,
+    pageSize,
+    totalPages,
+    totalRows,
+    goToPreviousPage,
+    goToNextPage,
+    refreshProject,
+    updateData,
+  } = useProjectContext();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
@@ -21,15 +31,16 @@ const Table = ({ projectId, data: externalData }) => {
     type: null,
   });
 
-  const [inputConfig, setInputConfig] = useState(null);
-  const [toast, setToast] = useState(null);
+  // Toast state for error messages
+  const [, setToast] = useState(null);
 
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
       setColumns(["S.No.", ...ctxColumns]);
-      setData(ctxRows.map((row, index) => [index + 1, ...row]));
+      // Calculate serial numbers based on current page and page size
+      setData(ctxRows.map((row, index) => [(page - 1) * pageSize + index + 1, ...row]));
     }
-  }, [ctxColumns, ctxRows]);
+  }, [ctxColumns, ctxRows, page, pageSize]);
 
   useEffect(() => {
     if (externalData) {
@@ -39,72 +50,56 @@ const Table = ({ projectId, data: externalData }) => {
     }
   }, [externalData]);
 
-  const updateTableData = (response) => {
-    const { columns, rows, dtypes: newDtypes } = response;
-    setColumns(["S.No.", ...columns]);
-    setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-    updateData(columns, rows, newDtypes);
-  };
-
   const handleAddRow = async (index) => {
     try {
-      const response = await transformProject(projectId, {
-        operation_type: "addRow",
-        row_params: { index },
-      });
-      updateTableData(response);
-    } catch {
-      setToast({
-        message: "Failed to add row. Please try again.",
-        type: "error",
-      });
+      // Reset to page 1 since row indices changed
+      const response = await transformProject(
+        projectId,
+        {
+          operation_type: "addRow",
+          row_params: { index },
+        },
+        1,
+      );
+      updateTableDataWithPagination(response);
+      await refreshProject(null, 1);
+    } catch (error) {
+      alert("Failed to add row. Please try again.");
     }
   };
 
-  const handleAddColumn = (index) => {
-    setInputConfig({
-      message: "Enter column name:",
-      defaultValue: "",
-      onSubmit: async (newColumnName) => {
-        if (!newColumnName) {
-          setInputConfig(null);
-          return;
-        }
-
-        try {
-          const response = await transformProject(projectId, {
-            operation_type: "addCol",
-            col_params: { index, name: newColumnName },
-          });
-          updateTableData(response);
-        } catch {
-          setToast({
-            message: "Failed to add column. Please try again.",
-            type: "error",
-          });
-        }
-
-        setInputConfig(null);
-      },
-    });
+  const handleAddColumn = async (index) => {
+    const newColumnName = prompt("Enter column name:");
+    if (newColumnName) {
+      try {
+        // Use current page since adding column doesn't change row indices
+        const response = await transformProject(projectId, {
+          operation_type: "addCol",
+          col_params: { index, name: newColumnName },
+        });
+        updateTableDataWithPagination(response);
+      } catch (error) {
+        alert("Failed to add column. Please try again.");
+      }
+    }
   };
 
   const handleDeleteRow = async (index) => {
     try {
+      // Use current page, backend will reset to page 1 if needed
       const response = await transformProject(projectId, {
         operation_type: "delRow",
         row_params: { index },
       });
-      updateTableData(response);
-    } catch {
-      setToast({
-        message: "Failed to delete row. Please try again.",
-        type: "error",
-      });
+      updateTableDataWithPagination(response);
+      // Refresh to get updated pagination state
+      await refreshProject(null, response.page);
+    } catch (error) {
+      alert("Failed to delete row. Please try again.");
     }
   };
 
-  const handleRenameColumn = (index) => {
+  const handleRenameColumn = async (index) => {
     if (index === 0) {
       setToast({
         message: "Cannot rename the S.No. column.",
@@ -113,31 +108,18 @@ const Table = ({ projectId, data: externalData }) => {
       return;
     }
 
-    setInputConfig({
-      message: "Enter new column name:",
-      defaultValue: "",
-      onSubmit: async (newName) => {
-        if (!newName) {
-          setInputConfig(null);
-          return;
-        }
-
-        try {
-          const response = await transformProject(projectId, {
-            operation_type: "renameCol",
-            rename_col_params: { col_index: index - 1, new_name: newName },
-          });
-          updateTableData(response);
-        } catch {
-          setToast({
-            message: "Failed to rename column. Please try again.",
-            type: "error",
-          });
-        }
-
-        setInputConfig(null);
-      },
-    });
+    const newName = prompt("Enter new column name:");
+    if (newName) {
+      try {
+        const response = await transformProject(projectId, {
+          operation_type: "renameCol",
+          rename_col_params: { col_index: index - 1, new_name: newName },
+        });
+        updateTableDataWithPagination(response);
+      } catch (error) {
+        alert("Failed to rename column. Please try again.");
+      }
+    }
   };
 
   const handleDeleteColumn = async (index) => {
@@ -154,41 +136,29 @@ const Table = ({ projectId, data: externalData }) => {
         operation_type: "delCol",
         col_params: { index: index - 1 },
       });
-      updateTableData(response);
-    } catch {
-      setToast({
-        message: "Failed to delete column. Please try again.",
-        type: "error",
-      });
+      updateTableDataWithPagination(response);
+    } catch (error) {
+      alert("Failed to delete column. Please try again.");
     }
   };
 
   const handleEditCell = async (rowIndex, cellIndex, newValue) => {
+    // cellIndex includes S.No. column at index 0, so subtract 1 for API
+    const dataColIndex = cellIndex - 1;
     try {
       const response = await transformProject(projectId, {
         operation_type: "changeCellValue",
         change_cell_value: {
-          col_index: cellIndex,
+          col_index: dataColIndex,
           row_index: rowIndex,
           fill_value: newValue,
         },
       });
-      updateTableData(response);
+      updateTableDataWithPagination(response);
       setEditingCell(null);
       setEditValue("");
-    } catch {
-      setToast({
-        message: "Failed to edit cell. Please try again.",
-        type: "error",
-      });
-    }
-  };
-  const handleInputKeyDown = (e, rowIndex, cellIndex) => {
-    if (e.key === "Enter") {
-      handleEditCell(rowIndex, cellIndex, editValue);
-    } else if (e.key === "Escape") {
-      setEditingCell(null);
-      setEditValue("");
+    } catch (error) {
+      alert("Failed to edit cell. Please try again.");
     }
   };
 
@@ -196,6 +166,18 @@ const Table = ({ projectId, data: externalData }) => {
     if (cellIndex !== 0) {
       setEditingCell({ rowIndex, cellIndex });
       setEditValue(cellValue);
+    }
+  };
+  const handleInputChange = (e) => {
+    setEditValue(e.target.value);
+  };
+
+  const handleInputKeyDown = (e, rowIndex, cellIndex) => {
+    if (e.key === "Enter") {
+      handleEditCell(rowIndex, cellIndex, editValue);
+    } else if (e.key === "Escape") {
+      setEditingCell(null);
+      setEditValue("");
     }
   };
 
@@ -222,11 +204,29 @@ const Table = ({ projectId, data: externalData }) => {
     });
   };
 
+  // Helper to update table data with pagination info from response
+  const updateTableDataWithPagination = (response) => {
+    const { columns, rows, page: responsePage, total_pages, total_rows, page_size } = response;
+    const currentPageSize = page_size || pageSize || 50;
+    setColumns(["S.No.", ...columns]);
+    setData(
+      rows.map((row, index) => [
+        (responsePage - 1) * currentPageSize + index + 1,
+        ...Object.values(row),
+      ]),
+    );
+    updateData(columns, rows, { page: responsePage, total_pages, total_rows });
+  };
+
+  const isFirstPage = page <= 1;
+  const isLastPage = page >= totalPages || totalPages === 0;
+  const hasNoData = totalPages === 0;
+
   return (
     <div className="px-8 pt-3" onClick={handleCloseContextMenu}>
       <div
         className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
-        style={{ maxHeight: "calc(100vh - 140px)" }}
+        style={{ maxHeight: "calc(100vh - 180px)" }}
       >
         <table className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
@@ -264,10 +264,10 @@ const Table = ({ projectId, data: externalData }) => {
                       <input
                         type="text"
                         value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
+                        onChange={handleInputChange}
                         onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
-                        className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                         onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
+                        className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                       />
                     ) : (
                       <div
@@ -333,21 +333,52 @@ const Table = ({ projectId, data: externalData }) => {
         </div>
       )}
 
-      {inputConfig && (
-        <InputDialog
-          isOpen={true}
-          message={inputConfig.message}
-          defaultValue={inputConfig.defaultValue}
-          onSubmit={inputConfig.onSubmit}
-          onCancel={() => setInputConfig(null)}
-        />
-      )}
-
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between px-4 py-3 mt-2 bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="text-sm text-gray-600">
+          {hasNoData ? (
+            <span>No data</span>
+          ) : (
+            <span>
+              Showing {totalRows > 0 ? (page - 1) * pageSize + 1 : 0} -
+              {Math.min(page * pageSize, totalRows)} of {totalRows} rows
+            </span>
+          )}
         </div>
-      )}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={goToPreviousPage}
+            disabled={isFirstPage || hasNoData}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150 ${
+              isFirstPage || hasNoData
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+            }`}
+          >
+            Previous
+          </button>
+          <span className="text-sm text-gray-600">
+            {hasNoData ? (
+              <span className="px-2">Page 0 of 0</span>
+            ) : (
+              <span className="px-2">
+                Page {page} of {totalPages}
+              </span>
+            )}
+          </span>
+          <button
+            onClick={goToNextPage}
+            disabled={isLastPage || hasNoData}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150 ${
+              isLastPage || hasNoData
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

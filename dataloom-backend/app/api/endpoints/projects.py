@@ -5,7 +5,7 @@ Handles upload, retrieval, save (checkpoint), and revert operations.
 
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlmodel import Session
 
@@ -20,7 +20,13 @@ from app.services.project_service import (
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import (
+    dataframe_to_paginated_response,
+    dataframe_to_response,
+    DEFAULT_PAGE_SIZE,
+    read_csv_safe,
+    save_csv_safe,
+)
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -33,12 +39,13 @@ async def upload_project(
     file: UploadFile = File(...),
     projectName: str = Form(...),
     projectDescription: str = Form(...),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=1000, description="Number of rows per page"),
     db: Session = Depends(database.get_db),
 ):
     """Upload a new CSV file for a project.
 
     Validates the file, stores it with a sanitized name, creates a working copy,
-    and returns the initial project data.
+    and returns the initial project data (paginated, starting at page 1).
     """
     logger.info("Upload request: project=%s, file=%s", projectName, file.filename)
     validate_upload_file(file)
@@ -48,7 +55,7 @@ async def upload_project(
 
     project = create_project(db, projectName, str(copy_path), projectDescription)
 
-    resp = dataframe_to_response(df)
+    resp = dataframe_to_paginated_response(df, page=1, page_size=page_size)
     return {
         "filename": project.name,
         "file_path": project.file_path,
@@ -58,12 +65,26 @@ async def upload_project(
 
 
 @router.get("/get/{project_id}", response_model=schemas.ProjectResponse)
-async def get_project_details(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Fetch full project details including all rows and columns."""
+async def get_project_details(
+    project_id: uuid.UUID,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=1000, description="Number of rows per page"),
+    db: Session = Depends(database.get_db),
+):
+    """Fetch paginated project details including rows and columns.
+
+    Args:
+        project_id: The UUID of the project to retrieve.
+        page: Page number (1-indexed, default 1).
+        page_size: Number of rows per page (default 50, max 1000).
+
+    Returns:
+        Paginated project data with metadata including total rows and pages.
+    """
     project = get_project_or_404(project_id, db)
     df = read_csv_safe(project.file_path)
 
-    resp = dataframe_to_response(df)
+    resp = dataframe_to_paginated_response(df, page=page, page_size=page_size)
     return {
         "filename": project.name,
         "file_path": project.file_path,
@@ -91,12 +112,15 @@ def recent_projects(db: Session = Depends(database.get_db)):
 async def save_project(
     project_id: uuid.UUID,
     commit_message: str,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=1000, description="Number of rows per page"),
     db: Session = Depends(database.get_db),
 ):
     """Save project changes as a checkpoint.
 
     Replays all pending transformations from the change log onto the original
     file and creates a checkpoint record marking the save point.
+    Returns paginated project data.
     """
     project = get_project_or_404(project_id, db)
 
@@ -124,7 +148,7 @@ async def save_project(
     # Create checkpoint (marks logs as applied)
     checkpoint = create_checkpoint(db, project_id, commit_message)
 
-    resp = dataframe_to_response(df)
+    resp = dataframe_to_paginated_response(df, page=page, page_size=page_size)
     logger.info("Project saved: id=%s, checkpoint=%s", project_id, checkpoint.id)
     return {
         "filename": project.name,
@@ -138,13 +162,15 @@ async def save_project(
 async def revert_to_checkpoint(
     project_id: uuid.UUID,
     checkpoint_id: uuid.UUID = None,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=1000, description="Number of rows per page"),
     db: Session = Depends(database.get_db),
 ):
     """Revert project to its original state or to a specific checkpoint.
 
     When checkpoint_id is provided, replays only the logs up to and including
     that checkpoint onto the original file. When None, reverts to the original
-    uploaded state.
+    uploaded state. Returns paginated project data.
     """
     project = get_project_or_404(project_id, db)
 
@@ -191,7 +217,7 @@ async def revert_to_checkpoint(
     save_csv_safe(df, project.file_path)
     db.commit()
 
-    resp = dataframe_to_response(df)
+    resp = dataframe_to_paginated_response(df, page=page, page_size=page_size)
     logger.info("Project reverted: id=%s, checkpoint_id=%s", project_id, checkpoint_id)
     return {
         "filename": project.name,

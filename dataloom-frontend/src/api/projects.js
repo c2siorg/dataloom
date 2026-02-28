@@ -21,12 +21,16 @@ export const uploadProject = async (file, projectName, projectDescription) => {
 };
 
 /**
- * Fetch full project details including rows and columns.
+ * Fetch paginated project details including rows and columns.
  * @param {string} projectId - The project ID.
- * @returns {Promise<Object>} Project details with columns and rows.
+ * @param {number} [page=1] - Page number (1-indexed).
+ * @param {number} [pageSize=50] - Number of rows per page.
+ * @returns {Promise<Object>} Project details with paginated columns and rows.
  */
-export const getProjectDetails = async (projectId) => {
-  const response = await client.get(`/projects/get/${projectId}`);
+export const getProjectDetails = async (projectId, page = 1, pageSize = 50) => {
+  const response = await client.get(`/projects/get/${projectId}`, {
+    params: { page, page_size: pageSize },
+  });
   return response.data;
 };
 

@@ -11,5 +11,8 @@ export {
   exportProject,
   deleteProject,
 } from "./projects";
-export { transformProject } from "./transforms";
+export { transformProject, complexTransformProject } from "./transforms";
 export { getLogs, getCheckpoints } from "./logs";
+
+// Re-export for convenience
+export { DEFAULT_PAGE_SIZE } from "./constants";
