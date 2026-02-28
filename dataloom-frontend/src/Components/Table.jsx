@@ -31,8 +31,8 @@ const Table = ({ projectId, data: externalData }) => {
     type: null,
   });
 
-  const [inputConfig, setInputConfig] = useState(null);
-  const [toast, setToast] = useState(null);
+  // Toast state for error messages
+  const [, setToast] = useState(null);
 
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
@@ -209,7 +209,12 @@ const Table = ({ projectId, data: externalData }) => {
     const { columns, rows, page: responsePage, total_pages, total_rows, page_size } = response;
     const currentPageSize = page_size || pageSize || 50;
     setColumns(["S.No.", ...columns]);
-    setData(rows.map((row, index) => [(responsePage - 1) * currentPageSize + index + 1, ...Object.values(row)]));
+    setData(
+      rows.map((row, index) => [
+        (responsePage - 1) * currentPageSize + index + 1,
+        ...Object.values(row),
+      ]),
+    );
     updateData(columns, rows, { page: responsePage, total_pages, total_rows });
   };
 

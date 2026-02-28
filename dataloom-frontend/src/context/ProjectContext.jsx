@@ -1,7 +1,12 @@
 import { createContext, useState, useCallback, useRef, useEffect } from "react";
 import { getProjectDetails, DEFAULT_PAGE_SIZE } from "../api";
 
+/* eslint-disable react-refresh/only-export-components */
 export const ProjectContext = createContext(null);
+
+// Re-export the hook for convenience
+export { useProjectContext } from "../hooks/useProjectContext";
+/* eslint-enable react-refresh/only-export-components */
 
 /**
  * Provides project state and data-fetching actions to the component tree.
@@ -12,7 +17,7 @@ export function ProjectProvider({ children }) {
   const [projectName, setProjectName] = useState("");
   const [columns, setColumns] = useState([]);
   const [rows, setRows] = useState([]);
-  const [dtypes, setDtypes] = useState({});
+  const [dtypes] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -28,9 +33,15 @@ export function ProjectProvider({ children }) {
   const projectIdRef = useRef(projectId);
 
   // Keep refs in sync with state
-  useEffect(() => { pageRef.current = page; }, [page]);
-  useEffect(() => { pageSizeRef.current = pageSize; }, [pageSize]);
-  useEffect(() => { projectIdRef.current = projectId; }, [projectId]);
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+  useEffect(() => {
+    pageSizeRef.current = pageSize;
+  }, [pageSize]);
+  useEffect(() => {
+    projectIdRef.current = projectId;
+  }, [projectId]);
 
   const refreshProject = useCallback(
     async (id, targetPage = null, targetPageSize = null) => {
@@ -65,7 +76,9 @@ export function ProjectProvider({ children }) {
 
   // Refs for totalPages to avoid dependencies
   const totalPagesRef = useRef(totalPages);
-  useEffect(() => { totalPagesRef.current = totalPages; }, [totalPages]);
+  useEffect(() => {
+    totalPagesRef.current = totalPages;
+  }, [totalPages]);
 
   /**
    * Navigate to a specific page.

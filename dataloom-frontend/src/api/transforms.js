@@ -27,7 +27,12 @@ export const transformProject = async (projectId, transformationInput, page = 1,
  * @param {number} [pageSize=50] - Number of rows per page.
  * @returns {Promise<Object>} Transformation result with updated rows and columns.
  */
-export const complexTransformProject = async (projectId, transformationInput, page = 1, pageSize = 50) => {
+export const complexTransformProject = async (
+  projectId,
+  transformationInput,
+  page = 1,
+  pageSize = 50,
+) => {
   const response = await client.post(
     `/projects/${projectId}/Complextransform`,
     transformationInput,
