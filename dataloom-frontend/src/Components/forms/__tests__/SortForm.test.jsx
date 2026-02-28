@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import SortForm from "../SortForm";
 import { transformProject } from "../../../api";
@@ -258,7 +258,7 @@ describe("SortForm", () => {
             column: "price",
             ascending: false,
           }),
-        })
+        }),
       );
     });
   });
@@ -284,7 +284,7 @@ describe("SortForm", () => {
           sort_params: expect.objectContaining({
             column: "user_name",
           }),
-        })
+        }),
       );
     });
   });

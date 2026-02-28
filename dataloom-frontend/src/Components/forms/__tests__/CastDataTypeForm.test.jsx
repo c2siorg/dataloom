@@ -39,7 +39,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     expect(screen.getByRole("heading", { name: /cast data type/i })).toBeInTheDocument();
@@ -55,11 +55,8 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
-
-    // Get all comboboxes - first one is column, second is target type
-    const columnSelect = screen.getAllByRole("combobox")[0];
 
     // Check that all columns are rendered as options
     for (const column of mockColumns) {
@@ -76,7 +73,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     const expectedTypes = ["String", "Integer", "Float", "Boolean", "DateTime"];
@@ -93,7 +90,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: /cancel/i }));
@@ -107,7 +104,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     const columnSelect = screen.getAllByRole("combobox")[0];
@@ -129,7 +126,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     // Second combobox is target type
@@ -164,7 +161,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     // Get the two comboboxes
@@ -203,7 +200,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     const selects = screen.getAllByRole("combobox");
@@ -229,7 +226,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     const selects = screen.getAllByRole("combobox");
@@ -257,7 +254,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     const selects = screen.getAllByRole("combobox");
@@ -275,7 +272,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     const columnSelect = screen.getAllByRole("combobox")[0];
@@ -289,7 +286,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     const columnSelect = screen.getAllByRole("combobox")[0];
@@ -314,7 +311,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     // Should still render the form
@@ -337,7 +334,7 @@ describe("CastDataTypeForm", () => {
       { value: "datetime", label: "DateTime" },
     ];
 
-    for (const { value, label } of targetTypes) {
+    for (const { value } of targetTypes) {
       vi.clearAllMocks();
       transformProject.mockResolvedValue({ columns: [], rows: [] });
 
@@ -346,7 +343,7 @@ describe("CastDataTypeForm", () => {
           projectId={mockProjectId}
           onClose={mockOnClose}
           onTransform={mockOnTransform}
-        />
+        />,
       );
 
       const selects = screen.getAllByRole("combobox");
@@ -361,7 +358,7 @@ describe("CastDataTypeForm", () => {
             cast_data_type_params: expect.objectContaining({
               target_type: value,
             }),
-          })
+          }),
         );
       });
 
@@ -380,7 +377,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     for (const column of specialColumns) {
@@ -398,7 +395,7 @@ describe("CastDataTypeForm", () => {
         projectId={mockProjectId}
         onClose={mockOnClose}
         onTransform={mockOnTransform}
-      />
+      />,
     );
 
     const selects = screen.getAllByRole("combobox");

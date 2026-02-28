@@ -231,7 +231,7 @@ describe("FilterForm", () => {
           mockProjectId,
           expect.objectContaining({
             parameters: expect.objectContaining({ condition }),
-          })
+          }),
         );
       });
 
