@@ -3,7 +3,9 @@
 import re
 import uuid
 from pathlib import Path
+
 from fastapi import HTTPException, UploadFile
+
 from app.config import get_settings
 
 
@@ -22,7 +24,7 @@ def sanitize_filename(filename: str) -> str:
     # Strip any directory path components (prevents ../../../etc/passwd)
     name = Path(filename).name
     # Replace any non-alphanumeric chars (except dots, hyphens, underscores) with underscores
-    name = re.sub(r'[^\w.\-]', '_', name)
+    name = re.sub(r"[^\w.\-]", "_", name)
     # Prepend UUID for uniqueness
     return f"{uuid.uuid4().hex[:8]}_{name}"
 
@@ -42,8 +44,7 @@ def validate_upload_file(file: UploadFile) -> None:
     ext = Path(file.filename).suffix.lower()
     if ext not in settings.allowed_extensions:
         raise HTTPException(
-            status_code=400,
-            detail=f"File type '{ext}' not allowed. Allowed: {settings.allowed_extensions}"
+            status_code=400, detail=f"File type '{ext}' not allowed. Allowed: {settings.allowed_extensions}"
         )
 
 
@@ -79,18 +80,18 @@ def resolve_upload_path(filename: str) -> Path:
 
 # Patterns that could be used for code injection via df.query()
 _DANGEROUS_PATTERNS = [
-    r'__import__',
-    r'__builtins__',
-    r'__class__',
-    r'__subclasses__',
-    r'__globals__',
-    r'\bexec\b',
-    r'\bos\b\s*\.',
-    r'\bsys\b\s*\.',
-    r'\blambda\b',
-    r'\bopen\b\s*\(',
-    r'\bcompile\b\s*\(',
-    r'__\w+__',  # Catch-all for dunder attributes
+    r"__import__",
+    r"__builtins__",
+    r"__class__",
+    r"__subclasses__",
+    r"__globals__",
+    r"\bexec\b",
+    r"\bos\b\s*\.",
+    r"\bsys\b\s*\.",
+    r"\blambda\b",
+    r"\bopen\b\s*\(",
+    r"\bcompile\b\s*\(",
+    r"__\w+__",  # Catch-all for dunder attributes
 ]
 
 
@@ -111,8 +112,5 @@ def validate_query_string(query: str) -> str:
     """
     for pattern in _DANGEROUS_PATTERNS:
         if re.search(pattern, query, re.IGNORECASE):
-            raise HTTPException(
-                status_code=400,
-                detail="Query contains potentially dangerous expressions"
-            )
+            raise HTTPException(status_code=400, detail="Query contains potentially dangerous expressions")
     return query
