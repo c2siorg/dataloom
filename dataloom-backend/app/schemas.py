@@ -1,81 +1,89 @@
 """Pydantic request/response schemas for all API endpoints."""
 
-import uuid
-from pydantic import BaseModel
-from enum import Enum
-from typing import Optional, Union, Any, List
 import datetime
+import uuid
+from enum import StrEnum
+from typing import Any
 
+from pydantic import BaseModel
 
 # --- Enums ---
 
-class FilterCondition(str, Enum):
+
+class FilterCondition(StrEnum):
     """Supported filter comparison operators."""
-    EQ = '='
-    NEQ = '!='
-    GT = '>'
-    LT = '<'
-    GTE = '>='
-    LTE = '<='
-    CONTAINS = 'contains'
+
+    EQ = "="
+    NEQ = "!="
+    GT = ">"
+    LT = "<"
+    GTE = ">="
+    LTE = "<="
+    CONTAINS = "contains"
 
 
-class OperationType(str, Enum):
+class OperationType(StrEnum):
     """All supported transformation operation types."""
-    filter = 'filter'
-    sort = 'sort'
-    addRow = 'addRow'
-    delRow = 'delRow'
-    addCol = 'addCol'
-    delCol = 'delCol'
-    fillEmpty = 'fillEmpty'
-    dropDuplicate = 'dropDuplicate'
-    advQueryFilter = 'advQueryFilter'
-    pivotTables = 'pivotTables'
-    changeCellValue = 'changeCellValue'
-    renameCol = 'renameCol'
-    castDataType = 'castDataType'
-    trimWhitespace = 'trimWhitespace'
+
+    filter = "filter"
+    sort = "sort"
+    addRow = "addRow"
+    delRow = "delRow"
+    addCol = "addCol"
+    delCol = "delCol"
+    fillEmpty = "fillEmpty"
+    dropDuplicate = "dropDuplicate"
+    advQueryFilter = "advQueryFilter"
+    pivotTables = "pivotTables"
+    changeCellValue = "changeCellValue"
+    renameCol = "renameCol"
+    castDataType = "castDataType"
+    trimWhitespace = "trimWhitespace"
 
 
-class DropDup(str, Enum):
+class DropDup(StrEnum):
     """Options for which duplicate rows to keep."""
-    first = 'first'
-    last = 'last'
+
+    first = "first"
+    last = "last"
 
 
-class AggFunc(str, Enum):
+class AggFunc(StrEnum):
     """Supported aggregation functions for pivot tables."""
-    sum = 'sum'
-    mean = 'mean'
-    median = 'median'
-    min = 'min'
-    max = 'max'
-    count = 'count'
+
+    sum = "sum"
+    mean = "mean"
+    median = "median"
+    min = "min"
+    max = "max"
+    count = "count"
 
 
-class ActionTypes(str, Enum):
+class ActionTypes(StrEnum):
     """Action types for user log entries."""
-    filter = 'filter'
-    sort = 'sort'
-    addRow = 'addRow'
-    delRow = 'delRow'
-    addCol = 'addCol'
-    delCol = 'delCol'
-    fillEmpty = 'fillEmpty'
-    dropDuplicate = 'dropDuplicate'
-    advQueryFilter = 'advQueryFilter'
-    pivotTables = 'pivotTables'
-    changeCellValue = 'changeCellValue'
-    renameCol = 'renameCol'
-    castDataType = 'castDataType'
-    trimWhitespace = 'trimWhitespace'
+
+    filter = "filter"
+    sort = "sort"
+    addRow = "addRow"
+    delRow = "delRow"
+    addCol = "addCol"
+    delCol = "delCol"
+    fillEmpty = "fillEmpty"
+    dropDuplicate = "dropDuplicate"
+    advQueryFilter = "advQueryFilter"
+    pivotTables = "pivotTables"
+    changeCellValue = "changeCellValue"
+    renameCol = "renameCol"
+    castDataType = "castDataType"
+    trimWhitespace = "trimWhitespace"
 
 
 # --- Basic transformation parameter schemas ---
 
+
 class FilterParameters(BaseModel):
     """Parameters for a column filter operation."""
+
     column: str
     condition: FilterCondition
     value: str
@@ -83,23 +91,27 @@ class FilterParameters(BaseModel):
 
 class SortParameters(BaseModel):
     """Parameters for a column sort operation."""
+
     column: str
     ascending: bool
 
 
 class AddOrDeleteRow(BaseModel):
     """Parameters for adding or deleting a row by index."""
+
     index: int
 
 
 class AddOrDeleteColumn(BaseModel):
     """Parameters for adding or deleting a column by index and name."""
+
     index: int
     name: str
 
 
 class ChangeCellValue(BaseModel):
     """Parameters for updating a single cell value."""
+
     col_index: int
     row_index: int
     fill_value: Any
@@ -107,18 +119,21 @@ class ChangeCellValue(BaseModel):
 
 class FillEmptyParams(BaseModel):
     """Parameters for filling empty cells."""
-    index: Optional[int]
+
+    index: int | None
     fill_value: Any
 
 
 class RenameColumnParams(BaseModel):
     """Parameters for renaming a column."""
+
     col_index: int
     new_name: str
 
 
-class DataType(str, Enum):
+class DataType(StrEnum):
     """Supported target types for data type casting."""
+
     string = "string"
     integer = "integer"
     float = "float"
@@ -128,75 +143,88 @@ class DataType(str, Enum):
 
 class CastDataTypeParams(BaseModel):
     """Parameters for casting a column to a different data type."""
+
     column: str
     target_type: DataType
 
 
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
+
     column: str
 
 
 # --- Complex transformation parameter schemas ---
 
+
 class DropDuplicates(BaseModel):
     """Parameters for dropping duplicate rows."""
+
     columns: str
-    keep: Union[DropDup, bool]
+    keep: DropDup | bool
 
 
 class AdvQuery(BaseModel):
     """Parameters for an advanced pandas query filter."""
+
     query: str
 
 
 class Pivot(BaseModel):
     """Parameters for creating a pivot table."""
+
     index: str
-    column: Optional[str] = None
+    column: str | None = None
     value: str
     aggfun: AggFunc
 
 
 class RevertRequest(BaseModel):
     """Request body for reverting to a checkpoint."""
+
     checkpoint_id: uuid.UUID
 
 
 # --- User log schemas ---
 
+
 class UserLogsAction(BaseModel):
     """A user action to log."""
+
     projectId: uuid.UUID
     actionType: ActionTypes
 
 
 class UserLogsInput(BaseModel):
     """Input wrapper for user log actions."""
-    user_actions: Optional[UserLogsAction] = None
+
+    user_actions: UserLogsAction | None = None
 
 
 # --- Transformation input/output schemas ---
 
+
 class TransformationInput(BaseModel):
     """Unified input for all transformation operations."""
+
     operation_type: OperationType
-    parameters: Optional[FilterParameters] = None
-    sort_params: Optional[SortParameters] = None
-    row_params: Optional[AddOrDeleteRow] = None
-    col_params: Optional[AddOrDeleteColumn] = None
-    fill_empty_params: Optional[FillEmptyParams] = None
-    drop_duplicate: Optional[DropDuplicates] = None
-    adv_query: Optional[AdvQuery] = None
-    pivot_query: Optional[Pivot] = None
-    change_cell_value: Optional[ChangeCellValue] = None
-    rename_col_params: Optional[RenameColumnParams] = None
-    cast_data_type_params: Optional[CastDataTypeParams] = None
-    trim_whitespace_params: Optional[TrimWhitespaceParams] = None
+    parameters: FilterParameters | None = None
+    sort_params: SortParameters | None = None
+    row_params: AddOrDeleteRow | None = None
+    col_params: AddOrDeleteColumn | None = None
+    fill_empty_params: FillEmptyParams | None = None
+    drop_duplicate: DropDuplicates | None = None
+    adv_query: AdvQuery | None = None
+    pivot_query: Pivot | None = None
+    change_cell_value: ChangeCellValue | None = None
+    rename_col_params: RenameColumnParams | None = None
+    cast_data_type_params: CastDataTypeParams | None = None
+    trim_whitespace_params: TrimWhitespaceParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
     """Response for transformation operations."""
+
     project_id: uuid.UUID
     operation_type: str
     row_count: int
@@ -207,6 +235,7 @@ class BasicQueryResponse(BaseModel):
 
 class ProjectResponse(BaseModel):
     """Response for project CRUD operations."""
+
     filename: str
     file_path: str
     project_id: uuid.UUID
@@ -218,8 +247,10 @@ class ProjectResponse(BaseModel):
 
 # --- Other response schemas ---
 
+
 class CheckpointResponse(BaseModel):
     """Response for checkpoint queries."""
+
     id: uuid.UUID
     message: str
     created_at: datetime.datetime
@@ -227,19 +258,21 @@ class CheckpointResponse(BaseModel):
 
 class LogResponse(BaseModel):
     """Response for change log entries."""
+
     id: int
     action_type: str
     action_details: dict
     timestamp: datetime.datetime
-    checkpoint_id: Optional[uuid.UUID]
+    checkpoint_id: uuid.UUID | None
     applied: bool
 
 
 class LastResponse(BaseModel):
     """Response for recently modified projects."""
+
     project_id: uuid.UUID
     name: str
-    description: Optional[str]
+    description: str | None
     last_modified: datetime.datetime
 
     class Config:

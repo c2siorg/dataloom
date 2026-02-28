@@ -21,10 +21,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
 
     clearError();
     try {
-      const response = await transformProject(
-        projectId,
-        transformationInput
-      );
+      const response = await transformProject(projectId, transformationInput);
       console.log("Transformation response:", response);
       onTransform(response); // Pass data to parent component
       onClose(); // Close the form after submission

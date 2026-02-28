@@ -5,6 +5,7 @@ Provides a cached get_settings() function for efficient access throughout the ap
 """
 
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings
 
 
