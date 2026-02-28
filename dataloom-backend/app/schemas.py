@@ -91,6 +91,7 @@ class FilterParameters(BaseModel):
 
 class SortCriterion(BaseModel):
     """A single sort criterion (column + direction)."""
+
     column: str
     ascending: bool
 
@@ -101,6 +102,7 @@ class SortParameters(BaseModel):
     Supports both single-column (backward compatible) and multi-column sorting.
     For multi-column sorting, use 'criteria' with a list of SortCriterion objects.
     """
+
     column: Optional[str] = None
     ascending: bool = True
     criteria: Optional[List[SortCriterion]] = None

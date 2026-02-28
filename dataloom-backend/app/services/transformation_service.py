@@ -117,13 +117,13 @@ def apply_sort(df: pd.DataFrame, column: str = None, ascending: bool = True, cri
         ascending_list = []
 
         for criterion in criteria:
-            col_name = criterion.get('column')
+            col_name = criterion.get("column")
             if not col_name:
                 raise TransformationError("Column name is required for each sort criterion")
             if col_name not in df.columns:
                 raise TransformationError(f"Column '{col_name}' not found")
             columns.append(col_name)
-            ascending_list.append(criterion.get('ascending', True))
+            ascending_list.append(criterion.get("ascending", True))
 
         return df.sort_values(by=columns, ascending=ascending_list)
 
@@ -483,14 +483,14 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         target_type = action_details["cast_data_type_params"]["target_type"]
         return cast_data_type(df, column, target_type)
 
-    elif action_type == 'sort':
-        sort_params = action_details.get('sort_params', {})
+    elif action_type == "sort":
+        sort_params = action_details.get("sort_params", {})
         # Multi-column sorting
-        if 'criteria' in sort_params and sort_params['criteria']:
-            return apply_sort(df, criteria=sort_params['criteria'])
+        if "criteria" in sort_params and sort_params["criteria"]:
+            return apply_sort(df, criteria=sort_params["criteria"])
         # Single-column sorting (backward compatible)
-        column = sort_params.get('column')
-        ascending = sort_params.get('ascending', True)
+        column = sort_params.get("column")
+        ascending = sort_params.get("ascending", True)
         return apply_sort(df, column=column, ascending=ascending)
     elif action_type == 'trimWhitespace':
         column = action_details['trim_whitespace_params']['column']

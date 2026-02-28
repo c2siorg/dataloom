@@ -172,3 +172,32 @@ async def transform_project(
         "operation_type": transformation_input.operation_type,
         **resp,
     }
+
+
+@router.post("/{project_id}/Complextransform", response_model=schemas.BasicQueryResponse)
+async def complex_transform_project(
+    project_id: uuid.UUID,
+    transformation_input: schemas.TransformationInput,
+    db: Session = Depends(database.get_db),
+):
+    """Apply a complex transformation (drop duplicates, query filter, pivot)."""
+    project = get_project_or_404(project_id, db)
+    df = read_csv_safe(project.file_path)
+
+    try:
+        result_df, should_save = _handle_complex_transform(df, transformation_input, project, db, project_id)
+    except ts.TransformationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    if should_save:
+        save_csv_safe(result_df, project.file_path)
+        log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
+
+    resp = dataframe_to_response(result_df)
+    return {
+        "project_id": project_id,
+        "operation_type": transformation_input.operation_type,
+        **resp,
+    }

@@ -85,10 +85,12 @@ class TestSort:
 
     def test_sort_multi_column_two_criteria(self):
         """Multi-column sorting with two criteria."""
-        df = pd.DataFrame({
-            "region": ["East", "West", "East", "West", "East"],
-            "revenue": [100, 200, 150, 150, 120],
-        })
+        df = pd.DataFrame(
+            {
+                "region": ["East", "West", "East", "West", "East"],
+                "revenue": [100, 200, 150, 150, 120],
+            }
+        )
         # Sort by region ascending, then revenue descending
         criteria = [
             {"column": "region", "ascending": True},
@@ -102,11 +104,13 @@ class TestSort:
 
     def test_sort_multi_column_three_criteria(self):
         """Multi-column sorting with three criteria."""
-        df = pd.DataFrame({
-            "country": ["USA", "USA", "UK", "UK", "USA"],
-            "city": ["NYC", "LA", "London", "London", "NYC"],
-            "sales": [100, 200, 150, 120, 180],
-        })
+        df = pd.DataFrame(
+            {
+                "country": ["USA", "USA", "UK", "UK", "USA"],
+                "city": ["NYC", "LA", "London", "London", "NYC"],
+                "sales": [100, 200, 150, 120, 180],
+            }
+        )
         criteria = [
             {"column": "country", "ascending": True},
             {"column": "city", "ascending": True},

@@ -42,18 +42,14 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
    * Update a specific criterion's column.
    */
   const updateCriterionColumn = useCallback((id, column) => {
-    setCriteria((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, column } : c))
-    );
+    setCriteria((prev) => prev.map((c) => (c.id === id ? { ...c, column } : c)));
   }, []);
 
   /**
    * Update a specific criterion's sort direction.
    */
   const updateCriterionOrder = useCallback((id, ascending) => {
-    setCriteria((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ascending } : c))
-    );
+    setCriteria((prev) => prev.map((c) => (c.id === id ? { ...c, ascending } : c)));
   }, []);
 
   /**
@@ -63,10 +59,7 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
     if (index === 0) return;
     setCriteria((prev) => {
       const newCriteria = [...prev];
-      [newCriteria[index - 1], newCriteria[index]] = [
-        newCriteria[index],
-        newCriteria[index - 1],
-      ];
+      [newCriteria[index - 1], newCriteria[index]] = [newCriteria[index], newCriteria[index - 1]];
       return newCriteria;
     });
   }, []);
@@ -78,10 +71,7 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
     setCriteria((prev) => {
       if (index >= prev.length - 1) return prev;
       const newCriteria = [...prev];
-      [newCriteria[index], newCriteria[index + 1]] = [
-        newCriteria[index + 1],
-        newCriteria[index],
-      ];
+      [newCriteria[index], newCriteria[index + 1]] = [newCriteria[index + 1], newCriteria[index]];
       return newCriteria;
     });
   }, []);
@@ -158,9 +148,7 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
               key={criterion.id}
               className="flex items-center gap-2 p-3 bg-gray-50 rounded-md border border-gray-200"
             >
-              <span className="text-sm font-medium text-gray-500 w-6">
-                {index + 1}.
-              </span>
+              <span className="text-sm font-medium text-gray-500 w-6">{index + 1}.</span>
 
               <div className="flex-1">
                 {hasColumnList ? (
@@ -191,9 +179,7 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
 
               <select
                 value={criterion.ascending}
-                onChange={(e) =>
-                  updateCriterionOrder(criterion.id, e.target.value === "true")
-                }
+                onChange={(e) => updateCriterionOrder(criterion.id, e.target.value === "true")}
                 className="border border-gray-300 rounded-md px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-sm w-32"
               >
                 <option value="true">Ascending</option>
@@ -209,7 +195,12 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
                   title="Move up in priority"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 15l7-7 7 7"
+                    />
                   </svg>
                 </button>
                 <button
@@ -220,7 +211,12 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
                   title="Move down in priority"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </button>
                 <button
@@ -230,7 +226,12 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
                   title="Remove criterion"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
