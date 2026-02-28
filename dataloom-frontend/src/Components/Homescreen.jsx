@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadProject, getRecentProjects, deleteProject } from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 
 const ProjectCard = ({ project, onClick, onDelete }) => {
   const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
@@ -46,8 +47,9 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
   );
 };
 
-const NewProjectCard = ({ onClick }) => (
+const NewProjectCard = ({ onClick, triggerRef }) => (
   <button
+    ref={triggerRef}
     onClick={onClick}
     className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100"
   >
@@ -65,10 +67,50 @@ const HomeScreen = () => {
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, projectId: null });
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const triggerRef = useRef(null);
+  const modalRef = useRef(null);
 
   useEffect(() => {
     fetchRecentProjects();
   }, []);
+
+  useEffect(() => {
+    if (!showModal) return;
+
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    const focusableElements = modal.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    if (!focusableElements.length) return;
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    firstElement.focus();
+
+    const handleTab = (e) => {
+      if (e.key !== "Tab") return;
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    modal.addEventListener("keydown", handleTab);
+
+    return () => {
+      modal.removeEventListener("keydown", handleTab);
+    };
+  }, [showModal]);
 
   const fetchRecentProjects = async () => {
     try {
@@ -83,9 +125,13 @@ const HomeScreen = () => {
     setShowModal(true);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setShowModal(false);
-  };
+
+    triggerRef.current?.focus();
+  }, []);
+
+  useEscapeKey(showModal ? handleCloseModal : null);
 
   const handleSubmitModal = async (event) => {
     event.preventDefault();
@@ -123,7 +169,7 @@ const HomeScreen = () => {
       showToast("Error uploading file. Please try again.", "error");
     }
 
-    setShowModal(false);
+    handleCloseModal();
     fetchRecentProjects();
   };
 
@@ -171,7 +217,7 @@ const HomeScreen = () => {
 
         <h2 className="mt-12 mb-4 text-lg font-medium text-gray-700">Projects</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <NewProjectCard onClick={handleNewProjectClick} />
+          <NewProjectCard onClick={handleNewProjectClick} triggerRef={triggerRef} />
           {recentProjects.map((project) => (
             <ProjectCard
               key={project.project_id}
@@ -193,7 +239,13 @@ const HomeScreen = () => {
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal}></div>
-          <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
+            className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4"
+          >
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Name</h2>
             <input
               type="text"
