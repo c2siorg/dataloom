@@ -188,9 +188,7 @@ class TestTransformEndpoint:
             assert len(all_rows) == initial_row_count + 2  # +1 header + 1 new row
 
         # Verify transformation was logged
-        statement = select(models.ProjectChangeLog).where(
-            models.ProjectChangeLog.project_id == project_id
-        )
+        statement = select(models.ProjectChangeLog).where(models.ProjectChangeLog.project_id == project_id)
         logs = db.exec(statement).all()
         assert len(logs) == 1
         assert logs[0].action_type == "addRow"
@@ -248,9 +246,7 @@ class TestTransformEndpoint:
             assert len(all_rows) == initial_row_count  # header + (initial - 1 deleted)
 
         # Verify transformation was logged
-        statement = select(models.ProjectChangeLog).where(
-            models.ProjectChangeLog.project_id == project_id
-        )
+        statement = select(models.ProjectChangeLog).where(models.ProjectChangeLog.project_id == project_id)
         logs = db.exec(statement).all()
         assert len(logs) == 1
         assert logs[0].action_type == "delRow"
@@ -282,9 +278,7 @@ class TestTransformEndpoint:
             assert header == ["name", "years", "city"]
 
         # Verify transformation was logged
-        statement = select(models.ProjectChangeLog).where(
-            models.ProjectChangeLog.project_id == project_id
-        )
+        statement = select(models.ProjectChangeLog).where(models.ProjectChangeLog.project_id == project_id)
         logs = db.exec(statement).all()
         assert len(logs) == 1
         assert logs[0].action_type == "renameCol"
@@ -472,8 +466,6 @@ class TestTransformEndpointIsolation:
             assert len(all_rows) == initial_row_count + 1  # header + original data rows
 
         # Verify no logs from previous test
-        statement = select(models.ProjectChangeLog).where(
-            models.ProjectChangeLog.project_id == project_id
-        )
+        statement = select(models.ProjectChangeLog).where(models.ProjectChangeLog.project_id == project_id)
         logs = db.exec(statement).all()
         assert len(logs) == 0
