@@ -3,10 +3,11 @@
 Handles upload, retrieval, save (checkpoint), and revert operations.
 """
 
+import io
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlmodel import Session
 
 from app import database, models, schemas
@@ -202,10 +203,31 @@ async def revert_to_checkpoint(
 
 
 @router.get("/{project_id}/export")
-async def export_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Download the current working copy of a project as a CSV file."""
+async def export_project(
+    project_id: uuid.UUID,
+    delimiter: schemas.ExportDelimiter = Query(default=schemas.ExportDelimiter.comma),
+    include_header: bool = Query(default=True),
+    encoding: schemas.ExportEncoding = Query(default=schemas.ExportEncoding.utf8),
+    db: Session = Depends(database.get_db),
+):
+    """Download the current working copy of a project as a CSV file.
+
+    Supports custom delimiter, header inclusion, and file encoding.
+    """
     project = get_project_or_404(project_id, db)
-    return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
+    df = read_csv_safe(project.file_path)
+
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False, sep=delimiter.to_char(), header=include_header)
+    csv_bytes = buffer.getvalue().encode(encoding.value)
+
+    filename = f"{project.name}.csv"
+    logger.info("Export: id=%s, delimiter=%s, header=%s, encoding=%s", project_id, delimiter, include_header, encoding)
+    return StreamingResponse(
+        io.BytesIO(csv_bytes),
+        media_type=f"text/csv; charset={encoding.value}",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.delete("/{project_id}")

@@ -66,10 +66,15 @@ export const revertToCheckpoint = async (projectId, checkpointId) => {
 /**
  * Export the current working copy of a project as a CSV download.
  * @param {string} projectId - The project ID.
+ * @param {Object} [options] - Export format options.
+ * @param {string} [options.delimiter="comma"] - Delimiter: comma, tab, semicolon, pipe.
+ * @param {boolean} [options.include_header=true] - Whether to include the header row.
+ * @param {string} [options.encoding="utf-8"] - File encoding: utf-8, latin-1, ascii, utf-16.
  * @returns {Promise<Blob>} The CSV file as a Blob.
  */
-export const exportProject = async (projectId) => {
+export const exportProject = async (projectId, { delimiter = "comma", include_header = true, encoding = "utf-8" } = {}) => {
   const response = await client.get(`/projects/${projectId}/export`, {
+    params: { delimiter, include_header, encoding },
     responseType: "blob",
   });
   return response.data;
