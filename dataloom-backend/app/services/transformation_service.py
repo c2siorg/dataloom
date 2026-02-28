@@ -5,6 +5,7 @@ No side effects -- saving to disk is handled by the caller.
 """
 
 import pandas as pd
+
 from app.utils.logging import get_logger
 from app.utils.security import validate_query_string
 
@@ -13,6 +14,7 @@ logger = get_logger(__name__)
 
 class TransformationError(Exception):
     """Raised when a transformation cannot be applied due to invalid input."""
+
     pass
 
 
@@ -28,21 +30,22 @@ def get_column_type(df: pd.DataFrame, column: str) -> str:
     """
     dtype = df[column].dtype
     if pd.api.types.is_string_dtype(dtype):
-        return 'string'
+        return "string"
     elif pd.api.types.is_numeric_dtype(dtype):
-        return 'numeric'
-    return 'unknown'
+        return "numeric"
+    return "unknown"
 
 
 def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> pd.DataFrame:
     """Filter DataFrame rows by a column condition.
 
     Automatically casts value to float for numeric columns.
+    Column names are matched after stripping whitespace.
 
     Args:
         df: Source DataFrame.
         column: Column name to filter on.
-        condition: One of '=', '>', '<', '>=', '<='.
+        condition: One of '=', '!=', '>', '<', '>=', '<=', 'contains'.
         value: The comparison value (as string, cast if needed).
 
     Returns:
@@ -51,29 +54,41 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     Raises:
         TransformationError: If column not found or condition unsupported.
     """
-    if column not in df.columns:
-        raise TransformationError(f"Column '{column}' not found")
+    # Strip whitespace from column name and create a mapping of stripped -> original
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
 
-    # Cast value to numeric if column is numeric
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+
+    # Use the original column name from the DataFrame
+    column = stripped_to_original[column_stripped]
+
+    # Cast value to numeric if column is numeric (for comparison operators)
     col_type = get_column_type(df, column)
-    if col_type == 'numeric':
+    if col_type == "numeric" and condition in ("=", "!=", ">", "<", ">=", "<="):
         try:
             value = float(value)
         except ValueError:
-            raise TransformationError(f"Invalid numeric value: {value}")
+            raise TransformationError(f"Invalid numeric value: {value}") from None
 
     ops = {
-        '=': lambda: df[df[column] == value],
-        '>': lambda: df[df[column] > value],
-        '<': lambda: df[df[column] < value],
-        '>=': lambda: df[df[column] >= value],
-        '<=': lambda: df[df[column] <= value],
+        "=": lambda: df[df[column] == value],
+        "!=": lambda: df[df[column] != value],
+        ">": lambda: df[df[column] > value],
+        "<": lambda: df[df[column] < value],
+        ">=": lambda: df[df[column] >= value],
+        "<=": lambda: df[df[column] <= value],
+        "contains": lambda: df[df[column].astype(str).str.contains(value, na=False)],
     }
 
-    if condition not in ops:
-        raise TransformationError(f"Unsupported filter condition: {condition}")
+    condition_str = condition.value if hasattr(condition, "value") else str(condition)
 
-    return ops[condition]()
+    if condition_str not in ops:
+        raise TransformationError(f"Unsupported filter condition: {condition_str}")
+
+    return ops[condition_str]()
 
 
 def apply_sort(df: pd.DataFrame, column: str, ascending: bool) -> pd.DataFrame:
@@ -120,7 +135,7 @@ def delete_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
         DataFrame with row removed.
     """
     if index < 0 or index >= len(df):
-        raise TransformationError(f"Row index {index} out of range (0-{len(df)-1})")
+        raise TransformationError(f"Row index {index} out of range (0-{len(df) - 1})")
     return df.drop(index).reset_index(drop=True)
 
 
@@ -154,7 +169,7 @@ def delete_column(df: pd.DataFrame, index: int) -> pd.DataFrame:
         DataFrame with column removed.
     """
     if index < 0 or index >= len(df.columns):
-        raise TransformationError(f"Column index {index} out of range (0-{len(df.columns)-1})")
+        raise TransformationError(f"Column index {index} out of range (0-{len(df.columns) - 1})")
 
     column_name = df.columns[index]
     return df.drop(column_name, axis=1)
@@ -219,7 +234,7 @@ def rename_column(df: pd.DataFrame, col_index: int, new_name: str) -> pd.DataFra
         DataFrame with the column renamed.
     """
     if col_index < 0 or col_index >= len(df.columns):
-        raise TransformationError(f"Column index {col_index} out of range (0-{len(df.columns)-1})")
+        raise TransformationError(f"Column index {col_index} out of range (0-{len(df.columns) - 1})")
     if not new_name or not new_name.strip():
         raise TransformationError("New column name cannot be empty")
 
@@ -252,10 +267,17 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
         elif target_type == "boolean":
             truthy = {"true", "1", "yes", "y", "on"}
             falsy = {"false", "0", "no", "n", "off"}
-            df[column] = df[column].apply(
-                lambda v: True if str(v).strip().lower() in truthy
-                else (False if str(v).strip().lower() in falsy else None)
-            ).astype("boolean")
+            df[column] = (
+                df[column]
+                .apply(
+                    lambda v: (
+                        True
+                        if str(v).strip().lower() in truthy
+                        else (False if str(v).strip().lower() in falsy else None)
+                    )
+                )
+                .astype("boolean")
+            )
         elif target_type == "datetime":
             df[column] = pd.to_datetime(df[column], errors="coerce")
         else:
@@ -264,6 +286,30 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
         raise
     except Exception as e:
         raise TransformationError(f"Failed to cast column '{column}' to {target_type}: {e}") from e
+
+    return df
+
+
+def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
+    """Trim leading and trailing whitespace from string columns.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to trim, or "All string columns" to trim all string columns.
+
+    Returns:
+        DataFrame with whitespace trimmed from specified column(s).
+    """
+    df = df.copy()
+
+    if column == "All string columns":
+        for col in df.columns:
+            if pd.api.types.is_string_dtype(df[col]) or pd.api.types.is_object_dtype(df[col]):
+                df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
+    else:
+        if column not in df.columns:
+            raise TransformationError(f"Column '{column}' not found")
+        df[column] = df[column].apply(lambda x: x.strip() if isinstance(x, str) else x)
 
     return df
 
@@ -279,7 +325,7 @@ def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
     Returns:
         DataFrame with duplicates removed.
     """
-    col_list = [c.strip() for c in columns.split(',')]
+    col_list = [c.strip() for c in columns.split(",")]
 
     missing = [c for c in col_list if c not in df.columns]
     if missing:
@@ -310,7 +356,7 @@ def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
     # Wrap non-identifier column names in backticks
     for col in df.columns:
         if not col.isidentifier():
-            query_string = query_string.replace(col, f'`{col}`')
+            query_string = query_string.replace(col, f"`{col}`")
 
     logger.debug("Executing query: %s", query_string)
     return df.query(query_string, local_dict={"__builtins__": {}})
@@ -329,7 +375,7 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
     Returns:
         Pivoted DataFrame with string column names and reset index.
     """
-    index_cols = [c.strip() for c in index.split(',')]
+    index_cols = [c.strip() for c in index.split(",")]
 
     # Validate all required columns exist
     all_cols = index_cols + ([column] if column else []) + [value]
@@ -364,50 +410,54 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     Raises:
         TransformationError: If the transformation cannot be applied.
     """
-    if action_type == 'addRow':
-        index = action_details['row_params']['index']
+    if action_type == "addRow":
+        index = action_details["row_params"]["index"]
         return add_row(df, index)
 
-    elif action_type == 'delRow':
-        index = action_details['row_params']['index']
+    elif action_type == "delRow":
+        index = action_details["row_params"]["index"]
         if index < 0 or index >= len(df):
             raise TransformationError(f"Row index {index} out of range")
         return df.drop(index)
 
-    elif action_type == 'addCol':
-        index = action_details['col_params']['index']
-        column_name = action_details['col_params']['name']
+    elif action_type == "addCol":
+        index = action_details["col_params"]["index"]
+        column_name = action_details["col_params"]["name"]
         return add_column(df, index, column_name)
 
-    elif action_type == 'delCol':
-        index = action_details['col_params']['index']
+    elif action_type == "delCol":
+        index = action_details["col_params"]["index"]
         return delete_column(df, index)
 
-    elif action_type == 'changeCellValue':
-        row_index = action_details['change_cell_value']['row_index']
-        col_index = action_details['change_cell_value']['col_index']
-        new_value = action_details['change_cell_value']['fill_value']
+    elif action_type == "changeCellValue":
+        row_index = action_details["change_cell_value"]["row_index"]
+        col_index = action_details["change_cell_value"]["col_index"]
+        new_value = action_details["change_cell_value"]["fill_value"]
         return change_cell_value(df, row_index, col_index, new_value)
 
-    elif action_type == 'fillEmpty':
-        fill_value = action_details['fill_empty_params']['fill_value']
-        column_index = action_details['fill_empty_params'].get('index')
+    elif action_type == "fillEmpty":
+        fill_value = action_details["fill_empty_params"]["fill_value"]
+        column_index = action_details["fill_empty_params"].get("index")
         return fill_empty(df, fill_value, column_index)
 
-    elif action_type == 'dropDuplicate':
-        columns = action_details['drop_duplicate']['columns']
-        keep = action_details['drop_duplicate']['keep']
+    elif action_type == "dropDuplicate":
+        columns = action_details["drop_duplicate"]["columns"]
+        keep = action_details["drop_duplicate"]["keep"]
         return drop_duplicates(df, columns, keep)
 
-    elif action_type == 'renameCol':
-        col_index = action_details['rename_col_params']['col_index']
-        new_name = action_details['rename_col_params']['new_name']
+    elif action_type == "renameCol":
+        col_index = action_details["rename_col_params"]["col_index"]
+        new_name = action_details["rename_col_params"]["new_name"]
         return rename_column(df, col_index, new_name)
 
-    elif action_type == 'castDataType':
-        column = action_details['cast_data_type_params']['column']
-        target_type = action_details['cast_data_type_params']['target_type']
+    elif action_type == "castDataType":
+        column = action_details["cast_data_type_params"]["column"]
+        target_type = action_details["cast_data_type_params"]["target_type"]
         return cast_data_type(df, column, target_type)
+
+    elif action_type == "trimWhitespace":
+        column = action_details["trim_whitespace_params"]["column"]
+        return trim_whitespace(df, column)
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
