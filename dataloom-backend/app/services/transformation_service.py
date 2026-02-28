@@ -5,7 +5,7 @@ No side effects -- saving to disk is handled by the caller.
 """
 
 import pandas as pd
-
+from typing import Any, List, Optional
 from app.utils.logging import get_logger
 from app.utils.security import validate_query_string
 
@@ -290,6 +290,7 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
     return df
 
 
+
 def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
     """Trim leading and trailing whitespace from string columns.
 
@@ -312,6 +313,7 @@ def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
         df[column] = df[column].apply(lambda x: x.strip() if isinstance(x, str) else x)
 
     return df
+
 
 
 def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
@@ -392,6 +394,68 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
     return result.reset_index()
 
 
+def melt_dataframe(df: pd.DataFrame, params: Any) -> pd.DataFrame:
+    """Unpivot a DataFrame from wide to long format.
+
+    Args:
+        df: Source DataFrame.
+        params: MeltParams object or dict with id_vars, value_vars, var_name, value_name.
+
+    Returns:
+        Melted DataFrame.
+
+    Raises:
+        TransformationError: If columns are missing or overlap.
+    """
+    if hasattr(params, 'model_dump'):
+        p = params.model_dump()
+    elif hasattr(params, 'dict'):
+        p = params.dict()
+    else:
+        p = params
+
+    id_vars = p.get('id_vars', [])
+    value_vars = p.get('value_vars')
+    var_name = p.get('var_name', 'variable')
+    value_name = p.get('value_name', 'value')
+
+    # Validate id_vars
+    missing_id = [c for c in id_vars if c not in df.columns]
+    if missing_id:
+        raise TransformationError(f"ID variables {missing_id} not found in dataset")
+
+    # Validate value_vars
+    if value_vars:
+        missing_val = [c for c in value_vars if c not in df.columns]
+        if missing_val:
+            raise TransformationError(f"Value variables {missing_val} not found in dataset")
+
+        # Check for overlap
+        overlap = set(id_vars).intersection(set(value_vars))
+        if overlap:
+            raise TransformationError(f"Columns cannot be both in id_vars and value_vars: {list(overlap)}")
+
+    # Check for name conflicts
+    # var_name and value_name shouldn't exist in result unless they are in id_vars
+    for name in [var_name, value_name]:
+        if name in df.columns and name not in id_vars:
+            if value_vars is None or (isinstance(value_vars, list) and name in value_vars):
+                # This is okay, it's being melted away
+                pass
+            else:
+                raise TransformationError(f"Target column name '{name}' already exists in dataset and is not being melted.")
+
+    try:
+        return df.melt(
+            id_vars=id_vars,
+            value_vars=value_vars,
+            var_name=var_name,
+            value_name=value_name
+        )
+    except Exception as e:
+        raise TransformationError(f"Melt operation failed: {str(e)}")
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
@@ -458,6 +522,10 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == "trimWhitespace":
         column = action_details["trim_whitespace_params"]["column"]
         return trim_whitespace(df, column)
+
+    elif action_type == 'melt':
+        params = action_details['melt_params']
+        return melt_dataframe(df, params)
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
