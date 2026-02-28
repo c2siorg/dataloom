@@ -28,7 +28,13 @@ export default function Toast({ message, type = "info", onDismiss, duration = 30
     >
       <div className="flex items-center justify-between gap-2">
         <span>{message}</span>
-        <button onClick={onDismiss} className="ml-2 text-gray-400 hover:text-gray-600 transition-colors duration-150" aria-label="Dismiss">&times;</button>
+        <button
+          onClick={onDismiss}
+          className="ml-2 text-gray-400 hover:text-gray-600 transition-colors duration-150"
+          aria-label="Dismiss"
+        >
+          &times;
+        </button>
       </div>
     </div>
   );
