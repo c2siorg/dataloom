@@ -196,6 +196,21 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
 
     # col_index is 1-based from frontend (accounting for S.No. column)
     column_name = df.columns[col_index - 1]
+    column_dtype = df[column_name].dtype
+
+    # Convert value to match column dtype
+    try:
+        if pd.api.types.is_integer_dtype(column_dtype):
+            value = int(value)
+        elif pd.api.types.is_float_dtype(column_dtype):
+            value = float(value)
+        elif pd.api.types.is_bool_dtype(column_dtype):
+            value = bool(value)
+    except (ValueError, TypeError) as e:
+        raise TransformationError(
+            f"Cannot convert value '{value}' to column type '{column_dtype}'"
+        ) from e
+
     df.at[row_index, column_name] = value
     return df
 
@@ -455,8 +470,29 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         target_type = action_details["cast_data_type_params"]["target_type"]
         return cast_data_type(df, column, target_type)
 
-    elif action_type == "trimWhitespace":
-        column = action_details["trim_whitespace_params"]["column"]
+    elif action_type == 'filter':
+        column = action_details['parameters']['column']
+        condition = action_details['parameters']['condition']
+        value = action_details['parameters']['value']
+        return apply_filter(df, column, condition, value)
+
+    elif action_type == 'sort':
+        column = action_details['sort_params']['column']
+        ascending = action_details['sort_params']['ascending']
+        return apply_sort(df, column, ascending)
+
+    elif action_type == 'advQueryFilter':
+        query_string = action_details['adv_query']['query']
+        return advanced_query(df, query_string)
+
+    elif action_type == 'pivotTables':
+        index = action_details['pivot_query']['index']
+        value = action_details['pivot_query']['value']
+        column = action_details['pivot_query'].get('column')
+        aggfunc = action_details['pivot_query'].get('aggfun', 'sum')
+        return pivot_table(df, index, value, column, aggfunc)
+    elif action_type == 'trimWhitespace':
+        column = action_details['trim_whitespace_params']['column']
         return trim_whitespace(df, column)
 
     else:

@@ -8,10 +8,14 @@ import CastDataTypeForm from "./forms/CastDataTypeForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
-import InputDialog from "./common/InputDialog";
-import ConfirmDialog from "./common/ConfirmDialog";
-import Toast from "./common/Toast";
-import { saveProject, exportProject, getLogs, getCheckpoints, revertToCheckpoint } from "../api";
+import {
+  saveProject,
+  exportProject,
+  getLogs,
+  getCheckpoints,
+  revertToCheckpoint,
+  undoProject,
+} from "../api";
 import proptype from "prop-types";
 import {
   LuFilter,
@@ -24,6 +28,7 @@ import {
   LuBookmark,
   LuDownload,
   LuRefreshCw,
+  LuUndo2,
   LuScissors,
 } from "react-icons/lu";
 
@@ -38,48 +43,81 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [checkpoints, setCheckpoints] = useState(null);
-  const [isInputOpen, setIsInputOpen] = useState(false);
-  const [confirmData, setConfirmData] = useState(null);
-  const [toast, setToast] = useState(null);
-
-  const fetchLogs = useCallback(async () => {
-    try {
-      const logsResponse = await getLogs(projectId);
-      setLogs(logsResponse);
-    } catch (error) {
-      console.error("Error fetching logs:", error);
-    }
-  }, [projectId]);
-
-  const fetchCheckpoints = useCallback(async () => {
-    try {
-      const checkpointsResponse = await getCheckpoints(projectId);
-      console.log("CHECKPOINT RESPONSE:", checkpointsResponse);
-      setCheckpoints(checkpointsResponse);
-    } catch (error) {
-      console.error("Error fetching checkpoints:", error);
-    }
-  }, [projectId]);
+  const [checkpoints, setCheckpoints] = useState([]);
+  const [undoableCount, setUndoableCount] = useState(0);
 
   useEffect(() => {
-    if (showLogs) fetchLogs();
-    if (showCheckpoints) fetchCheckpoints();
-  }, [showLogs, showCheckpoints, fetchLogs, fetchCheckpoints]);
+    const fetchLogsData = async () => {
+      try {
+        const logsResponse = await getLogs(projectId);
+        setLogs(logsResponse);
+        // Count unapplied (undoable) logs
+        const unappliedCount = logsResponse.filter((log) => !log.applied).length;
+        setUndoableCount(unappliedCount);
+      } catch (error) {
+        console.error("Error fetching logs:", error);
+      }
+    };
 
-  const handleSave = () => {
-    setIsInputOpen(true);
+    const fetchCheckpointsData = async () => {
+      try {
+        const checkpointsResponse = await getCheckpoints(projectId);
+        setCheckpoints(checkpointsResponse);
+      } catch (error) {
+        console.error("Error fetching checkpoints:", error);
+      }
+    };
+
+    if (showLogs) {
+      fetchLogsData();
+    }
+    if (showCheckpoints) {
+      fetchCheckpointsData();
+    }
+  }, [showLogs, showCheckpoints, projectId]);
+
+  // Helper to refresh undoable count
+  const refreshUndoableCount = useCallback(async () => {
+    try {
+      const logsResponse = await getLogs(projectId);
+      const unappliedCount = logsResponse.filter((log) => !log.applied).length;
+      setUndoableCount(unappliedCount);
+    } catch (error) {
+      console.error("Error counting undoable logs:", error);
+    }
+  }, [projectId]);
+
+  // Helper to close all forms
+  const closeAllForms = () => {
+    setShowFilterForm(false);
+    setShowSortForm(false);
+    setShowDropDuplicateForm(false);
+    setShowAdvQueryFilterForm(false);
+    setShowPivotTableForm(false);
+    setShowCastDataTypeForm(false);
+    setShowLogs(false);
+    setShowCheckpoints(false);
   };
 
-  const handleSubmitCommit = async (message) => {
-    setIsInputOpen(false);
-    if (!message) return;
+  // Refresh undoable count periodically and when component mounts
+  useEffect(() => {
+    refreshUndoableCount();
+    // Refresh every 2 seconds to stay in sync with transformations
+    const interval = setInterval(refreshUndoableCount, 2000);
+    return () => clearInterval(interval);
+  }, [projectId]);
 
-    try {
-      await saveProject(projectId, message);
-      setToast({ message: "Project saved successfully!", type: "success" });
-    } catch {
-      setToast({ message: "Failed to save project.", type: "error" });
+  const handleSave = async () => {
+    const commitMessage = prompt("Enter a commit message for this save:");
+    if (commitMessage) {
+      try {
+        const response = await saveProject(projectId, commitMessage);
+        console.log("Save response:", response);
+        alert("Project saved successfully!");
+      } catch (error) {
+        console.error("Error saving project:", error);
+        alert("Failed to save project.");
+      }
     }
   };
 
@@ -99,20 +137,47 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     }
   };
 
-  const handleRevert = (checkpointId) => {
-    setConfirmData({
-      message: "Are you sure you want to revert to this checkpoint?",
-      onConfirm: async () => {
-        try {
-          const response = await revertToCheckpoint(projectId, checkpointId);
-          onTransform(response);
-          setToast({ message: "Project reverted successfully!", type: "success" });
-        } catch {
-          setToast({ message: "Failed to revert project.", type: "error" });
-        }
-        setConfirmData(null);
-      },
-    });
+  const handleRevert = async (checkpointId) => {
+    if (window.confirm("Are you sure you want to revert to this checkpoint?")) {
+      try {
+        const response = await revertToCheckpoint(projectId, checkpointId);
+        console.log("Revert response:", response);
+        // Close all forms to clear any stale previews
+        closeAllForms();
+        onTransform(response);
+        // Refresh undoable count after revert
+        await refreshUndoableCount();
+        alert("Project reverted successfully!");
+      } catch (error) {
+        console.error("Error reverting project:", error);
+        alert("Failed to revert project.");
+      }
+    }
+  };
+
+  // Wrapped onTransform that also refreshes the undoable count
+  const handleTransform = async (data) => {
+    onTransform(data);
+    // Refresh undoable count after any transform operation
+    await refreshUndoableCount();
+  };
+
+  const handleUndo = async () => {
+    if (undoableCount === 0) {
+      alert("No transformations to undo.");
+      return;
+    }
+    try {
+      const response = await undoProject(projectId);
+      console.log("Undo response:", response);
+      // Close all forms to clear any stale previews
+      closeAllForms();
+      // Use handleTransform to also refresh the undoable count
+      await handleTransform(response);
+    } catch (error) {
+      console.error("Error undoing transformation:", error);
+      alert(error.response?.data?.detail || "Failed to undo transformation.");
+    }
   };
 
   const handleMenuClick = (formType) => {
@@ -173,8 +238,22 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       {
         group: "History",
         items: [
-          { label: "Logs", icon: LuHistory, onClick: () => handleMenuClick("Logs") },
-          { label: "Checkpoints", icon: LuBookmark, onClick: () => handleMenuClick("Checkpoints") },
+          {
+            label: "Undo",
+            icon: LuUndo2,
+            onClick: handleUndo,
+            disabled: undoableCount === 0,
+          },
+          {
+            label: "Logs",
+            icon: LuHistory,
+            onClick: () => handleMenuClick("Logs"),
+          },
+          {
+            label: "Checkpoints",
+            icon: LuBookmark,
+            onClick: () => handleMenuClick("Checkpoints"),
+          },
         ],
       },
     ],
@@ -216,6 +295,17 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           },
         ],
       },
+      {
+        group: "Edit",
+        items: [
+          {
+            label: "Undo",
+            icon: LuUndo2,
+            onClick: handleUndo,
+            disabled: undoableCount === 0,
+          },
+        ],
+      },
     ],
   };
 
@@ -247,10 +337,19 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
                   <button
                     key={item.label}
                     onClick={item.onClick}
-                    className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-md hover:bg-gray-100"
+                    disabled={item.disabled}
+                    className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md transition-colors duration-150 ${
+                      item.disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"
+                    }`}
                   >
-                    <item.icon className="w-5 h-5 text-gray-600" />
-                    <span className="text-xs text-gray-700">{item.label}</span>
+                    <item.icon
+                      className={`w-5 h-5 ${item.disabled ? "text-gray-400" : "text-gray-600"}`}
+                    />
+                    <span
+                      className={`text-xs ${item.disabled ? "text-gray-400" : "text-gray-700"}`}
+                    >
+                      {item.label}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -263,30 +362,45 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       </div>
 
       {showFilterForm && (
-        <FilterForm onClose={() => setShowFilterForm(false)} projectId={projectId} />
+        <FilterForm
+          onClose={() => setShowFilterForm(false)}
+          projectId={projectId}
+          onTransform={handleTransform}
+        />
       )}
-      {showSortForm && <SortForm onClose={() => setShowSortForm(false)} projectId={projectId} />}
+      {showSortForm && (
+        <SortForm
+          onClose={() => setShowSortForm(false)}
+          projectId={projectId}
+          onTransform={handleTransform}
+        />
+      )}
       {showDropDuplicateForm && (
         <DropDuplicateForm
           projectId={projectId}
           onClose={() => setShowDropDuplicateForm(false)}
-          onTransform={onTransform}
+          onTransform={handleTransform}
         />
       )}
       {showAdvQueryFilterForm && (
         <AdvQueryFilterForm
           onClose={() => setShowAdvQueryFilterForm(false)}
           projectId={projectId}
+          onTransform={handleTransform}
         />
       )}
       {showPivotTableForm && (
-        <PivotTableForm onClose={() => setShowPivotTableForm(false)} projectId={projectId} />
+        <PivotTableForm
+          onClose={() => setShowPivotTableForm(false)}
+          projectId={projectId}
+          onTransform={handleTransform}
+        />
       )}
       {showCastDataTypeForm && (
         <CastDataTypeForm
           projectId={projectId}
           onClose={() => setShowCastDataTypeForm(false)}
-          onTransform={onTransform}
+          onTransform={handleTransform}
         />
       )}
       {showTrimWhitespaceForm && (
@@ -303,26 +417,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           onClose={() => setShowCheckpoints(false)}
           onRevert={handleRevert}
         />
-      )}
-
-      <InputDialog
-        isOpen={isInputOpen}
-        message="Enter a commit message for this save:"
-        onSubmit={handleSubmitCommit}
-        onCancel={() => setIsInputOpen(false)}
-      />
-
-      <ConfirmDialog
-        isOpen={!!confirmData}
-        message={confirmData?.message}
-        onConfirm={confirmData?.onConfirm}
-        onCancel={() => setConfirmData(null)}
-      />
-
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
-        </div>
       )}
     </div>
   );

@@ -5,7 +5,7 @@ import { transformProject } from "../../api";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
-const PivotTableForm = ({ projectId, onClose }) => {
+const PivotTableForm = ({ projectId, onClose, onTransform }) => {
   const [index, setIndex] = useState("");
   const [column, setColumn] = useState("");
   const [value, setValue] = useState("");
@@ -24,6 +24,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
         pivot_query: { index, column, value, aggfun },
       });
       setResult(response);
+      onTransform(response); // Update parent component with pivot data
       console.log("Pivot API response:", response);
     } catch (err) {
       console.error("Error applying pivot table:", err.message);
@@ -112,6 +113,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
 PivotTableForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default PivotTableForm;

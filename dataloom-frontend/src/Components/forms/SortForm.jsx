@@ -5,7 +5,7 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
-const SortForm = ({ projectId, onClose }) => {
+const SortForm = ({ projectId, onClose, onTransform }) => {
   const [column, setColumn] = useState("");
   const [ascending, setAscending] = useState(true);
   const [result, setResult] = useState(null);
@@ -26,6 +26,7 @@ const SortForm = ({ projectId, onClose }) => {
         },
       });
       setResult(response);
+      onTransform(response); // Update parent component with sorted data
       console.log("Sort API response:", response);
     } catch (err) {
       console.error("Error applying sort:", err.response?.data || err.message);
@@ -88,6 +89,7 @@ const SortForm = ({ projectId, onClose }) => {
 SortForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default SortForm;

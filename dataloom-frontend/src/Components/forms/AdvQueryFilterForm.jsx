@@ -5,7 +5,7 @@ import { transformProject } from "../../api";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
-const AdvQueryFilterForm = ({ projectId, onClose }) => {
+const AdvQueryFilterForm = ({ projectId, onClose, onTransform }) => {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -22,6 +22,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
         adv_query: { query },
       });
       setResult(response);
+      onTransform(response); // Update parent component with filtered data
       console.log("Query API response:", response);
     } catch (err) {
       console.error("Error applying query:", err.message);
@@ -72,6 +73,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
 AdvQueryFilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default AdvQueryFilterForm;
