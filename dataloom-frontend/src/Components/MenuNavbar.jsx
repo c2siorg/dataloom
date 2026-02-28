@@ -77,7 +77,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   }, [showLogs, showCheckpoints, projectId]);
 
   // Helper to refresh undoable count
-  const refreshUndoableCount = async () => {
+  const refreshUndoableCount = useCallback(async () => {
     try {
       const logsResponse = await getLogs(projectId);
       const unappliedCount = logsResponse.filter((log) => !log.applied).length;
@@ -153,20 +153,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         alert("Failed to revert project.");
       }
     }
-  const handleRevert = (checkpointId) => {
-    setConfirmData({
-      message: "Are you sure you want to revert to this checkpoint?",
-      onConfirm: async () => {
-        try {
-          const response = await revertToCheckpoint(projectId, checkpointId);
-          onTransform(response);
-          setToast({ message: "Project reverted successfully!", type: "success" });
-        } catch {
-          setToast({ message: "Failed to revert project.", type: "error" });
-        }
-        setConfirmData(null);
-      },
-    });
   };
 
   // Wrapped onTransform that also refreshes the undoable count
@@ -389,7 +375,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           onTransform={handleTransform}
         />
       )}
-      {showSortForm && <SortForm onClose={() => setShowSortForm(false)} projectId={projectId} />}
       {showDropDuplicateForm && (
         <DropDuplicateForm
           projectId={projectId}
@@ -432,26 +417,6 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           onClose={() => setShowCheckpoints(false)}
           onRevert={handleRevert}
         />
-      )}
-
-      <InputDialog
-        isOpen={isInputOpen}
-        message="Enter a commit message for this save:"
-        onSubmit={handleSubmitCommit}
-        onCancel={() => setIsInputOpen(false)}
-      />
-
-      <ConfirmDialog
-        isOpen={!!confirmData}
-        message={confirmData?.message}
-        onConfirm={confirmData?.onConfirm}
-        onCancel={() => setConfirmData(null)}
-      />
-
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
-        </div>
       )}
     </div>
   );

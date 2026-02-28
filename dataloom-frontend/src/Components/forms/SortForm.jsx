@@ -28,8 +28,6 @@ const SortForm = ({ projectId, onClose, onTransform }) => {
       setResult(response);
       onTransform(response); // Update parent component with sorted data
       console.log("Sort API response:", response);
-    } catch (error) {
-      console.error("Error applying sort:", error.response?.data || error.message);
     } catch (err) {
       console.error("Error applying sort:", err.response?.data || err.message);
       handleError(err);

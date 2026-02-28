@@ -109,7 +109,7 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
         db.query(models.ProjectChangeLog)
         .filter(
             models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.applied == False,  # noqa: E712
+            not models.ProjectChangeLog.applied,
         )
         .all()
     )
@@ -136,10 +136,15 @@ def undo_last_transformation(db: Session, project_id: uuid.UUID) -> tuple[models
         remaining_count is the number of unapplied logs remaining after undo.
     """
     # Find the most recent unapplied log
-    last_log = db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
-    ).order_by(models.ProjectChangeLog.timestamp.desc()).first()
+    last_log = (
+        db.query(models.ProjectChangeLog)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            not models.ProjectChangeLog.applied,
+        )
+        .order_by(models.ProjectChangeLog.timestamp.desc())
+        .first()
+    )
 
     if last_log is None:
         return None, 0
@@ -149,13 +154,21 @@ def undo_last_transformation(db: Session, project_id: uuid.UUID) -> tuple[models
     db.commit()
 
     # Count remaining unapplied logs
-    remaining_count = db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
-    ).count()
+    remaining_count = (
+        db.query(models.ProjectChangeLog)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            not models.ProjectChangeLog.applied,
+        )
+        .count()
+    )
 
-    logger.info("Undo performed: project_id=%s, removed_log_id=%s, remaining_logs=%d",
-                project_id, last_log.change_log_id, remaining_count)
+    logger.info(
+        "Undo performed: project_id=%s, removed_log_id=%s, remaining_logs=%d",
+        project_id,
+        last_log.change_log_id,
+        remaining_count,
+    )
     return last_log, remaining_count
 
 
@@ -169,7 +182,11 @@ def get_unapplied_logs_count(db: Session, project_id: uuid.UUID) -> int:
     Returns:
         Number of unapplied transformation logs.
     """
-    return db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
-    ).count()
+    return (
+        db.query(models.ProjectChangeLog)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            not models.ProjectChangeLog.applied,
+        )
+        .count()
+    )

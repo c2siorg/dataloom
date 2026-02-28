@@ -198,10 +198,15 @@ async def undo_transformation(
     df = read_csv_safe(original_path)
 
     # Get all remaining unapplied logs for this project
-    logs = db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
-    ).order_by(models.ProjectChangeLog.timestamp).all()
+    logs = (
+        db.query(models.ProjectChangeLog)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            not models.ProjectChangeLog.applied,
+        )
+        .order_by(models.ProjectChangeLog.timestamp)
+        .all()
+    )
 
     # Replay each remaining logged transformation on the original
     for log in logs:
@@ -211,8 +216,12 @@ async def undo_transformation(
     save_csv_safe(df, project.file_path)
 
     resp = dataframe_to_response(df)
-    logger.info("Undo completed: project_id=%s, undone_operation=%s, remaining_logs=%d",
-                project_id, deleted_log.action_type, remaining_count)
+    logger.info(
+        "Undo completed: project_id=%s, undone_operation=%s, remaining_logs=%d",
+        project_id,
+        deleted_log.action_type,
+        remaining_count,
+    )
     return {
         "filename": project.name,
         "file_path": project.file_path,

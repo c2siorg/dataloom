@@ -35,8 +35,6 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
       setResult(response);
       onTransform(response); // Update parent component with filtered data
       console.log("Filter API response:", response);
-    } catch (error) {
-      console.error("Error applying filter:", error.response?.data || error.message);
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);
