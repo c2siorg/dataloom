@@ -89,11 +89,23 @@ class FilterParameters(BaseModel):
     value: str
 
 
-class SortParameters(BaseModel):
-    """Parameters for a column sort operation."""
+class SortCriterion(BaseModel):
+    """A single sort criterion (column + direction)."""
 
     column: str
     ascending: bool
+
+
+class SortParameters(BaseModel):
+    """Parameters for a column sort operation.
+
+    Supports both single-column (backward compatible) and multi-column sorting.
+    For multi-column sorting, use 'criteria' with a list of SortCriterion objects.
+    """
+
+    column: str | None = None
+    ascending: bool = True
+    criteria: list[SortCriterion] | None = None
 
 
 class AddOrDeleteRow(BaseModel):

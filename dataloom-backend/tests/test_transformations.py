@@ -77,6 +77,75 @@ class TestSort:
         with pytest.raises(TransformationError):
             apply_sort(sample_df, "nonexistent", True)
 
+    def test_sort_multi_column_single_criterion(self, sample_df):
+        """Multi-column mode with single criterion should work."""
+        criteria = [{"column": "age", "ascending": True}]
+        result = apply_sort(sample_df, criteria=criteria)
+        assert result.iloc[0]["age"] == 25
+
+    def test_sort_multi_column_two_criteria(self):
+        """Multi-column sorting with two criteria."""
+        df = pd.DataFrame(
+            {
+                "region": ["East", "West", "East", "West", "East"],
+                "revenue": [100, 200, 150, 150, 120],
+            }
+        )
+        # Sort by region ascending, then revenue descending
+        criteria = [
+            {"column": "region", "ascending": True},
+            {"column": "revenue", "ascending": False},
+        ]
+        result = apply_sort(df, criteria=criteria)
+        assert result.iloc[0]["region"] == "East"
+        assert result.iloc[0]["revenue"] == 150  # Highest East revenue first
+        assert result.iloc[1]["revenue"] == 120
+        assert result.iloc[2]["revenue"] == 100
+
+    def test_sort_multi_column_three_criteria(self):
+        """Multi-column sorting with three criteria."""
+        df = pd.DataFrame(
+            {
+                "country": ["USA", "USA", "UK", "UK", "USA"],
+                "city": ["NYC", "LA", "London", "London", "NYC"],
+                "sales": [100, 200, 150, 120, 180],
+            }
+        )
+        criteria = [
+            {"column": "country", "ascending": True},
+            {"column": "city", "ascending": True},
+            {"column": "sales", "ascending": False},
+        ]
+        result = apply_sort(df, criteria=criteria)
+        # First: UK (alphabetically before USA)
+        assert result.iloc[0]["country"] == "UK"
+        assert result.iloc[0]["city"] == "London"
+        assert result.iloc[0]["sales"] == 150  # Higher sales first within London
+
+    def test_sort_multi_column_empty_criteria(self):
+        """Empty criteria list should raise error."""
+        df = pd.DataFrame({"a": [1, 2, 3]})
+        with pytest.raises(TransformationError, match="At least one"):
+            apply_sort(df, criteria=[])
+
+    def test_sort_multi_column_missing_column_name(self):
+        """Criterion with empty column name should raise error."""
+        df = pd.DataFrame({"a": [1, 2, 3]})
+        with pytest.raises(TransformationError, match="Column name is required"):
+            apply_sort(df, criteria=[{"column": "", "ascending": True}])
+
+    def test_sort_multi_column_invalid_column(self):
+        """Invalid column in criteria should raise error."""
+        df = pd.DataFrame({"a": [1, 2, 3]})
+        with pytest.raises(TransformationError, match="not found"):
+            apply_sort(df, criteria=[{"column": "nonexistent", "ascending": True}])
+
+    def test_sort_no_column_or_criteria(self):
+        """Neither column nor criteria provided should raise error."""
+        df = pd.DataFrame({"a": [1, 2, 3]})
+        with pytest.raises(TransformationError, match="Column name is required"):
+            apply_sort(df)
+
 
 class TestAddRow:
     def test_add_row_at_beginning(self, sample_df):

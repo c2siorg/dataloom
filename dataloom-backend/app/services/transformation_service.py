@@ -91,17 +91,45 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     return ops[condition_str]()
 
 
-def apply_sort(df: pd.DataFrame, column: str, ascending: bool) -> pd.DataFrame:
-    """Sort DataFrame by a column.
+def apply_sort(df: pd.DataFrame, column: str = None, ascending: bool = True, criteria: list = None) -> pd.DataFrame:
+    """Sort DataFrame by one or more columns.
+
+    Supports both single-column (backward compatible) and multi-column sorting.
 
     Args:
         df: Source DataFrame.
-        column: Column name to sort by.
-        ascending: Sort direction.
+        column: Column name to sort by (single-column mode).
+        ascending: Sort direction (single-column mode).
+        criteria: List of dicts with 'column' and 'ascending' keys for multi-column sorting.
 
     Returns:
         Sorted DataFrame.
+
+    Raises:
+        TransformationError: If no columns specified or column not found.
     """
+    # Multi-column mode
+    if criteria is not None:
+        if len(criteria) == 0:
+            raise TransformationError("At least one sort criterion is required")
+
+        columns = []
+        ascending_list = []
+
+        for criterion in criteria:
+            col_name = criterion.get("column")
+            if not col_name:
+                raise TransformationError("Column name is required for each sort criterion")
+            if col_name not in df.columns:
+                raise TransformationError(f"Column '{col_name}' not found")
+            columns.append(col_name)
+            ascending_list.append(criterion.get("ascending", True))
+
+        return df.sort_values(by=columns, ascending=ascending_list)
+
+    # Single-column mode (backward compatible)
+    if column is None:
+        raise TransformationError("Column name is required for sorting")
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
     return df.sort_values(by=column, ascending=ascending)
@@ -455,6 +483,15 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         target_type = action_details["cast_data_type_params"]["target_type"]
         return cast_data_type(df, column, target_type)
 
+    elif action_type == "sort":
+        sort_params = action_details.get("sort_params", {})
+        # Multi-column sorting
+        if "criteria" in sort_params and sort_params["criteria"]:
+            return apply_sort(df, criteria=sort_params["criteria"])
+        # Single-column sorting (backward compatible)
+        column = sort_params.get("column")
+        ascending = sort_params.get("ascending", True)
+        return apply_sort(df, column=column, ascending=ascending)
     elif action_type == "trimWhitespace":
         column = action_details["trim_whitespace_params"]["column"]
         return trim_whitespace(df, column)

@@ -41,7 +41,11 @@ jobs:
         run: npx prettier --check "src/**/*.{js,jsx,css,md}"
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request' && (steps.eslint.outcome == 'failure' || steps.prettier.outcome == 'failure')
+        continue-on-error: true
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          (steps.eslint.outcome == 'failure' || steps.prettier.outcome == 'failure')
         uses: actions/github-script@v7
         with:
           script: |
@@ -71,7 +75,11 @@ jobs:
             }
 
       - name: Delete stale comment
-        if: github.event_name == 'pull_request' && steps.eslint.outcome == 'success' && steps.prettier.outcome == 'success'
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          steps.eslint.outcome == 'success' &&
+          steps.prettier.outcome == 'success'
         uses: actions/github-script@v7
         with:
           script: |
@@ -117,7 +125,11 @@ jobs:
         run: uv run ruff format --check .
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request' && (steps.ruff-lint.outcome == 'failure' || steps.ruff-format.outcome == 'failure')
+        continue-on-error: true
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          (steps.ruff-lint.outcome == 'failure' || steps.ruff-format.outcome == 'failure')
         uses: actions/github-script@v7
         with:
           script: |
@@ -147,7 +159,11 @@ jobs:
             }
 
       - name: Delete stale comment
-        if: github.event_name == 'pull_request' && steps.ruff-lint.outcome == 'success' && steps.ruff-format.outcome == 'success'
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          steps.ruff-lint.outcome == 'success' &&
+          steps.ruff-format.outcome == 'success'
         uses: actions/github-script@v7
         with:
           script: |
@@ -194,7 +210,9 @@ jobs:
           echo "behind_count=$BEHIND_COUNT" >> "$GITHUB_OUTPUT"
 
       - name: Comment if rebase needed
-        if: steps.rebase.outputs.behind_count != '0' || steps.rebase.outputs.merge_commits != ''
+        if: >
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          (steps.rebase.outputs.behind_count != '0' || steps.rebase.outputs.merge_commits != '')
         uses: actions/github-script@v7
         env:
           BEHIND_COUNT: ${{ steps.rebase.outputs.behind_count }}
@@ -233,7 +251,10 @@ jobs:
             }
 
       - name: Delete stale comment
-        if: steps.rebase.outputs.behind_count == '0' && steps.rebase.outputs.merge_commits == ''
+        if: >
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          steps.rebase.outputs.behind_count == '0' &&
+          steps.rebase.outputs.merge_commits == ''
         uses: actions/github-script@v7
         with:
           script: |
