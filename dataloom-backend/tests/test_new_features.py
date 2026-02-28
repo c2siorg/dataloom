@@ -15,14 +15,17 @@ from app.services.transformation_service import (
 
 @pytest.fixture
 def sample_df():
-    return pd.DataFrame({
-        "name": ["Alice", "Bob", "Charlie"],
-        "age": [30, 25, 35],
-        "city": ["New York", "Los Angeles", "Chicago"],
-    })
+    return pd.DataFrame(
+        {
+            "name": ["Alice", "Bob", "Charlie"],
+            "age": [30, 25, 35],
+            "city": ["New York", "Los Angeles", "Chicago"],
+        }
+    )
 
 
 # --- Rename Column Tests ---
+
 
 class TestRenameColumn:
     def test_rename_column_basic(self, sample_df):
@@ -53,6 +56,7 @@ class TestRenameColumn:
 
 
 # --- Cast Data Type Tests ---
+
 
 class TestCastDataType:
     def test_cast_to_string(self, sample_df):
@@ -97,6 +101,7 @@ class TestCastDataType:
 
 # --- Log Replay Tests ---
 
+
 class TestLogReplay:
     def test_replay_rename_column(self, sample_df):
         details = {"rename_col_params": {"col_index": 0, "new_name": "full_name"}}
@@ -110,6 +115,7 @@ class TestLogReplay:
 
 
 # --- Export Endpoint Tests ---
+
 
 class TestExportEndpoint:
     def test_export_project(self, client, sample_csv, db):
@@ -141,6 +147,7 @@ class TestExportEndpoint:
 
 
 # --- Delete Endpoint Tests ---
+
 
 class TestDeleteEndpoint:
     def test_delete_project(self, client, sample_csv, db):

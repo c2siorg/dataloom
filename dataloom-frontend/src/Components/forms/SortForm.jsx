@@ -128,10 +128,7 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
       setResult(response);
       console.log("Sort API response:", response);
     } catch (err) {
-      console.error(
-        "Error applying sort:",
-        err.response?.data || err.message
-      );
+      console.error("Error applying sort:", err.response?.data || err.message);
       handleError(err);
     } finally {
       setLoading(false);

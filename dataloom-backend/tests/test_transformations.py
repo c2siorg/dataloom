@@ -1,31 +1,34 @@
 """Unit tests for transformation service functions."""
 
-import pytest
 import pandas as pd
+import pytest
+
 from app.services.transformation_service import (
+    TransformationError,
+    add_column,
+    add_row,
+    advanced_query,
     apply_filter,
     apply_sort,
-    add_row,
-    delete_row,
-    add_column,
-    delete_column,
     change_cell_value,
-    fill_empty,
+    delete_column,
+    delete_row,
     drop_duplicates,
-    advanced_query,
+    fill_empty,
     pivot_table,
-    TransformationError,
 )
 
 
 @pytest.fixture
 def sample_df():
     """Create a sample DataFrame for transformation tests."""
-    return pd.DataFrame({
-        "name": ["Alice", "Bob", "Charlie"],
-        "age": [30, 25, 35],
-        "city": ["New York", "Los Angeles", "Chicago"],
-    })
+    return pd.DataFrame(
+        {
+            "name": ["Alice", "Bob", "Charlie"],
+            "age": [30, 25, 35],
+            "city": ["New York", "Los Angeles", "Chicago"],
+        }
+    )
 
 
 class TestFilter:
@@ -209,10 +212,12 @@ class TestFillEmpty:
 
 class TestDropDuplicates:
     def test_drop_duplicates(self):
-        df = pd.DataFrame({
-            "name": ["Alice", "Bob", "Alice"],
-            "age": [30, 25, 30],
-        })
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Alice"],
+                "age": [30, 25, 30],
+            }
+        )
         result = drop_duplicates(df, "name", "first")
         assert len(result) == 2
 
@@ -228,17 +233,20 @@ class TestAdvancedQuery:
 
     def test_injection_blocked(self, sample_df):
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException):
             advanced_query(sample_df, "__import__('os').system('ls')")
 
 
 class TestPivotTable:
     def test_simple_pivot(self):
-        df = pd.DataFrame({
-            "city": ["NY", "LA", "NY", "LA"],
-            "product": ["A", "A", "B", "B"],
-            "sales": [100, 200, 150, 250],
-        })
+        df = pd.DataFrame(
+            {
+                "city": ["NY", "LA", "NY", "LA"],
+                "product": ["A", "A", "B", "B"],
+                "sales": [100, 200, 150, 250],
+            }
+        )
         result = pivot_table(df, "city", "sales", aggfunc="sum")
         assert "city" in result.columns
         assert "sales" in result.columns

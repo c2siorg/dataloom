@@ -24,7 +24,7 @@ client.interceptors.response.use(
       message: response?.data?.detail || error.message,
     });
     return Promise.reject(error);
-  }
+  },
 );
 
 export default client;
