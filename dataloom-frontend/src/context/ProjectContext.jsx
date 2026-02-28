@@ -148,6 +148,7 @@ export function ProjectProvider({ children }) {
         projectName,
         columns,
         rows,
+        dtypes,
         loading,
         error,
         // Pagination state

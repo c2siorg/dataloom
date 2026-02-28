@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../hooks/useProjectContext";
 import proptypes from "prop-types";
+import DtypeBadge from "./common/DtypeBadge";
 
 const Table = ({ projectId, data: externalData }) => {
   const {
     columns: ctxColumns,
     rows: ctxRows,
+    dtypes,
     page,
     pageSize,
     totalPages,
@@ -47,13 +49,6 @@ const Table = ({ projectId, data: externalData }) => {
       setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
     }
   }, [externalData]);
-
-  const updateTableData = (response) => {
-    const { columns, rows, dtypes: newDtypes } = response;
-    setColumns(["S.No.", ...columns]);
-    setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-    updateData(columns, rows, newDtypes);
-  };
 
   const handleAddRow = async (index) => {
     try {
@@ -104,7 +99,7 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleRenameColumn = (index) => {
+  const handleRenameColumn = async (index) => {
     if (index === 0) {
       setToast({
         message: "Cannot rename the S.No. column.",
@@ -173,6 +168,10 @@ const Table = ({ projectId, data: externalData }) => {
       setEditValue(cellValue);
     }
   };
+  const handleInputChange = (e) => {
+    setEditValue(e.target.value);
+  };
+
   const handleInputKeyDown = (e, rowIndex, cellIndex) => {
     if (e.key === "Enter") {
       handleEditCell(rowIndex, cellIndex, editValue);
@@ -203,11 +202,6 @@ const Table = ({ projectId, data: externalData }) => {
       columnIndex: null,
       type: null,
     });
-  };
-
-  const updateTableData = (newData) => {
-    setColumns(newData.columns);
-    setData(newData.rows);
   };
 
   // Helper to update table data with pagination info from response
@@ -269,7 +263,6 @@ const Table = ({ projectId, data: externalData }) => {
                         onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
                         onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
                         className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-                        onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
                       />
                     ) : (
                       <div

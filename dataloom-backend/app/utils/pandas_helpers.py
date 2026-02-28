@@ -1,7 +1,6 @@
 """Pandas utility functions for safe CSV operations and response building."""
 
 import math
-import pandas as pd
 from pathlib import Path
 from typing import Any
 
