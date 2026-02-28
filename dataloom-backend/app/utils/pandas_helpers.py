@@ -101,7 +101,7 @@ def dataframe_to_paginated_response(
         total_rows, total_pages, page, and page_size.
     """
     df = df.fillna("")
-    df = df.replace([float('inf'), float('-inf')], "")
+    df = df.replace([float("inf"), float("-inf")], "")
     columns = df.columns.tolist()
     total_rows = len(df)
 

@@ -14,8 +14,8 @@ from app.services import transformation_service as ts
 from app.services.project_service import log_transformation
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import (
-    dataframe_to_paginated_response,
     DEFAULT_PAGE_SIZE,
+    dataframe_to_paginated_response,
     read_csv_safe,
     save_csv_safe,
 )
@@ -162,7 +162,12 @@ async def transform_project(
 
     if should_save:
         save_csv_safe(result_df, project.file_path)
-        log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
+        log_transformation(
+            db,
+            project_id,
+            transformation_input.operation_type,
+            transformation_input.dict(),
+        )
         # Reset to page 1 for data-modifying operations since indices may have changed
         page = 1
 
@@ -205,7 +210,12 @@ async def complex_transform_project(
 
     if should_save:
         save_csv_safe(result_df, project.file_path)
-        log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
+        log_transformation(
+            db,
+            project_id,
+            transformation_input.operation_type,
+            transformation_input.dict(),
+        )
         # Reset to page 1 for dropDuplicate since row indices may have changed
         page = 1
 
