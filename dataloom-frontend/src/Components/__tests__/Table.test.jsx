@@ -223,7 +223,7 @@ describe("Table", () => {
             row_index: 0,
             fill_value: "Alice Updated",
           },
-        })
+        }),
       );
     });
   });
@@ -296,7 +296,7 @@ describe("Table", () => {
             row_index: 0,
             fill_value: "Blurred Value",
           },
-        })
+        }),
       );
     });
   });
