@@ -1,10 +1,11 @@
 """Test configuration and fixtures for the DataLoom backend tests."""
 
 import csv
+
 import pytest
-from pathlib import Path
 from fastapi.testclient import TestClient
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
+
 from app.database import get_db
 from app.main import app
 
@@ -32,6 +33,7 @@ def db():
 @pytest.fixture
 def client(db):
     """Provide a FastAPI test client with overridden DB dependency."""
+
     def override_get_db():
         try:
             yield db

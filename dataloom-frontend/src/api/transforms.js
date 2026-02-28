@@ -11,9 +11,6 @@ import client from "./client";
  * @returns {Promise<Object>} Transformation result with updated rows and columns.
  */
 export const transformProject = async (projectId, transformationInput) => {
-  const response = await client.post(
-    `/projects/${projectId}/transform`,
-    transformationInput
-  );
+  const response = await client.post(`/projects/${projectId}/transform`, transformationInput);
   return response.data;
 };
