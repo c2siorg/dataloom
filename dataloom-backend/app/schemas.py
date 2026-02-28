@@ -3,7 +3,7 @@
 import datetime
 import uuid
 from enum import StrEnum
-from typing import Any
+from typing import Any, List, Optional
 
 from pydantic import BaseModel
 
@@ -25,20 +25,21 @@ class FilterCondition(StrEnum):
 class OperationType(StrEnum):
     """All supported transformation operation types."""
 
-    filter = "filter"
-    sort = "sort"
-    addRow = "addRow"
-    delRow = "delRow"
-    addCol = "addCol"
-    delCol = "delCol"
-    fillEmpty = "fillEmpty"
-    dropDuplicate = "dropDuplicate"
-    advQueryFilter = "advQueryFilter"
-    pivotTables = "pivotTables"
-    changeCellValue = "changeCellValue"
-    renameCol = "renameCol"
-    castDataType = "castDataType"
-    trimWhitespace = "trimWhitespace"
+    filter = 'filter'
+    sort = 'sort'
+    addRow = 'addRow'
+    delRow = 'delRow'
+    addCol = 'addCol'
+    delCol = 'delCol'
+    fillEmpty = 'fillEmpty'
+    dropDuplicate = 'dropDuplicate'
+    advQueryFilter = 'advQueryFilter'
+    pivotTables = 'pivotTables'
+    changeCellValue = 'changeCellValue'
+    renameCol = 'renameCol'
+    castDataType = 'castDataType'
+    trimWhitespace = 'trimWhitespace'
+    melt = 'melt'
 
 
 class DropDup(StrEnum):
@@ -62,21 +63,21 @@ class AggFunc(StrEnum):
 class ActionTypes(StrEnum):
     """Action types for user log entries."""
 
-    filter = "filter"
-    sort = "sort"
-    addRow = "addRow"
-    delRow = "delRow"
-    addCol = "addCol"
-    delCol = "delCol"
-    fillEmpty = "fillEmpty"
-    dropDuplicate = "dropDuplicate"
-    advQueryFilter = "advQueryFilter"
-    pivotTables = "pivotTables"
-    changeCellValue = "changeCellValue"
-    renameCol = "renameCol"
-    castDataType = "castDataType"
-    trimWhitespace = "trimWhitespace"
-
+    filter = 'filter'
+    sort = 'sort'
+    addRow = 'addRow'
+    delRow = 'delRow'
+    addCol = 'addCol'
+    delCol = 'delCol'
+    fillEmpty = 'fillEmpty'
+    dropDuplicate = 'dropDuplicate'
+    advQueryFilter = 'advQueryFilter'
+    pivotTables = 'pivotTables'
+    changeCellValue = 'changeCellValue'
+    renameCol = 'renameCol'
+    castDataType = 'castDataType'
+    trimWhitespace = 'trimWhitespace'
+    melt = 'melt'
 
 # --- Basic transformation parameter schemas ---
 
@@ -200,6 +201,14 @@ class UserLogsInput(BaseModel):
 
     user_actions: UserLogsAction | None = None
 
+# --- Melt transformation parameter schema ---
+
+class MeltParams(BaseModel):
+    """Parameters for the Melt (Unpivot) transformation."""
+    id_vars: List[str]                    
+    value_vars: Optional[List[str]] = None  
+    var_name: str = "variable"            
+    value_name: str = "value"             
 
 # --- Transformation input/output schemas ---
 
@@ -220,6 +229,7 @@ class TransformationInput(BaseModel):
     rename_col_params: RenameColumnParams | None = None
     cast_data_type_params: CastDataTypeParams | None = None
     trim_whitespace_params: TrimWhitespaceParams | None = None
+    melt_params: MeltParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
