@@ -492,8 +492,8 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         column = sort_params.get("column")
         ascending = sort_params.get("ascending", True)
         return apply_sort(df, column=column, ascending=ascending)
-    elif action_type == 'trimWhitespace':
-        column = action_details['trim_whitespace_params']['column']
+    elif action_type == "trimWhitespace":
+        column = action_details["trim_whitespace_params"]["column"]
         return trim_whitespace(df, column)
 
     else:

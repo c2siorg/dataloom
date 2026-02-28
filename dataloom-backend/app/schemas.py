@@ -103,9 +103,9 @@ class SortParameters(BaseModel):
     For multi-column sorting, use 'criteria' with a list of SortCriterion objects.
     """
 
-    column: Optional[str] = None
+    column: str | None = None
     ascending: bool = True
-    criteria: Optional[List[SortCriterion]] = None
+    criteria: list[SortCriterion] | None = None
 
 
 class AddOrDeleteRow(BaseModel):

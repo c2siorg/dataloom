@@ -15,7 +15,7 @@ const SortForm = ({ projectId, columns = [], onClose }) => {
   const [nextId, setNextId] = useState(2);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { error, clearError, handleError } = useError();
+  const { error, setError, clearError, handleError } = useError();
 
   /**
    * Add a new sort criterion row.
