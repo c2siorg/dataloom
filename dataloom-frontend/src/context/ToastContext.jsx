@@ -7,6 +7,7 @@ const ToastContext = createContext(null);
  * Hook to access the toast notification system.
  * @returns {{ showToast: (message: string, type?: string) => void }}
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
   const context = useContext(ToastContext);
   if (!context) throw new Error("useToast must be used within ToastProvider");
@@ -33,7 +34,12 @@ export function ToastProvider({ children }) {
       {children}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
         {toasts.map((toast) => (
-          <Toast key={toast.id} message={toast.message} type={toast.type} onDismiss={() => dismissToast(toast.id)} />
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onDismiss={() => dismissToast(toast.id)}
+          />
         ))}
       </div>
     </ToastContext.Provider>
