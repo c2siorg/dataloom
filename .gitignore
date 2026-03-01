@@ -25,3 +25,6 @@ Desktop.ini
 .env
 .env.local
 .env.*.local
+
+# SQLite databases
+*.db
