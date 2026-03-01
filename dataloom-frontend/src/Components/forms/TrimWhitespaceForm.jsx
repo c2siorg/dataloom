@@ -1,6 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
+import { TRIM_WHITESPACE } from "../../constants/operationTypes";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
 
@@ -15,7 +16,7 @@ const TrimWhitespaceForm = ({ projectId, onClose, onTransform }) => {
 
     try {
       const response = await transformProject(projectId, {
-        operation_type: "trimWhitespace",
+        operation_type: TRIM_WHITESPACE,
         trim_whitespace_params: {
           column,
         },

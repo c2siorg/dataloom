@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
+import {
+  ADD_COLUMN,
+  ADD_ROW,
+  CHANGE_CELL_VALUE,
+  DELETE_COLUMN,
+  DELETE_ROW,
+  RENAME_COLUMN,
+} from "../constants/operationTypes";
 import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
 import DtypeBadge from "./common/DtypeBadge";
@@ -49,7 +57,7 @@ const Table = ({ projectId, data: externalData }) => {
   const handleAddRow = async (index) => {
     try {
       const response = await transformProject(projectId, {
-        operation_type: "addRow",
+        operation_type: ADD_ROW,
         row_params: { index },
       });
       updateTableData(response);
@@ -73,7 +81,7 @@ const Table = ({ projectId, data: externalData }) => {
 
         try {
           const response = await transformProject(projectId, {
-            operation_type: "addCol",
+            operation_type: ADD_COLUMN,
             col_params: { index, name: newColumnName },
           });
           updateTableData(response);
@@ -92,7 +100,7 @@ const Table = ({ projectId, data: externalData }) => {
   const handleDeleteRow = async (index) => {
     try {
       const response = await transformProject(projectId, {
-        operation_type: "delRow",
+        operation_type: DELETE_ROW,
         row_params: { index },
       });
       updateTableData(response);
@@ -124,7 +132,7 @@ const Table = ({ projectId, data: externalData }) => {
 
         try {
           const response = await transformProject(projectId, {
-            operation_type: "renameCol",
+            operation_type: RENAME_COLUMN,
             rename_col_params: { col_index: index - 1, new_name: newName },
           });
           updateTableData(response);
@@ -151,7 +159,7 @@ const Table = ({ projectId, data: externalData }) => {
 
     try {
       const response = await transformProject(projectId, {
-        operation_type: "delCol",
+        operation_type: DELETE_COLUMN,
         col_params: { index: index - 1 },
       });
       updateTableData(response);
@@ -166,7 +174,7 @@ const Table = ({ projectId, data: externalData }) => {
   const handleEditCell = async (rowIndex, cellIndex, newValue) => {
     try {
       const response = await transformProject(projectId, {
-        operation_type: "changeCellValue",
+        operation_type: CHANGE_CELL_VALUE,
         change_cell_value: {
           col_index: cellIndex,
           row_index: rowIndex,
