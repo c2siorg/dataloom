@@ -1,6 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
+import { FILTER } from "../../constants/operationTypes";
 import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
@@ -29,7 +30,7 @@ const FilterForm = ({ projectId, onClose }) => {
     clearError();
     try {
       const response = await transformProject(projectId, {
-        operation_type: "filter",
+        operation_type: FILTER,
         parameters: filterParams,
       });
       setResult(response);
