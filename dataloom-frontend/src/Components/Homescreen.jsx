@@ -13,6 +13,7 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
 
   return (
     <button
+      data-testid="project-card"
       onClick={onClick}
       className="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md"
     >
@@ -48,6 +49,7 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
 
 const NewProjectCard = ({ onClick }) => (
   <button
+    data-testid="new-project-card"
     onClick={onClick}
     className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100"
   >
@@ -193,27 +195,31 @@ const HomeScreen = () => {
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal}></div>
-          <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
+          <div data-testid="project-modal" className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Name</h2>
             <input
+              data-testid="project-name-input"
               type="text"
               className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
               onChange={(e) => setProjectName(e.target.value)}
             />
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Upload Dataset</h2>
             <input
+              data-testid="file-input"
               type="file"
               className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none mb-4"
               onChange={handleFileUpload}
             />
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Description</h2>
             <input
+              data-testid="project-description-input"
               type="text"
               className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
               onChange={(e) => setProjectDescription(e.target.value)}
             />
             <div className="flex flex-row justify-between">
               <button
+                data-testid="submit-project"
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium transition-colors duration-150"
                 onClick={handleSubmitModal}
               >

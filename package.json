@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  },
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug"
+  }
+}

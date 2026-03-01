@@ -1,0 +1,102 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: dataloom
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Backend setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v4
+      - name: Install backend dependencies
+        working-directory: dataloom-backend
+        run: uv sync --frozen
+      - name: Create backend .env
+        working-directory: dataloom-backend
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dataloom
+          CORS_ORIGINS=["http://localhost:3200"]
+          UPLOAD_DIR=uploads
+          DEBUG=false
+          EOF
+
+      # Frontend setup
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: dataloom-frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: dataloom-frontend
+        run: npm ci
+
+      # Playwright setup with browser caching
+      - name: Install root dependencies
+        run: npm install
+      - name: Get Playwright version
+        id: pw-version
+        run: echo "version=$(npx playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+      - name: Install Playwright system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # Run E2E tests
+      - name: Run Playwright tests
+        run: npx playwright test
+        env:
+          CI: "true"
+
+      # Upload artifacts on failure or cancellation
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
