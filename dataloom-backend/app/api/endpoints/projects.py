@@ -4,9 +4,11 @@ Handles upload, retrieval, save (checkpoint), and revert operations.
 """
 
 import uuid
+from io import BytesIO
+from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlmodel import Session
 
 from app import database, models, schemas
@@ -202,10 +204,27 @@ async def revert_to_checkpoint(
 
 
 @router.get("/{project_id}/export")
-async def export_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Download the current working copy of a project as a CSV file."""
+async def export_project(
+    project_id: uuid.UUID,
+    format: Literal["csv", "xlsx"] = Query(default="csv"),
+    db: Session = Depends(database.get_db),
+):
+    """Download the current working copy of a project as CSV or XLSX."""
     project = get_project_or_404(project_id, db)
-    return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
+
+    if format == "csv":
+        return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
+
+    df = read_csv_safe(project.file_path)
+    output = BytesIO()
+    df.to_excel(output, index=False)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{project.name}.xlsx"'},
+    )
 
 
 @router.delete("/{project_id}")
