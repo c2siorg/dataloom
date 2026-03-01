@@ -43,7 +43,7 @@ const FilterForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div data-testid="filter-form" className="p-4 border border-gray-200 rounded-lg bg-white">
       <form onSubmit={handleSubmit}>
         <h3 className="font-semibold text-gray-900 mb-2">Filter Dataset</h3>
         <div className="flex flex-wrap mb-4">

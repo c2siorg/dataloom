@@ -65,6 +65,30 @@ npm run dev
 4. Commit your changes with a clear, descriptive commit message.
 5. Push your branch to your fork and open a pull request against the `main` branch.
 
+### E2E Tests (Playwright)
+
+End-to-end tests use [Playwright](https://playwright.dev/) and exercise the full stack (frontend + backend + database).
+
+Make sure PostgreSQL is running (via Docker Compose or natively):
+
+```bash
+docker compose up -d db
+```
+
+From the repository root:
+
+```bash
+npm install                          # Install Playwright (first time only)
+npx playwright install chromium      # Install browser (first time only)
+npx playwright test                  # Run all E2E tests
+npx playwright test --headed         # Run with visible browser
+npx playwright test --debug          # Run in debug mode with inspector
+```
+
+Playwright automatically starts the backend and frontend servers. If they are already running, it reuses them.
+
+Test files are in `e2e/` at the repository root. Each test should create its own project using the `createProject` helper from `e2e/helpers.js` and clean up via `deleteProjectApi` in `afterEach`. Use `data-testid` selectors where available.
+
 ## Code Style
 
 ### Frontend

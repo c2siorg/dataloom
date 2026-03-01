@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 
 const LogsPanel = ({ logs, onClose }) => {
   return (
-    <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group">
+    <div data-testid="logs-panel" className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Logs</h3>
         <button

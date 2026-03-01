@@ -10,9 +10,9 @@ const TransformResultPreview = ({ columns, rows }) => {
   }
 
   return (
-    <div className="p-4 mt-4 border border-gray-200 rounded-lg bg-gray-50">
+    <div data-testid="transform-preview" className="p-4 mt-4 border border-gray-200 rounded-lg bg-gray-50">
       <h4 className="font-medium text-sm text-gray-700 mb-2">API Response:</h4>
-      <table className="min-w-full divide-y divide-gray-200">
+      <table data-testid="preview-table" className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-100">
           <tr>
             {columns.map((col, index) => (

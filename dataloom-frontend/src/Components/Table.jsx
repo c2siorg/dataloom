@@ -228,7 +228,7 @@ const Table = ({ projectId, data: externalData }) => {
         className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
         style={{ maxHeight: "calc(100vh - 140px)" }}
       >
-        <table className="min-w-full bg-white">
+        <table data-testid="data-table" className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
             <tr>
               {columns.map((column, columnIndex) => (
@@ -289,6 +289,7 @@ const Table = ({ projectId, data: externalData }) => {
 
       {contextMenu.visible && contextMenu.type === "column" && (
         <div
+          data-testid="context-menu"
           className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
@@ -315,6 +316,7 @@ const Table = ({ projectId, data: externalData }) => {
 
       {contextMenu.visible && contextMenu.type === "row" && (
         <div
+          data-testid="context-menu"
           className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
