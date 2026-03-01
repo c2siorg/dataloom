@@ -58,12 +58,12 @@ async def upload_project(
 
 
 @router.get("/get/{project_id}", response_model=schemas.ProjectResponse)
-async def get_project_details(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+async def get_project_details(project_id: uuid.UUID,page: int, pageSize : int , db: Session = Depends(database.get_db)):
     """Fetch full project details including all rows and columns."""
     project = get_project_or_404(project_id, db)
     df = read_csv_safe(project.file_path)
 
-    resp = dataframe_to_response(df)
+    resp = dataframe_to_response(df,page,pageSize)
     return {
         "filename": project.name,
         "file_path": project.file_path,

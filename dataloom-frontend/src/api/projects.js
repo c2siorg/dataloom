@@ -23,10 +23,16 @@ export const uploadProject = async (file, projectName, projectDescription) => {
 /**
  * Fetch full project details including rows and columns.
  * @param {string} projectId - The project ID.
+ * @param {number} page - Current Page
+ * @param {number} pageSize - Elements per page
  * @returns {Promise<Object>} Project details with columns and rows.
  */
-export const getProjectDetails = async (projectId) => {
-  const response = await client.get(`/projects/get/${projectId}`);
+export const getProjectDetails = async (projectId, page, pageSize) => {
+  const response = await client.get(`/projects/get/${projectId}`,
+    {
+      params: { page, pageSize }
+    }
+    );
   return response.data;
 };
 

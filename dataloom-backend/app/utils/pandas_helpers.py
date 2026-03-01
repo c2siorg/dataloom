@@ -59,7 +59,7 @@ def _map_dtype(dtype) -> str:
         return "unknown"
 
 
-def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
+def dataframe_to_response(df: pd.DataFrame,page: int, pageSize: int) -> dict[str, Any]:
     """Convert a DataFrame to an API response dict.
 
     Args:
@@ -68,12 +68,27 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
     Returns:
         Dict with columns (list of str), rows (list of lists), row_count, and dtypes.
     """
+    total_rows = len(df)
+    total_pages = (total_rows + pageSize - 1) // pageSize
+
+    start = (page - 1) * pageSize
+    end = start + pageSize
+    df = df.iloc[start:end]
+
     dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
     df = df.fillna("")
     df = df.replace([float('inf'), float('-inf')], "")
     columns = df.columns.tolist()
     rows = df.values.tolist()
-    return {"columns": columns, "rows": rows, "row_count": len(rows), "dtypes": dtypes}
+    return {"columns": columns,
+            "rows": rows, 
+            "row_count": len(rows), 
+            "dtypes": dtypes,
+            "total_rows": total_rows,
+            "total_pages": total_pages,
+            "page": page,
+            "page_size": pageSize
+            }
 
 
 def validate_row_index(df: pd.DataFrame, index: int) -> None:

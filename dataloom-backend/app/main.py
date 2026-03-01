@@ -5,14 +5,16 @@ Configures middleware, exception handlers, and mounts all API routers.
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from app.api.endpoints import projects, user_logs, transformations
-from app.config import get_settings
-from app.exceptions import AppException, app_exception_handler
-from app.services.transformation_service import TransformationError
-from app.utils.logging import setup_logging, get_logger
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from app.api.endpoints import projects, transformations, user_logs
+from app.config import get_settings
+from app.exceptions import AppException, app_exception_handler
+from app.services.transformation_service import TransformationError
+from app.utils.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
@@ -20,8 +22,8 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app):
     """Application startup/shutdown lifecycle."""
-    from alembic import command
     from alembic.config import Config
+    from alembic import command
 
     alembic_cfg = Config("alembic.ini")
     command.upgrade(alembic_cfg, "head")

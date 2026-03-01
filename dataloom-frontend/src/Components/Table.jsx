@@ -5,9 +5,11 @@ import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
 import DtypeBadge from "./common/DtypeBadge";
 import proptypes from "prop-types";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 
 const Table = ({ projectId, data: externalData }) => {
-  const { columns: ctxColumns, rows: ctxRows, dtypes, updateData } = useProjectContext();
+  const { columns: ctxColumns, rows: ctxRows, dtypes, updateData, totalRows, totalPages, page, pageSize, setPaginationData, refreshProject } = useProjectContext();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
@@ -27,7 +29,7 @@ const Table = ({ projectId, data: externalData }) => {
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
       setColumns(["S.No.", ...ctxColumns]);
-      setData(ctxRows.map((row, index) => [index + 1, ...row]));
+      setData(ctxRows.map((row, index) =>  [(page - 1) * pageSize + index + 1, ...row]));
     }
   }, [ctxColumns, ctxRows]);
 
@@ -53,6 +55,7 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
+      refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
         message: "Failed to add row. Please try again.",
@@ -77,6 +80,7 @@ const Table = ({ projectId, data: externalData }) => {
             col_params: { index, name: newColumnName },
           });
           updateTableData(response);
+          refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
             message: "Failed to add column. Please try again.",
@@ -96,6 +100,7 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
+      refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
         message: "Failed to delete row. Please try again.",
@@ -128,6 +133,7 @@ const Table = ({ projectId, data: externalData }) => {
             rename_col_params: { col_index: index - 1, new_name: newName },
           });
           updateTableData(response);
+          refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
             message: "Failed to rename column. Please try again.",
@@ -155,6 +161,7 @@ const Table = ({ projectId, data: externalData }) => {
         col_params: { index: index - 1 },
       });
       updateTableData(response);
+      refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
         message: "Failed to delete column. Please try again.",
@@ -174,6 +181,7 @@ const Table = ({ projectId, data: externalData }) => {
         },
       });
       updateTableData(response);
+      refreshProject(projectId, 1, pageSize);
       setEditingCell(null);
       setEditValue("");
     } catch {
@@ -222,11 +230,21 @@ const Table = ({ projectId, data: externalData }) => {
     });
   };
 
+  const handlePageChange = (newPage) => {
+    setPaginationData({ page: newPage });
+    refreshProject(projectId, newPage, pageSize);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+  setPaginationData({ page: 1, pageSize: newSize });
+  refreshProject(projectId, 1, newSize); 
+  };
+
   return (
     <div className="px-8 pt-3" onClick={handleCloseContextMenu}>
       <div
         className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
-        style={{ maxHeight: "calc(100vh - 140px)" }}
+        style={{ maxHeight: "calc(100vh - 220px)" }}
       >
         <table className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
@@ -286,6 +304,15 @@ const Table = ({ projectId, data: externalData }) => {
           </tbody>
         </table>
       </div>
+
+      <TablePagination
+        totalRows={totalRows}
+        totalPages={totalPages}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
+      />
 
       {contextMenu.visible && contextMenu.type === "column" && (
         <div
@@ -362,3 +389,102 @@ Table.propTypes = {
   }),
 };
 export default Table;
+
+// TablePagination Component
+export function TablePagination({
+  totalRows,
+  totalPages,
+  page,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+}) {
+  const [pageSizeOpen, setPageSizeOpen] = useState(false);
+  const pageSizeOptions = [10, 25, 50, 100];
+
+  const handlePrevious = () => {
+    if (page > 1) {
+      onPageChange(page - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (page < totalPages) {
+      onPageChange(page + 1);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-white">
+      <div className="flex items-center gap-6 text-sm text-gray-600">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500">Total Rows:</span>
+          <span className="text-gray-900">{totalRows}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500">Total Pages:</span>
+          <span className="text-gray-900">{totalPages}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500">Page:</span>
+          <span className="text-gray-900">{page}</span>
+        </div>
+        <div className="flex items-center gap-2 relative">
+          <span className="text-gray-500">Page Size:</span>
+          <div className="relative inline-block">
+            <button
+              onClick={() => setPageSizeOpen(!pageSizeOpen)}
+              className="border-2 border-gray-300 rounded-md px-4 py-1 text-sm min-w-[40px] text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {pageSize}
+            </button>
+
+            {pageSizeOpen && (
+              <div className="absolute mt-1 min-w-[60px] bg-white border-2 border-gray-300 rounded-lg shadow-lg z-10">
+                {pageSizeOptions.map((size) => (
+                  <div
+                    key={size}
+                    onClick={() => {
+                      onPageSizeChange(size);
+                      setPageSizeOpen(false);
+                    }}
+                    className="px-4 py-2 text-sm hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-md"
+                  >
+                    {size}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handlePrevious}
+          disabled={page === 1}
+          className="p-1.5 rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <button
+          onClick={handleNext}
+          disabled={page === totalPages}
+          className="p-1.5 rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Next page"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-700" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+TablePagination.propTypes = {
+  totalRows: proptypes.number.isRequired,
+  totalPages: proptypes.number.isRequired,
+  page: proptypes.number.isRequired,
+  pageSize: proptypes.number.isRequired,
+  onPageChange: proptypes.func.isRequired,
+};
