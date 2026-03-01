@@ -1,5 +1,7 @@
 """Tests for save and revert logic in the project service."""
 
+from sqlmodel import select
+
 from app import models
 from app.services.project_service import (
     create_checkpoint,
@@ -20,7 +22,9 @@ class TestCheckpoint:
         log_transformation(db, project.project_id, "addRow", {"row_params": {"index": 0}})
 
         # Verify log is unapplied
-        logs = db.query(models.ProjectChangeLog).filter_by(project_id=project.project_id).all()
+        logs = db.exec(
+            select(models.ProjectChangeLog).where(models.ProjectChangeLog.project_id == project.project_id)
+        ).all()
         assert len(logs) == 1
         assert logs[0].applied is False
 

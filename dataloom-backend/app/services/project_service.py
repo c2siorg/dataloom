@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app import models
 from app.utils.logging import get_logger
@@ -40,7 +40,7 @@ def get_project_by_id(db: Session, project_id: uuid.UUID) -> models.Project | No
     Returns:
         The Project model instance or None if not found.
     """
-    return db.query(models.Project).filter(models.Project.project_id == project_id).first()
+    return db.exec(select(models.Project).where(models.Project.project_id == project_id)).first()
 
 
 def get_recent_projects(db: Session, limit: int = 3) -> list[models.Project]:
@@ -53,7 +53,7 @@ def get_recent_projects(db: Session, limit: int = 3) -> list[models.Project]:
     Returns:
         List of Project model instances ordered by last_modified desc.
     """
-    return db.query(models.Project).order_by(models.Project.last_modified.desc()).limit(limit).all()
+    return db.exec(select(models.Project).order_by(models.Project.last_modified.desc()).limit(limit)).all()
 
 
 def delete_project(db: Session, project: models.Project) -> None:
@@ -106,12 +106,12 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
 
     # Mark all unapplied logs as applied under this checkpoint
     logs = (
-        db.query(models.ProjectChangeLog)
-        .filter(
-            models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.applied == False,  # noqa: E712
-        )
-        .all()
+        db.exec(
+            select(models.ProjectChangeLog).where(
+                models.ProjectChangeLog.project_id == project_id,
+                models.ProjectChangeLog.applied == False,  # noqa: E712
+            )
+        ).all()
     )
 
     for log in logs:

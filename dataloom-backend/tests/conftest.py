@@ -41,8 +41,9 @@ def client(db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
+    c = TestClient(app)
+    yield c
+    c.close()
     app.dependency_overrides.clear()
 
 
