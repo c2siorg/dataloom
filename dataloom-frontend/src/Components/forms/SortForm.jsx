@@ -1,6 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
+import { SORT } from "../../constants/operationTypes";
 import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
@@ -19,7 +20,7 @@ const SortForm = ({ projectId, onClose }) => {
     clearError();
     try {
       const response = await transformProject(projectId, {
-        operation_type: "sort",
+        operation_type: SORT,
         sort_params: {
           column,
           ascending,

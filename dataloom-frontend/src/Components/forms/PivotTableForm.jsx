@@ -2,6 +2,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
 import { transformProject } from "../../api";
+import { PIVOT_TABLE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
@@ -20,7 +21,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
     clearError();
     try {
       const response = await transformProject(projectId, {
-        operation_type: "pivotTables",
+        operation_type: PIVOT_TABLE,
         pivot_query: { index, column, value, aggfun },
       });
       setResult(response);

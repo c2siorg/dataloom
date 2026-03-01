@@ -1,6 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
+import { DROP_DUPLICATE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
@@ -12,7 +13,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const transformationInput = {
-      operation_type: "dropDuplicate",
+      operation_type: DROP_DUPLICATE,
       drop_duplicate: {
         columns: columns,
         keep: keep,
