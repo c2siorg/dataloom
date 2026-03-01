@@ -45,15 +45,6 @@ npm run dev
 
 The frontend development server will start at `http://localhost:3200`.
 
-### Full Stack (Turborepo)
-
-To run both the frontend and backend together from the repository root:
-
-```bash
-npm install
-npm run dev
-```
-
 ## Development Workflow
 
 1. Make your changes in a feature branch.
@@ -61,6 +52,7 @@ npm run dev
    - **Backend:** `cd dataloom-backend && uv run pytest`
    - **Frontend:** `cd dataloom-frontend && npm run test`
 3. Lint and format your code:
+   - **Backend:** `uv run ruff check .` and `uv run ruff format .`
    - **Frontend:** `npm run lint` and `npm run format`
 4. Commit your changes with a clear, descriptive commit message.
 5. Push your branch to your fork and open a pull request against the `main` branch.
@@ -75,7 +67,7 @@ npm run dev
 
 ### Backend
 
-- Follow standard Python conventions (PEP 8).
+- **Ruff** is used for linting and formatting. Run `uv run ruff check .` and `uv run ruff format .` from the backend directory.
 - Use type hints for function signatures.
 - Keep API endpoints in `app/api/endpoints/` and data models in `app/models.py`.
 - Use Pydantic schemas in `app/schemas.py` for request/response validation.
