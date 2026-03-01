@@ -2,6 +2,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
 import { transformProject } from "../../api";
+import { ADV_QUERY_FILTER } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
@@ -18,7 +19,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
     clearError();
     try {
       const response = await transformProject(projectId, {
-        operation_type: "advQueryFilter",
+        operation_type: ADV_QUERY_FILTER,
         adv_query: { query },
       });
       setResult(response);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
+import { CAST_DATA_TYPE } from "../../constants/operationTypes";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
@@ -20,7 +21,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
     clearError();
     try {
       const response = await transformProject(projectId, {
-        operation_type: "castDataType",
+        operation_type: CAST_DATA_TYPE,
         cast_data_type_params: {
           column,
           target_type: targetType,
