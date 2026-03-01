@@ -119,7 +119,7 @@ async def save_project(
     for log in logs:
         df = apply_logged_transformation(df, log.action_type, log.action_details)
 
-    save_csv_safe(df, original_path)
+    save_csv_safe(df, project.file_path)
 
     # Create checkpoint (marks logs as applied)
     checkpoint = create_checkpoint(db, project_id, commit_message)
@@ -128,7 +128,7 @@ async def save_project(
     logger.info("Project saved: id=%s, checkpoint=%s", project_id, checkpoint.id)
     return {
         "filename": project.name,
-        "file_path": str(original_path),
+        "file_path": project.file_path,
         "project_id": project.project_id,
         **resp,
     }
