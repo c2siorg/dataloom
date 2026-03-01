@@ -1,12 +1,44 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
-import { FILTER } from "../../constants/operationTypes";
+import { useProjectContext } from "../../context/ProjectContext";
 import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
+const ColumnSelect = ({ id, name, value, onChange, columns = [] }) => {
+  const noColumns = columns.length === 0;
+
+  return (
+    <select
+      id={id}
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+      disabled={noColumns}
+      required
+    >
+      <option value="">{noColumns ? "No columns available" : "Select column..."}</option>
+      {columns.map((column) => (
+        <option key={column} value={column}>
+          {column}
+        </option>
+      ))}
+    </select>
+  );
+};
+
+ColumnSelect.propTypes = {
+  id: PropTypes.string.isRequired,
+  name: PropTypes.string.isRequired,
+  value: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  columns: PropTypes.arrayOf(PropTypes.string),
+};
+
 const FilterForm = ({ projectId, onClose }) => {
+  const { columns = [] } = useProjectContext();
   const [filterParams, setFilterParams] = useState({
     column: "",
     condition: "=",
@@ -30,7 +62,7 @@ const FilterForm = ({ projectId, onClose }) => {
     clearError();
     try {
       const response = await transformProject(projectId, {
-        operation_type: FILTER,
+        operation_type: "filter",
         parameters: filterParams,
       });
       setResult(response);
@@ -49,19 +81,23 @@ const FilterForm = ({ projectId, onClose }) => {
         <h3 className="font-semibold text-gray-900 mb-2">Filter Dataset</h3>
         <div className="flex flex-wrap mb-4">
           <div className="w-full sm:w-1/3 mb-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Column:</label>
-            <input
-              type="text"
+            <label htmlFor="filter-column" className="block mb-1 text-sm font-medium text-gray-700">
+              Column:
+            </label>
+            <ColumnSelect
+              id="filter-column"
               name="column"
               value={filterParams.column}
               onChange={handleInputChange}
-              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              required
+              columns={columns}
             />
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Condition:</label>
+            <label htmlFor="filter-condition" className="block mb-1 text-sm font-medium text-gray-700">
+              Condition:
+            </label>
             <select
+              id="filter-condition"
               name="condition"
               value={filterParams.condition}
               onChange={handleInputChange}
@@ -78,8 +114,11 @@ const FilterForm = ({ projectId, onClose }) => {
             </select>
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Value:</label>
+            <label htmlFor="filter-value" className="block mb-1 text-sm font-medium text-gray-700">
+              Value:
+            </label>
             <input
+              id="filter-value"
               type="text"
               name="value"
               value={filterParams.value}
@@ -93,7 +132,7 @@ const FilterForm = ({ projectId, onClose }) => {
           <button
             type="submit"
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
-            disabled={loading}
+            disabled={loading || columns.length === 0}
           >
             Apply Filter
           </button>
