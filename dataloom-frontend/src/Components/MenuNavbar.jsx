@@ -83,13 +83,13 @@ const MenuNavbar = ({ projectId, onTransform }) => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format = "csv") => {
     try {
-      const blob = await exportProject(projectId);
+      const blob = await exportProject(projectId, format);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "export.csv";
+      a.download = format === "xlsx" ? "export.xlsx" : "export.csv";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -171,7 +171,8 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         group: "Save",
         items: [
           { label: "Save", icon: LuSave, onClick: handleSave },
-          { label: "Export", icon: LuDownload, onClick: handleExport },
+          { label: "Export CSV", icon: LuDownload, onClick: () => handleExport("csv") },
+          { label: "Export Excel", icon: LuDownload, onClick: () => handleExport("xlsx") },
         ],
       },
       {
