@@ -59,8 +59,19 @@ const NewProjectCard = ({ onClick }) => (
 const EmptyState = ({ onClick }) => (
   <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
     <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-50">
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="h-8 w-8 text-blue-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.5}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+        />
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v4m-2-2h4" />
       </svg>
     </div>
@@ -183,10 +194,7 @@ const HomeScreen = () => {
         </h1>
         <p className="text-4xl mt-2 text-gray-900">
           your one-stop for{" "}
-          <span className="text-gray-900 font-semibold">
-            Dataset Transformations
-          </span>
-          .
+          <span className="text-gray-900 font-semibold">Dataset Transformations</span>.
         </p>
 
         <div className="flex items-center justify-between mt-12 mb-4">
@@ -232,9 +240,7 @@ const HomeScreen = () => {
             <h2 className="text-xl font-semibold text-gray-900 mb-6">New Project</h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project Name
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
                 <input
                   type="text"
                   placeholder="e.g. Sales Analysis Q1"
@@ -243,9 +249,7 @@ const HomeScreen = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <input
                   type="text"
                   placeholder="Brief description of this dataset"
