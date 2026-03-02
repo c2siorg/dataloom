@@ -20,6 +20,7 @@ dev = [
     "ruff>=0.8",
     "pre-commit>=4.0",
     "httpx>=0.27",
+    "hypothesis>=6.0",
 ]
 
 [tool.ruff]
@@ -28,6 +29,10 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/**" = ["E501", "UP007", "UP035"]
 
 [tool.ruff.format]
 quote-style = "double"

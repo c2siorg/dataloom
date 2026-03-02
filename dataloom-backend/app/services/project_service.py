@@ -98,7 +98,7 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     # Mark all unapplied logs as applied under this checkpoint
     logs = db.query(models.ProjectChangeLog).filter(
         models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
+        models.ProjectChangeLog.applied == False,  # noqa: E712
     ).all()
 
     for log in logs:

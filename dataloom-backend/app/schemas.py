@@ -1,15 +1,15 @@
 """Pydantic request/response schemas for all API endpoints."""
 
-import uuid
-from pydantic import BaseModel
-from enum import Enum
-from typing import Optional, Union, Any, List
 import datetime
+import uuid
+from enum import StrEnum
+from typing import Any
 
+from pydantic import BaseModel
 
 # --- Enums ---
 
-class FilterCondition(str, Enum):
+class FilterCondition(StrEnum):
     """Supported filter comparison operators."""
     EQ = '='
     GT = '>'
@@ -18,7 +18,7 @@ class FilterCondition(str, Enum):
     LTE = '<='
 
 
-class OperationType(str, Enum):
+class OperationType(StrEnum):
     """All supported transformation operation types."""
     filter = 'filter'
     sort = 'sort'
@@ -33,13 +33,13 @@ class OperationType(str, Enum):
     changeCellValue = 'changeCellValue'
 
 
-class DropDup(str, Enum):
+class DropDup(StrEnum):
     """Options for which duplicate rows to keep."""
     first = 'first'
     last = 'last'
 
 
-class AggFunc(str, Enum):
+class AggFunc(StrEnum):
     """Supported aggregation functions for pivot tables."""
     sum = 'sum'
     mean = 'mean'
@@ -49,7 +49,7 @@ class AggFunc(str, Enum):
     count = 'count'
 
 
-class ActionTypes(str, Enum):
+class ActionTypes(StrEnum):
     """Action types for user log entries."""
     filter = 'filter'
     sort = 'sort'
@@ -99,7 +99,7 @@ class ChangeCellValue(BaseModel):
 
 class FillEmptyParams(BaseModel):
     """Parameters for filling empty cells."""
-    index: Optional[int]
+    index: int | None
     fill_value: Any
 
 
@@ -108,7 +108,7 @@ class FillEmptyParams(BaseModel):
 class DropDuplicates(BaseModel):
     """Parameters for dropping duplicate rows."""
     columns: str
-    keep: Union[DropDup, bool]
+    keep: DropDup | bool
 
 
 class AdvQuery(BaseModel):
@@ -119,7 +119,7 @@ class AdvQuery(BaseModel):
 class Pivot(BaseModel):
     """Parameters for creating a pivot table."""
     index: str
-    column: Optional[str] = None
+    column: str | None = None
     value: str
     aggfun: AggFunc
 
@@ -139,7 +139,7 @@ class UserLogsAction(BaseModel):
 
 class UserLogsInput(BaseModel):
     """Input wrapper for user log actions."""
-    user_actions: Optional[UserLogsAction] = None
+    user_actions: UserLogsAction | None = None
 
 
 # --- Transformation input/output schemas ---
@@ -147,15 +147,15 @@ class UserLogsInput(BaseModel):
 class TransformationInput(BaseModel):
     """Unified input for all transformation operations."""
     operation_type: OperationType
-    parameters: Optional[FilterParameters] = None
-    sort_params: Optional[SortParameters] = None
-    row_params: Optional[AddOrDeleteRow] = None
-    col_params: Optional[AddOrDeleteColumn] = None
-    fill_empty_params: Optional[FillEmptyParams] = None
-    drop_duplicate: Optional[DropDuplicates] = None
-    adv_query: Optional[AdvQuery] = None
-    pivot_query: Optional[Pivot] = None
-    change_cell_value: Optional[ChangeCellValue] = None
+    parameters: FilterParameters | None = None
+    sort_params: SortParameters | None = None
+    row_params: AddOrDeleteRow | None = None
+    col_params: AddOrDeleteColumn | None = None
+    fill_empty_params: FillEmptyParams | None = None
+    drop_duplicate: DropDuplicates | None = None
+    adv_query: AdvQuery | None = None
+    pivot_query: Pivot | None = None
+    change_cell_value: ChangeCellValue | None = None
 
 
 class BasicQueryResponse(BaseModel):
@@ -192,7 +192,7 @@ class LogResponse(BaseModel):
     action_type: str
     action_details: dict
     timestamp: datetime.datetime
-    checkpoint_id: Optional[uuid.UUID]
+    checkpoint_id: uuid.UUID | None
     applied: bool
 
 
@@ -200,7 +200,7 @@ class LastResponse(BaseModel):
     """Response for recently modified projects."""
     project_id: uuid.UUID
     name: str
-    description: Optional[str]
+    description: str | None
     last_modified: datetime.datetime
 
     class Config:
@@ -212,14 +212,14 @@ class LastResponse(BaseModel):
 
 class NumericStatsSchema(BaseModel):
     """Statistics for a numeric column."""
-    mean: Optional[float] = None
-    median: Optional[float] = None
-    std: Optional[float] = None
-    min: Optional[float] = None
-    max: Optional[float] = None
-    q1: Optional[float] = None
-    q3: Optional[float] = None
-    skewness: Optional[float] = None
+    mean: float | None = None
+    median: float | None = None
+    std: float | None = None
+    min: float | None = None
+    max: float | None = None
+    q1: float | None = None
+    q3: float | None = None
+    skewness: float | None = None
 
 
 class FrequentValueSchema(BaseModel):
@@ -231,7 +231,7 @@ class FrequentValueSchema(BaseModel):
 class CategoricalStatsSchema(BaseModel):
     """Statistics for a categorical column."""
     top_values: list[FrequentValueSchema] = []
-    mode: Optional[str] = None
+    mode: str | None = None
 
 
 class ColumnProfileSchema(BaseModel):
@@ -241,8 +241,8 @@ class ColumnProfileSchema(BaseModel):
     missing_count: int
     missing_percentage: float
     unique_count: int
-    numeric_stats: Optional[NumericStatsSchema] = None
-    categorical_stats: Optional[CategoricalStatsSchema] = None
+    numeric_stats: NumericStatsSchema | None = None
+    categorical_stats: CategoricalStatsSchema | None = None
 
 
 class DatasetSummarySchema(BaseModel):

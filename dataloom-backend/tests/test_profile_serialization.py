@@ -5,7 +5,8 @@ produces an equivalent object.
 **Validates: Requirements 7.5**
 """
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from app.schemas import (
     CategoricalStatsSchema,

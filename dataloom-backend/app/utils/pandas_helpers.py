@@ -1,8 +1,9 @@
 """Pandas utility functions for safe CSV operations and response building."""
 
-import pandas as pd
 from pathlib import Path
 from typing import Any
+
+import pandas as pd
 from fastapi import HTTPException
 
 
@@ -21,9 +22,9 @@ def read_csv_safe(path: Path) -> pd.DataFrame:
     try:
         return pd.read_csv(path)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"CSV file not found: {path}")
+        raise HTTPException(status_code=404, detail=f"CSV file not found: {path}") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}") from e
 
 
 def save_csv_safe(df: pd.DataFrame, path: Path) -> None:
@@ -39,7 +40,7 @@ def save_csv_safe(df: pd.DataFrame, path: Path) -> None:
     try:
         df.to_csv(path, index=False)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error saving CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error saving CSV: {str(e)}") from e
 
 
 def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:

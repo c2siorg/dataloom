@@ -46,7 +46,7 @@ def compute_numeric_stats(series: pd.Series) -> NumericStatsSchema | None:
     if series.dropna().empty:
         return None
 
-    desc = series.describe()
+    series.describe()
     quartiles = series.quantile([0.25, 0.75])
 
     return NumericStatsSchema(

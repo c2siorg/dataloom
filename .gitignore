@@ -25,3 +25,10 @@ Desktop.ini
 .env
 .env.local
 .env.*.local
+
+# SQLite test databases
+test.db
+*.db
+
+# Hypothesis test cache
+.hypothesis/

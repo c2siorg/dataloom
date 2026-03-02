@@ -10,12 +10,12 @@ from sqlmodel import Session
 
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
+from app.services.file_service import get_original_path, store_upload
 from app.services.project_service import (
     create_checkpoint,
     create_project,
     get_recent_projects,
 )
-from app.services.file_service import get_original_path, store_upload
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
@@ -105,7 +105,7 @@ async def save_project(
     # Get all unapplied logs for this project
     logs = db.query(models.ProjectChangeLog).filter(
         models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,
+        not models.ProjectChangeLog.applied,
     ).order_by(models.ProjectChangeLog.timestamp).all()
 
     # Replay each logged transformation on the original
@@ -163,7 +163,7 @@ async def revert_to_checkpoint(
         logs = db.query(models.ProjectChangeLog).filter(
             models.ProjectChangeLog.project_id == project_id,
             models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
-            models.ProjectChangeLog.applied == True,
+            models.ProjectChangeLog.applied,
         ).order_by(models.ProjectChangeLog.timestamp).all()
 
         for log in logs:

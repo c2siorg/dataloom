@@ -5,14 +5,16 @@ Configures middleware, exception handlers, and mounts all API routers.
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from app.api.endpoints import projects, user_logs, transformations, profiling, charts
-from app.config import get_settings
-from app.exceptions import AppException, app_exception_handler
-from app.services.transformation_service import TransformationError
-from app.utils.logging import setup_logging, get_logger
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from app.api.endpoints import charts, profiling, projects, transformations, user_logs
+from app.config import get_settings
+from app.exceptions import AppException, app_exception_handler
+from app.services.transformation_service import TransformationError
+from app.utils.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
@@ -25,8 +27,9 @@ async def lifespan(app):
     # Run Alembic migrations (skip for SQLite — tables managed manually)
     if not settings.database_url.startswith("sqlite"):
         try:
-            from alembic import command
             from alembic.config import Config
+
+            from alembic import command
 
             alembic_cfg = Config("alembic.ini")
             command.upgrade(alembic_cfg, "head")
@@ -35,8 +38,9 @@ async def lifespan(app):
     else:
         # Ensure tables exist via SQLModel for SQLite
         from sqlmodel import SQLModel
-        from app.database import engine
+
         from app import models  # noqa: F401
+        from app.database import engine
         SQLModel.metadata.create_all(engine)
 
     setup_logging(settings.debug)

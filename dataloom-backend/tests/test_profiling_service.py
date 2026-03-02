@@ -1,14 +1,14 @@
 """Unit tests for profiling service functions."""
 
-import pytest
 import pandas as pd
-import numpy as np
+import pytest
+
 from app.services.profiling_service import (
     classify_column,
-    compute_dataset_summary,
-    compute_numeric_stats,
     compute_categorical_stats,
     compute_column_profile,
+    compute_dataset_summary,
+    compute_numeric_stats,
     compute_profile,
 )
 

@@ -14,8 +14,10 @@ vi.mock("react-icons/lu", () => {
     LuSave: Stub,
     LuHistory: Stub,
     LuBookmark: Stub,
-    LuBarChart3: Stub,
+    LuChartColumn: Stub,
+    LuChartBar: Stub,
     LuX: Stub,
+    LuSearch: Stub,
   };
 });
 
@@ -67,6 +69,9 @@ vi.mock("../history/LogsPanel", () => ({
 }));
 vi.mock("../history/CheckpointsPanel", () => ({
   default: () => <div data-testid="checkpoints-panel-mock">CheckpointsPanel</div>,
+}));
+vi.mock("../ChartBuilder", () => ({
+  default: () => <div data-testid="chart-builder-mock">ChartBuilder</div>,
 }));
 
 const defaultProps = {

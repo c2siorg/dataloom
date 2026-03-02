@@ -1,7 +1,6 @@
 """Chart data API endpoints."""
 
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
@@ -33,8 +32,8 @@ async def get_chart_data(
     project_id: uuid.UUID,
     chart_type: str = Query(..., description="bar, line, scatter, histogram, pie"),
     x_column: str = Query(..., description="X-axis column"),
-    y_column: Optional[str] = Query(None, description="Y-axis column"),
-    group_by: Optional[str] = Query(None, description="Group-by column"),
+    y_column: str | None = Query(None, description="Y-axis column"),
+    group_by: str | None = Query(None, description="Group-by column"),
     agg_function: str = Query("mean", description="Aggregation: mean, sum, count, min, max, median"),
     limit: int = Query(50, ge=1, le=500, description="Max data points"),
     db: Session = Depends(database.get_db),
@@ -46,9 +45,9 @@ async def get_chart_data(
     try:
         result = compute_chart_data(df, chart_type, x_column, y_column, group_by, agg_function, limit)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Chart computation error: %s", e)
-        raise HTTPException(status_code=500, detail="Failed to compute chart data")
+        raise HTTPException(status_code=500, detail="Failed to compute chart data") from e
 
     return result

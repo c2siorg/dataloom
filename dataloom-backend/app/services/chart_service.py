@@ -1,7 +1,7 @@
 """Service for computing chart-ready data from pandas DataFrames."""
 
+
 import pandas as pd
-from typing import Optional
 
 
 def get_column_info(df: pd.DataFrame) -> list[dict]:
@@ -24,8 +24,8 @@ def compute_chart_data(
     df: pd.DataFrame,
     chart_type: str,
     x_column: str,
-    y_column: Optional[str] = None,
-    group_by: Optional[str] = None,
+    y_column: str | None = None,
+    group_by: str | None = None,
     agg_function: str = "mean",
     limit: int = 50,
 ) -> dict:
@@ -86,7 +86,7 @@ def _compute_pie(df: pd.DataFrame, column: str, limit: int) -> dict:
     return {"chart_type": "pie", "data": data, "x_column": column}
 
 
-def _compute_scatter(df: pd.DataFrame, x_col: str, y_col: Optional[str], group_by: Optional[str], limit: int) -> dict:
+def _compute_scatter(df: pd.DataFrame, x_col: str, y_col: str | None, group_by: str | None, limit: int) -> dict:
     """Compute scatter plot points."""
     if not y_col:
         raise ValueError("Scatter plot requires both X and Y columns")
@@ -112,8 +112,8 @@ def _compute_scatter(df: pd.DataFrame, x_col: str, y_col: Optional[str], group_b
 
 
 def _compute_aggregated(
-    df: pd.DataFrame, chart_type: str, x_col: str, y_col: Optional[str],
-    group_by: Optional[str], agg_function: str, limit: int,
+    df: pd.DataFrame, chart_type: str, x_col: str, y_col: str | None,
+    group_by: str | None, agg_function: str, limit: int,
 ) -> dict:
     """Compute aggregated bar/line chart data."""
     if not y_col:
