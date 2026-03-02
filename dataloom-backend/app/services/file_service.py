@@ -27,7 +27,7 @@ def store_upload(file) -> tuple[Path, Path]:
     with open(original_path, "wb+") as f:
         shutil.copyfileobj(file.file, f)
 
-    copy_path = Path(str(original_path).replace(".csv", "_copy.csv"))
+    copy_path = Path(str(original_path).replace('.csv', '_copy.csv'))
     shutil.copy2(original_path, copy_path)
 
     logger.info("Stored upload: original=%s, copy=%s", original_path, copy_path)
@@ -43,20 +43,4 @@ def get_original_path(copy_path: str) -> Path:
     Returns:
         Path to the original CSV file.
     """
-    return Path(copy_path.replace("_copy.csv", ".csv"))
-
-
-def delete_project_files(copy_path: str) -> None:
-    """Delete both the working copy and original file for a project.
-
-    Args:
-        copy_path: Path to the _copy.csv working file.
-    """
-    original_path = get_original_path(copy_path)
-
-    for path in [Path(copy_path), original_path]:
-        try:
-            path.unlink()
-            logger.info("Deleted file: %s", path)
-        except FileNotFoundError:
-            logger.warning("File already missing: %s", path)
+    return Path(copy_path.replace('_copy.csv', '.csv'))

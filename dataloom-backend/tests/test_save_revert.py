@@ -22,14 +22,14 @@ class TestCheckpoint:
         # Verify log is unapplied
         logs = db.query(models.ProjectChangeLog).filter_by(project_id=project.project_id).all()
         assert len(logs) == 1
-        assert logs[0].applied is False
+        assert not logs[0].applied
 
         # Create checkpoint
         checkpoint = create_checkpoint(db, project.project_id, "First save")
 
         # Verify log is now applied
         db.refresh(logs[0])
-        assert logs[0].applied is True
+        assert logs[0].applied
         assert logs[0].checkpoint_id == checkpoint.id
 
     def test_checkpoint_message(self, db):
