@@ -150,6 +150,24 @@ class TestExportEndpoint:
 
 
 class TestDeleteEndpoint:
+    def test_delete_column_accepts_index_only_params(self, client, sample_csv, db):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Delete Column Test", "projectDescription": "Regression test"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        transform_response = client.post(
+            f"/projects/{project_id}/transform",
+            json={"operation_type": "delCol", "col_params": {"index": 0}},
+        )
+        assert transform_response.status_code == 200
+        payload = transform_response.json()
+        assert payload["columns"] == ["age", "city"]
+
     def test_delete_project(self, client, sample_csv, db):
         # Upload a project first
         with open(sample_csv, "rb") as f:
