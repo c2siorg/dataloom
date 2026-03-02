@@ -416,9 +416,7 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
 
     elif action_type == "delRow":
         index = action_details["row_params"]["index"]
-        if index < 0 or index >= len(df):
-            raise TransformationError(f"Row index {index} out of range")
-        return df.drop(index)
+        return delete_row(df, index)
 
     elif action_type == "addCol":
         index = action_details["col_params"]["index"]
