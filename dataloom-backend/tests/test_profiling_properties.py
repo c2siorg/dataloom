@@ -5,12 +5,20 @@ fields match direct pandas computations.
 **Validates: Requirements 1.1, 1.2, 1.3**
 """
 
+import math
+
 import numpy as np
 import pandas as pd
-from hypothesis import given, settings, strategies as st
+import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
-from app.services.profiling_service import compute_dataset_summary, compute_profile
-
+from app.services.profiling_service import (
+    compute_categorical_stats,
+    compute_dataset_summary,
+    compute_numeric_stats,
+    compute_profile,
+)
 
 # --- Custom DataFrame strategy ---
 
@@ -148,8 +156,6 @@ def test_column_profile_count_invariant(df: pd.DataFrame):
 
 # Feature: column-data-profiling, Property 3: Per-column base stats correctness
 
-import pytest
-
 
 @given(df=dataframe_strategy())
 @settings(max_examples=100)
@@ -180,10 +186,7 @@ def test_per_column_base_stats_correctness(df: pd.DataFrame):
         assert col_profile.missing_count == expected_missing
 
         # missing_percentage must match the formula
-        if len(df) > 0:
-            expected_pct = (expected_missing / len(df)) * 100
-        else:
-            expected_pct = 0.0
+        expected_pct = expected_missing / len(df) * 100 if len(df) > 0 else 0.0
         assert col_profile.missing_percentage == pytest.approx(expected_pct)
 
         # unique_count must match series.nunique()
@@ -191,10 +194,6 @@ def test_per_column_base_stats_correctness(df: pd.DataFrame):
         assert col_profile.unique_count == expected_unique
 
 # Feature: column-data-profiling, Property 4: Numeric stats correctness
-
-import math
-
-from app.services.profiling_service import compute_numeric_stats
 
 
 def numeric_series_strategy():
@@ -283,8 +282,6 @@ def test_numeric_stats_correctness(series: pd.Series):
 
 
 # Feature: column-data-profiling, Property 5: Categorical stats correctness
-
-from app.services.profiling_service import compute_categorical_stats
 
 
 def categorical_series_strategy():

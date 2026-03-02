@@ -27,8 +27,9 @@ async def lifespan(app):
     # Run Alembic migrations (skip for SQLite — tables managed manually)
     if not settings.database_url.startswith("sqlite"):
         try:
-            from alembic import command
             from alembic.config import Config
+
+            from alembic import command
 
             alembic_cfg = Config("alembic.ini")
             command.upgrade(alembic_cfg, "head")
@@ -37,8 +38,9 @@ async def lifespan(app):
     else:
         # Ensure tables exist via SQLModel for SQLite
         from sqlmodel import SQLModel
-        from app.database import engine
+
         from app import models  # noqa: F401
+        from app.database import engine
         SQLModel.metadata.create_all(engine)
 
     setup_logging(settings.debug)

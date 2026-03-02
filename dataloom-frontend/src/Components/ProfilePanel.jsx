@@ -75,8 +75,10 @@ const NumericStatsCompact = ({ stats }) => (
       { label: "Max", value: stats.max },
     ].map((s) => (
       <div key={s.label} className="bg-blue-50/70 rounded-lg px-2 py-1">
-        <div className="text-[8px] uppercase tracking-wider text-blue-400">{s.label}</div>
-        <div className="text-[11px] font-semibold text-blue-700 tabular-nums">{formatNumber(s.value)}</div>
+        <div className="text-[11px] font-semibold text-blue-700 tabular-nums">
+          <span className="text-[8px] uppercase tracking-wider text-blue-400">{s.label}: </span>
+          {formatNumber(s.value)}
+        </div>
       </div>
     ))}
   </div>

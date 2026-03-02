@@ -5,6 +5,7 @@ No side effects -- saving to disk is handled by the caller.
 """
 
 import pandas as pd
+
 from app.utils.logging import get_logger
 from app.utils.security import validate_query_string
 
@@ -60,14 +61,16 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
         try:
             value = float(value)
         except ValueError:
-            raise TransformationError(f"Invalid numeric value: {value}")
+            raise TransformationError(f"Invalid numeric value: {value}") from None
 
     ops = {
         '=': lambda: df[df[column] == value],
+        '!=': lambda: df[df[column] != value],
         '>': lambda: df[df[column] > value],
         '<': lambda: df[df[column] < value],
         '>=': lambda: df[df[column] >= value],
         '<=': lambda: df[df[column] <= value],
+        'contains': lambda: df[df[column].astype(str).str.contains(str(value), case=False, na=False)],
     }
 
     if condition not in ops:
