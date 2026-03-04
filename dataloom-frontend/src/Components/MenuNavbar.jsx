@@ -6,12 +6,14 @@ import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
+import ExportDialog from "./forms/ExportDialog";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
 import ConfirmDialog from "./common/ConfirmDialog";
 import Toast from "./common/Toast";
-import { saveProject, exportProject, getLogs, getCheckpoints, revertToCheckpoint } from "../api";
+import { saveProject, getLogs, getCheckpoints, revertToCheckpoint } from "../api";
+import { useProjectContext } from "../context/ProjectContext";
 import proptype from "prop-types";
 import {
   LuFilter,
@@ -28,6 +30,7 @@ import {
 } from "react-icons/lu";
 
 const Menu_NavBar = ({ projectId, onTransform }) => {
+  const { projectName } = useProjectContext();
   const [showFilterForm, setShowFilterForm] = useState(false);
   const [showSortForm, setShowSortForm] = useState(false);
   const [showDropDuplicateForm, setShowDropDuplicateForm] = useState(false);
@@ -37,6 +40,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -83,21 +87,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     }
   };
 
-  const handleExport = async () => {
-    try {
-      const blob = await exportProject(projectId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "export.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      setToast({ message: "Failed to export project.", type: "error" });
-    }
-  };
+  const handleExport = () => setShowExportDialog(true);
 
   const handleRevert = (checkpointId) => {
     setConfirmData({
@@ -296,6 +286,12 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
           onTransform={onTransform}
         />
       )}
+      <ExportDialog
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+        projectId={projectId}
+        projectName={projectName}
+      />
       {showLogs && <LogsPanel logs={logs} onClose={() => setShowLogs(false)} />}
       {showCheckpoints && (
         <CheckpointsPanel

@@ -6,6 +6,10 @@ from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
+from enum import Enum
+from typing import Optional, Union, Any, List
+import datetime
+
 
 # --- Enums ---
 
@@ -139,6 +143,30 @@ class DataType(StrEnum):
     float = "float"
     boolean = "boolean"
     datetime = "datetime"
+
+
+class ExportDelimiter(StrEnum):
+    """Supported CSV delimiter options for export."""
+    comma = "comma"
+    tab = "tab"
+    semicolon = "semicolon"
+    pipe = "pipe"
+
+    def to_char(self) -> str:
+        """Return the actual delimiter character."""
+        match self:
+            case ExportDelimiter.comma:     return ","
+            case ExportDelimiter.tab:       return "\t"
+            case ExportDelimiter.semicolon: return ";"
+            case ExportDelimiter.pipe:      return "|"
+
+
+class ExportEncoding(StrEnum):
+    """Supported file encoding options for export."""
+    utf8 = "utf-8"
+    latin1 = "latin-1"
+    ascii = "ascii"
+    utf16le = "utf-16-le"
 
 
 class CastDataTypeParams(BaseModel):

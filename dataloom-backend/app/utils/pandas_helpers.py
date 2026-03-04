@@ -27,6 +27,29 @@ def read_csv_safe(path: Path) -> pd.DataFrame:
         raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}") from e
 
 
+def read_csv_as_strings(path: Path) -> pd.DataFrame:
+    """Read a CSV preserving all values as their original string representations.
+
+    Uses dtype=str and keep_default_na=False to prevent pandas from silently
+    converting values (e.g. "00123"→123, "1.10"→"1.1", ""→NaN).
+
+    Args:
+        path: Path to the CSV file.
+
+    Returns:
+        DataFrame where every cell is a string.
+
+    Raises:
+        HTTPException: If the file cannot be read.
+    """
+    try:
+        return pd.read_csv(path, dtype=str, keep_default_na=False)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"CSV file not found: {path}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}")
+
+
 def save_csv_safe(df: pd.DataFrame, path: Path) -> None:
     """Save a DataFrame to CSV safely.
 
