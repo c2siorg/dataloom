@@ -87,6 +87,9 @@ const HomeScreen = () => {
 
   const handleCloseModal = () => {
     setShowModal(false);
+    setProjectName("");
+    setProjectDescription("");
+    setFileUpload(null);
   };
 
   const handleSubmitModal = async (event) => {
