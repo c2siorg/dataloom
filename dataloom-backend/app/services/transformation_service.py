@@ -444,12 +444,14 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         return df.drop(index)
 
     elif action_type == "addCol":
-        index = action_details["col_params"]["index"]
-        column_name = action_details["col_params"]["name"]
+        params = action_details.get("add_col_params") or action_details.get("col_params")
+        index = params["index"]
+        column_name = params["name"]
         return add_column(df, index, column_name)
 
     elif action_type == "delCol":
-        index = action_details["col_params"]["index"]
+        params = action_details.get("del_col_params") or action_details.get("col_params")
+        index = params["index"]
         return delete_column(df, index)
 
     elif action_type == "changeCellValue":

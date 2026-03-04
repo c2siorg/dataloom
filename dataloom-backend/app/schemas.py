@@ -104,11 +104,26 @@ class AddOrDeleteRow(BaseModel):
     index: int
 
 
-class AddOrDeleteColumn(BaseModel):
-    """Parameters for adding or deleting a column by index and name."""
+class AddColumn(BaseModel):
+    """Parameters for adding a column.
+
+    Attributes:
+        index: Zero-based column index where column will be inserted.
+        name: Column name; required for add operations.
+    """
 
     index: int
-    name: str | None = None
+    name: str
+
+
+class DeleteColumn(BaseModel):
+    """Parameters for deleting a column.
+
+    Attributes:
+        index: Zero-based column index to delete.
+    """
+
+    index: int
 
 
 class ChangeCellValue(BaseModel):
@@ -226,7 +241,8 @@ class TransformationInput(BaseModel):
     parameters: FilterParameters | None = None
     sort_params: SortParameters | None = None
     row_params: AddOrDeleteRow | None = None
-    col_params: AddOrDeleteColumn | None = None
+    add_col_params: AddColumn | None = None
+    del_col_params: DeleteColumn | None = None
     fill_empty_params: FillEmptyParams | None = None
     drop_duplicate: DropDuplicates | None = None
     adv_query: AdvQuery | None = None

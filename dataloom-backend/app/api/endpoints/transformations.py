@@ -57,15 +57,15 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         return ts.delete_row(df, transformation_input.row_params.index), True
 
     elif op == "addCol":
-        if not transformation_input.col_params:
+        if not transformation_input.add_col_params:
             raise HTTPException(status_code=400, detail="Column parameters required")
-        p = transformation_input.col_params
+        p = transformation_input.add_col_params
         return ts.add_column(df, p.index, p.name), True
 
     elif op == "delCol":
-        if not transformation_input.col_params:
+        if not transformation_input.del_col_params:
             raise HTTPException(status_code=400, detail="Column index required")
-        return ts.delete_column(df, transformation_input.col_params.index), True
+        return ts.delete_column(df, transformation_input.del_col_params.index), True
 
     elif op == "changeCellValue":
         if not transformation_input.change_cell_value:
