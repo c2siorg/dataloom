@@ -5,7 +5,7 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # --- Enums ---
 
@@ -39,6 +39,7 @@ class OperationType(StrEnum):
     renameCol = "renameCol"
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
+    dropNa = "dropNa"
 
 
 class DropDup(StrEnum):
@@ -76,6 +77,7 @@ class ActionTypes(StrEnum):
     renameCol = "renameCol"
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
+    dropNa = "dropNa"
 
 
 # --- Basic transformation parameter schemas ---
@@ -154,6 +156,19 @@ class TrimWhitespaceParams(BaseModel):
     column: str
 
 
+class DropNaParams(BaseModel):
+    """Parameters for dropping rows with missing/NaN values."""
+
+    columns: list[str] | None = None
+
+    @field_validator("columns")
+    @classmethod
+    def columns_must_not_be_empty(cls, v):
+        if v is not None and len(v) == 0:
+            raise ValueError("columns list must not be empty; omit the field to drop rows with any NaN")
+        return v
+
+
 # --- Complex transformation parameter schemas ---
 
 
@@ -220,6 +235,7 @@ class TransformationInput(BaseModel):
     rename_col_params: RenameColumnParams | None = None
     cast_data_type_params: CastDataTypeParams | None = None
     trim_whitespace_params: TrimWhitespaceParams | None = None
+    drop_na_params: DropNaParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
