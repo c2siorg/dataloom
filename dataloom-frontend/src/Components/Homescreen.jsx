@@ -107,6 +107,15 @@ const HomeScreen = () => {
     fetchRecentProjects();
   }, []);
 
+  useEffect(() => {
+    if (!showModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isSubmitting) handleCloseModal();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showModal, isSubmitting]);
+
   const fetchRecentProjects = async () => {
     try {
       const response = await getRecentProjects();
