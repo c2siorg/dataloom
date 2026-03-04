@@ -1,19 +1,7 @@
-import { test, expect } from "@playwright/test";
-import { createProject, deleteProjectApi } from "./helpers.js";
+import { test, expect } from "./fixtures.js";
 
 test.describe("Project CRUD", () => {
-  let projectId;
-
-  test.afterEach(async ({ request }) => {
-    if (projectId) {
-      await deleteProjectApi(request, projectId);
-      projectId = null;
-    }
-  });
-
-  test("create a project via CSV upload and land on workspace", async ({ page }) => {
-    projectId = await createProject(page, "CRUD Test Project");
-
+  test("create a project via CSV upload and land on workspace", async ({ page, projectId }) => {
     expect(page.url()).toContain("/workspace/");
 
     const table = page.locator('[data-testid="data-table"]');
@@ -25,23 +13,19 @@ test.describe("Project CRUD", () => {
     await expect(table.locator("tbody tr")).toHaveCount(5);
   });
 
-  test("project appears on the homescreen after creation", async ({ page }) => {
-    projectId = await createProject(page, "Homescreen Visible");
-
+  test("project appears on the homescreen after creation", async ({ page, projectId }) => {
     await page.goto("/projects");
-    await page.waitForLoadState("networkidle");
+    await page.locator('[data-testid="project-card"]').first().waitFor({ state: "visible" });
 
-    await expect(page.getByText("Homescreen Visible")).toBeVisible();
+    await expect(page.getByText(/E2E/)).toBeVisible();
   });
 
-  test("delete a project from the homescreen", async ({ page }) => {
-    projectId = await createProject(page, "Delete Me Project");
-
+  test("delete a project from the homescreen", async ({ page, projectId }) => {
     await page.goto("/projects");
-    await page.waitForLoadState("networkidle");
+    await page.locator('[data-testid="project-card"]').first().waitFor({ state: "visible" });
 
     const projectCard = page.locator('[data-testid="project-card"]', {
-      hasText: "Delete Me Project",
+      hasText: /E2E/,
     });
     await projectCard.locator('[aria-label="Delete project"]').click();
 
@@ -50,8 +34,5 @@ test.describe("Project CRUD", () => {
     await dialog.getByRole("button", { name: "Confirm" }).click();
 
     await expect(page.getByText("Project deleted successfully")).toBeVisible();
-    await expect(page.getByText("Delete Me Project")).not.toBeVisible();
-
-    projectId = null;
   });
 });

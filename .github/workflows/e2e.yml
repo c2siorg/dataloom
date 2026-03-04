@@ -19,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/dataloom
+
     services:
       postgres:
         image: postgres:16
@@ -49,7 +52,7 @@ jobs:
         working-directory: dataloom-backend
         run: |
           cat > .env <<'EOF'
-          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dataloom
+          DATABASE_URL=${{ env.DATABASE_URL }}
           CORS_ORIGINS=["http://localhost:3200"]
           UPLOAD_DIR=uploads
           DEBUG=false
@@ -90,10 +93,10 @@ jobs:
         env:
           CI: "true"
 
-      # Upload artifacts on failure or cancellation
+      # Upload artifacts only on failure or cancellation
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: ${{ failure() || cancelled() }}
         with:
           name: playwright-artifacts
           path: |

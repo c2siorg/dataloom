@@ -195,7 +195,10 @@ const HomeScreen = () => {
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal}></div>
-          <div data-testid="project-modal" className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
+          <div
+            data-testid="project-modal"
+            className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4"
+          >
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Name</h2>
             <input
               data-testid="project-name-input"

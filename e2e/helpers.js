@@ -17,7 +17,7 @@ const API_BASE = "http://localhost:4200";
  */
 export async function createProject(page, projectName, description = "E2E test project") {
   await page.goto("/projects");
-  await page.waitForLoadState("networkidle");
+  await page.locator('[data-testid="new-project-card"]').waitFor({ state: "visible" });
 
   // Open the new project modal
   await page.locator('[data-testid="new-project-card"]').click();
@@ -33,8 +33,10 @@ export async function createProject(page, projectName, description = "E2E test p
   await page.locator('[data-testid="data-table"]').waitFor({ state: "visible", timeout: 15_000 });
 
   // Extract project ID from URL
-  const url = page.url();
-  return url.split("/workspace/")[1];
+  const url = new URL(page.url());
+  const match = url.pathname.match(/\/workspace\/([^/]+)/);
+  if (!match) throw new Error(`Could not extract project ID from URL: ${url.href}`);
+  return match[1];
 }
 
 /**

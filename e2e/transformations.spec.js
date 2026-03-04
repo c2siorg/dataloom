@@ -7,8 +7,8 @@ test.describe("Transformations", () => {
 
     const form = page.locator('[data-testid="filter-form"]');
     await form.waitFor({ state: "visible" });
-    await form.locator('input[name="column"]').fill("city");
-    await form.locator('input[name="value"]').fill("New York");
+    await form.locator('[data-testid="filter-column"]').fill("city");
+    await form.locator('[data-testid="filter-value"]').fill("New York");
     await form.getByRole("button", { name: "Apply Filter" }).click();
 
     const preview = page.locator('[data-testid="transform-preview"]');
@@ -25,7 +25,7 @@ test.describe("Transformations", () => {
 
     const form = page.locator('[data-testid="sort-form"]');
     await form.waitFor({ state: "visible" });
-    await form.locator('input[type="text"]').fill("age");
+    await form.locator('[data-testid="sort-column"]').fill("age");
     await form.getByRole("button", { name: "Submit" }).click();
 
     const preview = page.locator('[data-testid="transform-preview"]');

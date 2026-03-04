@@ -53,6 +53,7 @@ const FilterForm = ({ projectId, onClose }) => {
             <input
               type="text"
               name="column"
+              data-testid="filter-column"
               value={filterParams.column}
               onChange={handleInputChange}
               className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
@@ -82,6 +83,7 @@ const FilterForm = ({ projectId, onClose }) => {
             <input
               type="text"
               name="value"
+              data-testid="filter-value"
               value={filterParams.value}
               onChange={handleInputChange}
               className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"

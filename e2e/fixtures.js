@@ -14,6 +14,9 @@ export const test = base.extend({
     const name = `E2E ${testInfo.title.slice(0, 30)} ${Date.now()}`;
     const id = await createProject(page, name);
 
+    // Log project ID for easier debugging in CI
+    testInfo.annotations.push({ type: "project-id", description: id });
+
     await use(id);
 
     // Cleanup — silently ignores if already deleted by the test

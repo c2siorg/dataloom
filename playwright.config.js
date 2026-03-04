@@ -39,14 +39,14 @@ export default defineConfig({
       reuseExistingServer: !isCI,
       timeout: 30_000,
       env: {
-        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dataloom",
+        DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/dataloom",
       },
     },
     {
       command: "cd dataloom-frontend && npm run dev",
       url: "http://localhost:3200",
       reuseExistingServer: !isCI,
-      timeout: 15_000,
+      timeout: 60_000, // 60s — generous for Vite in CI
     },
   ],
 });

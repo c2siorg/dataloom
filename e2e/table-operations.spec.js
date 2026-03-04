@@ -20,24 +20,28 @@ test.describe("Table Operations", () => {
 
     // Add a row
     await table.locator("tbody tr").first().locator("td").first().click({ button: "right" });
-    const contextMenu = page.locator('[data-testid="context-menu"]');
+    const contextMenu = page.locator('[data-testid="context-menu-row"]');
     await contextMenu.waitFor({ state: "visible" });
     await contextMenu.getByText("Add Row").click();
     await expect(table.locator("tbody tr")).toHaveCount(6);
 
-    // Delete the row
-    await table.locator("tbody tr").first().locator("td").first().click({ button: "right" });
-    const contextMenu2 = page.locator('[data-testid="context-menu"]');
-    await contextMenu2.waitFor({ state: "visible" });
-    await contextMenu2.getByText("Delete Row").click();
+    // Delete the last row (the newly added empty row)
+    const lastRow = table.locator("tbody tr").last();
+    await lastRow.locator("td").first().click({ button: "right" });
+    const deleteMenu = page.locator('[data-testid="context-menu-row"]');
+    await deleteMenu.waitFor({ state: "visible" });
+    await deleteMenu.getByText("Delete Row").click();
     await expect(table.locator("tbody tr")).toHaveCount(5);
+
+    // Verify original data is intact
+    await expect(table).toContainText("Alice");
   });
 
   test("rename a column via context menu", async ({ page, projectId }) => {
     const table = page.locator('[data-testid="data-table"]');
 
     await table.locator("thead th").nth(1).click({ button: "right" });
-    const contextMenu = page.locator('[data-testid="context-menu"]');
+    const contextMenu = page.locator('[data-testid="context-menu-column"]');
     await contextMenu.waitFor({ state: "visible" });
     await contextMenu.getByText("Rename Column").click();
 
