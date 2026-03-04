@@ -87,7 +87,7 @@ npx playwright test --debug          # Run in debug mode with inspector
 
 Playwright automatically starts the backend and frontend servers. If they are already running, it reuses them.
 
-Test files are in `e2e/` at the repository root. Each test should create its own project using the `createProject` helper from `e2e/helpers.js` and clean up via `deleteProjectApi` in `afterEach`. Use `data-testid` selectors where available.
+Test files are in `e2e/` at the repository root. Import `{ test, expect }` from `e2e/fixtures.js` and rely on the provided fixtures for per-test project creation and automatic cleanup, rather than calling `createProject` or `deleteProjectApi` directly. Use `data-testid` selectors where available.
 
 ## Code Style
 
