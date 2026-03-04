@@ -106,7 +106,7 @@ class AddOrDeleteColumn(BaseModel):
     """Parameters for adding or deleting a column by index and name."""
 
     index: int
-    name: str
+    name: str | None = None
 
 
 class ChangeCellValue(BaseModel):
