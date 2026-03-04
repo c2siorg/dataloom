@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
-COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables"}
+COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables", "dropNa"}
 
 
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
@@ -125,6 +125,12 @@ def _handle_complex_transform(df, transformation_input, project, db, project_id)
             raise HTTPException(status_code=400, detail="Pivot parameters required")
         p = transformation_input.pivot_query
         return ts.pivot_table(df, p.index, p.value, p.column, p.aggfun), False
+    
+    elif op == "dropNa":
+        if not transformation_input.drop_na_params:
+            raise HTTPException(status_code=400, detail="Drop NA parameters required")
+        p = transformation_input.drop_na_params
+        return ts.drop_na(df, p.columns), True
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
