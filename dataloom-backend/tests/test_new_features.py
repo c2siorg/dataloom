@@ -1,6 +1,7 @@
 """Tests for new features: rename column, cast data type, export, and delete project."""
 
 import csv
+from io import BytesIO
 
 import pandas as pd
 import pytest
@@ -144,6 +145,44 @@ class TestExportEndpoint:
     def test_export_nonexistent_project(self, client):
         response = client.get("/projects/00000000-0000-0000-0000-000000000000/export")
         assert response.status_code == 404
+
+    def test_export_project_xlsx(self, client, sample_csv, db):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Export XLSX Test", "projectDescription": "Test xlsx export"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        export_response = client.get(f"/projects/{project_id}/export?format=xlsx")
+        assert export_response.status_code == 200
+        assert (
+            export_response.headers["content-type"]
+            == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        exported_df = pd.read_excel(BytesIO(export_response.content))
+        assert list(exported_df.columns) == ["name", "age", "city"]
+        assert len(exported_df) == 4
+        assert exported_df.iloc[0]["name"] == "Alice"
+        assert exported_df.iloc[0]["age"] == 30
+        assert "filename=" in export_response.headers.get("content-disposition", "")
+
+    @pytest.mark.parametrize("bad_format", ["pdf", "json", "xls", ""])
+    def test_export_invalid_format(self, client, sample_csv, db, bad_format):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Export Invalid Format", "projectDescription": "Test bad format"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export?format={bad_format}")
+        assert response.status_code == 422
 
 
 # --- Delete Endpoint Tests ---

@@ -4,8 +4,11 @@ Handles upload, retrieval, save (checkpoint), and revert operations.
 """
 
 import uuid
+from io import BytesIO
+from typing import Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from sqlmodel import Session
 
@@ -202,10 +205,40 @@ async def revert_to_checkpoint(
 
 
 @router.get("/{project_id}/export")
-async def export_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Download the current working copy of a project as a CSV file."""
+async def export_project(
+    project_id: uuid.UUID,
+    export_format: Literal["csv", "xlsx"] = Query(default="csv", alias="format"),
+    db: Session = Depends(database.get_db),
+):
+    """Download the current working copy of a project as CSV or XLSX."""
     project = get_project_or_404(project_id, db)
-    return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
+    ascii_name = project.name.encode("ascii", errors="replace").decode().replace('"', "'")
+
+    if export_format == "csv":
+        return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
+
+    headers = {
+        "Content-Disposition": (
+            f'attachment; filename="{ascii_name}.xlsx"; '
+            f"filename*=UTF-8''{quote(project.name)}.xlsx"
+        )
+    }
+
+    try:
+        df = read_csv_safe(project.file_path)
+        output = BytesIO()
+        df.to_excel(output, index=False)
+        output.seek(0)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Project data file not found on disk")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to generate XLSX export") from exc
+
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
 
 
 @router.delete("/{project_id}")
