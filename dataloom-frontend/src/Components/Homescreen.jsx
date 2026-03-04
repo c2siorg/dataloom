@@ -182,7 +182,17 @@ const HomeScreen = () => {
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
-    if (file && file.size > MAX_FILE_SIZE_BYTES) {
+    if (!file) return;
+
+    const isCSV = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
+    if (!isCSV) {
+      showToast("Please upload a CSV file.", "error");
+      event.target.value = "";
+      setFileUpload(null);
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
       showToast(`File too large (${sizeMB} MB). Maximum allowed size is 10 MB.`, "warning");
       event.target.value = "";
