@@ -289,7 +289,7 @@ const Table = ({ projectId, data: externalData }) => {
 
       {contextMenu.visible && contextMenu.type === "column" && (
         <div
-          data-testid="context-menu"
+          data-testid="context-menu-column"
           className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
@@ -316,7 +316,7 @@ const Table = ({ projectId, data: externalData }) => {
 
       {contextMenu.visible && contextMenu.type === "row" && (
         <div
-          data-testid="context-menu"
+          data-testid="context-menu-row"
           className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >

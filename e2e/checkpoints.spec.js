@@ -30,10 +30,15 @@ test.describe("Checkpoints", () => {
 
     // Edit a cell
     const table = page.locator('[data-testid="data-table"]');
-    const firstDataCell = table.locator("tbody tr").first().locator("td").nth(1).locator("div");
+    const targetCell = table.locator("tbody tr").first().locator("td").nth(1);
+
+    // Capture original value before modifying
+    const originalValue = await targetCell.locator("div").innerText();
+
+    const firstDataCell = targetCell.locator("div");
     await firstDataCell.click();
 
-    const cellInput = table.locator("tbody tr").first().locator("td").nth(1).locator("input");
+    const cellInput = targetCell.locator("input");
     await cellInput.fill("MODIFIED");
     await cellInput.press("Enter");
     await expect(table).toContainText("MODIFIED");
@@ -50,5 +55,7 @@ test.describe("Checkpoints", () => {
 
     await expect(page.getByText("Project reverted successfully!")).toBeVisible();
     await expect(table).not.toContainText("MODIFIED");
+    // Verify the original value was restored
+    await expect(targetCell).toContainText(originalValue);
   });
 });

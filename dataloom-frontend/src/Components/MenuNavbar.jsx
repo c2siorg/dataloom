@@ -247,7 +247,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
                 {section.items.map((item) => (
                   <button
                     key={item.label}
-                    data-testid={`toolbar-${item.label.toLowerCase().replace(" ", "-")}`}
+                    data-testid={`toolbar-${item.label.toLowerCase().replace(/ /g, "-")}`}
                     onClick={item.onClick}
                     className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-md hover:bg-gray-100"
                   >

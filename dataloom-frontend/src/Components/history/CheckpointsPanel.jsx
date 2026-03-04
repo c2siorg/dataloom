@@ -7,7 +7,10 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
       : checkpoints && checkpoints.id;
 
   return (
-    <div data-testid="checkpoints-panel" className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group">
+    <div
+      data-testid="checkpoints-panel"
+      className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group"
+    >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Last Checkpoint</h3>
         <button
