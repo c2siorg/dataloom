@@ -25,11 +25,15 @@ class Project(SQLModel, table=True):
     description: str | None = None
     upload_date: datetime | None = Field(
         default=None,
-        sa_column=Column(DateTime, server_default=func.now()),
+        sa_column=Column(DateTime(timezone=True), server_default=func.now()),
     )
     last_modified: datetime | None = Field(
         default=None,
-        sa_column=Column(DateTime, server_default=func.now()),
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            onupdate=func.now(),
+        ),
     )
     file_path: str
 

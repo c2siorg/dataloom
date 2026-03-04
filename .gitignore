@@ -25,3 +25,7 @@ Desktop.ini
 .env
 .env.local
 .env.*.local
+
+# SQLite databases (auto-generated during test runs)
+dataloom-backend/*.db
+dataloom-backend/tests/*.db
