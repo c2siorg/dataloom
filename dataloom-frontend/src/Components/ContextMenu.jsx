@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import PropTypes from "prop-types";
-
 const ContextMenu = ({ isOpen, position, contextData, onClose, actions }) => {
   const menuRef = useRef(null);
 
   const [adjustedPosition, setAdjustedPosition] = useState(position);
 
+  // useLayoutEffect (not useEffect) ensures clamping runs synchronously
+  // before the browser paints, preventing visible position jump.
   useLayoutEffect(() => {
     if (!isOpen) return;
 
@@ -35,28 +36,21 @@ const ContextMenu = ({ isOpen, position, contextData, onClose, actions }) => {
   }, [isOpen, position]);
 
   useEffect(() => {
-    if (!isOpen) {
-      setAdjustedPosition(position);
-    }
+    if (!isOpen) return;
 
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        onClose();
-      }
+      if (menuRef.current && !menuRef.current.contains(event.target)) onClose();
     };
-
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onClose();
     };
-
-    const handleScroll = () => {
-      onClose();
-    };
+    const handleScroll = () => onClose();
 
     document.addEventListener("click", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
+    // Close the context menu on any scroll event.
+    // Using capture phase ensures scrolling inside nested containers
+    // (like the table's overflow area) also closes the menu.
     window.addEventListener("scroll", handleScroll, true);
 
     return () => {
@@ -64,13 +58,15 @@ const ContextMenu = ({ isOpen, position, contextData, onClose, actions }) => {
       document.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("scroll", handleScroll, true);
     };
-  }, [isOpen, onClose, position]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
     <div
       ref={menuRef}
+      role="menu"
+      aria-label="Context menu"
       className="fixed bg-white border border-gray-200 rounded-lg shadow-lg p-1 z-50"
       style={{
         top: adjustedPosition.y,

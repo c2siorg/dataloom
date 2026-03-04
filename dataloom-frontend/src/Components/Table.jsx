@@ -1,12 +1,26 @@
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
 import DtypeBadge from "./common/DtypeBadge";
-import proptypes from "prop-types";
+import PropTypes from "prop-types";
+
+const MenuButton = ({ children, onClick }) => (
+  <button
+    role="menuitem"
+    className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150 whitespace-nowrap"
+    onClick={onClick}
+  >
+    {children}
+  </button>
+);
+MenuButton.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClick: PropTypes.func.isRequired,
+};
 
 const Table = ({ projectId, data: externalData }) => {
   const { columns: ctxColumns, rows: ctxRows, dtypes, updateData } = useProjectContext();
@@ -291,6 +305,7 @@ const Table = ({ projectId, data: externalData }) => {
               </>
             );
           }
+          return null;
         }}
       />
 
@@ -314,21 +329,13 @@ const Table = ({ projectId, data: externalData }) => {
 };
 
 Table.propTypes = {
-  projectId: proptypes.string.isRequired,
-  data: proptypes.shape({
-    columns: proptypes.arrayOf(proptypes.string),
-    rows: proptypes.arrayOf(
-      proptypes.arrayOf(proptypes.oneOfType([proptypes.string, proptypes.number])),
+  projectId: PropTypes.string.isRequired,
+  data: PropTypes.shape({
+    columns: PropTypes.arrayOf(PropTypes.string),
+    rows: PropTypes.arrayOf(
+      PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.number])),
     ),
   }),
 };
 
-const MenuButton = ({ children, onClick }) => (
-  <button
-    className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150 whitespace-nowrap"
-    onClick={onClick}
-  >
-    {children}
-  </button>
-);
 export default Table;
