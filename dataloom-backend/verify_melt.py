@@ -1,11 +1,13 @@
-import pandas as pd
-import sys
 import os
+import sys
+
+import pandas as pd
 
 # Add parent directory to sys.path to import app modules
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
-from app.services.transformation_service import melt_dataframe, TransformationError
+from app.services.transformation_service import TransformationError, melt_dataframe
+
 
 def test_melt():
     # Setup sample data

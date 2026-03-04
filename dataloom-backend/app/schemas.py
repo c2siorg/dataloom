@@ -3,7 +3,7 @@
 import datetime
 import uuid
 from enum import StrEnum
-from typing import Any, List, Optional
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -205,8 +205,8 @@ class UserLogsInput(BaseModel):
 
 class MeltParams(BaseModel):
     """Parameters for the Melt (Unpivot) transformation."""
-    id_vars: List[str]                    
-    value_vars: Optional[List[str]] = None  
+    id_vars: list[str]                    
+    value_vars: list[str] | None = None  
     var_name: str = "variable"            
     value_name: str = "value"             
 

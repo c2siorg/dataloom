@@ -4,8 +4,10 @@ Each function takes a DataFrame and parameters, returns a new DataFrame.
 No side effects -- saving to disk is handled by the caller.
 """
 
+from typing import Any
+
 import pandas as pd
-from typing import Any, List, Optional
+
 from app.utils.logging import get_logger
 from app.utils.security import validate_query_string
 
@@ -443,7 +445,9 @@ def melt_dataframe(df: pd.DataFrame, params: Any) -> pd.DataFrame:
                 # This is okay, it's being melted away
                 pass
             else:
-                raise TransformationError(f"Target column name '{name}' already exists in dataset and is not being melted.")
+                raise TransformationError(
+                    f"Target column name '{name}' already exists in dataset and is not being melted."
+                )
 
     try:
         return df.melt(
@@ -453,7 +457,7 @@ def melt_dataframe(df: pd.DataFrame, params: Any) -> pd.DataFrame:
             value_name=value_name
         )
     except Exception as e:
-        raise TransformationError(f"Melt operation failed: {str(e)}")
+        raise TransformationError(f"Melt operation failed: {str(e)}") from e
 
 
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
