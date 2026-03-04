@@ -393,11 +393,11 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
 
 
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
-    """Replay a logged transformation from its serialized form.
+    """Replay a logged transformation against a DataFrame.
 
-    Used by the save endpoint to apply pending transformations to the original
-    dataset file. Each action_details dict contains the serialized parameters
-    from the original TransformationInput.
+    Each action type delegates to its corresponding helper function
+    (e.g. delete_row, add_column) to ensure replay behavior remains
+    consistent with live execution, including index normalization.
 
     Args:
         df: Source DataFrame.
@@ -415,10 +415,14 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         return add_row(df, index)
 
     elif action_type == "delRow":
+        # Delegate to delete_row() so replay follows the same logic as live execution.
+        # delete_row() also ensures reset_index(drop=True) so subsequent logged
+        # transformations operate on a contiguous integer index.
         index = action_details["row_params"]["index"]
-        if index < 0 or index >= len(df):
-            raise TransformationError(f"Row index {index} out of range")
-        return df.drop(index)
+        try:
+            return delete_row(df, index)
+        except (KeyError, IndexError) as e:
+            raise TransformationError(f"Row index {index} out of range") from e
 
     elif action_type == "addCol":
         index = action_details["col_params"]["index"]
