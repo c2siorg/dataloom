@@ -37,11 +37,10 @@ const MeltForm = ({ projectId, onClose }) => {
       return;
     }
 
-    const effectiveValueVars = valueVars.length > 0
-      ? valueVars
-      : columns.filter(col => !idVars.includes(col));
+    const effectiveValueVars =
+      valueVars.length > 0 ? valueVars : columns.filter((col) => !idVars.includes(col));
 
-    const overlap = idVars.filter(v => effectiveValueVars.includes(v));
+    const overlap = idVars.filter((v) => effectiveValueVars.includes(v));
     if (overlap.length > 0) {
       setError(`Columns cannot be in both ID and Value variables: ${overlap.join(", ")}`);
       setLoading(false);
@@ -58,7 +57,7 @@ const MeltForm = ({ projectId, onClose }) => {
           id_vars: idVars,
           value_vars: effectiveValueVars,
           var_name: finalVarName,
-          value_name: finalValueName
+          value_name: finalValueName,
         },
       });
       setResult(response);
@@ -71,7 +70,7 @@ const MeltForm = ({ projectId, onClose }) => {
 
   const handleIdVarsChange = (col) => {
     if (idVars.includes(col)) {
-      setIdVars(idVars.filter(v => v !== col));
+      setIdVars(idVars.filter((v) => v !== col));
     } else {
       setIdVars([...idVars, col]);
     }
@@ -79,7 +78,7 @@ const MeltForm = ({ projectId, onClose }) => {
 
   const handleValueVarsChange = (col) => {
     if (valueVars.includes(col)) {
-      setValueVars(valueVars.filter(v => v !== col));
+      setValueVars(valueVars.filter((v) => v !== col));
     } else {
       setValueVars([...valueVars, col]);
     }
@@ -89,9 +88,9 @@ const MeltForm = ({ projectId, onClose }) => {
     <div className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
       <form onSubmit={handleSubmit} className="space-y-4">
         <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-            Melt (Unpivot) Dataset
+          Melt (Unpivot) Dataset
         </h3>
-        
+
         {error && (
           <div className="bg-red-50 text-red-600 p-2 rounded text-sm border border-red-100">
             {typeof error === "string" ? error : JSON.stringify(error, null, 2)}
@@ -100,10 +99,15 @@ const MeltForm = ({ projectId, onClose }) => {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">ID Variables (Keep as columns):</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              ID Variables (Keep as columns):
+            </label>
             <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto p-2 bg-gray-50">
-              {columns.map(col => (
-                <label key={`id-${col}`} className="flex items-center gap-2 py-1 px-1 hover:bg-gray-200 rounded cursor-pointer text-sm">
+              {columns.map((col) => (
+                <label
+                  key={`id-${col}`}
+                  className="flex items-center gap-2 py-1 px-1 hover:bg-gray-200 rounded cursor-pointer text-sm"
+                >
                   <input
                     type="checkbox"
                     checked={idVars.includes(col)}
@@ -118,10 +122,15 @@ const MeltForm = ({ projectId, onClose }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Value Variables (to unpivot):</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Value Variables (to unpivot):
+            </label>
             <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto p-2 bg-gray-50">
-              {columns.map(col => (
-                <label key={`val-${col}`} className="flex items-center gap-2 py-1 px-1 hover:bg-gray-200 rounded cursor-pointer text-sm">
+              {columns.map((col) => (
+                <label
+                  key={`val-${col}`}
+                  className="flex items-center gap-2 py-1 px-1 hover:bg-gray-200 rounded cursor-pointer text-sm"
+                >
                   <input
                     type="checkbox"
                     checked={valueVars.includes(col)}
@@ -132,7 +141,9 @@ const MeltForm = ({ projectId, onClose }) => {
                 </label>
               ))}
             </div>
-            <p className="text-[10px] text-gray-400 mt-1">Leave empty to unpivot all non-ID columns.</p>
+            <p className="text-[10px] text-gray-400 mt-1">
+              Leave empty to unpivot all non-ID columns.
+            </p>
           </div>
         </div>
 
@@ -162,18 +173,18 @@ const MeltForm = ({ projectId, onClose }) => {
         <div className="flex justify-between pt-2">
           <div className="flex gap-2">
             <button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm disabled:opacity-50"
-                disabled={loading}
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm disabled:opacity-50"
+              disabled={loading}
             >
-                {loading ? "Processing..." : "Apply Melt"}
+              {loading ? "Processing..." : "Apply Melt"}
             </button>
             <button
-                type="button"
-                onClick={onClose}
-                className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm"
+              type="button"
+              onClick={onClose}
+              className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm"
             >
-                Cancel
+              Cancel
             </button>
           </div>
         </div>

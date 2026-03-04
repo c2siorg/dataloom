@@ -32,15 +32,12 @@ const TransformResultPreview = ({ columns, rows }) => {
           </thead>
           <tbody className="bg-white">
             {displayRows.map((row, rowIndex) => (
-              <tr 
-                key={rowIndex} 
+              <tr
+                key={rowIndex}
                 className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
               >
                 {row.map((cell, cellIndex) => (
-                  <td
-                    key={cellIndex}
-                    className="py-1 px-3 text-xs text-gray-700 whitespace-nowrap"
-                  >
+                  <td key={cellIndex} className="py-1 px-3 text-xs text-gray-700 whitespace-nowrap">
                     {String(cell)}
                   </td>
                 ))}

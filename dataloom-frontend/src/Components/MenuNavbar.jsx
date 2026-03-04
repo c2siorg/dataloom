@@ -151,6 +151,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         break;
       case "TrimWhitespaceForm":
         setShowTrimWhitespaceForm(true);
+        break;
       case "MeltForm":
         setShowMeltForm(true);
         break;
@@ -293,9 +294,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       {showPivotTableForm && (
         <PivotTableForm onClose={() => setShowPivotTableForm(false)} projectId={projectId} />
       )}
-      {showMeltForm && (
-        <MeltForm onClose={() => setShowMeltForm(false)} projectId={projectId} />
-      )}
+      {showMeltForm && <MeltForm onClose={() => setShowMeltForm(false)} projectId={projectId} />}
       {showCastDataTypeForm && (
         <CastDataTypeForm
           projectId={projectId}
