@@ -85,15 +85,19 @@ const MenuNavbar = ({ projectId, onTransform }) => {
 
   const handleExport = async (format = "csv") => {
     try {
-      const blob = await exportProject(projectId, format);
+      const response = await exportProject(projectId, format);
+      const blob = response.data;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
+      const disposition = response.headers?.["content-disposition"] ?? "";
+      const match = disposition.match(/filename[^;=\n]*=(["']?)([^'"\n;]*)\1/);
+      const filename = match?.[2] ?? (format === "xlsx" ? "export.xlsx" : "export.csv");
       a.href = url;
-      a.download = format === "xlsx" ? "export.xlsx" : "export.csv";
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch {
       setToast({ message: "Failed to export project.", type: "error" });
     }
