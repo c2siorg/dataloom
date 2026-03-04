@@ -15,9 +15,15 @@ const API_BASE = "http://localhost:4200";
  * @param {string} [description="E2E test project"]
  * @returns {Promise<string>} The project ID extracted from the URL
  */
-export async function createProject(page, projectName, description = "E2E test project") {
+export async function createProject(
+  page,
+  projectName,
+  description = "E2E test project",
+) {
   await page.goto("/projects");
-  await page.locator('[data-testid="new-project-card"]').waitFor({ state: "visible" });
+  await page
+    .locator('[data-testid="new-project-card"]')
+    .waitFor({ state: "visible" });
 
   // Open the new project modal
   await page.locator('[data-testid="new-project-card"]').click();
@@ -25,17 +31,22 @@ export async function createProject(page, projectName, description = "E2E test p
   // Fill in project details
   await page.locator('[data-testid="project-name-input"]').fill(projectName);
   await page.locator('[data-testid="file-input"]').setInputFiles(SAMPLE_CSV);
-  await page.locator('[data-testid="project-description-input"]').fill(description);
+  await page
+    .locator('[data-testid="project-description-input"]')
+    .fill(description);
 
   // Submit and wait for workspace to load
   await page.locator('[data-testid="submit-project"]').click();
   await page.waitForURL(/\/workspace\//, { timeout: 20_000 });
-  await page.locator('[data-testid="data-table"]').waitFor({ state: "visible", timeout: 15_000 });
+  await page
+    .locator('[data-testid="data-table"]')
+    .waitFor({ state: "visible", timeout: 15_000 });
 
   // Extract project ID from URL
   const url = new URL(page.url());
   const match = url.pathname.match(/\/workspace\/([^/]+)/);
-  if (!match) throw new Error(`Could not extract project ID from URL: ${url.href}`);
+  if (!match)
+    throw new Error(`Could not extract project ID from URL: ${url.href}`);
   return match[1];
 }
 

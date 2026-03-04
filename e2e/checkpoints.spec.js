@@ -1,7 +1,10 @@
 import { test, expect } from "./fixtures.js";
 
 test.describe("Checkpoints", () => {
-  test("save a checkpoint and verify it appears", async ({ page, projectId }) => {
+  test("save a checkpoint and verify it appears", async ({
+    page,
+    projectId,
+  }) => {
     await page.locator('[data-testid="toolbar-save"]').click();
 
     const dialog = page.getByRole("dialog", { name: "Input Required" });
@@ -53,7 +56,9 @@ test.describe("Checkpoints", () => {
     await confirmDialog.waitFor({ state: "visible" });
     await confirmDialog.getByRole("button", { name: "Confirm" }).click();
 
-    await expect(page.getByText("Project reverted successfully!")).toBeVisible();
+    await expect(
+      page.getByText("Project reverted successfully!"),
+    ).toBeVisible();
     await expect(table).not.toContainText("MODIFIED");
     // Verify the original value was restored
     await expect(targetCell).toContainText(originalValue);

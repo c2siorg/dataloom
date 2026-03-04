@@ -1,7 +1,10 @@
 import { test, expect } from "./fixtures.js";
 
 test.describe("Project CRUD", () => {
-  test("create a project via CSV upload and land on workspace", async ({ page, projectId }) => {
+  test("create a project via CSV upload and land on workspace", async ({
+    page,
+    projectId,
+  }) => {
     expect(page.url()).toContain("/workspace/");
 
     const table = page.locator('[data-testid="data-table"]');
@@ -13,16 +16,25 @@ test.describe("Project CRUD", () => {
     await expect(table.locator("tbody tr")).toHaveCount(5);
   });
 
-  test("project appears on the homescreen after creation", async ({ page, projectId }) => {
+  test("project appears on the homescreen after creation", async ({
+    page,
+    projectId,
+  }) => {
     await page.goto("/projects");
-    await page.locator('[data-testid="project-card"]').first().waitFor({ state: "visible" });
+    await page
+      .locator('[data-testid="project-card"]')
+      .first()
+      .waitFor({ state: "visible" });
 
     await expect(page.getByText(/E2E/)).toBeVisible();
   });
 
   test("delete a project from the homescreen", async ({ page, projectId }) => {
     await page.goto("/projects");
-    await page.locator('[data-testid="project-card"]').first().waitFor({ state: "visible" });
+    await page
+      .locator('[data-testid="project-card"]')
+      .first()
+      .waitFor({ state: "visible" });
 
     const projectCard = page.locator('[data-testid="project-card"]', {
       hasText: /E2E/,
