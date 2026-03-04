@@ -14,7 +14,9 @@ test.describe("Transformations", () => {
     const preview = page.locator('[data-testid="transform-preview"]');
     await preview.waitFor({ state: "visible" });
 
-    await expect(page.locator('[data-testid="preview-table"] tbody tr')).toHaveCount(2);
+    await expect(
+      page.locator('[data-testid="preview-table"] tbody tr'),
+    ).toHaveCount(2);
     await expect(preview).toContainText("Alice");
     await expect(preview).toContainText("Diana");
   });
@@ -31,7 +33,9 @@ test.describe("Transformations", () => {
     const preview = page.locator('[data-testid="transform-preview"]');
     await preview.waitFor({ state: "visible" });
 
-    const firstRow = page.locator('[data-testid="preview-table"] tbody tr').first();
+    const firstRow = page
+      .locator('[data-testid="preview-table"] tbody tr')
+      .first();
     await expect(firstRow).toContainText("Bob");
     await expect(firstRow).toContainText("25");
   });

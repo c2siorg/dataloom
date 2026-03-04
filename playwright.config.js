@@ -8,7 +8,9 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   workers: 1,
-  reporter: isCI ? [["github"], ["html", { open: "never" }]] : [["html", { open: "on-failure" }]],
+  reporter: isCI
+    ? [["github"], ["html", { open: "never" }]]
+    : [["html", { open: "on-failure" }]],
   timeout: 90_000,
   globalSetup: "./e2e/global-setup.js",
 
@@ -39,7 +41,9 @@ export default defineConfig({
       reuseExistingServer: !isCI,
       timeout: 30_000,
       env: {
-        DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/dataloom",
+        DATABASE_URL:
+          process.env.DATABASE_URL ??
+          "postgresql://postgres:postgres@localhost:5432/dataloom",
       },
     },
     {

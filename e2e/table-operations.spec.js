@@ -4,10 +4,20 @@ test.describe("Table Operations", () => {
   test("inline cell editing", async ({ page, projectId }) => {
     const table = page.locator('[data-testid="data-table"]');
 
-    const cell = table.locator("tbody tr").first().locator("td").nth(1).locator("div");
+    const cell = table
+      .locator("tbody tr")
+      .first()
+      .locator("td")
+      .nth(1)
+      .locator("div");
     await cell.click();
 
-    const cellInput = table.locator("tbody tr").first().locator("td").nth(1).locator("input");
+    const cellInput = table
+      .locator("tbody tr")
+      .first()
+      .locator("td")
+      .nth(1)
+      .locator("input");
     await cellInput.fill("Updated Value");
     await cellInput.press("Enter");
 
@@ -19,7 +29,12 @@ test.describe("Table Operations", () => {
     await expect(table.locator("tbody tr")).toHaveCount(5);
 
     // Add a row
-    await table.locator("tbody tr").first().locator("td").first().click({ button: "right" });
+    await table
+      .locator("tbody tr")
+      .first()
+      .locator("td")
+      .first()
+      .click({ button: "right" });
     const contextMenu = page.locator('[data-testid="context-menu-row"]');
     await contextMenu.waitFor({ state: "visible" });
     await contextMenu.getByText("Add Row").click();
