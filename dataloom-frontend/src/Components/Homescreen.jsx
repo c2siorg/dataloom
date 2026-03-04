@@ -101,6 +101,9 @@ const HomeScreen = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  const isFormValid =
+    projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
+
   useEffect(() => {
     fetchRecentProjects();
   }, []);
@@ -283,6 +286,8 @@ const HomeScreen = () => {
                   className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
+                  required
+                  aria-required="true"
                 />
               </div>
               <div>
@@ -314,6 +319,8 @@ const HomeScreen = () => {
                   accept=".csv"
                   className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none"
                   onChange={handleFileUpload}
+                  required
+                  aria-required="true"
                 />
               </div>
             </div>
@@ -328,7 +335,7 @@ const HomeScreen = () => {
               <button
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSubmitModal}
-                disabled={isSubmitting}
+                disabled={!isFormValid || isSubmitting}
               >
                 {isSubmitting ? "Creating..." : "Create Project"}
               </button>
