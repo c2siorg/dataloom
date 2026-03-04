@@ -39,6 +39,7 @@ class OperationType(StrEnum):
     renameCol = "renameCol"
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
+    dropNa = "dropNa"
 
 
 class DropDup(StrEnum):
@@ -76,6 +77,7 @@ class ActionTypes(StrEnum):
     renameCol = "renameCol"
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
+    dropNa = "dropNa"
 
 
 # --- Basic transformation parameter schemas ---
@@ -153,6 +155,10 @@ class TrimWhitespaceParams(BaseModel):
 
     column: str
 
+class DropNaParams(BaseModel):
+    """Parameters for dropping rows with missing/NaN values."""
+
+    columns: list[str] | None = None
 
 # --- Complex transformation parameter schemas ---
 
@@ -220,6 +226,7 @@ class TransformationInput(BaseModel):
     rename_col_params: RenameColumnParams | None = None
     cast_data_type_params: CastDataTypeParams | None = None
     trim_whitespace_params: TrimWhitespaceParams | None = None
+    drop_na_params: DropNaParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
