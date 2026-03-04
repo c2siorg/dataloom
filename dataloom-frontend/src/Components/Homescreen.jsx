@@ -220,10 +220,7 @@ const HomeScreen = () => {
         <h1 className="text-5xl text-gray-900">
           Welcome to <span className="text-blue-500 font-bold">DataLoom</span>,
         </h1>
-        <p className="text-4xl mt-2 text-gray-900">
-          your one-stop for{" "}
-          <span className="text-gray-900 font-semibold">Dataset Transformations</span>.
-        </p>
+        <p className="text-xl mt-2 text-gray-600">your one-stop for Dataset Transformations.</p>
 
         <div className="flex items-center justify-between mt-12 mb-4">
           <h2 className="text-lg font-medium text-gray-700">Recent Projects</h2>
