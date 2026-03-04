@@ -36,7 +36,7 @@ const SortForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div data-testid="sort-form" className="p-4 border border-gray-200 rounded-lg bg-white">
       <form onSubmit={handleSubmit}>
         <h3 className="font-semibold text-gray-900 mb-2">Sort Dataset</h3>
         <div className="flex flex-wrap mb-4">
@@ -44,6 +44,7 @@ const SortForm = ({ projectId, onClose }) => {
             <label className="block mb-1 text-sm font-medium text-gray-700">Column:</label>
             <input
               type="text"
+              data-testid="sort-column"
               value={column}
               onChange={(e) => setColumn(e.target.value)}
               className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
