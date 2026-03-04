@@ -2,7 +2,7 @@
 
 import uuid
 from pydantic import BaseModel
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Optional, Union, Any, List
 import datetime
 
@@ -126,7 +126,7 @@ class DataType(str, Enum):
     datetime = "datetime"
 
 
-class ExportDelimiter(str, Enum):
+class ExportDelimiter(StrEnum):
     """Supported CSV delimiter options for export."""
     comma = "comma"
     tab = "tab"
@@ -135,15 +135,19 @@ class ExportDelimiter(str, Enum):
 
     def to_char(self) -> str:
         """Return the actual delimiter character."""
-        return {"comma": ",", "tab": "\t", "semicolon": ";", "pipe": "|"}[self.value]
+        match self:
+            case ExportDelimiter.comma:     return ","
+            case ExportDelimiter.tab:       return "\t"
+            case ExportDelimiter.semicolon: return ";"
+            case ExportDelimiter.pipe:      return "|"
 
 
-class ExportEncoding(str, Enum):
+class ExportEncoding(StrEnum):
     """Supported file encoding options for export."""
     utf8 = "utf-8"
     latin1 = "latin-1"
     ascii = "ascii"
-    utf16 = "utf-16"
+    utf16le = "utf-16-le"
 
 
 class CastDataTypeParams(BaseModel):

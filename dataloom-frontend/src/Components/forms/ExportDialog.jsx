@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "../common/Modal";
 import { exportProject } from "../../api";
 import proptype from "prop-types";
@@ -14,7 +14,7 @@ const ENCODINGS = [
   { value: "utf-8", label: "UTF-8" },
   { value: "latin-1", label: "Latin-1" },
   { value: "ascii", label: "ASCII" },
-  { value: "utf-16", label: "UTF-16" },
+  { value: "utf-16-le", label: "UTF-16 LE" },
 ];
 
 /**
@@ -31,6 +31,17 @@ const ExportDialog = ({ isOpen, onClose, projectId, projectName }) => {
   const [encoding, setEncoding] = useState("utf-8");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Reset all options to defaults whenever the dialog is opened so stale
+  // settings from a previous session do not cause accidental wrong-format exports.
+  useEffect(() => {
+    if (isOpen) {
+      setDelimiter("comma");
+      setIncludeHeader(true);
+      setEncoding("utf-8");
+      setError(null);
+    }
+  }, [isOpen]);
 
   const handleExport = async () => {
     setLoading(true);
@@ -50,8 +61,14 @@ const ExportDialog = ({ isOpen, onClose, projectId, projectName }) => {
       a.remove();
       URL.revokeObjectURL(url);
       onClose();
-    } catch {
-      setError("Failed to export. Please try again.");
+    } catch (err) {
+      console.error("Export failed:", err);
+      const status = err?.response?.status;
+      const msg =
+        status === 400
+          ? "Export failed: the data contains characters incompatible with the selected encoding."
+          : "Failed to export. Please try again.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -63,8 +80,9 @@ const ExportDialog = ({ isOpen, onClose, projectId, projectName }) => {
 
         {/* Delimiter */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">Delimiter</label>
+          <label htmlFor="export-delimiter" className="text-sm font-medium text-gray-700">Delimiter</label>
           <select
+            id="export-delimiter"
             value={delimiter}
             onChange={(e) => setDelimiter(e.target.value)}
             className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -79,8 +97,9 @@ const ExportDialog = ({ isOpen, onClose, projectId, projectName }) => {
 
         {/* Encoding */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700">Encoding</label>
+          <label htmlFor="export-encoding" className="text-sm font-medium text-gray-700">Encoding</label>
           <select
+            id="export-encoding"
             value={encoding}
             onChange={(e) => setEncoding(e.target.value)}
             className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -5,9 +5,10 @@ Handles upload, retrieval, save (checkpoint), and revert operations.
 
 import io
 import uuid
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from sqlmodel import Session
 
 from app import database, models, schemas
@@ -21,7 +22,7 @@ from app.services.project_service import (
 from app.services.file_service import delete_project_files, get_original_path, store_upload
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import dataframe_to_response, read_csv_as_strings, read_csv_safe, save_csv_safe
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -198,18 +199,63 @@ async def export_project(
     Supports custom delimiter, header inclusion, and file encoding.
     """
     project = get_project_or_404(project_id, db)
-    df = read_csv_safe(project.file_path)
+
+    # Build a safe Content-Disposition header per RFC 6266.
+    # Strip characters that would break the quoted-string token, then provide
+    # both a legacy ASCII fallback and a percent-encoded filename* parameter
+    # for non-ASCII names and modern browsers.
+    safe_name = project.name.replace('"', "").replace("\\", "")
+    encoded_name = quote(f"{safe_name}.csv", safe="")
+    content_disposition = (
+        f'attachment; filename="{safe_name}.csv"; '
+        f"filename*=UTF-8''{encoded_name}"
+    )
+    headers = {"Content-Disposition": content_disposition}
+
+    logger.info(
+        "Export: id=%s, delimiter=%s, header=%s, encoding=%s",
+        project_id, delimiter, include_header, encoding,
+    )
+
+    # Fast path: serve the raw file bytes for the default combination so that
+    # no pandas round-trip can silently alter data values (leading zeros, date
+    # reformatting, scientific notation, etc.).
+    if (
+        delimiter == schemas.ExportDelimiter.comma
+        and include_header
+        and encoding == schemas.ExportEncoding.utf8
+    ):
+        return FileResponse(
+            project.file_path,
+            media_type="text/csv; charset=utf-8",
+            headers=headers,
+        )
+
+    # Non-default: read every cell as a string to preserve original
+    # representations, then re-serialise with the requested options.
+    df = read_csv_as_strings(project.file_path)
 
     buffer = io.StringIO()
     df.to_csv(buffer, index=False, sep=delimiter.to_char(), header=include_header)
-    csv_bytes = buffer.getvalue().encode(encoding.value)
 
-    filename = f"{project.name}.csv"
-    logger.info("Export: id=%s, delimiter=%s, header=%s, encoding=%s", project_id, delimiter, include_header, encoding)
-    return StreamingResponse(
-        io.BytesIO(csv_bytes),
+    try:
+        csv_bytes = buffer.getvalue().encode(encoding.value)
+    except UnicodeEncodeError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"The data contains characters that cannot be encoded as "
+                f"{encoding.value}. Try UTF-8 instead."
+            ),
+        )
+
+    # The full content is already in memory (required to catch the encoding
+    # error above), so use Response directly rather than giving a false
+    # impression of streaming via StreamingResponse.
+    return Response(
+        content=csv_bytes,
         media_type=f"text/csv; charset={encoding.value}",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers=headers,
     )
 
 
