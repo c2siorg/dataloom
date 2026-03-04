@@ -66,6 +66,7 @@ const EmptyState = ({ onClick }) => (
         viewBox="0 0 24 24"
         stroke="currentColor"
         strokeWidth={1.5}
+        aria-hidden="true"
       >
         <path
           strokeLinecap="round"
@@ -80,6 +81,7 @@ const EmptyState = ({ onClick }) => (
       Upload a CSV file to get started. Your recent projects will appear here.
     </p>
     <button
+      type="button"
       onClick={onClick}
       className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors duration-150 shadow-sm"
     >
@@ -117,6 +119,9 @@ const HomeScreen = () => {
 
   const handleCloseModal = () => {
     setShowModal(false);
+    setFileUpload(null);
+    setProjectName("");
+    setProjectDescription("");
   };
 
   const handleSubmitModal = async (event) => {
@@ -201,6 +206,7 @@ const HomeScreen = () => {
           <h2 className="text-lg font-medium text-gray-700">Recent Projects</h2>
           {recentProjects.length > 0 && (
             <button
+              type="button"
               onClick={handleNewProjectClick}
               className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors duration-150"
             >
@@ -234,34 +240,63 @@ const HomeScreen = () => {
       />
 
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="fixed inset-0 bg-black/50" onClick={handleCloseModal}></div>
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
+          <div
+            className="fixed inset-0 bg-black/50"
+            onClick={handleCloseModal}
+            aria-hidden="true"
+          ></div>
           <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">New Project</h2>
+            <h2 id="modal-title" className="text-xl font-semibold text-gray-900 mb-6">
+              New Project
+            </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                <label
+                  htmlFor="project-name"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Project Name
+                </label>
                 <input
+                  id="project-name"
                   type="text"
                   placeholder="e.g. Sales Analysis Q1"
                   className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label
+                  htmlFor="project-description"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Description
+                </label>
                 <input
+                  id="project-description"
                   type="text"
                   placeholder="Brief description of this dataset"
                   className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="project-file"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Upload Dataset <span className="text-gray-400 font-normal">(CSV)</span>
                 </label>
                 <input
+                  id="project-file"
                   type="file"
                   accept=".csv"
                   className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none"
