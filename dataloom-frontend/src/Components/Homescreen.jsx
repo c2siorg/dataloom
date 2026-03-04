@@ -96,6 +96,7 @@ const HomeScreen = () => {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [recentProjects, setRecentProjects] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, projectId: null });
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -143,6 +144,7 @@ const HomeScreen = () => {
     }
 
     try {
+      setIsSubmitting(true);
       const data = await uploadProject(fileUpload, projectName, projectDescription);
 
       const projectId = data.project_id;
@@ -155,6 +157,8 @@ const HomeScreen = () => {
     } catch (error) {
       console.error("Error uploading file:", error);
       showToast("Error uploading file. Please try again.", "error");
+    } finally {
+      setIsSubmitting(false);
     }
 
     setShowModal(false);
@@ -306,16 +310,18 @@ const HomeScreen = () => {
             </div>
             <div className="flex flex-row justify-end gap-3 mt-6">
               <button
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors duration-150"
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleCloseModal}
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium transition-colors duration-150"
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSubmitModal}
+                disabled={isSubmitting}
               >
-                Create Project
+                {isSubmitting ? "Creating..." : "Create Project"}
               </button>
             </div>
           </div>
