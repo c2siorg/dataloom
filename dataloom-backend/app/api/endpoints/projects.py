@@ -188,6 +188,12 @@ async def revert_to_checkpoint(
         for log in logs:
             df = apply_logged_transformation(df, log.action_type, log.action_details)
 
+    # Clear unapplied logs — they represent transformations the user chose to discard
+    db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.applied == False,  # noqa: E712
+    ).delete()
+
     save_csv_safe(df, project.file_path)
     db.commit()
 
