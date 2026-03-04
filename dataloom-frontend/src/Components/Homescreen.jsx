@@ -179,6 +179,13 @@ const HomeScreen = () => {
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
+    if (!file) return;
+    const isCSV = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
+    if (!isCSV) {
+      showToast("Please upload a CSV file.", "error");
+      event.target.value = null;
+      return;
+    }
     setFileUpload(file);
   };
 
