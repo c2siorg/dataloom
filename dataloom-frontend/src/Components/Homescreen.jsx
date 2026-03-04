@@ -307,11 +307,11 @@ const HomeScreen = () => {
                 >
                   Description
                 </label>
-                <input
+                <textarea
                   id="project-description"
-                  type="text"
+                  rows={3}
                   placeholder="Brief description of this dataset"
-                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
                 />
