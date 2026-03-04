@@ -41,15 +41,27 @@ export async function createProject(page, projectName, description = "E2E test p
 
 /**
  * Delete a project via the API for clean test teardown.
- * Silently ignores errors (project may already be deleted by the test).
+ * Ignores 404 (project already deleted by the test).
+ * Logs and re-throws on other failures so CI issues are visible.
  *
  * @param {import('@playwright/test').APIRequestContext} request
  * @param {string} projectId
  */
 export async function deleteProjectApi(request, projectId) {
-  try {
-    await request.delete(`${API_BASE}/projects/${projectId}`, { timeout: 10_000 });
-  } catch {
-    // Ignore — project may already be deleted by the test
+  const response = await request.delete(`${API_BASE}/projects/${projectId}`, {
+    timeout: 10_000,
+  });
+
+  // Ignore "not found" — project may already be deleted by the test
+  if (response.status() === 404) {
+    return;
+  }
+
+  // For any other non-OK response, log details and throw so CI failures are diagnosable
+  if (!response.ok()) {
+    const body = await response.text().catch(() => "<unreadable>");
+    const msg = `deleteProjectApi failed for ${projectId}: HTTP ${response.status()} — ${body}`;
+    console.error(msg);
+    throw new Error(msg);
   }
 }
