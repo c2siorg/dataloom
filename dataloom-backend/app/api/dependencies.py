@@ -24,9 +24,7 @@ def get_project_or_404(project_id: uuid.UUID, db: Session = Depends(database.get
     Raises:
         HTTPException: 404 if project not found.
     """
-    project = db.query(models.Project).filter(
-        models.Project.project_id == project_id
-    ).first()
+    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found")
     return project

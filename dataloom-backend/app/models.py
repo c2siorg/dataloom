@@ -7,10 +7,9 @@ and save checkpoints.
 import uuid as uuid_mod
 from datetime import datetime
 
+import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, func
 from sqlmodel import Field, Relationship, SQLModel
-
-import sqlalchemy as sa
 
 
 class Project(SQLModel, table=True):

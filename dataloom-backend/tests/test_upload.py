@@ -1,13 +1,16 @@
 """Tests for dataset upload functionality."""
 
-import pytest
 from io import BytesIO
+
+import pytest
 from fastapi import HTTPException
+
 from app.utils.security import validate_upload_file
 
 
 class MockUploadFile:
     """Mock for FastAPI UploadFile."""
+
     def __init__(self, filename, content=b"col1,col2\n1,2\n"):
         self.filename = filename
         self.file = BytesIO(content)
