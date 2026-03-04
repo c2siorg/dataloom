@@ -5,7 +5,7 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # --- Enums ---
 
@@ -155,10 +155,19 @@ class TrimWhitespaceParams(BaseModel):
 
     column: str
 
+
 class DropNaParams(BaseModel):
     """Parameters for dropping rows with missing/NaN values."""
 
     columns: list[str] | None = None
+
+    @field_validator("columns")
+    @classmethod
+    def columns_must_not_be_empty(cls, v):
+        if v is not None and len(v) == 0:
+            raise ValueError("columns list must not be empty; omit the field to drop rows with any NaN")
+        return v
+
 
 # --- Complex transformation parameter schemas ---
 
