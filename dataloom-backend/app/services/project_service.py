@@ -1,7 +1,7 @@
 """Database operations for projects, logs, and checkpoints."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlmodel import Session
 
@@ -71,6 +71,22 @@ def delete_project(db: Session, project: models.Project) -> None:
     logger.info("Deleted project: id=%s, name=%s", project.project_id, project.name)
 
 
+def _touch_project(db: Session, project_id: uuid.UUID) -> None:
+    """Update last_modified on the project to record recent activity.
+
+    Raises:
+        ValueError: If the project_id does not match any existing project.
+    """
+    # Use UTC explicitly; server_default also targets UTC via func.now()
+    rows_updated = (
+        db.query(models.Project)
+        .filter(models.Project.project_id == project_id)
+        .update({"last_modified": datetime.now(UTC)})
+    )
+    if rows_updated == 0:
+        raise ValueError(f"Project {project_id} not found")
+
+
 def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, details: dict) -> None:
     """Record a transformation action in the change log.
 
@@ -87,9 +103,7 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
     )
     db.add(log)
 
-    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
-    if project:
-        project.last_modified = datetime.now(timezone.utc)
+    _touch_project(db, project_id)
 
     db.commit()
     logger.debug("Logged transformation: project_id=%s, type=%s", project_id, operation_type)
@@ -124,9 +138,7 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
         log.applied = True
         log.checkpoint_id = checkpoint.id
 
-    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
-    if project:
-        project.last_modified = datetime.now(timezone.utc)
+    _touch_project(db, project_id)
 
     db.commit()
     logger.info("Checkpoint created: id=%s, project_id=%s, logs_applied=%d", checkpoint.id, project_id, len(logs))
