@@ -47,7 +47,7 @@ export const getRecentProjects = async () => {
  */
 export const saveProject = async (projectId, commitMessage) => {
   const response = await client.post(
-    `/projects/${projectId}/save?commit_message=${encodeURIComponent(commitMessage)}`
+    `/projects/${projectId}/save?commit_message=${encodeURIComponent(commitMessage)}`,
   );
   return response.data;
 };
@@ -59,9 +59,7 @@ export const saveProject = async (projectId, commitMessage) => {
  * @returns {Promise<Object>} Reverted project response.
  */
 export const revertToCheckpoint = async (projectId, checkpointId) => {
-  const response = await client.post(
-    `/projects/${projectId}/revert?checkpoint_id=${checkpointId}`
-  );
+  const response = await client.post(`/projects/${projectId}/revert?checkpoint_id=${checkpointId}`);
   return response.data;
 };
 
