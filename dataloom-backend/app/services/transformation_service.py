@@ -391,7 +391,8 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
     result.columns = result.columns.astype(str)
     return result.reset_index()
 
-def drop_na(df: pd.DataFrame, columns: list = None) -> pd.DataFrame:
+
+def drop_na(df: pd.DataFrame, columns: list[str] | None = None) -> pd.DataFrame:
     """Drop rows with missing/NaN values.
 
     Args:
@@ -402,15 +403,17 @@ def drop_na(df: pd.DataFrame, columns: list = None) -> pd.DataFrame:
     Returns:
         DataFrame with NaN rows removed.
     """
-    df = df.copy()
-    if columns:
+    if columns is not None:
+        if len(columns) == 0:
+            raise TransformationError("columns list must not be empty")
         missing = [c for c in columns if c not in df.columns]
         if missing:
-            raise TransformationError(
-                f"Columns {missing} not found in dataset"
-            )
-        return df.dropna(subset=columns)
-    return df.dropna()
+            raise TransformationError(f"Columns not found in dataset: {', '.join(missing)}")
+        df = df.copy()
+        return df.dropna(subset=columns).reset_index(drop=True)
+    df = df.copy()
+    return df.dropna().reset_index(drop=True)
+
 
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
@@ -478,7 +481,7 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == "trimWhitespace":
         column = action_details["trim_whitespace_params"]["column"]
         return trim_whitespace(df, column)
-    
+
     elif action_type == "dropNa":
         columns = action_details.get("drop_na_params", {}).get("columns")
         return drop_na(df, columns)
