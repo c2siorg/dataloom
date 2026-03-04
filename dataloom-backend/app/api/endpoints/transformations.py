@@ -77,7 +77,7 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.fill_empty_params:
             raise HTTPException(status_code=400, detail="Fill parameters required")
         p = transformation_input.fill_empty_params
-        return ts.fill_empty(df, p.fill_value, p.index), True
+        return ts.fill_empty(df, p.fill_value, p.index, p.strategy), True
 
     elif op == "renameCol":
         if not transformation_input.rename_col_params:

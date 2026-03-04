@@ -200,25 +200,75 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
     return df
 
 
-def fill_empty(df: pd.DataFrame, fill_value, column_index: int = None) -> pd.DataFrame:
-    """Fill empty/NaN cells with a specified value.
+def fill_empty(
+    df: pd.DataFrame,
+    fill_value=None,
+    column_index: int = None,
+    strategy: str = "custom",
+) -> pd.DataFrame:
+    """Fill empty/NaN cells using a specified strategy.
 
     Args:
         df: Source DataFrame.
-        fill_value: Value to fill empty cells with.
+        fill_value: Literal fill value (used only when strategy is 'custom').
         column_index: Optional specific column index. If None, fills all columns.
+        strategy: One of 'custom', 'mean', 'median', 'mode', 'ffill', 'bfill'.
 
     Returns:
         DataFrame with empty cells filled.
+
+    Raises:
+        TransformationError: If strategy is unsupported, column index is out of range,
+            or a statistical strategy is applied to a non-numeric column.
     """
+    VALID_STRATEGIES = ("custom", "mean", "median", "mode", "ffill", "bfill")
+    if strategy not in VALID_STRATEGIES:
+        raise TransformationError(f"Unsupported fill strategy: '{strategy}'")
+
     df = df.copy()
+
     if column_index is not None:
         if column_index < 0 or column_index >= len(df.columns):
             raise TransformationError(f"Column index {column_index} out of range")
-        column_name = df.columns[column_index]
-        df[column_name] = df[column_name].fillna(fill_value)
+        col_name = df.columns[column_index]
+
+        if strategy == "custom":
+            df[col_name] = df[col_name].fillna(fill_value)
+        elif strategy == "mean":
+            if not pd.api.types.is_numeric_dtype(df[col_name]):
+                raise TransformationError(
+                    f"Cannot compute mean on non-numeric column '{col_name}'"
+                )
+            df[col_name] = df[col_name].fillna(df[col_name].mean())
+        elif strategy == "median":
+            if not pd.api.types.is_numeric_dtype(df[col_name]):
+                raise TransformationError(
+                    f"Cannot compute median on non-numeric column '{col_name}'"
+                )
+            df[col_name] = df[col_name].fillna(df[col_name].median())
+        elif strategy == "mode":
+            col_mode = df[col_name].mode()
+            if col_mode.empty:
+                raise TransformationError(
+                    f"Cannot compute mode: column '{col_name}' has no values"
+                )
+            df[col_name] = df[col_name].fillna(col_mode.iloc[0])
+        elif strategy == "ffill":
+            df[col_name] = df[col_name].ffill()
+        elif strategy == "bfill":
+            df[col_name] = df[col_name].bfill()
     else:
-        df = df.fillna(fill_value)
+        if strategy == "custom":
+            df = df.fillna(fill_value)
+        elif strategy == "ffill":
+            df = df.ffill()
+        elif strategy == "bfill":
+            df = df.bfill()
+        elif strategy in ("mean", "median", "mode"):
+            raise TransformationError(
+                f"Strategy '{strategy}' requires a specific column to be selected"
+            )
+
     return df
 
 
@@ -436,9 +486,10 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         return change_cell_value(df, row_index, col_index, new_value)
 
     elif action_type == "fillEmpty":
-        fill_value = action_details["fill_empty_params"]["fill_value"]
+        fill_value = action_details["fill_empty_params"].get("fill_value")
         column_index = action_details["fill_empty_params"].get("index")
-        return fill_empty(df, fill_value, column_index)
+        strategy = action_details["fill_empty_params"].get("strategy", "custom")
+        return fill_empty(df, fill_value, column_index, strategy)
 
     elif action_type == "dropDuplicate":
         columns = action_details["drop_duplicate"]["columns"]
