@@ -12,14 +12,34 @@ async function globalSetup() {
     { name: "Frontend", url: "http://localhost:3200" },
   ];
 
+  const MAX_RETRIES = 3;
+  const BACKOFF_MS = 1000;
+  const TIMEOUT_MS = 5000;
+
   for (const { name, url } of endpoints) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`${name} returned HTTP ${response.status}`);
+    let lastError;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timer);
+        if (!response.ok) {
+          throw new Error(`${name} returned HTTP ${response.status}`);
+        }
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = err;
+        if (attempt < MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, BACKOFF_MS * attempt));
+        }
       }
-    } catch (err) {
-      throw new Error(`${name} health check failed at ${url}: ${err.message}`);
+    }
+    if (lastError) {
+      throw new Error(
+        `${name} health check failed at ${url} after ${MAX_RETRIES} attempts: ${lastError.message}`,
+      );
     }
   }
 }
