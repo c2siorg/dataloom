@@ -502,5 +502,4 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         return drop_na(df, columns)
 
     else:
-        logger.warning("Unknown action type in log replay: %s", action_type)
-        return df
+        raise TransformationError(f"Unknown action type in log replay: {action_type}")
