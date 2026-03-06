@@ -263,9 +263,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
       </div>
 
       {showFilterForm && (
-        <FilterForm onClose={() => setShowFilterForm(false)} projectId={projectId} />
+        <FilterForm onClose={() => setShowFilterForm(false)} projectId={projectId} onTransform={onTransform} />
       )}
-      {showSortForm && <SortForm onClose={() => setShowSortForm(false)} projectId={projectId} />}
+      {showSortForm && <SortForm onClose={() => setShowSortForm(false)} projectId={projectId} onTransform={onTransform} />}
       {showDropDuplicateForm && (
         <DropDuplicateForm
           projectId={projectId}
@@ -277,10 +277,11 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         <AdvQueryFilterForm
           onClose={() => setShowAdvQueryFilterForm(false)}
           projectId={projectId}
+          onTransform={onTransform}
         />
       )}
       {showPivotTableForm && (
-        <PivotTableForm onClose={() => setShowPivotTableForm(false)} projectId={projectId} />
+        <PivotTableForm onClose={() => setShowPivotTableForm(false)} projectId={projectId} onTransform={onTransform} />
       )}
       {showCastDataTypeForm && (
         <CastDataTypeForm

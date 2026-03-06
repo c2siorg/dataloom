@@ -1,19 +1,16 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import TransformResultPreview from "./TransformResultPreview";
 import { transformProject } from "../../api";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
-const AdvQueryFilterForm = ({ projectId, onClose }) => {
+const AdvQueryFilterForm = ({ projectId, onClose, onTransform }) => {
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Query:", query);
     setLoading(true);
     clearError();
     try {
@@ -21,10 +18,9 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
         operation_type: "advQueryFilter",
         adv_query: { query },
       });
-      setResult(response);
-      console.log("Query API response:", response);
+      onTransform(response);
+      onClose();
     } catch (err) {
-      console.error("Error applying query:", err.message);
       handleError(err);
     } finally {
       setLoading(false);
@@ -49,10 +45,10 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
         <div className="flex justify-between">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
           >
-            Submit
+            {loading ? "Applying..." : "Apply Query"}
           </button>
           <button
             type="button"
@@ -64,7 +60,6 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
         </div>
       </form>
       <FormErrorAlert message={error} />
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };
@@ -72,6 +67,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
 AdvQueryFilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default AdvQueryFilterForm;
