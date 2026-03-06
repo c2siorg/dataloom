@@ -210,6 +210,7 @@ const HomeScreen = () => {
             <input
               data-testid="file-input"
               type="file"
+              accept=".csv,.xlsx,.xls,.json"
               className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none mb-4"
               onChange={handleFileUpload}
             />

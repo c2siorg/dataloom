@@ -27,7 +27,8 @@ def store_upload(file) -> tuple[Path, Path]:
     with open(original_path, "wb+") as f:
         shutil.copyfileobj(file.file, f)
 
-    copy_path = Path(str(original_path).replace(".csv", "_copy.csv"))
+    ext = original_path.suffix
+    copy_path = Path(str(original_path).replace(ext, f"_copy{ext}"))
     shutil.copy2(original_path, copy_path)
 
     logger.info("Stored upload: original=%s, copy=%s", original_path, copy_path)
@@ -38,12 +39,17 @@ def get_original_path(copy_path: str) -> Path:
     """Derive the original file path from a working copy path.
 
     Args:
-        copy_path: Path to the _copy.csv working file.
+        copy_path: Path to the working file (e.g. data_copy.csv).
 
     Returns:
-        Path to the original CSV file.
+        Path to the original file (e.g. data.csv).
     """
-    return Path(copy_path.replace("_copy.csv", ".csv"))
+    path_obj = Path(copy_path)
+    ext = path_obj.suffix
+    copy_suffix = f"_copy{ext}"
+    if str(path_obj).endswith(copy_suffix):
+        return Path(str(path_obj).replace(copy_suffix, ext))
+    return path_obj
 
 
 def delete_project_files(copy_path: str) -> None:
