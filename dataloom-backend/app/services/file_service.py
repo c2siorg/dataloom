@@ -4,12 +4,11 @@ import shutil
 from pathlib import Path
 
 from app.utils.logging import get_logger
+from app.utils.pandas_helpers import read_file_safe, save_csv_safe
 from app.utils.security import resolve_upload_path, sanitize_filename
 
 logger = get_logger(__name__)
 
-
-from app.utils.pandas_helpers import read_file_safe, save_csv_safe
 
 def store_upload(file) -> tuple[Path, Path]:
     """Store an uploaded file and create a canonical CSV working copy.
@@ -37,10 +36,10 @@ def store_upload(file) -> tuple[Path, Path]:
     # Standardize our internal storage to always use .csv
     original_path = raw_path.with_suffix(".csv")
     copy_path = original_path.with_name(f"{original_path.stem}_copy.csv")
-    
+
     save_csv_safe(df, original_path)
     save_csv_safe(df, copy_path)
-    
+
     # Clean up the raw file if it was not originally a CSV
     if raw_path != original_path:
         raw_path.unlink()
@@ -57,7 +56,16 @@ def get_original_path(copy_path: str) -> Path:
 
     Returns:
         Path to the original file (e.g. data.csv).
+
+    Raises:
+        ValueError: If the path doesn't end with '_copy.csv'.
     """
+    if not copy_path.endswith("_copy.csv"):
+        logger.error(
+            "Invalid copy path format for get_original_path: %s (expected suffix '_copy.csv')",
+            copy_path,
+        )
+        raise ValueError("Invalid copy path format: expected path ending with '_copy.csv'.")
     return Path(copy_path.replace("_copy.csv", ".csv"))
 
 

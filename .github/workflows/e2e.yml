@@ -70,7 +70,7 @@ jobs:
 
       # Playwright setup with browser caching
       - name: Install root dependencies
-        run: npm install
+        run: npm ci
       - name: Get Playwright version
         id: pw-version
         run: echo "version=$(npx playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"

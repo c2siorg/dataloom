@@ -30,6 +30,10 @@ class TestValidateUploadFile:
         file = MockUploadFile("data.xlsx")
         validate_upload_file(file)
 
+    def test_legacy_excel_accepted(self):
+        file = MockUploadFile("data.xls")
+        validate_upload_file(file)
+
     def test_unsupported_rejected(self):
         file = MockUploadFile("data.txt")
         with pytest.raises(HTTPException, match="not allowed"):
