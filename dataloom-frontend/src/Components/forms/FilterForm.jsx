@@ -1,17 +1,15 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
-import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
-const FilterForm = ({ projectId, onClose }) => {
+const FilterForm = ({ projectId, onClose, onTransform }) => {
   const [filterParams, setFilterParams] = useState({
     column: "",
     condition: "=",
     value: "",
   });
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
 
@@ -24,7 +22,6 @@ const FilterForm = ({ projectId, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting filter with parameters:", filterParams);
     setLoading(true);
     clearError();
     try {
@@ -32,10 +29,9 @@ const FilterForm = ({ projectId, onClose }) => {
         operation_type: "filter",
         parameters: filterParams,
       });
-      setResult(response);
-      console.log("Filter API response:", response);
+      onTransform(response);
+      onClose();
     } catch (err) {
-      console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);
     } finally {
       setLoading(false);
@@ -91,10 +87,10 @@ const FilterForm = ({ projectId, onClose }) => {
         <div className="flex justify-between">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
           >
-            Apply Filter
+            {loading ? "Applying..." : "Apply Filter"}
           </button>
           <button
             type="button"
@@ -106,7 +102,6 @@ const FilterForm = ({ projectId, onClose }) => {
         </div>
       </form>
       <FormErrorAlert message={error} />
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };
@@ -114,6 +109,7 @@ const FilterForm = ({ projectId, onClose }) => {
 FilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default FilterForm;
