@@ -6,6 +6,7 @@ import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
+import FillEmptyForm from "./forms/FillEmptyForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
@@ -25,6 +26,7 @@ import {
   LuDownload,
   LuRefreshCw,
   LuScissors,
+  LuEraser,
 } from "react-icons/lu";
 
 const Menu_NavBar = ({ projectId, onTransform }) => {
@@ -37,6 +39,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
+  const [showFillEmptyForm, setShowFillEmptyForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -123,6 +126,7 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
     setShowPivotTableForm(false);
     setShowCastDataTypeForm(false);
     setShowTrimWhitespaceForm(false);
+    setShowFillEmptyForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
 
@@ -147,6 +151,9 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         break;
       case "TrimWhitespaceForm":
         setShowTrimWhitespaceForm(true);
+        break;
+      case "FillEmptyForm":
+        setShowFillEmptyForm(true);
         break;
       case "Logs":
         setShowLogs(true);
@@ -198,6 +205,11 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
             label: "Trim Space",
             icon: LuScissors,
             onClick: () => handleMenuClick("TrimWhitespaceForm"),
+          },
+          {
+            label: "Fill Empty",
+            icon: LuEraser,
+            onClick: () => handleMenuClick("FillEmptyForm"),
           },
         ],
       },
@@ -293,6 +305,13 @@ const Menu_NavBar = ({ projectId, onTransform }) => {
         <TrimWhitespaceForm
           projectId={projectId}
           onClose={() => setShowTrimWhitespaceForm(false)}
+          onTransform={onTransform}
+        />
+      )}
+      {showFillEmptyForm && (
+        <FillEmptyForm
+          projectId={projectId}
+          onClose={() => setShowFillEmptyForm(false)}
           onTransform={onTransform}
         />
       )}
