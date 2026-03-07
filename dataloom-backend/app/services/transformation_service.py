@@ -225,6 +225,11 @@ def fill_empty(
     if strategy not in VALID_STRATEGIES:
         raise TransformationError(f"Unsupported fill strategy: '{strategy}'")
 
+    if strategy == "custom" and fill_value is None:
+        raise TransformationError(
+            "A fill value is required when using the custom strategy"
+        )
+
     df = df.copy()
 
     if column_index is not None:
