@@ -74,10 +74,23 @@ export function ProjectProvider({ children }) {
   }, []);
 
   return (
-    <ProjectContext.Provider value={{
-      projectId, projectName, columns, rows, dtypes, loading, error,
-      totalRows, totalPages, page, pageSize,
-      refreshProject, updateData, setProjectInfo, setPaginationData,
+    <ProjectContext.Provider 
+    value={{
+      projectId, 
+      projectName, 
+      columns, 
+      rows, 
+      dtypes, 
+      loading, 
+      error,
+      totalRows, 
+      totalPages, 
+      page, 
+      pageSize,
+      refreshProject,
+       updateData, 
+       setProjectInfo, 
+       setPaginationData,
     }}>
       {children}
     </ProjectContext.Provider>
