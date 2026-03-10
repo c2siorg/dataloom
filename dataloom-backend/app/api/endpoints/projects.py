@@ -224,8 +224,7 @@ async def export_project(
 
     headers = {
         "Content-Disposition": (
-            f'attachment; filename="{ascii_name}.xlsx"; '
-            f"filename*=UTF-8''{quote(project.name)}.xlsx"
+            f"attachment; filename=\"{ascii_name}.xlsx\"; filename*=UTF-8''{quote(project.name)}.xlsx"
         )
     }
 
@@ -234,8 +233,8 @@ async def export_project(
         output = BytesIO()
         df.to_excel(output, index=False)
         output.seek(0)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Project data file not found on disk")
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Project data file not found on disk") from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to generate XLSX export") from exc
 
