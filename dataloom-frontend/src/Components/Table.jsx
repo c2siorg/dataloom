@@ -223,7 +223,7 @@ const Table = ({ projectId, data: externalData }) => {
   };
 
   return (
-    <div className="px-8 pt-3" onClick={handleCloseContextMenu}>
+    <div className="px-8 pt-3" data-testid="table-container" onClick={handleCloseContextMenu}>
       <div
         className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
         style={{ maxHeight: "calc(100vh - 140px)" }}
