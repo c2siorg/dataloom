@@ -62,7 +62,10 @@ const FilterForm = ({ projectId, onClose }) => {
             />
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
-            <label htmlFor="filter-condition" className="block mb-1 text-sm font-medium text-gray-700">
+            <label
+              htmlFor="filter-condition"
+              className="block mb-1 text-sm font-medium text-gray-700"
+            >
               Condition:
             </label>
             <select
