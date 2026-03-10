@@ -7,6 +7,7 @@ const ProjectContext = createContext(null);
  * Hook to access project state and actions.
  * @returns {{ projectId: string, columns: string[], rows: Array[], loading: boolean, error: string|null, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function }}
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useProjectContext() {
   const context = useContext(ProjectContext);
   if (!context) throw new Error("useProjectContext must be used within ProjectProvider");

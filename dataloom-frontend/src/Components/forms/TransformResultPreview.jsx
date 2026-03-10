@@ -29,10 +29,7 @@ const TransformResultPreview = ({ columns, rows }) => {
           {rows.map((row, rowIndex) => (
             <tr key={rowIndex}>
               {row.map((cell, cellIndex) => (
-                <td
-                  key={cellIndex}
-                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
-                >
+                <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                   {cell}
                 </td>
               ))}

@@ -2,7 +2,11 @@ import { withSerialNumbers } from "../tableUtils";
 
 describe("withSerialNumbers", () => {
   it("prepends 1-based serial numbers to each row", () => {
-    const rows = [["a", "b"], ["c", "d"], ["e", "f"]];
+    const rows = [
+      ["a", "b"],
+      ["c", "d"],
+      ["e", "f"],
+    ];
     const result = withSerialNumbers(rows);
     expect(result).toEqual([
       [1, "a", "b"],
