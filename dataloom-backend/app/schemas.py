@@ -5,7 +5,7 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # --- Enums ---
 
@@ -39,6 +39,7 @@ class OperationType(StrEnum):
     renameCol = "renameCol"
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
+    dropNa = "dropNa"
 
 
 class DropDup(StrEnum):
@@ -76,6 +77,7 @@ class ActionTypes(StrEnum):
     renameCol = "renameCol"
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
+    dropNa = "dropNa"
 
 
 # --- Basic transformation parameter schemas ---
@@ -102,11 +104,26 @@ class AddOrDeleteRow(BaseModel):
     index: int
 
 
-class AddOrDeleteColumn(BaseModel):
-    """Parameters for adding or deleting a column by index and name."""
+class AddColumn(BaseModel):
+    """Parameters for adding a column.
+
+    Attributes:
+        index: Zero-based column index where column will be inserted.
+        name: Column name; required for add operations.
+    """
 
     index: int
-    name: str
+    name: str | None = None
+
+
+class DeleteColumn(BaseModel):
+    """Parameters for deleting a column.
+
+    Attributes:
+        index: Zero-based column index to delete.
+    """
+
+    index: int
 
 
 class ChangeCellValue(BaseModel):
@@ -152,6 +169,19 @@ class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
     column: str
+
+
+class DropNaParams(BaseModel):
+    """Parameters for dropping rows with missing/NaN values."""
+
+    columns: list[str] | None = None
+
+    @field_validator("columns")
+    @classmethod
+    def columns_must_not_be_empty(cls, v):
+        if v is not None and len(v) == 0:
+            raise ValueError("columns list must not be empty; omit the field to drop rows with any NaN")
+        return v
 
 
 # --- Complex transformation parameter schemas ---
@@ -211,7 +241,8 @@ class TransformationInput(BaseModel):
     parameters: FilterParameters | None = None
     sort_params: SortParameters | None = None
     row_params: AddOrDeleteRow | None = None
-    col_params: AddOrDeleteColumn | None = None
+    add_col_params: AddColumn | None = None
+    del_col_params: DeleteColumn | None = None
     fill_empty_params: FillEmptyParams | None = None
     drop_duplicate: DropDuplicates | None = None
     adv_query: AdvQuery | None = None
@@ -220,6 +251,7 @@ class TransformationInput(BaseModel):
     rename_col_params: RenameColumnParams | None = None
     cast_data_type_params: CastDataTypeParams | None = None
     trim_whitespace_params: TrimWhitespaceParams | None = None
+    drop_na_params: DropNaParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
