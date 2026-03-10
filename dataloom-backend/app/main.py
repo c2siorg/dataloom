@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 async def lifespan(app):
     """Application startup/shutdown lifecycle."""
     from alembic.config import Config
+    from alembic import command
 
     from alembic import command
 
