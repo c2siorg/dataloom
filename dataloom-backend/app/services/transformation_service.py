@@ -392,6 +392,29 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
     return result.reset_index()
 
 
+def drop_na(df: pd.DataFrame, columns: list[str] | None = None) -> pd.DataFrame:
+    """Drop rows with missing/NaN values.
+
+    Args:
+        df: Source DataFrame.
+        columns: Optional list of column names to check for NaN.
+                 If None, drops rows where ANY column has NaN.
+
+    Returns:
+        DataFrame with NaN rows removed.
+    """
+    if columns is not None:
+        if len(columns) == 0:
+            raise TransformationError("columns list must not be empty")
+        missing = [c for c in columns if c not in df.columns]
+        if missing:
+            raise TransformationError(f"Columns not found in dataset: {', '.join(missing)}")
+        df = df.copy()
+        return df.dropna(subset=columns).reset_index(drop=True)
+    df = df.copy()
+    return df.dropna().reset_index(drop=True)
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
@@ -421,12 +444,14 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         return df.drop(index)
 
     elif action_type == "addCol":
-        index = action_details["col_params"]["index"]
-        column_name = action_details["col_params"]["name"]
+        params = action_details.get("add_col_params") or action_details.get("col_params")
+        index = params["index"]
+        column_name = params["name"]
         return add_column(df, index, column_name)
 
     elif action_type == "delCol":
-        index = action_details["col_params"]["index"]
+        params = action_details.get("del_col_params") or action_details.get("col_params")
+        index = params["index"]
         return delete_column(df, index)
 
     elif action_type == "changeCellValue":
@@ -458,6 +483,10 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == "trimWhitespace":
         column = action_details["trim_whitespace_params"]["column"]
         return trim_whitespace(df, column)
+
+    elif action_type == "dropNa":
+        columns = action_details.get("drop_na_params", {}).get("columns")
+        return drop_na(df, columns)
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
