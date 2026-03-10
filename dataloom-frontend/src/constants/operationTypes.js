@@ -1,6 +1,12 @@
 /**
- * Constants for transformation operation type strings.
- * @module constants/operationTypes
+ * Frontend mirror of the `OperationType` enum defined in:
+ *   dataloom-backend/app/schemas.py
+ *
+ * ⚠️  Any change here MUST be kept in sync with the backend enum.
+ *     String values are part of the API contract — do NOT rename them
+ *     without a corresponding backend change.
+ *
+ * Values must match OperationType enum in dataloom-backend/app/schemas.py
  */
 
 /** @type {string} Filter rows by column condition */
@@ -24,7 +30,7 @@ export const DROP_DUPLICATE = "dropDuplicate";
 /** @type {string} Advanced pandas query filter */
 export const ADV_QUERY_FILTER = "advQueryFilter";
 /** @type {string} Create a pivot table */
-export const PIVOT_TABLE = "pivotTables";
+export const PIVOT_TABLES = "pivotTables";
 /** @type {string} Rename a column */
 export const RENAME_COLUMN = "renameCol";
 /** @type {string} Cast column to different data type */

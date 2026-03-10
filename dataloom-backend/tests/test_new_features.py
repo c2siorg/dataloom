@@ -24,6 +24,21 @@ def sample_df():
     )
 
 
+@pytest.fixture
+def uploaded_project(client, sample_csv, db):
+    with open(sample_csv, "rb") as f:
+        response = client.post(
+            "/projects/upload",
+            files={"file": ("test.csv", f, "text/csv")},
+            data={
+                "projectName": "Test Project",
+                "projectDescription": "Regression fixture upload",
+            },
+        )
+    assert response.status_code == 200, f"Project upload failed with {response.status_code}: {response.text}"
+    return response.json()["project_id"]
+
+
 # --- Rename Column Tests ---
 
 
@@ -114,6 +129,88 @@ class TestLogReplay:
         assert str(result.iloc[0]["age"]) == "30"
 
 
+class TestAddDeleteColumnEndpoint:
+    def test_add_column_with_name_returns_200(self, client, sample_csv, db):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Add Column Success", "projectDescription": "Test add column success"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        response = client.post(
+            f"/projects/{project_id}/transform",
+            json={"operation_type": "addCol", "add_col_params": {"index": 1, "name": "country"}},
+        )
+        assert response.status_code == 200
+
+    def test_delete_column_without_name_returns_200(self, client, sample_csv, db):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Delete Column Test", "projectDescription": "Test delete column"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        response = client.post(
+            f"/projects/{project_id}/transform",
+            json={"operation_type": "delCol", "del_col_params": {"index": 1}},
+        )
+        assert response.status_code == 200
+
+    def test_add_column_without_name_returns_422(self, client, sample_csv, db):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Add Column Test", "projectDescription": "Test add column"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        response = client.post(
+            f"/projects/{project_id}/transform",
+            json={"operation_type": "addCol", "add_col_params": {"index": 1}},
+        )
+        assert response.status_code == 422
+
+    def test_add_column_with_legacy_col_params_returns_400(self, client, sample_csv, db):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Add Column Legacy", "projectDescription": "Test legacy add key"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        response = client.post(
+            f"/projects/{project_id}/transform",
+            json={"operation_type": "addCol", "col_params": {"index": 1, "name": "country"}},
+        )
+        assert response.status_code == 400
+
+    def test_delete_column_with_legacy_col_params_returns_400(self, client, sample_csv, db):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Delete Column Legacy", "projectDescription": "Test legacy delete key"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        response = client.post(
+            f"/projects/{project_id}/transform",
+            json={"operation_type": "delCol", "col_params": {"index": 1}},
+        )
+        assert response.status_code == 400
+
+
 # --- Export Endpoint Tests ---
 
 
@@ -173,3 +270,44 @@ class TestDeleteEndpoint:
     def test_delete_nonexistent_project(self, client):
         response = client.delete("/projects/00000000-0000-0000-0000-000000000000")
         assert response.status_code == 404
+
+
+class TestTransformEndpoint:
+    def test_delete_column_accepts_index_only_params(self, client, uploaded_project, sample_csv):
+        original_columns = pd.read_csv(sample_csv).columns.tolist()
+        expected_columns = original_columns[1:]
+
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "delCol",
+                "del_col_params": {"index": 0},
+                "col_params": {"index": 0},
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["columns"] == expected_columns
+
+    @pytest.mark.parametrize(
+        "col_params,expected_status",
+        [
+            ({"index": 99}, 400),
+            ({}, 422),
+        ],
+    )
+    def test_delete_column_invalid_params(
+        self,
+        client,
+        uploaded_project,
+        col_params,
+        expected_status,
+    ):
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "delCol",
+                "del_col_params": col_params,
+                "col_params": col_params,
+            },
+        )
+        assert response.status_code == expected_status
