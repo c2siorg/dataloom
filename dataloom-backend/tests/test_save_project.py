@@ -47,6 +47,4 @@ class TestSaveNeverModifiesOriginal:
 
         # Original file must be byte-identical
         hash_after = _file_sha256(original_path)
-        assert hash_before == hash_after, (
-            "original_path was modified by a save operation"
-        )
+        assert hash_before == hash_after, "original_path was modified by a save operation"
