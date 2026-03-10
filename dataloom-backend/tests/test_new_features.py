@@ -35,9 +35,7 @@ def uploaded_project(client, sample_csv, db):
                 "projectDescription": "Regression fixture upload",
             },
         )
-    assert response.status_code == 200, (
-        f"Project upload failed with {response.status_code}: {response.text}"
-    )
+    assert response.status_code == 200, f"Project upload failed with {response.status_code}: {response.text}"
     return response.json()["project_id"]
 
 
