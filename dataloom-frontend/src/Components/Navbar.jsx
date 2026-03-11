@@ -20,11 +20,11 @@ const Navbar = () => {
           </Link>
         </div>
         {isSmall && (
-          <div className="text-gray-700 font-medium text-base flex items-center ml-4">
+          <div className="text-gray-700 font-medium text-base flex items-center ml-auto mr-4">
             {projectName || "Untitled Project"}
           </div>
         )}
-        <div className="ml-auto flex items-center text-gray-500">
+        <div className="flex items-center text-gray-500">
           <button className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150">
             Profile
           </button>
