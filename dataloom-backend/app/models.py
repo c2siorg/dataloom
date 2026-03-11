@@ -1,6 +1,6 @@
 """SQLModel ORM models for the DataLoom application.
 
-Defines the database schema for projects, transformation change logs,
+Defines the database schema for users, projects, transformation change logs,
 and save checkpoints.
 """
 
@@ -8,8 +8,17 @@ import uuid as uuid_mod
 from datetime import datetime
 
 import sqlalchemy as sa
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 from sqlalchemy import Column, DateTime, func
 from sqlmodel import Field, Relationship, SQLModel
+
+from app.db.base import AuthBase
+
+
+class User(SQLAlchemyBaseUserTableUUID, AuthBase):
+    """Authentication user model."""
+
+    __tablename__ = "users"
 
 
 class Project(SQLModel, table=True):
@@ -23,6 +32,9 @@ class Project(SQLModel, table=True):
     )
     name: str = Field(index=True)
     description: str | None = None
+    owner_id: uuid_mod.UUID = Field(
+        sa_column=Column(sa.Uuid, sa.ForeignKey("users.id"), nullable=False, index=True),
+    )
     upload_date: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime, server_default=func.now()),
