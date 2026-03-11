@@ -17,6 +17,7 @@ from app.services.transformation_service import (
     drop_duplicates,
     fill_empty,
     pivot_table,
+    rename_column,
 )
 
 
@@ -188,6 +189,7 @@ class TestPivotTable:
         assert "sales" in result.columns
 
 
+<<<<<<< HEAD
 class TestDelRowReplay:
     def test_delRow_replay_resets_index_after_multiple_deletions(self):
         df = pd.DataFrame({"A": [10, 20, 30, 40, 50]})
@@ -212,3 +214,26 @@ class TestDelRowReplay:
                 "delRow",
                 {"row_params": {"index": 10}},
             )
+=======
+class TestRenameColumn:
+    def test_rename_column_to_existing_name(self, sample_df):
+        with pytest.raises(TransformationError, match="already exists"):
+            rename_column(sample_df, 1, "name")  # Try to rename "age" to "name"
+
+    def test_rename_column_to_same_name(self, sample_df):
+        # Renaming to the same name should succeed (no-op)
+        result = rename_column(sample_df, 0, "name")
+        assert result.shape == sample_df.shape
+        pd.testing.assert_frame_equal(result, sample_df)
+
+    def test_rename_column_case_sensitive(self, sample_df):
+        # Renaming to different case should succeed (case-sensitive)
+        result = rename_column(sample_df, 1, "Age")  # Rename "age" to "Age"
+        assert list(result.columns) == ["name", "Age", "city"]
+        assert result.iloc[0]["Age"] == 30
+
+    def test_rename_column_with_preexisting_duplicate(self):
+        df = pd.DataFrame([[1, 2, 3]], columns=["name", "name", "age"])
+        with pytest.raises(TransformationError, match="already exists"):
+            rename_column(df, 2, "name")
+>>>>>>> d10812f (fix(transform): block duplicate target names in rename column)
