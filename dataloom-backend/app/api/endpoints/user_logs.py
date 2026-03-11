@@ -4,8 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app import database, models, schemas
-from app.api.dependencies import get_project_or_404
-from app.api.dependencies import current_active_user
+from app.api.dependencies import current_active_user, get_project_or_404
 from app.models import User
 
 router = APIRouter()

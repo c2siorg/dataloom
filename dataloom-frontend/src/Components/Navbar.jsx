@@ -51,7 +51,9 @@ const Navbar = () => {
           </div>
         )}
         <div className="ml-auto flex items-center gap-3 text-gray-500">
-          {user?.email && <span className="hidden text-sm text-gray-500 md:inline">{user.email}</span>}
+          {user?.email && (
+            <span className="hidden text-sm text-gray-500 md:inline">{user.email}</span>
+          )}
           <button
             className={`bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-150 ${
               isSmall ? "py-1 px-3 text-sm" : "py-2 px-4"

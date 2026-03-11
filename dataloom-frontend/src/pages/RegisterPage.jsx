@@ -34,7 +34,7 @@ export default function RegisterPage() {
       await register({ email, password });
       navigate(destination, { replace: true });
     } catch (error) {
-      console.log("register",error);
+      console.log("register", error);
       setErrorMessage(getAuthErrorMessage(error, "Unable to create your account right now."));
     } finally {
       setIsSubmitting(false);
