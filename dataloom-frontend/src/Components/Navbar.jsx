@@ -8,7 +8,7 @@ const Navbar = () => {
   const isWorkspacePage = location.pathname.startsWith("/workspace/");
 
   return (
-    <header role="banner">
+    <header>
       <nav
         aria-label="Main navigation"
         className="bg-white border-b border-gray-200 flex items-center h-14 px-4 md:px-10"
