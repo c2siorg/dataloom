@@ -25,7 +25,12 @@ const Navbar = () => {
           </div>
         )}
         <div className="flex items-center gap-2">
-          <button type="button" className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150">
+          {/* TODO: wire up to /profile route or dropdown menu */}
+          <button
+            type="button"
+            disabled
+            className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150 opacity-50 cursor-not-allowed"
+          >
             Profile
           </button>
         </div>
