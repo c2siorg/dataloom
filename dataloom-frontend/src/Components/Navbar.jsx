@@ -24,8 +24,8 @@ const Navbar = () => {
             {projectName || "Untitled Project"}
           </div>
         )}
-        <div className="flex items-center text-gray-500">
-          <button className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150">
+        <div className="flex items-center gap-2">
+          <button type="button" className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150">
             Profile
           </button>
         </div>
