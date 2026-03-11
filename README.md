@@ -6,6 +6,7 @@ A web-based GUI for data wrangling — manage and transform tabular datasets (CS
 
 ## Features
 
+- Email/password authentication with per-user project ownership
 - Upload and manage CSV datasets through a graphical interface
 - Apply pandas-powered transformations: filter, sort, pivot, deduplicate, and more
 - Inline cell editing and row/column management
@@ -29,6 +30,16 @@ cp .env.example .env          # Configure DB credentials
 uv sync
 uv run uvicorn app.main:app --reload --port 4200
 ```
+
+The backend now expects `AUTH_SECRET` in `dataloom-backend/.env`.
+For local HTTP development, leave `AUTH_COOKIE_SECURE=false`. Set it to `true` behind HTTPS.
+
+For local development, the seeded sample projects are assigned to:
+
+- Email: `demo@dataloom.local`
+- Password: `LocalDevOnly_ChangeMe_2026!`
+
+Change or remove that account before using the app outside local development.
 
 ### Frontend
 
