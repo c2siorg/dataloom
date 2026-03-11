@@ -20,7 +20,7 @@ const Navbar = () => {
           </Link>
         </div>
         {isSmall && (
-          <div className="text-gray-700 font-medium text-base flex items-center ml-auto mr-4">
+          <div className="text-gray-700 font-medium text-base flex items-center ml-4">
             {projectName || "Untitled Project"}
           </div>
         )}
