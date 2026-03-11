@@ -21,12 +21,10 @@ test.describe("Project CRUD", () => {
     projectId,
   }) => {
     await page.goto("/projects");
-    await page
-      .locator('[data-testid="project-card"]')
-      .first()
-      .waitFor({ state: "visible" });
-
-    await expect(page.getByText(/E2E/)).toBeVisible();
+    const projectCard = page.locator('[data-testid="project-card"]', {
+      hasText: /E2E/,
+    }).first();
+    await expect(projectCard).toBeVisible();
   });
 
   test("delete a project from the homescreen", async ({ page, projectId }) => {
@@ -38,7 +36,7 @@ test.describe("Project CRUD", () => {
 
     const projectCard = page.locator('[data-testid="project-card"]', {
       hasText: /E2E/,
-    });
+    }).first();
     await projectCard.locator('[aria-label="Delete project"]').click();
 
     const dialog = page.getByRole("dialog", { name: "Confirm" });
