@@ -4,6 +4,10 @@
  */
 
 export const ROUTES = {
+  /** Login page path */
+  login: "/login",
+  /** Register page path */
+  register: "/register",
   /** Projects listing page path */
   home: "/projects",
   /** Workspace view path */
