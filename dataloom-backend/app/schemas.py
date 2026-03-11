@@ -5,7 +5,24 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
+from fastapi_users import schemas as fapi_schemas
 from pydantic import BaseModel, field_validator
+
+
+# --- User schemas ---
+
+
+class UserRead(fapi_schemas.BaseUser[uuid.UUID]):
+    """Public user response schema."""
+
+
+class UserCreate(fapi_schemas.BaseUserCreate):
+    """User registration schema."""
+
+
+class UserUpdate(fapi_schemas.BaseUserUpdate):
+    """User update schema."""
+
 
 # --- Enums ---
 
