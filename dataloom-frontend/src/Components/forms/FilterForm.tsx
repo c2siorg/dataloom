@@ -1,31 +1,49 @@
-import { useState } from "react";
-import PropTypes from "prop-types";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { transformProject } from "../../api";
 import { FILTER } from "../../constants/operationTypes";
 import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import { useProjectContext } from "../../context/ProjectContext";
 
-const FilterForm = ({ projectId, onClose }) => {
-  const [filterParams, setFilterParams] = useState({
+interface FilterFormProps {
+  projectId: string;
+  onClose: () => void;
+}
+
+interface FilterParams {
+  column: string;
+  condition: string;
+  value: string;
+}
+
+
+interface TransformResult {
+  columns: string[];
+  rows: (string | null | undefined)[][];
+}
+
+const FilterForm = ({ projectId, onClose }: FilterFormProps) => {
+  const [filterParams, setFilterParams] = useState<FilterParams>({
     column: "",
     condition: "=",
     value: "",
   });
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<TransformResult | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const { error, clearError, handleError } = useError();
-
-  const handleInputChange = (e) => {
+  const { columns: projectColumns } = useProjectContext();
+  const handleInputChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setFilterParams({
       ...filterParams,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Submitting filter with parameters:", filterParams);
     setLoading(true);
     clearError();
     try {
@@ -33,10 +51,8 @@ const FilterForm = ({ projectId, onClose }) => {
         operation_type: FILTER,
         parameters: filterParams,
       });
-      setResult(response);
-      console.log("Filter API response:", response);
+      setResult(response as TransformResult);
     } catch (err) {
-      console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);
     } finally {
       setLoading(false);
@@ -49,18 +65,30 @@ const FilterForm = ({ projectId, onClose }) => {
         <h3 className="font-semibold text-gray-900 mb-2">Filter Dataset</h3>
         <div className="flex flex-wrap mb-4">
           <div className="w-full sm:w-1/3 mb-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Column:</label>
-            <input
-              type="text"
+            <label className="block mb-1 text-sm font-medium text-gray-700">
+              Column:
+            </label>
+            <select
               name="column"
               value={filterParams.column}
               onChange={handleInputChange}
               className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
               required
-            />
+            >
+              <option value="" disabled>
+                Select a column
+              </option>
+              {projectColumns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Condition:</label>
+            <label className="block mb-1 text-sm font-medium text-gray-700">
+              Condition:
+            </label>
             <select
               name="condition"
               value={filterParams.condition}
@@ -78,7 +106,9 @@ const FilterForm = ({ projectId, onClose }) => {
             </select>
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Value:</label>
+            <label className="block mb-1 text-sm font-medium text-gray-700">
+              Value:
+            </label>
             <input
               type="text"
               name="value"
@@ -107,14 +137,11 @@ const FilterForm = ({ projectId, onClose }) => {
         </div>
       </form>
       <FormErrorAlert message={error} />
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
+      {result && (
+        <TransformResultPreview columns={result.columns} rows={result.rows} />
+      )}
     </div>
   );
-};
-
-FilterForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default FilterForm;
