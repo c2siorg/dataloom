@@ -13,10 +13,10 @@ const Navbar = () => {
         aria-label="Main navigation"
         className="bg-white border-b border-gray-200 flex items-center h-14 px-4 md:px-10"
       >
-        <div className="text-gray-900 font-semibold text-base flex items-center">
+        <div className="text-gray-900 font-semibold flex items-center">
           <Link to="/projects" className="flex items-center gap-2">
-            <DataLoomLogo className="w-5 h-5" />
-            DataLoom
+            <DataLoomLogo className={isSmall ? "w-5 h-5" : "w-6 h-6"} />
+            <span className={isSmall ? "text-base" : "text-lg"}>DataLoom</span>
           </Link>
         </div>
         {isSmall && (
