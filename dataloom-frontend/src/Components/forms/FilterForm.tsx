@@ -4,6 +4,7 @@ import { FILTER } from "../../constants/operationTypes";
 import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import { useProjectContext } from "../../context/ProjectContext";
 
 interface FilterFormProps {
   projectId: string;
@@ -31,7 +32,7 @@ const FilterForm = ({ projectId, onClose }: FilterFormProps) => {
   const [result, setResult] = useState<TransformResult | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const { error, clearError, handleError } = useError();
-
+  const { columns: projectColumns } = useProjectContext();
   const handleInputChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -67,14 +68,22 @@ const FilterForm = ({ projectId, onClose }: FilterFormProps) => {
             <label className="block mb-1 text-sm font-medium text-gray-700">
               Column:
             </label>
-            <input
-              type="text"
+            <select
               name="column"
               value={filterParams.column}
               onChange={handleInputChange}
               className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
               required
-            />
+            >
+              <option value="" disabled>
+                Select a column
+              </option>
+              {projectColumns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
             <label className="block mb-1 text-sm font-medium text-gray-700">
