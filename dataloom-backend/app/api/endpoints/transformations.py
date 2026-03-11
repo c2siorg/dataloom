@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
-COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables"}
+COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables", "dropNa"}
 
 
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
@@ -57,15 +57,15 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         return ts.delete_row(df, transformation_input.row_params.index), True
 
     elif op == "addCol":
-        if not transformation_input.col_params:
+        if not transformation_input.add_col_params:
             raise HTTPException(status_code=400, detail="Column parameters required")
-        p = transformation_input.col_params
+        p = transformation_input.add_col_params
         return ts.add_column(df, p.index, p.name), True
 
     elif op == "delCol":
-        if not transformation_input.col_params:
+        if not transformation_input.del_col_params:
             raise HTTPException(status_code=400, detail="Column index required")
-        return ts.delete_column(df, transformation_input.col_params.index), True
+        return ts.delete_column(df, transformation_input.del_col_params.index), True
 
     elif op == "changeCellValue":
         if not transformation_input.change_cell_value:
@@ -125,6 +125,12 @@ def _handle_complex_transform(df, transformation_input, project, db, project_id)
             raise HTTPException(status_code=400, detail="Pivot parameters required")
         p = transformation_input.pivot_query
         return ts.pivot_table(df, p.index, p.value, p.column, p.aggfun), False
+
+    elif op == "dropNa":
+        columns = None
+        if transformation_input.drop_na_params:
+            columns = transformation_input.drop_na_params.columns
+        return ts.drop_na(df, columns), True
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
