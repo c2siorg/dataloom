@@ -66,9 +66,7 @@ class TestLastModified:
         db.refresh(project)
 
         original_ts = project.last_modified
-        assert original_ts is not None, (
-            "server_default did not populate last_modified on creation"
-        )
+        assert original_ts is not None, "server_default did not populate last_modified on creation"
 
         log_transformation(db, project.project_id, "addRow", {"row_params": {"index": 0}})
 
@@ -90,9 +88,7 @@ class TestLastModified:
         db.refresh(project)
 
         original_ts = project.last_modified
-        assert original_ts is not None, (
-            "server_default did not populate last_modified on creation"
-        )
+        assert original_ts is not None, "server_default did not populate last_modified on creation"
 
         create_checkpoint(db, project.project_id, "save point")
 
@@ -159,4 +155,3 @@ class TestLastModified:
         recent = get_recent_projects(db, limit=2)
         assert recent[0].name == "Project A"
         assert recent[1].name == "Project B"
-
