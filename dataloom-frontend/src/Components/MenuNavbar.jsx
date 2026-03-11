@@ -256,10 +256,11 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             key={tabName}
             data-testid={`tab-${tabName.toLowerCase()}`}
             onClick={() => setActiveTab(tabName)}
-            className={`px-4 py-1.5 text-sm font-medium ${activeTab === tabName
+            className={`px-4 py-1.5 text-sm font-medium ${
+              activeTab === tabName
                 ? "text-blue-600 border-b-2 border-blue-500"
                 : "text-gray-500 hover:text-gray-700"
-              }`}
+            }`}
           >
             {tabName}
           </button>
@@ -279,8 +280,9 @@ const MenuNavbar = ({ projectId, onTransform }) => {
                       key={item.label}
                       data-testid={`toolbar-${item.label.toLowerCase().replace(/ /g, "-")}`}
                       onClick={item.onClick}
-                      className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md ${isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
-                        }`}
+                      className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md ${
+                        isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
+                      }`}
                     >
                       <item.icon
                         className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-gray-600"}`}

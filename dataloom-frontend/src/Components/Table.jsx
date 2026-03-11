@@ -253,8 +253,8 @@ const Table = ({ projectId, data: externalData }) => {
                     onContextMenu={(e) => open(e, { type: "row", rowIndex })}
                   >
                     {editingCell &&
-                      editingCell.rowIndex === rowIndex &&
-                      editingCell.cellIndex === cellIndex ? (
+                    editingCell.rowIndex === rowIndex &&
+                    editingCell.cellIndex === cellIndex ? (
                       <input
                         type="text"
                         value={editValue}

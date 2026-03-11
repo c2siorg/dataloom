@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import PropTypes from "prop-types";
-const ContextMenu = ({ isOpen, position, contextData, onClose, actions, "data-testid": testId }) => {
+const ContextMenu = ({
+  isOpen,
+  position,
+  contextData,
+  onClose,
+  actions,
+  "data-testid": testId,
+}) => {
   const menuRef = useRef(null);
 
   const [adjustedPosition, setAdjustedPosition] = useState(position);
