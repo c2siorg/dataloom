@@ -11,6 +11,8 @@ from sqlmodel import Session
 
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
+from app.api.dependencies import current_active_user
+from app.models import User
 from app.services.file_service import delete_project_files, get_original_path, store_upload
 from app.services.project_service import (
     create_checkpoint,
@@ -34,6 +36,7 @@ async def upload_project(
     projectName: str = Form(...),
     projectDescription: str = Form(...),
     db: Session = Depends(database.get_db),
+    user: User = Depends(current_active_user),
 ):
     """Upload a new CSV file for a project.
 
@@ -46,7 +49,7 @@ async def upload_project(
     original_path, copy_path = store_upload(file)
     df = read_csv_safe(original_path)
 
-    project = create_project(db, projectName, str(copy_path), projectDescription)
+    project = create_project(db, user.id, projectName, str(copy_path), projectDescription)
 
     resp = dataframe_to_response(df)
     return {
@@ -58,9 +61,13 @@ async def upload_project(
 
 
 @router.get("/get/{project_id}", response_model=schemas.ProjectResponse)
-async def get_project_details(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+async def get_project_details(
+    project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+    user: User = Depends(current_active_user),
+):
     """Fetch full project details including all rows and columns."""
-    project = get_project_or_404(project_id, db)
+    project = get_project_or_404(project_id, db, user)
     df = read_csv_safe(project.file_path)
 
     resp = dataframe_to_response(df)
@@ -73,9 +80,12 @@ async def get_project_details(project_id: uuid.UUID, db: Session = Depends(datab
 
 
 @router.get("/recent", response_model=list[schemas.LastResponse])
-def recent_projects(db: Session = Depends(database.get_db)):
+def recent_projects(
+    db: Session = Depends(database.get_db),
+    user: User = Depends(current_active_user),
+):
     """Get the most recently modified projects."""
-    projects = get_recent_projects(db, limit=10)
+    projects = get_recent_projects(db, owner_id=user.id, limit=10)
     return [
         schemas.LastResponse(
             project_id=p.project_id,
@@ -92,13 +102,14 @@ async def save_project(
     project_id: uuid.UUID,
     commit_message: str,
     db: Session = Depends(database.get_db),
+    user: User = Depends(current_active_user),
 ):
     """Save project changes as a checkpoint.
 
     Replays all pending transformations from the change log onto the original
     file and creates a checkpoint record marking the save point.
     """
-    project = get_project_or_404(project_id, db)
+    project = get_project_or_404(project_id, db, user)
 
     # Load original file for replaying transformations
     original_path = get_original_path(project.file_path)
@@ -144,6 +155,7 @@ async def revert_to_checkpoint(
     project_id: uuid.UUID,
     checkpoint_id: uuid.UUID = None,
     db: Session = Depends(database.get_db),
+    user: User = Depends(current_active_user),
 ):
     """Revert project to its original state or to a specific checkpoint.
 
@@ -151,7 +163,7 @@ async def revert_to_checkpoint(
     that checkpoint onto the original file. When None, reverts to the original
     uploaded state.
     """
-    project = get_project_or_404(project_id, db)
+    project = get_project_or_404(project_id, db, user)
 
     original_path = get_original_path(project.file_path)
     df = read_csv_safe(original_path)
@@ -207,16 +219,24 @@ async def revert_to_checkpoint(
 
 
 @router.get("/{project_id}/export")
-async def export_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+async def export_project(
+    project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+    user: User = Depends(current_active_user),
+):
     """Download the current working copy of a project as a CSV file."""
-    project = get_project_or_404(project_id, db)
+    project = get_project_or_404(project_id, db, user)
     return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
 
 
 @router.delete("/{project_id}")
-async def delete_project_endpoint(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+async def delete_project_endpoint(
+    project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+    user: User = Depends(current_active_user),
+):
     """Delete a project and its associated files."""
-    project = get_project_or_404(project_id, db)
+    project = get_project_or_404(project_id, db, user)
     delete_project_files(project.file_path)
     delete_project(db, project)
     return {"success": True, "message": "Project deleted"}

@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.endpoints import projects, transformations, user_logs
+from app.api.endpoints import auth, projects, transformations, user_logs
 from app.config import get_settings
 from app.exceptions import AppException, app_exception_handler
 from app.services.transformation_service import TransformationError
@@ -22,20 +22,28 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app):
     """Application startup/shutdown lifecycle."""
-    from alembic.config import Config
-
-    from alembic import command
-
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
-
     settings = get_settings()
     setup_logging(settings.debug)
-    Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 
-    logger.info("DataLoom backend starting (debug=%s)", settings.debug)
-    yield
-    logger.info("DataLoom backend shutting down")
+    try:
+        if not settings.testing:
+            from alembic.config import Config
+
+            from alembic import command
+
+            logger.info("Running database migrations")
+            alembic_cfg = Config("alembic.ini")
+            command.upgrade(alembic_cfg, "head")
+
+        Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+
+        logger.info("DataLoom backend starting (debug=%s)", settings.debug)
+        yield
+    except Exception:
+        logger.exception("DataLoom backend startup failed")
+        raise
+    finally:
+        logger.info("DataLoom backend shutting down")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -56,6 +64,7 @@ async def transformation_error_handler(request: Request, exc: TransformationErro
 
 app.add_exception_handler(AppException, app_exception_handler)
 
+app.include_router(auth.router)
 app.include_router(projects.router, prefix="/projects", tags=["projects"])
 app.include_router(transformations.router, prefix="/projects", tags=["transformations"])
 app.include_router(user_logs.router, prefix="/logs", tags=["user_logs"])
