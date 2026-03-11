@@ -10,8 +10,7 @@ from fastapi.responses import FileResponse
 from sqlmodel import Session
 
 from app import database, models, schemas
-from app.api.dependencies import get_project_or_404
-from app.api.dependencies import current_active_user
+from app.api.dependencies import current_active_user, get_project_or_404
 from app.models import User
 from app.services.file_service import delete_project_files, get_original_path, store_upload
 from app.services.project_service import (

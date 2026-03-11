@@ -63,7 +63,9 @@ export function AuthProvider({ children }) {
       await loginUser(credentials);
       const currentUser = await refreshUser();
       if (!currentUser) {
-        throw new Error("Authenticated session was not established. Check the backend auth cookie settings.");
+        throw new Error(
+          "Authenticated session was not established. Check the backend auth cookie settings.",
+        );
       }
       return currentUser;
     },

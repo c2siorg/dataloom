@@ -7,7 +7,6 @@ from sqlmodel import Session
 
 from app import models
 from app.models import User
-from app.services.auth_service import current_active_user
 from app.services.project_service import get_project_by_id
 from app.utils.logging import get_logger
 

@@ -9,8 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app import database, schemas
-from app.api.dependencies import get_project_or_404
-from app.api.dependencies import current_active_user
+from app.api.dependencies import current_active_user, get_project_or_404
 from app.models import User
 from app.services import transformation_service as ts
 from app.services.project_service import log_transformation

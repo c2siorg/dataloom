@@ -8,7 +8,6 @@ from typing import Any
 from fastapi_users import schemas as fapi_schemas
 from pydantic import BaseModel, field_validator
 
-
 # --- User schemas ---
 
 
