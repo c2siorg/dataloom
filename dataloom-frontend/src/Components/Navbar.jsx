@@ -5,7 +5,7 @@ import DataLoomLogo from "./common/DataLoomLogo";
 const Navbar = () => {
   const location = useLocation();
   const { projectName } = useProjectContext();
-  const isSmall = location.pathname.startsWith("/workspace/");
+  const isWorkspacePage = location.pathname.startsWith("/workspace/");
 
   return (
     <header role="banner">
@@ -15,11 +15,11 @@ const Navbar = () => {
       >
         <div className="text-gray-900 font-semibold flex items-center">
           <Link to="/projects" className="flex items-center gap-2">
-            <DataLoomLogo className={isSmall ? "w-5 h-5" : "w-6 h-6"} />
-            <span className={isSmall ? "text-base" : "text-lg"}>DataLoom</span>
+            <DataLoomLogo className={isWorkspacePage ? "w-5 h-5" : "w-6 h-6"} />
+            <span className={isWorkspacePage ? "text-base" : "text-lg"}>DataLoom</span>
           </Link>
         </div>
-        {isSmall && (
+        {isWorkspacePage && (
           <div className="text-gray-700 font-medium text-base flex items-center ml-auto mr-4">
             {projectName || "Untitled Project"}
           </div>
