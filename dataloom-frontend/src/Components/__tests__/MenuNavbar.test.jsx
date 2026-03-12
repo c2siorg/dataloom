@@ -18,6 +18,12 @@ vi.mock("react-icons/lu", () => {
     LuChartBar: Stub,
     LuX: Stub,
     LuSearch: Stub,
+    LuMerge: Stub,
+    LuCalculator: Stub,
+    LuShieldCheck: Stub,
+    LuDownload: Stub,
+    LuWorkflow: Stub,
+    LuScissors: Stub,
   };
 });
 
@@ -72,6 +78,24 @@ vi.mock("../history/CheckpointsPanel", () => ({
 }));
 vi.mock("../ChartBuilder", () => ({
   default: () => <div data-testid="chart-builder-mock">ChartBuilder</div>,
+}));
+vi.mock("../forms/TrimWhitespaceForm", () => ({
+  default: () => <div data-testid="trim-form-mock">TrimWhitespaceForm</div>,
+}));
+vi.mock("../MergePanel", () => ({
+  default: () => <div data-testid="merge-panel-mock">MergePanel</div>,
+}));
+vi.mock("../FormulaPanel", () => ({
+  default: () => <div data-testid="formula-panel-mock">FormulaPanel</div>,
+}));
+vi.mock("../QualityPanel", () => ({
+  default: () => <div data-testid="quality-panel-mock">QualityPanel</div>,
+}));
+vi.mock("../ExportPanel", () => ({
+  default: () => <div data-testid="export-panel-mock">ExportPanel</div>,
+}));
+vi.mock("../PipelinePanel", () => ({
+  default: () => <div data-testid="pipeline-panel-mock">PipelinePanel</div>,
 }));
 
 const defaultProps = {

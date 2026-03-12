@@ -168,6 +168,7 @@ const HomeScreen = () => {
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Upload Dataset</h2>
             <input
               type="file"
+              accept=".csv,.xlsx,.json,.parquet,.tsv"
               className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none mb-4"
               onChange={handleFileUpload}
             />

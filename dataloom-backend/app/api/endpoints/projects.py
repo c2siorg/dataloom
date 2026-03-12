@@ -11,6 +11,7 @@ from sqlmodel import Session
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
 from app.services.file_service import get_original_path, store_upload
+from app.services.profiling_service import compute_profile
 from app.services.project_service import (
     create_checkpoint,
     create_project,
@@ -42,16 +43,18 @@ async def upload_project(
     validate_upload_file(file)
 
     original_path, copy_path = store_upload(file)
-    df = read_csv_safe(original_path)
+    df = read_csv_safe(copy_path)
 
     project = create_project(db, projectName, str(copy_path), projectDescription)
 
     resp = dataframe_to_response(df)
+    profile = compute_profile(df)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
         **resp,
+        "profile": profile.model_dump(),
     }
 
 

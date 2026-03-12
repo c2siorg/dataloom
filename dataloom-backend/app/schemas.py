@@ -175,6 +175,7 @@ class ProjectResponse(BaseModel):
     columns: list[str]
     row_count: int
     rows: list[list]
+    profile: dict | None = None
 
 
 # --- Other response schemas ---

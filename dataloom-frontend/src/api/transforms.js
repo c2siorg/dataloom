@@ -14,3 +14,14 @@ export const transformProject = async (projectId, transformationInput) => {
   const response = await client.post(`/projects/${projectId}/transform`, transformationInput);
   return response.data;
 };
+
+/**
+ * Apply a complex transformation (drop duplicates, query filter, pivot).
+ * @param {string} projectId - The project ID.
+ * @param {Object} transformationInput - The transformation parameters.
+ * @returns {Promise<Object>} Transformation result.
+ */
+export const complexTransformProject = async (projectId, transformationInput) => {
+  const response = await client.post(`/projects/${projectId}/Complextransform`, transformationInput);
+  return response.data;
+};
