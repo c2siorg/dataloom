@@ -162,7 +162,7 @@ class TestAddDeleteColumnEndpoint:
         )
         assert response.status_code == 200
 
-    def test_add_column_without_name_returns_422(self, client, sample_csv, db):
+    def test_add_column_without_name_assigns_default(self, client, sample_csv, db):
         with open(sample_csv, "rb") as f:
             response = client.post(
                 "/projects/upload",
@@ -176,7 +176,8 @@ class TestAddDeleteColumnEndpoint:
             f"/projects/{project_id}/transform",
             json={"operation_type": "addCol", "add_col_params": {"index": 1}},
         )
-        assert response.status_code == 422
+        assert response.status_code == 200
+        assert "new_column_1" in response.json()["columns"]
 
     def test_add_column_with_legacy_col_params_returns_400(self, client, sample_csv, db):
         with open(sample_csv, "rb") as f:
