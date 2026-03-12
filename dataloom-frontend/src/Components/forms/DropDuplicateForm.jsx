@@ -4,18 +4,25 @@ import { transformProject } from "../../api";
 import { DROP_DUPLICATE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import { useProjectContext } from "../../context/ProjectContext";
 
 const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
-  const [columns, setColumns] = useState("");
+  const [selectedColumns, setSelectedColumns] = useState([]);
   const [keep, setKeep] = useState("first");
   const { error, clearError, handleError } = useError();
+  const { columns: projectColumns } = useProjectContext();
+
+  const handleColumnChange = (e) => {
+    const options = Array.from(e.target.selectedOptions, (opt) => opt.value);
+    setSelectedColumns(options);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const transformationInput = {
       operation_type: DROP_DUPLICATE,
       drop_duplicate: {
-        columns: columns,
+        columns: selectedColumns.join(","),
         keep: keep,
       },
     };
@@ -23,11 +30,9 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
     clearError();
     try {
       const response = await transformProject(projectId, transformationInput);
-      console.log("Transformation response:", response);
-      onTransform(response); // Pass data to parent component
-      onClose(); // Close the form after submission
+      onTransform(response);
+      onClose();
     } catch (err) {
-      console.error("Error transforming project:", err);
       handleError(err);
     }
   };
@@ -38,18 +43,30 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
         <h3 className="font-semibold text-gray-900 mb-2">Drop Duplicate</h3>
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Columns:</label>
-            <input
-              type="text"
-              value={columns}
-              onChange={(e) => setColumns(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              placeholder="e.g., col1,col2"
+            <label className="block text-sm font-medium text-gray-700">
+              Columns:
+            </label>
+            <select
+              multiple
+              value={selectedColumns}
+              onChange={handleColumnChange}
+              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none min-h-[80px]"
               required
-            />
+            >
+              {projectColumns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Hold Ctrl/Cmd to select multiple columns
+            </p>
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Keep:</label>
+            <label className="block text-sm font-medium text-gray-700">
+              Keep:
+            </label>
             <select
               value={keep}
               onChange={(e) => setKeep(e.target.value)}

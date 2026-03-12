@@ -5,15 +5,22 @@ import { transformProject } from "../../api";
 import { PIVOT_TABLES } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import { useProjectContext } from "../../context/ProjectContext";
 
 const PivotTableForm = ({ projectId, onClose }) => {
-  const [index, setIndex] = useState("");
+  const { columns: projectColumns } = useProjectContext();
+  const [selectedIndex, setSelectedIndex] = useState([]);
   const [column, setColumn] = useState("");
   const [value, setValue] = useState("");
   const [aggfun, setAggfun] = useState("sum");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
+
+  const handleIndexChange = (e) => {
+    const options = Array.from(e.target.selectedOptions, (opt) => opt.value);
+    setSelectedIndex(options);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,12 +29,15 @@ const PivotTableForm = ({ projectId, onClose }) => {
     try {
       const response = await transformProject(projectId, {
         operation_type: PIVOT_TABLES,
-        pivot_query: { index, column, value, aggfun },
+        pivot_query: {
+          index: selectedIndex.join(","),
+          column,
+          value,
+          aggfun,
+        },
       });
       setResult(response);
-      console.log("Pivot API response:", response);
     } catch (err) {
-      console.error("Error applying pivot table:", err.message);
       handleError(err);
     } finally {
       setLoading(false);
@@ -41,39 +51,65 @@ const PivotTableForm = ({ projectId, onClose }) => {
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Index:</label>
-            <input
-              type="text"
-              value={index}
-              onChange={(e) => setIndex(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              placeholder="e.g., col1,col2"
+            <select
+              multiple
+              value={selectedIndex}
+              onChange={handleIndexChange}
+              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none min-h-[80px]"
               required
-            />
+            >
+              {projectColumns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Hold Ctrl/Cmd to select multiple
+            </p>
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Column:</label>
-            <input
-              type="text"
+            <select
               value={column}
               onChange={(e) => setColumn(e.target.value)}
               className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
               required
-            />
+            >
+              <option value="" disabled>
+                Select a column
+              </option>
+              {projectColumns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Value:</label>
-            <input
-              type="text"
+            <select
               value={value}
               onChange={(e) => setValue(e.target.value)}
               className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
               required
-            />
+            >
+              <option value="" disabled>
+                Select a column
+              </option>
+              {projectColumns.map((col) => (
+                <option key={col} value={col}>
+                  {col}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Aggregation Function:</label>
+            <label className="block text-sm font-medium text-gray-700">
+              Aggregation Function:
+            </label>
             <select
               value={aggfun}
               onChange={(e) => setAggfun(e.target.value)}
@@ -105,7 +141,9 @@ const PivotTableForm = ({ projectId, onClose }) => {
         </div>
       </form>
       <FormErrorAlert message={error} />
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
+      {result && (
+        <TransformResultPreview columns={result.columns} rows={result.rows} />
+      )}
     </div>
   );
 };
