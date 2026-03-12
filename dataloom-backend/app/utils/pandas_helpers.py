@@ -1,10 +1,44 @@
-"""Pandas utility functions for safe CSV operations and response building."""
+"""Pandas utility functions for safe file operations and response building."""
 
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from fastapi import HTTPException
+
+READER_MAP = {
+    ".csv": lambda p: pd.read_csv(p),
+    ".tsv": lambda p: pd.read_csv(p, sep="\t"),
+    ".xlsx": lambda p: pd.read_excel(p, engine="openpyxl"),
+    ".json": lambda p: pd.read_json(p),
+    ".parquet": lambda p: pd.read_parquet(p, engine="pyarrow"),
+}
+
+
+def read_datafile(path: Path) -> pd.DataFrame:
+    """Read a data file in any supported format based on file extension.
+
+    Supports CSV, TSV, Excel (.xlsx), JSON, and Parquet formats.
+
+    Args:
+        path: Path to the data file.
+
+    Returns:
+        DataFrame with the file contents.
+
+    Raises:
+        HTTPException: If the format is unsupported or the file cannot be read.
+    """
+    ext = Path(path).suffix.lower()
+    reader = READER_MAP.get(ext)
+    if not reader:
+        raise HTTPException(status_code=400, detail=f"Unsupported file format: {ext}")
+    try:
+        return reader(path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"File not found: {path}") from None
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}") from e
 
 
 def read_csv_safe(path: Path) -> pd.DataFrame:

@@ -20,13 +20,23 @@ class MockUploadFile:
 class TestValidateUploadFile:
     def test_csv_accepted(self):
         file = MockUploadFile("data.csv")
-        # Should not raise
         validate_upload_file(file)
 
-    def test_non_csv_rejected(self):
+    def test_xlsx_accepted(self):
         file = MockUploadFile("data.xlsx")
-        with pytest.raises(HTTPException, match="not allowed"):
-            validate_upload_file(file)
+        validate_upload_file(file)
+
+    def test_json_accepted(self):
+        file = MockUploadFile("data.json")
+        validate_upload_file(file)
+
+    def test_parquet_accepted(self):
+        file = MockUploadFile("data.parquet")
+        validate_upload_file(file)
+
+    def test_tsv_accepted(self):
+        file = MockUploadFile("data.tsv")
+        validate_upload_file(file)
 
     def test_exe_rejected(self):
         file = MockUploadFile("malware.exe")
@@ -86,6 +96,11 @@ class TestValidateUploadFile:
             with pytest.raises(HTTPException) as exc_info:
                 validate_upload_file(file)
             assert "5.0 MB" in exc_info.value.detail
+
+    def test_pdf_rejected(self):
+        file = MockUploadFile("report.pdf")
+        with pytest.raises(HTTPException, match="not allowed"):
+            validate_upload_file(file)
 
 
 class TestFormatSize:

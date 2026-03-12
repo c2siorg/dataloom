@@ -21,7 +21,7 @@ from app.services.project_service import (
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, read_datafile, save_csv_safe
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -45,7 +45,7 @@ async def upload_project(
     validate_upload_file(file)
 
     original_path, copy_path = store_upload(file)
-    df = read_csv_safe(original_path)
+    df = read_datafile(original_path)
 
     project = create_project(db, projectName, str(copy_path), projectDescription)
 

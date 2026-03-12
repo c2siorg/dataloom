@@ -60,7 +60,7 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.add_col_params:
             raise HTTPException(status_code=400, detail="Column parameters required")
         p = transformation_input.add_col_params
-        return ts.add_column(df, p.index, p.name), True
+        return ts.add_column(df, p.index, p.name or f"new_column_{p.index}"), True
 
     elif op == "delCol":
         if not transformation_input.del_col_params:
