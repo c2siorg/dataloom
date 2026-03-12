@@ -193,14 +193,20 @@ async def revert_to_checkpoint(
         for log in logs:
             df = apply_logged_transformation(df, log.action_type, log.action_details)
 
-    # Clear unapplied logs — they represent transformations the user chose to discard
-    db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied == False,  # noqa: E712
-    ).delete()
-
+    # Fix for #166: clear unapplied logs so a subsequent save cannot
+    # re-apply stale transformations on top of the reverted file state.
+    # Only applies to full revert (checkpoint_id=None).
+    if checkpoint_id is None:
+        db.query(models.ProjectChangeLog).filter(
+            models.ProjectChangeLog.project_id == project_id,
+            models.ProjectChangeLog.applied.is_(False),
+        ).delete(synchronize_session=False)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     save_csv_safe(df, project.file_path)
-    db.commit()
 
     resp = dataframe_to_response(df)
     logger.info("Project reverted: id=%s, checkpoint_id=%s", project_id, checkpoint_id)
