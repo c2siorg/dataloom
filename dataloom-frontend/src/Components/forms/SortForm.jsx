@@ -1,12 +1,14 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
-import { SORT } from "../../constants/operationTypes";
+import { useProjectContext } from "../../context/ProjectContext";
 import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import ColumnSelect from "../common/ColumnSelect";
 
 const SortForm = ({ projectId, onClose }) => {
+  const { columns = [] } = useProjectContext();
   const [column, setColumn] = useState("");
   const [ascending, setAscending] = useState(true);
   const [result, setResult] = useState(null);
@@ -20,7 +22,7 @@ const SortForm = ({ projectId, onClose }) => {
     clearError();
     try {
       const response = await transformProject(projectId, {
-        operation_type: SORT,
+        operation_type: "sort",
         sort_params: {
           column,
           ascending,
@@ -42,18 +44,22 @@ const SortForm = ({ projectId, onClose }) => {
         <h3 className="font-semibold text-gray-900 mb-2">Sort Dataset</h3>
         <div className="flex flex-wrap mb-4">
           <div className="w-full sm:w-1/2 mb-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Column:</label>
-            <input
-              type="text"
+            <ColumnSelect
+              id="sort-column"
+              label="Column:"
+              name="column"
               value={column}
               onChange={(e) => setColumn(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              columns={columns}
               required
             />
           </div>
           <div className="w-full sm:w-1/2 mb-2 pl-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Order:</label>
+            <label htmlFor="sort-order" className="block mb-1 text-sm font-medium text-gray-700">
+              Order:
+            </label>
             <select
+              id="sort-order"
               value={ascending}
               onChange={(e) => setAscending(e.target.value === "true")}
               className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
@@ -67,7 +73,7 @@ const SortForm = ({ projectId, onClose }) => {
           <button
             type="submit"
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
-            disabled={loading}
+            disabled={loading || columns.length === 0}
           >
             Submit
           </button>
