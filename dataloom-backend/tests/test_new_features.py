@@ -311,3 +311,18 @@ class TestTransformEndpoint:
             },
         )
         assert response.status_code == expected_status
+
+
+# --- Logs Endpoint Tests ---
+
+
+class TestLogsEndpoint:
+    def test_get_logs_nonexistent_project_returns_404(self, client):
+        response = client.get("/logs/00000000-0000-0000-0000-000000000000")
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_get_checkpoints_nonexistent_project_returns_404(self, client):
+        response = client.get("/logs/checkpoints/00000000-0000-0000-0000-000000000000")
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()

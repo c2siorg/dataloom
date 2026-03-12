@@ -4,12 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app import database, models, schemas
+from app.api import dependencies
 
 router = APIRouter()
 
 
 @router.get("/{project_id}", response_model=list[schemas.LogResponse])
 def get_logs(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+    dependencies.get_project_or_404(project_id, db)
     logs = (
         db.query(models.ProjectChangeLog)
         .filter(models.ProjectChangeLog.project_id == project_id)
@@ -32,6 +34,7 @@ def get_logs(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
 
 @router.get("/checkpoints/{project_id}", response_model=schemas.CheckpointResponse)
 def get_last_checkpoint(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+    dependencies.get_project_or_404(project_id, db)
     last_checkpoint = (
         db.query(models.Checkpoint)
         .filter(models.Checkpoint.project_id == project_id)
