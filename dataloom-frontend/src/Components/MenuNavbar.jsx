@@ -83,17 +83,21 @@ const MenuNavbar = ({ projectId, onTransform }) => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format = "csv") => {
     try {
-      const blob = await exportProject(projectId);
+      const response = await exportProject(projectId, format);
+      const blob = response.data;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
+      const disposition = response.headers?.["content-disposition"] ?? "";
+      const match = disposition.match(/filename[^;=\n]*=(["']?)([^'"\n;]*)\1/);
+      const filename = match?.[2] ?? (format === "xlsx" ? "export.xlsx" : "export.csv");
       a.href = url;
-      a.download = "export.csv";
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch {
       setToast({ message: "Failed to export project.", type: "error" });
     }
@@ -171,7 +175,8 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         group: "Save",
         items: [
           { label: "Save", icon: LuSave, onClick: handleSave },
-          { label: "Export", icon: LuDownload, onClick: handleExport },
+          { label: "Export CSV", icon: LuDownload, onClick: () => handleExport("csv") },
+          { label: "Export Excel", icon: LuDownload, onClick: () => handleExport("xlsx") },
         ],
       },
       {

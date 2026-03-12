@@ -4,6 +4,8 @@
  */
 import client from "./client";
 
+const VALID_FORMATS = ["csv", "xlsx"];
+
 /**
  * Upload a new project CSV file.
  * @param {File} file - The CSV file to upload.
@@ -64,15 +66,20 @@ export const revertToCheckpoint = async (projectId, checkpointId) => {
 };
 
 /**
- * Export the current working copy of a project as a CSV download.
+ * Export the current working copy of a project as a CSV or XLSX download.
  * @param {string} projectId - The project ID.
- * @returns {Promise<Blob>} The CSV file as a Blob.
+ * @param {"csv"|"xlsx"} format - Export format.
+ * @returns {Promise<Blob>} The exported file as a Blob.
  */
-export const exportProject = async (projectId) => {
-  const response = await client.get(`/projects/${projectId}/export`, {
+export const exportProject = async (projectId, format = "csv") => {
+  if (!VALID_FORMATS.includes(format)) {
+    throw new Error(`Unsupported export format: "${format}"`);
+  }
+  const params = new URLSearchParams({ format });
+  const response = await client.get(`/projects/${projectId}/export?${params.toString()}`, {
     responseType: "blob",
   });
-  return response.data;
+  return response;
 };
 
 /**
