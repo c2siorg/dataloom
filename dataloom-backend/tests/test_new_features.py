@@ -311,3 +311,67 @@ class TestTransformEndpoint:
             },
         )
         assert response.status_code == expected_status
+
+
+# --- Project Endpoint Integration Tests ---
+
+
+class TestProjectEndpoints:
+    def test_recent_projects_returns_list(self, client, sample_csv, db):
+        # Upload a project first
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Test Recent", "projectDescription": "Test recent projects"},
+            )
+        assert response.status_code == 200
+
+        # Get recent projects
+        response = client.get("/projects/recent")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+        assert len(response.json()) >= 1
+
+    def test_export_project_returns_csv(self, client, sample_csv, db):
+        # Upload a project first
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Test Export", "projectDescription": "Test export"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        # Export the project
+        response = client.get(f"/projects/{project_id}/export")
+        assert response.status_code == 200
+        assert "text/csv" in response.headers["content-type"]
+
+    def test_export_nonexistent_project_returns_404(self, client):
+        response = client.get("/projects/00000000-0000-0000-0000-000000000000/export")
+        assert response.status_code == 404
+
+    def test_delete_project_returns_200(self, client, sample_csv, db):
+        # Upload a project first
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Test Delete", "projectDescription": "Test delete"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        # Delete the project
+        response = client.delete(f"/projects/{project_id}")
+        assert response.status_code == 200
+
+        # Verify project is gone
+        response = client.get(f"/projects/get/{project_id}")
+        assert response.status_code == 404
+
+    def test_delete_nonexistent_project_returns_404(self, client):
+        response = client.delete("/projects/00000000-0000-0000-0000-000000000000")
+        assert response.status_code == 404
