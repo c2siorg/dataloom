@@ -42,7 +42,7 @@ async def upload_project(
     and returns the initial project data.
     """
     logger.info("Upload request: project=%s, file=%s", projectName, file.filename)
-    validate_upload_file(file)
+    await validate_upload_file(file)
 
     original_path, copy_path = store_upload(file)
     df = read_csv_safe(original_path)
