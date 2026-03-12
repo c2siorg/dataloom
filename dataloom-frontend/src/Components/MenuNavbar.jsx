@@ -5,6 +5,7 @@ import DropDuplicateForm from "./forms/DropDuplicateForm";
 import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
+import CastDataTypeForm from "./forms/CastDataTypeForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import {
@@ -32,6 +33,7 @@ import {
   LuDownload,
   LuWorkflow,
   LuScissors,
+  LuRefreshCw,
 } from "react-icons/lu";
 import ProfilePanel from "./ProfilePanel";
 import ChartBuilder from "./ChartBuilder";
@@ -41,7 +43,7 @@ import QualityPanel from "./QualityPanel";
 import ExportPanel from "./ExportPanel";
 import PipelinePanel from "./PipelinePanel";
 
-const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
+const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
   const [activePanel, setActivePanel] = useState(null);
   const [profileData, setProfileData] = useState(null);
   const [logs, setLogs] = useState([]);
@@ -101,6 +103,7 @@ const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
           { label: "Sort", icon: LuArrowUpDown, onClick: () => handleMenuClick("SortForm") },
           { label: "Drop Dup", icon: LuCopyMinus, onClick: () => handleMenuClick("DropDuplicateForm") },
           { label: "Trim", icon: LuScissors, onClick: () => handleMenuClick("TrimWhitespaceForm") },
+          { label: "Cast Type", icon: LuRefreshCw, onClick: () => handleMenuClick("CastDataTypeForm") },
         ],
       },
       {
@@ -192,6 +195,7 @@ const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
       {activePanel === "SortForm" && <SortForm onClose={closePanel} projectId={projectId} />}
       {activePanel === "DropDuplicateForm" && <DropDuplicateForm projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
       {activePanel === "TrimWhitespaceForm" && <TrimWhitespaceForm projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
+      {activePanel === "CastDataTypeForm" && <CastDataTypeForm projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
       {activePanel === "AdvQueryFilterForm" && <AdvQueryFilterForm onClose={closePanel} projectId={projectId} />}
       {activePanel === "PivotTableForm" && <PivotTableForm onClose={closePanel} projectId={projectId} />}
       {activePanel === "FormulaPanel" && <FormulaPanel projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
@@ -218,10 +222,10 @@ const Menu_NavBar = ({ projectId, onTransform, onColumnClick }) => {
   );
 };
 
-Menu_NavBar.propTypes = {
+MenuNavbar.propTypes = {
   projectId: proptype.string.isRequired,
   onTransform: proptype.func.isRequired,
   onColumnClick: proptype.func,
 };
 
-export default Menu_NavBar;
+export default MenuNavbar;

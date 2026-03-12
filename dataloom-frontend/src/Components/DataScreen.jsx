@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useProjectContext } from "../context/ProjectContext";
-import Menu_NavBar from "./MenuNavbar";
+import MenuNavbar from "./MenuNavbar";
 import Table from "./Table";
 import ColumnDetailModal from "./ColumnDetailModal";
 
@@ -24,7 +24,7 @@ export default function DataScreen() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Menu_NavBar
+      <MenuNavbar
         onTransform={handleTransform}
         projectId={projectId}
         onColumnClick={(columnProfile) => setSelectedColumnProfile(columnProfile)}

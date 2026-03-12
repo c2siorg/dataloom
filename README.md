@@ -17,6 +17,7 @@ A web-based GUI for data wrangling — manage and transform tabular datasets (CS
 
 - Node.js >= 18
 - Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
 - PostgreSQL
 
 ## Getting Started

@@ -5,7 +5,7 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 # --- Enums ---
 
@@ -20,17 +20,21 @@ class FilterCondition(StrEnum):
 
 class OperationType(StrEnum):
     """All supported transformation operation types."""
-    filter = 'filter'
-    sort = 'sort'
-    addRow = 'addRow'
-    delRow = 'delRow'
-    addCol = 'addCol'
-    delCol = 'delCol'
-    fillEmpty = 'fillEmpty'
-    dropDuplicate = 'dropDuplicate'
-    advQueryFilter = 'advQueryFilter'
-    pivotTables = 'pivotTables'
-    changeCellValue = 'changeCellValue'
+    filter = "filter"
+    sort = "sort"
+    addRow = "addRow"
+    delRow = "delRow"
+    addCol = "addCol"
+    delCol = "delCol"
+    fillEmpty = "fillEmpty"
+    dropDuplicate = "dropDuplicate"
+    advQueryFilter = "advQueryFilter"
+    pivotTables = "pivotTables"
+    changeCellValue = "changeCellValue"
+    renameCol = "renameCol"
+    castDataType = "castDataType"
+    trimWhitespace = "trimWhitespace"
+    dropNa = "dropNa"
 
 
 class DropDup(StrEnum):
@@ -51,17 +55,21 @@ class AggFunc(StrEnum):
 
 class ActionTypes(StrEnum):
     """Action types for user log entries."""
-    filter = 'filter'
-    sort = 'sort'
-    addRow = 'addRow'
-    delRow = 'delRow'
-    addCol = 'addCol'
-    delCol = 'delCol'
-    fillEmpty = 'fillEmpty'
-    dropDuplicate = 'dropDuplicate'
-    advQueryFilter = 'advQueryFilter'
-    pivotTables = 'pivotTables'
-    changeCellValue = 'changeCellValue'
+    filter = "filter"
+    sort = "sort"
+    addRow = "addRow"
+    delRow = "delRow"
+    addCol = "addCol"
+    delCol = "delCol"
+    fillEmpty = "fillEmpty"
+    dropDuplicate = "dropDuplicate"
+    advQueryFilter = "advQueryFilter"
+    pivotTables = "pivotTables"
+    changeCellValue = "changeCellValue"
+    renameCol = "renameCol"
+    castDataType = "castDataType"
+    trimWhitespace = "trimWhitespace"
+    dropNa = "dropNa"
 
 
 # --- Basic transformation parameter schemas ---
@@ -84,10 +92,15 @@ class AddOrDeleteRow(BaseModel):
     index: int
 
 
-class AddOrDeleteColumn(BaseModel):
-    """Parameters for adding or deleting a column by index and name."""
+class AddColumn(BaseModel):
+    """Parameters for adding a column."""
     index: int
-    name: str
+    name: str | None = None
+
+
+class DeleteColumn(BaseModel):
+    """Parameters for deleting a column."""
+    index: int
 
 
 class ChangeCellValue(BaseModel):
@@ -101,6 +114,44 @@ class FillEmptyParams(BaseModel):
     """Parameters for filling empty cells."""
     index: int | None
     fill_value: Any
+
+
+class RenameColumnParams(BaseModel):
+    """Parameters for renaming a column."""
+    col_index: int
+    new_name: str
+
+
+class DataType(StrEnum):
+    """Supported target types for data type casting."""
+    string = "string"
+    integer = "integer"
+    float = "float"
+    boolean = "boolean"
+    datetime = "datetime"
+
+
+class CastDataTypeParams(BaseModel):
+    """Parameters for casting a column to a different data type."""
+    column: str
+    target_type: DataType
+
+
+class TrimWhitespaceParams(BaseModel):
+    """Parameters for trimming whitespace from columns."""
+    column: str
+
+
+class DropNaParams(BaseModel):
+    """Parameters for dropping rows with missing/NaN values."""
+    columns: list[str] | None = None
+
+    @field_validator("columns")
+    @classmethod
+    def columns_must_not_be_empty(cls, v):
+        if v is not None and len(v) == 0:
+            raise ValueError("columns list must not be empty; omit the field to drop rows with any NaN")
+        return v
 
 
 # --- Complex transformation parameter schemas ---
@@ -150,12 +201,17 @@ class TransformationInput(BaseModel):
     parameters: FilterParameters | None = None
     sort_params: SortParameters | None = None
     row_params: AddOrDeleteRow | None = None
-    col_params: AddOrDeleteColumn | None = None
+    add_col_params: AddColumn | None = None
+    del_col_params: DeleteColumn | None = None
     fill_empty_params: FillEmptyParams | None = None
     drop_duplicate: DropDuplicates | None = None
     adv_query: AdvQuery | None = None
     pivot_query: Pivot | None = None
     change_cell_value: ChangeCellValue | None = None
+    rename_col_params: RenameColumnParams | None = None
+    cast_data_type_params: CastDataTypeParams | None = None
+    trim_whitespace_params: TrimWhitespaceParams | None = None
+    drop_na_params: DropNaParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
@@ -209,7 +265,6 @@ class LastResponse(BaseModel):
 
 
 # --- Profiling schemas ---
-
 
 class NumericStatsSchema(BaseModel):
     """Statistics for a numeric column."""
