@@ -9,28 +9,6 @@ from app.api.dependencies import get_project_or_404
 router = APIRouter()
 
 
-@router.get("/{project_id}", response_model=list[schemas.LogResponse])
-def get_logs(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    get_project_or_404(project_id, db)
-    logs = (
-        db.query(models.ProjectChangeLog)
-        .filter(models.ProjectChangeLog.project_id == project_id)
-        .order_by(models.ProjectChangeLog.timestamp.desc())
-        .all()
-    )
-    return [
-        schemas.LogResponse(
-            id=log.change_log_id,
-            action_type=log.action_type,
-            action_details=log.action_details,
-            timestamp=log.timestamp,
-            checkpoint_id=log.checkpoint_id,
-            applied=log.applied,
-        )
-        for log in logs
-    ]
-
-
 @router.get("/checkpoints/{project_id}", response_model=schemas.CheckpointResponse)
 def get_last_checkpoint(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
     get_project_or_404(project_id, db)
@@ -42,6 +20,30 @@ def get_last_checkpoint(project_id: uuid.UUID, db: Session = Depends(database.ge
     )
     if not last_checkpoint:
         raise HTTPException(status_code=404, detail=f"No checkpoints found for project ID {project_id}")
+
     return schemas.CheckpointResponse(
         id=last_checkpoint.id, message=last_checkpoint.message, created_at=last_checkpoint.created_at
     )
+
+
+@router.get("/{project_id}", response_model=list[schemas.LogResponse])
+def get_logs(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+    get_project_or_404(project_id, db)
+    logs = (
+        db.query(models.ProjectChangeLog)
+        .filter(models.ProjectChangeLog.project_id == project_id)
+        .order_by(models.ProjectChangeLog.timestamp.desc())
+        .all()
+    )
+
+    return [
+        schemas.LogResponse(
+            id=log.change_log_id,
+            action_type=log.action_type,
+            action_details=log.action_details,
+            timestamp=log.timestamp,
+            checkpoint_id=log.checkpoint_id,
+            applied=log.applied,
+        )
+        for log in logs
+    ]
