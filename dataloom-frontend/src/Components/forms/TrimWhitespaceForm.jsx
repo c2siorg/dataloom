@@ -10,9 +10,11 @@ const TrimWhitespaceForm = ({ projectId, onClose, onTransform }) => {
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
     try {
       const response = await transformProject(projectId, {
@@ -23,13 +25,14 @@ const TrimWhitespaceForm = ({ projectId, onClose, onTransform }) => {
       });
 
       onTransform(response);
+      onClose();
     } catch (error) {
       console.error("Error trimming whitespace:", error);
 
       showToast(error.response?.data?.detail || "Failed to trim whitespace.", "error");
+    } finally {
+      setLoading(false);
     }
-
-    onClose();
   };
 
   return (
@@ -58,9 +61,10 @@ const TrimWhitespaceForm = ({ projectId, onClose, onTransform }) => {
         <div className="flex justify-between">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            disabled={loading}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Apply
+            {loading ? "Applying..." : "Apply"}
           </button>
 
           <button
