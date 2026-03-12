@@ -88,6 +88,15 @@ def recent_projects(db: Session = Depends(database.get_db)):
     ]
 
 
+@router.delete("/{project_id}")
+async def delete_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+    """Delete a project and its associated data."""
+    project = get_project_or_404(project_id, db)
+    db.delete(project)
+    db.commit()
+    return {"success": True, "project_id": str(project_id)}
+
+
 @router.post("/{project_id}/save", response_model=schemas.ProjectResponse)
 async def save_project(
     project_id: uuid.UUID,

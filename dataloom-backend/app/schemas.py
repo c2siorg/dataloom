@@ -95,7 +95,7 @@ class AddOrDeleteRow(BaseModel):
 class AddColumn(BaseModel):
     """Parameters for adding a column."""
     index: int
-    name: str | None = None
+    name: str
 
 
 class DeleteColumn(BaseModel):
