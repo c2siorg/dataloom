@@ -115,14 +115,18 @@ def fill_empty(df: pd.DataFrame, fill_value, column_index: int = None) -> pd.Dat
 
 def rename_column(df: pd.DataFrame, col_index: int, new_name: str) -> pd.DataFrame:
     if col_index < 0 or col_index >= len(df.columns):
-        raise TransformationError(f"Column index {col_index} out of range (0-{len(df.columns)-1})")
+        raise TransformationError(
+            f"Column index {col_index} is out of range (DataFrame has {len(df.columns)} columns)."
+        )
     if not new_name or not new_name.strip():
-        raise TransformationError("Column name cannot be empty")
-    df = df.copy()
-    columns = list(df.columns)
-    columns[col_index] = new_name.strip()
-    df.columns = columns
-    return df
+        raise TransformationError("New column name cannot be empty or whitespace.")
+
+    old_name = df.columns[col_index]
+
+    if new_name in df.columns and new_name != old_name:
+        raise TransformationError(f"Column '{new_name}' already exists. Please choose a different name.")
+
+    return df.rename(columns={old_name: new_name})
 
 
 def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFrame:

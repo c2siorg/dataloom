@@ -37,6 +37,8 @@ const NewProjectCard = ({ onClick }) => (
   </button>
 );
 
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
 const HomeScreen = () => {
   const [showModal, setShowModal] = useState(false);
   const [fileUpload, setFileUpload] = useState(null);
@@ -86,15 +88,9 @@ const HomeScreen = () => {
     }
 
     try {
-      const data = await uploadProject(
-        fileUpload,
-        projectName,
-        projectDescription
-      );
-      console.log("Backend response data:", data);
+      const data = await uploadProject(fileUpload, projectName, projectDescription);
 
       const projectId = data.project_id;
-      console.log("Project ID:", projectId);
 
       if (projectId) {
         navigate(`/workspace/${projectId}`);
@@ -104,7 +100,8 @@ const HomeScreen = () => {
       }
     } catch (error) {
       console.error("Error uploading file:", error);
-      showToast("Error uploading file. Please try again.", "error");
+      const message = error?.response?.data?.detail || "Error uploading file. Please try again.";
+      showToast(message, "error");
     }
 
     setShowModal(false);
@@ -113,8 +110,14 @@ const HomeScreen = () => {
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
+    if (file && file.size > MAX_FILE_SIZE_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      showToast(`File too large (${sizeMB} MB). Maximum allowed size is 10 MB.`, "warning");
+      event.target.value = "";
+      setFileUpload(null);
+      return;
+    }
     setFileUpload(file);
-    console.log(file);
   };
 
   const handleRecentProjectClick = (projectId) => {
