@@ -1,5 +1,6 @@
 # DataLoom
 
+[![CI](https://github.com/c2siorg/dataloom/actions/workflows/ci.yml/badge.svg)](https://github.com/c2siorg/dataloom/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 A web-based GUI for data wrangling — manage and transform tabular datasets (CSV) through a graphical interface powered by pandas, without writing code.

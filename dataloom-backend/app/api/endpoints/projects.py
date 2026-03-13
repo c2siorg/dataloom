@@ -6,16 +6,15 @@ Handles upload, retrieval, save (checkpoint), and revert operations.
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from sqlmodel import Session
 
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
-from app.services.file_service import delete_project_files, get_original_path, store_upload
+from app.services.file_service import get_original_path, store_upload
+from app.services.profiling_service import compute_profile
 from app.services.project_service import (
     create_checkpoint,
     create_project,
-    delete_project,
     get_recent_projects,
 )
 from app.services.transformation_service import apply_logged_transformation
@@ -44,16 +43,18 @@ async def upload_project(
     validate_upload_file(file)
 
     original_path, copy_path = store_upload(file)
-    df = read_csv_safe(original_path)
+    df = read_csv_safe(copy_path)
 
     project = create_project(db, projectName, str(copy_path), projectDescription)
 
     resp = dataframe_to_response(df)
+    profile = compute_profile(df)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
         **resp,
+        "profile": profile.model_dump(),
     }
 
 
@@ -87,6 +88,15 @@ def recent_projects(db: Session = Depends(database.get_db)):
     ]
 
 
+@router.delete("/{project_id}")
+async def delete_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+    """Delete a project and its associated data."""
+    project = get_project_or_404(project_id, db)
+    db.delete(project)
+    db.commit()
+    return {"success": True, "project_id": str(project_id)}
+
+
 @router.post("/{project_id}/save", response_model=schemas.ProjectResponse)
 async def save_project(
     project_id: uuid.UUID,
@@ -105,15 +115,10 @@ async def save_project(
     df = read_csv_safe(original_path)
 
     # Get all unapplied logs for this project
-    logs = (
-        db.query(models.ProjectChangeLog)
-        .filter(
-            models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.applied == False,  # noqa: E712
-        )
-        .order_by(models.ProjectChangeLog.timestamp)
-        .all()
-    )
+    logs = db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        not models.ProjectChangeLog.applied,
+    ).order_by(models.ProjectChangeLog.timestamp).all()
 
     # Replay each logged transformation on the original
     for log in logs:
@@ -157,38 +162,26 @@ async def revert_to_checkpoint(
     df = read_csv_safe(original_path)
 
     if checkpoint_id is not None:
-        checkpoint = (
-            db.query(models.Checkpoint)
-            .filter(
-                models.Checkpoint.id == checkpoint_id,
-                models.Checkpoint.project_id == project_id,
-            )
-            .first()
-        )
+        checkpoint = db.query(models.Checkpoint).filter(
+            models.Checkpoint.id == checkpoint_id,
+            models.Checkpoint.project_id == project_id,
+        ).first()
         if not checkpoint:
             raise HTTPException(status_code=404, detail="Checkpoint not found")
 
         # Find all checkpoint IDs created at or before the target checkpoint
         eligible_checkpoint_ids = [
-            c.id
-            for c in db.query(models.Checkpoint)
-            .filter(
+            c.id for c in db.query(models.Checkpoint).filter(
                 models.Checkpoint.project_id == project_id,
                 models.Checkpoint.created_at <= checkpoint.created_at,
-            )
-            .all()
+            ).all()
         ]
 
-        logs = (
-            db.query(models.ProjectChangeLog)
-            .filter(
-                models.ProjectChangeLog.project_id == project_id,
-                models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
-                models.ProjectChangeLog.applied == True,  # noqa: E712
-            )
-            .order_by(models.ProjectChangeLog.timestamp)
-            .all()
-        )
+        logs = db.query(models.ProjectChangeLog).filter(
+            models.ProjectChangeLog.project_id == project_id,
+            models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
+            models.ProjectChangeLog.applied,
+        ).order_by(models.ProjectChangeLog.timestamp).all()
 
         for log in logs:
             df = apply_logged_transformation(df, log.action_type, log.action_details)
@@ -204,19 +197,3 @@ async def revert_to_checkpoint(
         "project_id": project.project_id,
         **resp,
     }
-
-
-@router.get("/{project_id}/export")
-async def export_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Download the current working copy of a project as a CSV file."""
-    project = get_project_or_404(project_id, db)
-    return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
-
-
-@router.delete("/{project_id}")
-async def delete_project_endpoint(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Delete a project and its associated files."""
-    project = get_project_or_404(project_id, db)
-    delete_project_files(project.file_path)
-    delete_project(db, project)
-    return {"success": True, "message": "Project deleted"}

@@ -31,13 +31,12 @@ MenuButton.propTypes = {
 };
 
 const Table = ({ projectId, data: externalData }) => {
-  const { columns: ctxColumns, rows: ctxRows, dtypes, updateData } = useProjectContext();
+  const { columns: ctxColumns, rows: ctxRows } = useProjectContext();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState("");
   const { isOpen, position, contextData, open, close } = useContextMenu();
-
   const [inputConfig, setInputConfig] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -57,10 +56,9 @@ const Table = ({ projectId, data: externalData }) => {
   }, [externalData]);
 
   const updateTableData = (response) => {
-    const { columns, rows, dtypes: newDtypes } = response;
+    const { columns, rows } = response;
     setColumns(["S.No.", ...columns]);
     setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-    updateData(columns, rows, newDtypes);
   };
 
   const handleAddRow = async (index) => {
@@ -70,11 +68,8 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
-    } catch {
-      setToast({
-        message: "Failed to add row. Please try again.",
-        type: "error",
-      });
+    } catch (error) {
+      setToast({ message: "Failed to add row. Please try again.", type: "error" });
     }
   };
 
@@ -83,24 +78,16 @@ const Table = ({ projectId, data: externalData }) => {
       message: "Enter column name:",
       defaultValue: "",
       onSubmit: async (newColumnName) => {
-        if (!newColumnName) {
-          setInputConfig(null);
-          return;
-        }
-
+        if (!newColumnName) { setInputConfig(null); return; }
         try {
           const response = await transformProject(projectId, {
             operation_type: ADD_COLUMN,
-            col_params: { index, name: newColumnName },
+            add_col_params: { index, name: newColumnName },
           });
           updateTableData(response);
         } catch {
-          setToast({
-            message: "Failed to add column. Please try again.",
-            type: "error",
-          });
+          setToast({ message: "Failed to add column. Please try again.", type: "error" });
         }
-
         setInputConfig(null);
       },
     });
@@ -113,32 +100,21 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
-    } catch {
-      setToast({
-        message: "Failed to delete row. Please try again.",
-        type: "error",
-      });
+    } catch (error) {
+      setToast({ message: "Failed to delete row. Please try again.", type: "error" });
     }
   };
 
   const handleRenameColumn = (index) => {
     if (index === 0) {
-      setToast({
-        message: "Cannot rename the S.No. column.",
-        type: "error",
-      });
+      setToast({ message: "Cannot rename the S.No. column.", type: "error" });
       return;
     }
-
     setInputConfig({
       message: "Enter new column name:",
       defaultValue: "",
       onSubmit: async (newName) => {
-        if (!newName) {
-          setInputConfig(null);
-          return;
-        }
-
+        if (!newName) { setInputConfig(null); return; }
         try {
           const response = await transformProject(projectId, {
             operation_type: RENAME_COLUMN,
@@ -146,12 +122,8 @@ const Table = ({ projectId, data: externalData }) => {
           });
           updateTableData(response);
         } catch {
-          setToast({
-            message: "Failed to rename column. Please try again.",
-            type: "error",
-          });
+          setToast({ message: "Failed to rename column. Please try again.", type: "error" });
         }
-
         setInputConfig(null);
       },
     });
@@ -159,24 +131,17 @@ const Table = ({ projectId, data: externalData }) => {
 
   const handleDeleteColumn = async (index) => {
     if (index === 0) {
-      setToast({
-        message: "Cannot delete the S.No. column.",
-        type: "error",
-      });
+      setToast({ message: "Cannot delete the S.No. column.", type: "error" });
       return;
     }
-
     try {
       const response = await transformProject(projectId, {
         operation_type: DELETE_COLUMN,
-        col_params: { index: index - 1 },
+        del_col_params: { index: index - 1 },
       });
       updateTableData(response);
-    } catch {
-      setToast({
-        message: "Failed to delete column. Please try again.",
-        type: "error",
-      });
+    } catch (error) {
+      setToast({ message: "Failed to delete column. Please try again.", type: "error" });
     }
   };
 
@@ -193,19 +158,8 @@ const Table = ({ projectId, data: externalData }) => {
       updateTableData(response);
       setEditingCell(null);
       setEditValue("");
-    } catch {
-      setToast({
-        message: "Failed to edit cell. Please try again.",
-        type: "error",
-      });
-    }
-  };
-  const handleInputKeyDown = (e, rowIndex, cellIndex) => {
-    if (e.key === "Enter") {
-      handleEditCell(rowIndex, cellIndex, editValue);
-    } else if (e.key === "Escape") {
-      setEditingCell(null);
-      setEditValue("");
+    } catch (error) {
+      setToast({ message: "Failed to edit cell. Please try again.", type: "error" });
     }
   };
 
@@ -213,6 +167,19 @@ const Table = ({ projectId, data: externalData }) => {
     if (cellIndex !== 0) {
       setEditingCell({ rowIndex, cellIndex });
       setEditValue(cellValue);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setEditValue(e.target.value);
+  };
+
+  const handleInputKeyDown = (e, rowIndex, cellIndex) => {
+    if (e.key === "Enter") {
+      handleEditCell(rowIndex, cellIndex, editValue);
+    } else if (e.key === "Escape") {
+      setEditingCell(null);
+      setEditValue("");
     }
   };
 
@@ -231,15 +198,15 @@ const Table = ({ projectId, data: externalData }) => {
                   className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                   onContextMenu={(e) => open(e, { type: "column", columnIndex })}
                 >
-                  <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
+                  <button
+                    className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150"
+                  >
                     {column}
-                    {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
                   </button>
                 </th>
               ))}
             </tr>
           </thead>
-
           <tbody>
             {data.map((row, rowIndex) => (
               <tr
@@ -258,17 +225,15 @@ const Table = ({ projectId, data: externalData }) => {
                       <input
                         type="text"
                         value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
+                        onChange={handleInputChange}
                         onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
-                        className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                         onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
+                        className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                       />
                     ) : (
                       <div
                         onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
-                        className={
-                          cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""
-                        }
+                        className={cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""}
                       >
                         {cell}
                       </div>
@@ -288,23 +253,15 @@ const Table = ({ projectId, data: externalData }) => {
         onClose={close}
         actions={(data) => {
           if (!data) return null;
-
           if (data.type === "column") {
             return (
               <>
-                <MenuButton onClick={() => handleAddColumn(data.columnIndex)}>
-                  Add Column
-                </MenuButton>
-                <MenuButton onClick={() => handleDeleteColumn(data.columnIndex)}>
-                  Delete Column
-                </MenuButton>
-                <MenuButton onClick={() => handleRenameColumn(data.columnIndex)}>
-                  Rename Column
-                </MenuButton>
+                <MenuButton onClick={() => handleAddColumn(data.columnIndex)}>Add Column</MenuButton>
+                <MenuButton onClick={() => handleDeleteColumn(data.columnIndex)}>Delete Column</MenuButton>
+                <MenuButton onClick={() => handleRenameColumn(data.columnIndex)}>Rename Column</MenuButton>
               </>
             );
           }
-
           if (data.type === "row") {
             return (
               <>
