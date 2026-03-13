@@ -17,7 +17,23 @@ Thank you for your interest in contributing to DataLoom! This document provides 
 
 ## Development Setup
 
-### Backend
+### Prerequisites
+Before you begin, ensure you have the following installed on your machine:
+* **Python** (via `uv` package manager): [Install uv](https://github.com/astral-sh/uv)
+* **Node.js** & **npm**: [Install Node.js](https://nodejs.org/)
+* **PostgreSQL**: [Download PostgreSQL](https://www.postgresql.org/download/)
+
+### Database Setup
+DataLoom requires a PostgreSQL database to run. 
+1. Install PostgreSQL from the official link above and start the service.
+2. Create a new database specifically for this project named `dataloom`.
+   - *Via Command Line (psql):* 
+     ```bash
+     psql -U postgres -c "CREATE DATABASE dataloom;"
+     ```
+   - *Via pgAdmin:* Right-click "Databases" -> Create -> Database -> Name it `dataloom`.
+
+### Backend Setup
 
 ```bash
 cd dataloom-backend
@@ -25,7 +41,8 @@ cp .env.example .env          # Configure DB credentials
 uv sync
 ```
 
-Edit `.env` and set your `DATABASE_URL` to point to a running PostgreSQL instance with a database named `dataloom`.
+Edit the newly created `.env` file and set your `DATABASE_URL` to point to your running PostgreSQL instance. An example standard local connection string is:
+`DATABASE_URL="postgresql://postgres:<your_password>@localhost:5432/dataloom"`
 
 Start the backend development server:
 
@@ -33,9 +50,14 @@ Start the backend development server:
 uv run uvicorn app.main:app --reload --port 4200
 ```
 
+> **Note:** If the above command fails or throws an error on your system, please try running it as a Python module instead:
+> ```bash
+> uv run python -m uvicorn app.main:app --reload --port 4200
+> ```
+
 The API will be available at `http://localhost:4200`.
 
-### Frontend
+### Frontend Setup
 
 ```bash
 cd dataloom-frontend
