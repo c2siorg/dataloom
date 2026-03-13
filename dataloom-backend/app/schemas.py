@@ -113,7 +113,14 @@ class AddColumn(BaseModel):
     """
 
     index: int
-    name: str | None = None
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_blank(cls, v):
+        if not v or not v.strip():
+            raise ValueError("name must not be empty")
+        return v
 
 
 class DeleteColumn(BaseModel):

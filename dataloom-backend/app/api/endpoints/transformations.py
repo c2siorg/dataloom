@@ -156,18 +156,22 @@ async def transform_project(
             result_df, should_save = _handle_complex_transform(df, transformation_input, project, db, project_id)
         else:
             result_df, should_save = _handle_basic_transform(df, transformation_input, project, db, project_id)
+
+        if should_save:
+            save_csv_safe(result_df, project.file_path)
+            log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
+
+        resp = dataframe_to_response(result_df)
+        return {
+            "project_id": project_id,
+            "operation_type": transformation_input.operation_type,
+            **resp,
+        }
+    except HTTPException:
+        # Preserve explicit HTTP errors (e.g., missing parameters) and their status codes.
+        raise
     except ts.TransformationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    if should_save:
-        save_csv_safe(result_df, project.file_path)
-        log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
-
-    resp = dataframe_to_response(result_df)
-    return {
-        "project_id": project_id,
-        "operation_type": transformation_input.operation_type,
-        **resp,
-    }
+        logger.exception("Unexpected error during transform for project_id=%s op=%s", project_id, op)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
