@@ -29,8 +29,29 @@ def sanitize_filename(filename: str) -> str:
     return f"{uuid.uuid4().hex[:8]}_{name}"
 
 
+def _format_size(size_bytes: int) -> str:
+    """Format a byte count into a human-readable string (e.g. '10.0 MB').
+
+    Args:
+        size_bytes: Size in bytes.
+
+    Returns:
+        Human-readable size string.
+    """
+    for unit in ("B", "KB", "MB", "GB"):
+        if size_bytes < 1024:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.1f} TB"
+
+
 def validate_upload_file(file: UploadFile) -> None:
     """Validate an uploaded file's extension and size.
+
+    Checks the file extension against the allowed list and reads the file
+    content to verify it does not exceed the configured maximum size.
+    After validation the file cursor is reset to the beginning so
+    downstream consumers can read it normally.
 
     Args:
         file: The FastAPI UploadFile object.
@@ -45,6 +66,19 @@ def validate_upload_file(file: UploadFile) -> None:
     if ext not in settings.allowed_extensions:
         raise HTTPException(
             status_code=400, detail=f"File type '{ext}' not allowed. Allowed: {settings.allowed_extensions}"
+        )
+
+    # Check file size by reading content
+    contents = file.file.read()
+    size = len(contents)
+    file.file.seek(0)  # Reset so downstream can read the file
+
+    if size > settings.max_upload_size_bytes:
+        max_human = _format_size(settings.max_upload_size_bytes)
+        actual_human = _format_size(size)
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large: {actual_human}. Maximum allowed size is {max_human}.",
         )
 
 
