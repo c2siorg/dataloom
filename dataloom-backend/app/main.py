@@ -23,11 +23,22 @@ logger = get_logger(__name__)
 async def lifespan(app):
     """Application startup/shutdown lifecycle."""
     from alembic.config import Config
+    from sqlalchemy import inspect
+    from sqlmodel import SQLModel
 
     from alembic import command
+    from app.database import engine
 
+    inspector = inspect(engine)
     alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
+
+    if not inspector.get_table_names():
+        # Fresh DB: create tables directly from current models and stamp to head
+        SQLModel.metadata.create_all(engine)
+        command.stamp(alembic_cfg, "head")
+    else:
+        # Existing DB: run normal migrations
+        command.upgrade(alembic_cfg, "head")
 
     settings = get_settings()
     setup_logging(settings.debug)

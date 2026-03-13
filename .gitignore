@@ -25,3 +25,12 @@ Desktop.ini
 .env
 .env.local
 .env.*.local
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Node (root)
+node_modules/
