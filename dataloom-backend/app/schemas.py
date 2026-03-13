@@ -5,7 +5,7 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 # --- Enums ---
 
@@ -251,7 +251,7 @@ class TransformationInput(BaseModel):
     rename_col_params: RenameColumnParams | None = None
     cast_data_type_params: CastDataTypeParams | None = None
     trim_whitespace_params: TrimWhitespaceParams | None = None
-    drop_na_params: DropNaParams | None = None
+    drop_na_params: DropNaParams = Field(default_factory=DropNaParams)
 
 
 class BasicQueryResponse(BaseModel):

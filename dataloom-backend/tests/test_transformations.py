@@ -9,11 +9,13 @@ from app.services.transformation_service import (
     add_row,
     advanced_query,
     apply_filter,
+    apply_logged_transformation,
     apply_sort,
     change_cell_value,
     delete_column,
     delete_row,
     drop_duplicates,
+    drop_na,
     fill_empty,
     pivot_table,
     rename_column,
@@ -186,6 +188,50 @@ class TestPivotTable:
         result = pivot_table(df, "city", "sales", aggfunc="sum")
         assert "city" in result.columns
         assert "sales" in result.columns
+
+
+class TestDropNa:
+    def test_drop_na_all_columns(self):
+        df = pd.DataFrame({"a": [1, None, 3], "b": ["x", None, "z"]})
+        result = drop_na(df)
+        assert len(result) == 2
+
+    def test_drop_na_specific_columns(self):
+        df = pd.DataFrame({"a": [1, None, 3], "b": ["x", "y", None]})
+        result = drop_na(df, columns=["a"])
+        assert len(result) == 2
+        assert result["a"].notna().all()
+
+    def test_drop_na_missing_column(self):
+        df = pd.DataFrame({"a": [1, 2, 3]})
+        with pytest.raises(TransformationError):
+            drop_na(df, columns=["nonexistent"])
+
+    def test_drop_na_empty_columns_list(self):
+        df = pd.DataFrame({"a": [1, None, 3]})
+        with pytest.raises(TransformationError):
+            drop_na(df, columns=[])
+
+
+class TestApplyLoggedTransformationDropNa:
+    """Regression tests: dropNa replay must not crash when drop_na_params is None."""
+
+    def test_drop_na_params_is_none(self):
+        # Pydantic serialises absent optional dict fields as None, not missing key
+        df = pd.DataFrame({"a": [1, None, 3], "b": ["x", None, "z"]})
+        result = apply_logged_transformation(df, "dropNa", {"drop_na_params": None})
+        assert len(result) == 2
+
+    def test_drop_na_params_missing(self):
+        df = pd.DataFrame({"a": [1, None, 3], "b": ["x", None, "z"]})
+        result = apply_logged_transformation(df, "dropNa", {})
+        assert len(result) == 2
+
+    def test_drop_na_params_with_columns(self):
+        df = pd.DataFrame({"a": [1, None, 3], "b": ["x", None, "z"]})
+        result = apply_logged_transformation(df, "dropNa", {"drop_na_params": {"columns": ["a"]}})
+        assert len(result) == 2
+        assert result["a"].notna().all()
 
 
 class TestRenameColumn:

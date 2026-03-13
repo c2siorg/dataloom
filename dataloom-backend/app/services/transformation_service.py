@@ -428,6 +428,22 @@ def drop_na(df: pd.DataFrame, columns: list[str] | None = None) -> pd.DataFrame:
     return df.dropna().reset_index(drop=True)
 
 
+def _get_params(action_details: dict, key: str) -> dict:
+    """Return params dict, safely handling None and missing keys.
+
+    Pydantic may serialise absent optional dict fields as None rather than
+    omitting them.  Using ``action_details.get(key, {})`` does NOT guard
+    against this because ``.get()`` only uses the default when the key is
+    *missing* — a present-but-None value is returned as-is.  The ``or {}``
+    idiom coerces both missing and None to an empty dict so that downstream
+    ``.get()`` / ``[]`` calls never operate on None.
+    """
+    value = action_details.get(key)
+    if value is not None and not isinstance(value, dict):
+        raise ValueError(f"{key} must be None or a dict, got {type(value).__name__}")
+    return value or {}
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
@@ -447,58 +463,67 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         TransformationError: If the transformation cannot be applied.
     """
     if action_type == "addRow":
-        index = action_details["row_params"]["index"]
+        row_params = _get_params(action_details, "row_params")
+        index = row_params["index"]
         return add_row(df, index)
 
     elif action_type == "delRow":
-        index = action_details["row_params"]["index"]
+        row_params = _get_params(action_details, "row_params")
+        index = row_params["index"]
         if index < 0 or index >= len(df):
             raise TransformationError(f"Row index {index} out of range")
         return df.drop(index)
 
     elif action_type == "addCol":
-        params = action_details.get("add_col_params") or action_details.get("col_params")
+        params = _get_params(action_details, "add_col_params") or _get_params(action_details, "col_params")
         index = params["index"]
         column_name = params["name"]
         return add_column(df, index, column_name)
 
     elif action_type == "delCol":
-        params = action_details.get("del_col_params") or action_details.get("col_params")
+        params = _get_params(action_details, "del_col_params") or _get_params(action_details, "col_params")
         index = params["index"]
         return delete_column(df, index)
 
     elif action_type == "changeCellValue":
-        row_index = action_details["change_cell_value"]["row_index"]
-        col_index = action_details["change_cell_value"]["col_index"]
-        new_value = action_details["change_cell_value"]["fill_value"]
+        cell_params = _get_params(action_details, "change_cell_value")
+        row_index = cell_params["row_index"]
+        col_index = cell_params["col_index"]
+        new_value = cell_params["fill_value"]
         return change_cell_value(df, row_index, col_index, new_value)
 
     elif action_type == "fillEmpty":
-        fill_value = action_details["fill_empty_params"]["fill_value"]
-        column_index = action_details["fill_empty_params"].get("index")
+        fill_params = _get_params(action_details, "fill_empty_params")
+        fill_value = fill_params["fill_value"]
+        column_index = fill_params.get("index")
         return fill_empty(df, fill_value, column_index)
 
     elif action_type == "dropDuplicate":
-        columns = action_details["drop_duplicate"]["columns"]
-        keep = action_details["drop_duplicate"]["keep"]
+        dup_params = _get_params(action_details, "drop_duplicate")
+        columns = dup_params["columns"]
+        keep = dup_params["keep"]
         return drop_duplicates(df, columns, keep)
 
     elif action_type == "renameCol":
-        col_index = action_details["rename_col_params"]["col_index"]
-        new_name = action_details["rename_col_params"]["new_name"]
+        rename_params = _get_params(action_details, "rename_col_params")
+        col_index = rename_params["col_index"]
+        new_name = rename_params["new_name"]
         return rename_column(df, col_index, new_name)
 
     elif action_type == "castDataType":
-        column = action_details["cast_data_type_params"]["column"]
-        target_type = action_details["cast_data_type_params"]["target_type"]
+        cast_params = _get_params(action_details, "cast_data_type_params")
+        column = cast_params["column"]
+        target_type = cast_params["target_type"]
         return cast_data_type(df, column, target_type)
 
     elif action_type == "trimWhitespace":
-        column = action_details["trim_whitespace_params"]["column"]
+        trim_params = _get_params(action_details, "trim_whitespace_params")
+        column = trim_params["column"]
         return trim_whitespace(df, column)
 
     elif action_type == "dropNa":
-        columns = action_details.get("drop_na_params", {}).get("columns")
+        drop_na_params = _get_params(action_details, "drop_na_params")
+        columns = drop_na_params.get("columns")
         return drop_na(df, columns)
 
     else:
