@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     database_url: str
     upload_dir: str = "uploads"
     max_upload_size_bytes: int = 10_485_760  # 10 MB
-    allowed_extensions: list[str] = [".csv"]
+    allowed_extensions: list[str] = [".csv", ".json", ".xlsx", ".xls"]
     cors_origins: list[str] = ["http://localhost:3200"]
     debug: bool = False
 

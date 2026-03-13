@@ -13,7 +13,7 @@ from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
 from app.services.project_service import log_transformation
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import dataframe_to_response, read_file_safe, save_csv_safe
 
 logger = get_logger(__name__)
 
@@ -147,7 +147,7 @@ async def transform_project(
     Routes to the appropriate internal handler based on operation_type.
     """
     project = get_project_or_404(project_id, db)
-    df = read_csv_safe(project.file_path)
+    df = read_file_safe(project.file_path)
 
     op = transformation_input.operation_type
 

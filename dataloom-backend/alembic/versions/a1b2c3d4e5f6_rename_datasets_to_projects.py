@@ -18,6 +18,13 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    if op.get_bind().dialect.name == "sqlite":
+        op.rename_table("datasets", "projects")
+        op.alter_column("projects", "dataset_id", new_column_name="project_id")
+        op.alter_column("checkpoints", "dataset_id", new_column_name="project_id")
+        op.alter_column("user_logs", "dataset_id", new_column_name="project_id")
+        return
+
     # Step 1: Drop foreign keys referencing datasets.dataset_id
     op.drop_constraint("checkpoints_dataset_id_fkey", "checkpoints", type_="foreignkey")
     op.drop_constraint("user_logs_dataset_id_fkey", "user_logs", type_="foreignkey")
@@ -38,6 +45,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if op.get_bind().dialect.name == "sqlite":
+        op.alter_column("user_logs", "project_id", new_column_name="dataset_id")
+        op.alter_column("checkpoints", "project_id", new_column_name="dataset_id")
+        op.alter_column("projects", "project_id", new_column_name="dataset_id")
+        op.rename_table("projects", "datasets")
+        return
+
     # Step 1: Drop foreign keys referencing projects.project_id
     op.drop_constraint("checkpoints_project_id_fkey", "checkpoints", type_="foreignkey")
     op.drop_constraint("user_logs_project_id_fkey", "user_logs", type_="foreignkey")

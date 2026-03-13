@@ -20,7 +20,7 @@ from app.services.project_service import (
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import dataframe_to_response, read_file_safe, save_csv_safe
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -44,7 +44,7 @@ async def upload_project(
     validate_upload_file(file)
 
     original_path, copy_path = store_upload(file)
-    df = read_csv_safe(original_path)
+    df = read_file_safe(original_path)
 
     project = create_project(db, projectName, str(copy_path), projectDescription)
 
@@ -61,7 +61,7 @@ async def upload_project(
 async def get_project_details(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
     """Fetch full project details including all rows and columns."""
     project = get_project_or_404(project_id, db)
-    df = read_csv_safe(project.file_path)
+    df = read_file_safe(project.file_path)
 
     resp = dataframe_to_response(df)
     return {
@@ -102,7 +102,7 @@ async def save_project(
 
     # Load original file for replaying transformations
     original_path = get_original_path(project.file_path)
-    df = read_csv_safe(original_path)
+    df = read_file_safe(original_path)
 
     # Get all unapplied logs for this project
     logs = (
@@ -154,7 +154,7 @@ async def revert_to_checkpoint(
     project = get_project_or_404(project_id, db)
 
     original_path = get_original_path(project.file_path)
-    df = read_csv_safe(original_path)
+    df = read_file_safe(original_path)
 
     if checkpoint_id is not None:
         checkpoint = (

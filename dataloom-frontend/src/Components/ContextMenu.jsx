@@ -66,6 +66,7 @@ const ContextMenu = ({ isOpen, position, contextData, onClose, actions }) => {
     <div
       ref={menuRef}
       role="menu"
+      data-testid={contextData ? `context-menu-${contextData.type}` : "context-menu"}
       aria-label="Context menu"
       className="fixed bg-white border border-gray-200 rounded-lg shadow-lg p-1 z-50"
       style={{
