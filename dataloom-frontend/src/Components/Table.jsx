@@ -1,6 +1,6 @@
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import {
@@ -36,6 +36,7 @@ const Table = ({ projectId, data: externalData }) => {
   const [columns, setColumns] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState("");
+  const [sortConfig, setSortConfig] = useState(null);
   const { isOpen, position, contextData, open, close } = useContextMenu();
 
   const [inputConfig, setInputConfig] = useState(null);
@@ -62,6 +63,48 @@ const Table = ({ projectId, data: externalData }) => {
     setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
     updateData(columns, rows, newDtypes);
   };
+
+  const handleSort = (columnIndex) => {
+    let direction = "ascending";
+    if (sortConfig && sortConfig.key === columnIndex && sortConfig.direction === "ascending") {
+      direction = "descending";
+    } else if (sortConfig && sortConfig.key === columnIndex && sortConfig.direction === "descending") {
+      direction = null;
+    }
+    
+    if (direction) {
+      setSortConfig({ key: columnIndex, direction });
+    } else {
+      setSortConfig(null);
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    let sortableData = [...data];
+    if (sortConfig !== null) {
+      sortableData.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Attempt to parse as numbers for natural numerical sorting
+        const numA = Number(aValue);
+        const numB = Number(bValue);
+        if (aValue !== "" && bValue !== "" && !isNaN(numA) && !isNaN(numB)) {
+          aValue = numA;
+          bValue = numB;
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === "ascending" ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "ascending" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableData;
+  }, [data, sortConfig]);
 
   const handleAddRow = async (index) => {
     try {
@@ -231,9 +274,19 @@ const Table = ({ projectId, data: externalData }) => {
                   className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                   onContextMenu={(e) => open(e, { type: "column", columnIndex })}
                 >
-                  <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
-                    {column}
-                    {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
+                  <button 
+                    onClick={() => handleSort(columnIndex)} 
+                    className="w-full flex items-center justify-between text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {column}
+                      {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
+                    </span>
+                    {sortConfig && sortConfig.key === columnIndex && (
+                      <span className="text-[10px] ml-1">
+                        {sortConfig.direction === "ascending" ? "▲" : "▼"}
+                      </span>
+                    )}
                   </button>
                 </th>
               ))}
@@ -241,7 +294,7 @@ const Table = ({ projectId, data: externalData }) => {
           </thead>
 
           <tbody>
-            {data.map((row, rowIndex) => (
+            {sortedData.map((row, rowIndex) => (
               <tr
                 key={rowIndex}
                 className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
