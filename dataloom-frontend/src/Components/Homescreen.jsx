@@ -14,7 +14,7 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
   return (
     <button
       onClick={onClick}
-      className="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md"
+      className="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-gray-300 hover:shadow-md"
     >
       <button
         onClick={(e) => {
@@ -49,10 +49,10 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
 const NewProjectCard = ({ onClick }) => (
   <button
     onClick={onClick}
-    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100"
+    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-white p-5 text-center transition-all duration-200 hover:border-gray-400 hover:bg-gray-50"
   >
-    <span className="text-3xl leading-none text-blue-500">+</span>
-    <span className="text-sm font-medium text-blue-600">New Project</span>
+    <span className="text-3xl leading-none text-gray-700">+</span>
+    <span className="text-sm font-medium text-gray-700">New Project</span>
   </button>
 );
 
@@ -162,7 +162,7 @@ const HomeScreen = () => {
     <div className="flex flex-col items-center min-h-screen bg-white px-6 pt-24">
       <div className="w-full max-w-4xl">
         <h1 className="text-5xl text-gray-900">
-          Welcome to <span className="text-blue-500 font-bold">DataLoom</span>,
+          Welcome to <span className="text-gray-900 font-bold">DataLoom</span>,
         </h1>
         <h1 className="text-4xl mt-2 text-gray-900">
           your one-stop for{" "}
@@ -197,7 +197,7 @@ const HomeScreen = () => {
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Name</h2>
             <input
               type="text"
-              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300 mb-4"
               onChange={(e) => setProjectName(e.target.value)}
             />
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Upload Dataset</h2>
@@ -209,12 +209,12 @@ const HomeScreen = () => {
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Project Description</h2>
             <input
               type="text"
-              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+              className="block w-full text-lg text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300 mb-4"
               onChange={(e) => setProjectDescription(e.target.value)}
             />
             <div className="flex flex-row justify-between">
               <button
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium transition-colors duration-150"
+                className="px-4 py-2 bg-white hover:bg-gray-100 border border-gray-300 text-gray-900 rounded-md font-medium transition-colors duration-150"
                 onClick={handleSubmitModal}
               >
                 Submit

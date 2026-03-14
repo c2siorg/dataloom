@@ -1,16 +1,29 @@
 import { Outlet } from "react-router-dom";
-import Navbar from "../Navbar";
+import Sidebar from "./Sidebar";
+import TopBar from "./TopBar";
+import { useState } from "react";
 
 /**
- * Application layout wrapper with navbar and main content area.
+ * Modern application layout with collapsible sidebar and top bar.
  */
 export default function AppLayout() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <Navbar />
-      <main className="flex-1">
-        <Outlet />
-      </main>
+    <div className="flex h-screen bg-surface-950 overflow-hidden">
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed((prev) => !prev)}
+      />
+      <div className="flex flex-col flex-1 min-w-0">
+        <TopBar
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+        />
+        <main className="flex-1 overflow-auto p-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

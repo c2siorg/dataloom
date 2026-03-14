@@ -59,7 +59,7 @@ const FillEmptyForm = ({ projectId, onClose, onTransform }) => {
           <select
             value={selectedColumn}
             onChange={(e) => setSelectedColumn(e.target.value)}
-            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
           >
             <option value="">All columns</option>
             {columns.map((col) => (
@@ -79,7 +79,7 @@ const FillEmptyForm = ({ projectId, onClose, onTransform }) => {
           <select
             value={strategy}
             onChange={(e) => setStrategy(e.target.value)}
-            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
             required
           >
             {STRATEGIES.map((s) => (
@@ -98,7 +98,7 @@ const FillEmptyForm = ({ projectId, onClose, onTransform }) => {
               value={fillValue}
               onChange={(e) => setFillValue(e.target.value)}
               placeholder="Enter value to fill with..."
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
               required
             />
           </div>
@@ -109,7 +109,7 @@ const FillEmptyForm = ({ projectId, onClose, onTransform }) => {
         <div className="flex justify-between mt-2">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="bg-white hover:bg-gray-100 border border-gray-300 text-gray-900 px-4 py-2 rounded-md font-medium transition-colors duration-150"
           >
             Apply
           </button>

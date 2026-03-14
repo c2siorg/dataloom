@@ -54,7 +54,7 @@ const FilterForm = ({ projectId, onClose }) => {
               name="column"
               value={filterParams.column}
               onChange={handleInputChange}
-              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
               required
             />
           </div>
@@ -64,7 +64,7 @@ const FilterForm = ({ projectId, onClose }) => {
               name="condition"
               value={filterParams.condition}
               onChange={handleInputChange}
-              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
               required
             >
               <option value="=">=</option>
@@ -83,7 +83,7 @@ const FilterForm = ({ projectId, onClose }) => {
               name="value"
               value={filterParams.value}
               onChange={handleInputChange}
-              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
               required
             />
           </div>
@@ -91,7 +91,7 @@ const FilterForm = ({ projectId, onClose }) => {
         <div className="flex justify-between">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="bg-white hover:bg-gray-100 border border-gray-300 text-gray-900 px-4 py-2 rounded-md font-medium transition-colors duration-150"
             disabled={loading}
           >
             Apply Filter

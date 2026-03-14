@@ -1,8 +1,9 @@
-import { Component } from "react";
-
 /**
- * React error boundary that catches render errors and displays a fallback UI.
+ * ErrorBoundary for React — catches rendering errors and shows a fallback UI.
  */
+import { Component } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -20,18 +21,29 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-[200px] p-8 text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-2">Something went wrong</h2>
-          <p className="text-gray-600 mb-4">{this.state.error?.message}</p>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors duration-150"
-          >
-            Try Again
-          </button>
+        <div className="flex items-center justify-center min-h-screen bg-surface-950 p-6">
+          <div className="glass-card p-8 max-w-md text-center">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-white mb-2">
+              Something went wrong
+            </h2>
+            <p className="text-surface-400 text-sm mb-6">
+              {this.state.error?.message || "An unexpected error occurred"}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="btn-primary flex items-center gap-2 mx-auto"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Reload Page
+            </button>
+          </div>
         </div>
       );
     }
+
     return this.props.children;
   }
 }

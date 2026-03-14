@@ -3,7 +3,359 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: light;
+
+    /* Neutral palette */
+    --bg: 248 250 252;
+    --card: 255 255 255;
+    --border: 226 232 240;
+
+    /* Text */
+    --text-primary: 15 23 42;
+    --text-secondary: 71 85 105;
+    --text-muted: 148 163 184;
+
+    /* Brand */
+    --brand: 148 163 184;
+    --brand-light: 203 213 225;
+
+    /* Accent */
+    --accent: 226 232 240;
+  }
+
   body {
-    @apply bg-white text-gray-900 antialiased;
+    @apply antialiased font-sans;
+    background: #fff;
+    color: #000;
+  }
+
+  *, *::before, *::after {
+    border-color: #000;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  ::selection {
+    background: rgb(var(--brand) / 0.2);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--border));
+    border-radius: 999px;
   }
 }
+
+@layer components {
+
+  /* Card */
+  .card {
+    background: rgb(var(--card));
+    border: 1px solid rgb(var(--border));
+    @apply rounded-xl shadow-sm p-6;
+  }
+
+  .card-hover {
+    @apply card transition hover:shadow-md;
+  }
+
+    .auth-page {
+      @apply min-h-screen bg-gradient-to-b from-surface-950 via-surface-900 to-surface-950 text-surface-100 flex items-center justify-center px-4 py-10 relative overflow-hidden;
+    }
+
+    .auth-bg-layer {
+      @apply absolute inset-0 pointer-events-none;
+    }
+
+    .auth-bg-glow-left {
+      @apply absolute -left-20 top-10 w-96 h-96 bg-white/15 blur-3xl;
+    }
+
+    .auth-bg-glow-right {
+      @apply absolute right-0 bottom-0 w-[28rem] h-[28rem] bg-white/10 blur-[120px];
+    }
+
+    .auth-bg-icon {
+      @apply absolute left-12 bottom-10 w-10 h-10 text-white/30;
+    }
+
+    .auth-container {
+      @apply relative z-10 w-full max-w-xl;
+    }
+
+    .auth-brand-row {
+      @apply flex items-center gap-3 mb-8 justify-center;
+    }
+
+    .auth-brand-logo-wrap {
+      @apply w-12 h-12 rounded-2xl bg-gradient-to-br from-white to-surface-300 flex items-center justify-center shadow-glow;
+    }
+
+    .auth-brand-logo {
+      @apply w-6 h-6 text-white;
+    }
+
+    .auth-brand-title {
+      @apply text-xl font-semibold text-white;
+    }
+
+    .auth-brand-subtitle {
+      @apply text-sm text-surface-400;
+    }
+
+    .auth-card {
+      background-color: var(--card-overlay);
+      @apply backdrop-blur-xl rounded-2xl border border-surface-800/60 shadow-2xl px-8 py-10 space-y-8;
+    }
+
+    .auth-header {
+      @apply space-y-2 text-center;
+    }
+
+    .auth-kicker {
+      @apply text-sm font-semibold text-brand-200 uppercase tracking-[0.2em];
+    }
+
+    .auth-title {
+      @apply text-3xl font-bold text-white;
+    }
+
+    .auth-subcopy {
+      @apply text-surface-400 max-w-md mx-auto;
+    }
+
+    .auth-form {
+      @apply space-y-4;
+    }
+
+    .auth-label {
+      @apply text-sm text-surface-400 block mb-1;
+    }
+
+    .auth-input-with-icon {
+      @apply relative;
+    }
+
+    .auth-input-icon {
+      @apply w-4 h-4 text-surface-500 absolute left-3 top-1/2 -translate-y-1/2;
+    }
+
+    .auth-input-padded {
+      @apply pl-10;
+    }
+
+    .auth-error {
+      @apply text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2;
+    }
+
+    .auth-submit {
+      @apply w-full flex items-center justify-center gap-2;
+    }
+
+    .auth-arrow {
+      @apply w-4 h-4;
+    }
+
+    .auth-divider-row {
+      @apply flex items-center gap-3;
+    }
+
+    .auth-divider-line {
+      @apply h-px flex-1 bg-surface-800;
+    }
+
+    .auth-divider-text {
+      @apply text-xs uppercase tracking-wide text-surface-500;
+    }
+
+    .auth-provider-list {
+      @apply space-y-3;
+    }
+
+    .auth-provider-btn {
+      @apply relative overflow-hidden w-full rounded-xl border border-surface-700/60 bg-surface-900/70 px-4 py-3 text-left shadow-lg transition-all duration-200 hover:border-brand-500/50 hover:shadow-glow disabled:opacity-70;
+    }
+
+    .auth-provider-overlay {
+      @apply absolute inset-0 opacity-0 transition-opacity duration-200;
+    }
+
+    .auth-provider-overlay-google {
+      @apply bg-gradient-to-r from-orange-500 to-amber-400;
+    }
+
+    .auth-provider-overlay-facebook {
+      @apply bg-gradient-to-r from-slate-200 to-slate-400;
+    }
+
+    .auth-provider-overlay-github {
+      @apply bg-gradient-to-r from-zinc-700 to-slate-600;
+    }
+
+    .auth-provider-content {
+      @apply flex items-center gap-3 relative z-10;
+    }
+
+    .auth-provider-icon-wrap {
+      @apply w-10 h-10 rounded-lg bg-surface-800/80 flex items-center justify-center;
+    }
+
+    .auth-provider-icon {
+      @apply w-5 h-5;
+    }
+
+    .auth-provider-text-wrap {
+      @apply flex-1;
+    }
+
+    .auth-provider-title {
+      @apply font-semibold text-surface-100;
+    }
+
+    .auth-provider-subtitle {
+      @apply text-xs text-surface-500;
+    }
+
+    .auth-provider-arrow {
+      @apply w-4 h-4 text-surface-500 transition-colors;
+    }
+
+    .auth-provider-btn:hover .auth-provider-overlay {
+      opacity: 0.1;
+    }
+
+    .auth-provider-btn:hover .auth-provider-arrow {
+      color: rgb(241 245 249);
+    }
+
+    .auth-mode-switch-row {
+      @apply text-sm text-center text-surface-400;
+    }
+
+    .auth-mode-switch-btn {
+      @apply text-brand-300 font-semibold hover:text-brand-200;
+    }
+
+    .auth-legal {
+      @apply text-xs text-center text-surface-500 leading-relaxed;
+    }
+
+  /* Buttons */
+
+  .btn-primary {
+    @apply px-4 py-2 rounded-lg font-medium text-surface-900 transition border border-surface-300;
+    background: rgb(var(--brand));
+  }
+
+  .btn-primary:hover {
+    background: rgb(var(--brand-light));
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 rounded-lg font-medium transition;
+    background: rgb(var(--card));
+    border: 1px solid rgb(var(--border));
+    color: rgb(var(--text-secondary));
+  }
+
+  .btn-secondary:hover {
+    background: rgb(241 245 249);
+  }
+
+  /* Inputs */
+
+  .input {
+    @apply w-full px-4 py-2 rounded-lg outline-none transition;
+    border: 1px solid rgb(var(--border));
+    background: rgb(var(--card));
+  }
+
+  .input:focus {
+    border-color: rgb(var(--brand));
+    box-shadow: 0 0 0 2px rgb(var(--brand) / 0.2);
+  }
+
+  /* Navbar item */
+
+  .nav-item {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg transition;
+    color: rgb(var(--text-secondary));
+  }
+
+  .nav-item:hover {
+    background: rgb(241 245 249);
+  }
+
+  .nav-item-active {
+    background: rgb(var(--brand) / 0.08);
+    color: rgb(var(--brand));
+  }
+
+  /* Badge */
+
+  .badge {
+    @apply text-xs px-2 py-1 rounded-md;
+    background: rgb(var(--brand) / 0.1);
+    color: rgb(var(--brand));
+  }
+}
+
+@layer utilities {
+
+  .text-gradient {
+    background: linear-gradient(90deg, rgb(var(--brand)), rgb(var(--accent)));
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  [class*="text-"] {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+  }
+
+  [class*="bg-"] {
+    background-color: #fff !important;
+    background-image: none !important;
+  }
+
+  [class*="border"] {
+    border-color: #000 !important;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .input,
+  .input-field,
+  .glass-card,
+  .glass-card-hover,
+  .card,
+  .card-hover {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .text-gradient {
+    background: none !important;
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+  }
+
+  .auth-page,
+  .auth-page * {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+  }
+
+}
+

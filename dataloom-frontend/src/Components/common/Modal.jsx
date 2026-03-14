@@ -1,12 +1,7 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Accessible modal dialog component.
- * @param {Object} props
- * @param {boolean} props.isOpen - Whether the modal is visible.
- * @param {Function} props.onClose - Callback to close the modal.
- * @param {string} [props.title] - Modal title text.
- * @param {React.ReactNode} props.children - Modal body content.
+ * Accessible modal dialog with glassmorphism styling.
  */
 export default function Modal({ isOpen, onClose, title, children }) {
   const dialogRef = useRef(null);
@@ -24,24 +19,25 @@ export default function Modal({ isOpen, onClose, title, children }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto"
+        className="relative glass-card max-w-lg w-full max-h-[90vh] overflow-y-auto animate-scale-in"
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-surface-800/60">
+            <h2 className="text-lg font-semibold text-white">{title}</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-xl transition-colors duration-150"
+              className="text-surface-400 hover:text-surface-200 text-xl transition-colors duration-150 w-8 h-8 rounded-lg hover:bg-surface-800/60 flex items-center justify-center"
               aria-label="Close"
             >
               &times;

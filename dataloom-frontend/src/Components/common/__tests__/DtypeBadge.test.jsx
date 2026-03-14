@@ -17,9 +17,9 @@ describe("DtypeBadge", () => {
     expect(screen.getByText("int")).toBeInTheDocument();
   });
 
-  it("applies blue classes for int", () => {
+  it("applies neutral classes for int", () => {
     render(<DtypeBadge dtype="int" />);
-    expect(screen.getByText("int").className).toContain("bg-blue-100");
+    expect(screen.getByText("int").className).toContain("bg-gray-100");
   });
 
   it("applies teal classes for float", () => {

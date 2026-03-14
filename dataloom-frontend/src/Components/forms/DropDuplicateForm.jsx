@@ -42,7 +42,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
               type="text"
               value={columns}
               onChange={(e) => setColumns(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
               placeholder="e.g., col1,col2"
               required
             />
@@ -52,7 +52,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
             <select
               value={keep}
               onChange={(e) => setKeep(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
             >
               <option value="first">First</option>
               <option value="last">Last</option>
@@ -62,7 +62,7 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
         <div className="flex justify-between">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="bg-white hover:bg-gray-100 border border-gray-300 text-gray-900 px-4 py-2 rounded-md font-medium transition-colors duration-150"
           >
             Submit
           </button>

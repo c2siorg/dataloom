@@ -44,7 +44,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
               type="text"
               value={index}
               onChange={(e) => setIndex(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
               placeholder="e.g., col1,col2"
               required
             />
@@ -55,7 +55,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
               type="text"
               value={column}
               onChange={(e) => setColumn(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
               required
             />
           </div>
@@ -67,7 +67,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
               type="text"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
               required
             />
           </div>
@@ -76,7 +76,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
             <select
               value={aggfun}
               onChange={(e) => setAggfun(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
             >
               <option value="sum">Sum</option>
               <option value="mean">Mean</option>
@@ -89,7 +89,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
         <div className="flex justify-between">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="bg-white hover:bg-gray-100 border border-gray-300 text-gray-900 px-4 py-2 rounded-md font-medium transition-colors duration-150"
             disabled={loading}
           >
             {loading ? "Loading..." : "Submit"}

@@ -1,21 +1,41 @@
 import { useEffect } from "react";
+import PropTypes from "prop-types";
+import { CheckCircle2, XCircle, AlertTriangle, Info, X } from "lucide-react";
 
-const TYPE_CLASSES = {
-  success: "border-l-green-500",
-  error: "border-l-red-500",
-  info: "border-l-blue-500",
-  warning: "border-l-yellow-500",
+const typeConfig = {
+  success: {
+    icon: CheckCircle2,
+    bg: "bg-emerald-500/10 border-emerald-500/30",
+    iconColor: "text-emerald-400",
+    textColor: "text-emerald-200",
+  },
+  error: {
+    icon: XCircle,
+    bg: "bg-red-500/10 border-red-500/30",
+    iconColor: "text-red-400",
+    textColor: "text-red-200",
+  },
+  warning: {
+    icon: AlertTriangle,
+    bg: "bg-amber-500/10 border-amber-500/30",
+    iconColor: "text-amber-400",
+    textColor: "text-amber-200",
+  },
+  info: {
+    icon: Info,
+    bg: "bg-gray-500/10 border-gray-500/30",
+    iconColor: "text-gray-300",
+    textColor: "text-gray-200",
+  },
 };
 
 /**
- * Single toast notification component.
- * @param {Object} props
- * @param {string} props.message - Toast message text.
- * @param {'success'|'error'|'info'|'warning'} [props.type='info'] - Toast visual type.
- * @param {Function} props.onDismiss - Callback when toast should be removed.
- * @param {number} [props.duration=3000] - Auto-dismiss duration in ms.
+ * Toast notification component with auto-dismiss.
  */
-export default function Toast({ message, type = "info", onDismiss, duration = 3000 }) {
+export default function Toast({ message, type = "info", onDismiss, duration = 4000 }) {
+  const config = typeConfig[type] || typeConfig.info;
+  const Icon = config.icon;
+
   useEffect(() => {
     const timer = setTimeout(onDismiss, duration);
     return () => clearTimeout(timer);
@@ -23,19 +43,26 @@ export default function Toast({ message, type = "info", onDismiss, duration = 30
 
   return (
     <div
-      className={`bg-white border border-gray-200 border-l-4 rounded-lg shadow-md px-4 py-3 text-gray-900 ${TYPE_CLASSES[type] || TYPE_CLASSES.info}`}
-      role="alert"
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-xl shadow-glass animate-slide-in-right ${config.bg}`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span>{message}</span>
-        <button
-          onClick={onDismiss}
-          className="ml-2 text-gray-400 hover:text-gray-600 transition-colors duration-150"
-          aria-label="Dismiss"
-        >
-          &times;
-        </button>
-      </div>
+      <Icon className={`w-5 h-5 flex-shrink-0 ${config.iconColor}`} />
+      <p className={`text-sm font-medium flex-1 ${config.textColor}`}>
+        {message}
+      </p>
+      <button
+        onClick={onDismiss}
+        className="text-surface-400 hover:text-surface-200 transition-colors p-0.5"
+        aria-label="Dismiss"
+      >
+        <X className="w-4 h-4" />
+      </button>
     </div>
   );
 }
+
+Toast.propTypes = {
+  message: PropTypes.string.isRequired,
+  type: PropTypes.oneOf(["success", "error", "warning", "info"]),
+  onDismiss: PropTypes.func.isRequired,
+  duration: PropTypes.number,
+};

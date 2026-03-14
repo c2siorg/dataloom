@@ -11,7 +11,7 @@ describe("Button", () => {
   it("applies primary variant classes by default", () => {
     render(<Button>Primary</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("bg-blue-500");
+    expect(btn.className).toContain("bg-white");
   });
 
   it("applies secondary variant classes", () => {
@@ -29,7 +29,7 @@ describe("Button", () => {
   it("falls back to primary for unknown variant", () => {
     render(<Button variant="unknown">Fallback</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("bg-blue-500");
+    expect(btn.className).toContain("bg-white");
   });
 
   it("merges additional className", () => {

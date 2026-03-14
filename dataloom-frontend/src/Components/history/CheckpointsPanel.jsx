@@ -12,13 +12,7 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
         <h3 className="text-lg font-semibold text-gray-900">Last Checkpoint</h3>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 font-medium transition-opacity opacity-0 group-hover:opacity-100"
-          style={{
-            transition: "opacity 0.3s",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="text-gray-400 hover:text-gray-600 font-medium transition-opacity duration-300 opacity-0 group-hover:opacity-100 bg-transparent border-0 cursor-pointer"
         >
           Close
         </button>
@@ -49,7 +43,7 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
                 <td className="py-3 px-4 text-center">
                   <button
                     onClick={() => onRevert(checkpoints.id)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
+                    className="bg-white hover:bg-gray-100 border border-gray-300 text-gray-900 text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
                   >
                     Revert
                   </button>

@@ -7,13 +7,7 @@ const LogsPanel = ({ logs, onClose }) => {
         <h3 className="text-lg font-semibold text-gray-900">Logs</h3>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 font-medium transition-opacity opacity-0 group-hover:opacity-100"
-          style={{
-            transition: "opacity 0.3s",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="text-gray-400 hover:text-gray-600 font-medium transition-opacity duration-300 opacity-0 group-hover:opacity-100 bg-transparent border-0 cursor-pointer"
         >
           Close
         </button>

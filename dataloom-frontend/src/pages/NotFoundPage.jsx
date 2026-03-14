@@ -1,20 +1,46 @@
-import { Link } from "react-router-dom";
-import { ROUTES } from "../constants/routes";
+import { useNavigate } from "react-router-dom";
+import { Home, ArrowLeft } from "lucide-react";
 
 /**
- * 404 page displayed for unmatched routes.
+ * 404 Not Found page with modern dark design.
  */
 export default function NotFoundPage() {
+  const navigate = useNavigate();
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-      <h1 className="text-6xl font-bold text-gray-300 mb-4">404</h1>
-      <p className="text-gray-600 mb-6">Page not found</p>
-      <Link
-        to={ROUTES.home}
-        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors duration-150"
-      >
-        Go Home
-      </Link>
+    <div className="flex items-center justify-center h-full animate-fade-in">
+      <div className="text-center max-w-md">
+        <div className="relative mb-8">
+          <span className="text-[120px] font-black text-surface-800/50 leading-none select-none">
+            404
+          </span>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-5xl font-bold text-gradient">Oops!</span>
+          </div>
+        </div>
+        <h1 className="text-xl font-semibold text-surface-200 mb-2">
+          Page not found
+        </h1>
+        <p className="text-surface-400 text-sm mb-8">
+          The page you&apos;re looking for doesn&apos;t exist or has been moved.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Go Back
+          </button>
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Home className="w-4 h-4" />
+            Dashboard
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

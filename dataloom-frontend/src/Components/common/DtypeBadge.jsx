@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
 
 const DTYPE_STYLES = {
-  int: "bg-blue-100 text-blue-700",
+  int: "bg-gray-100 text-gray-700",
   float: "bg-teal-100 text-teal-700",
   str: "bg-green-100 text-green-700",
   datetime: "bg-purple-100 text-purple-700",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import InputDialog from "./common/InputDialog";
@@ -20,6 +20,7 @@ const Table = ({ projectId, data: externalData }) => {
     columnIndex: null,
     type: null,
   });
+  const contextMenuRef = useRef(null);
 
   const [inputConfig, setInputConfig] = useState(null);
   const [toast, setToast] = useState(null);
@@ -38,6 +39,13 @@ const Table = ({ projectId, data: externalData }) => {
       setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
     }
   }, [externalData]);
+
+  useEffect(() => {
+    if (contextMenu.visible && contextMenuRef.current) {
+      contextMenuRef.current.style.top = `${contextMenu.y}px`;
+      contextMenuRef.current.style.left = `${contextMenu.x}px`;
+    }
+  }, [contextMenu]);
 
   const updateTableData = (response) => {
     const { columns, rows, dtypes: newDtypes } = response;
@@ -225,8 +233,7 @@ const Table = ({ projectId, data: externalData }) => {
   return (
     <div className="px-8 pt-3" onClick={handleCloseContextMenu}>
       <div
-        className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
-        style={{ maxHeight: "calc(100vh - 140px)" }}
+        className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm max-h-[calc(100vh-140px)]"
       >
         <table className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
@@ -266,7 +273,7 @@ const Table = ({ projectId, data: externalData }) => {
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
-                        className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                        className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-300 focus:border-gray-300 focus:outline-none"
                         onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
                       />
                     ) : (
@@ -289,8 +296,8 @@ const Table = ({ projectId, data: externalData }) => {
 
       {contextMenu.visible && contextMenu.type === "column" && (
         <div
-          className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          ref={contextMenuRef}
+          className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-1"
         >
           <button
             className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
@@ -315,8 +322,8 @@ const Table = ({ projectId, data: externalData }) => {
 
       {contextMenu.visible && contextMenu.type === "row" && (
         <div
-          className="absolute bg-white border border-gray-200 rounded-lg shadow-lg p-1"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          ref={contextMenuRef}
+          className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-1"
         >
           <button
             className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150"
