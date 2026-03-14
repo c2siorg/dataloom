@@ -53,7 +53,7 @@ The frontend development server will start at `http://localhost:3200`.
    - **Frontend:** `cd dataloom-frontend && npm run test`
 3. Lint and format your code:
    - **Backend:** `uv run ruff check .` and `uv run ruff format .`
-   - **Frontend:** `npm run lint` and `npm run format`
+   - **Frontend:** `npm run lint`, `npm run typecheck`, and `npm run format`
 4. Commit your changes with a clear, descriptive commit message.
 5. Push your branch to your fork and open a pull request against the `main` branch.
 
@@ -62,6 +62,7 @@ The frontend development server will start at `http://localhost:3200`.
 ### Frontend
 
 - **ESLint** is used for linting. Run `npm run lint` to check for issues.
+- **TypeScript checkJs + JSDoc** are used as an intermediate type-safety step toward TS migration. Run `npm run typecheck`.
 - **Prettier** is used for formatting. Run `npm run format` to auto-format files.
 - Follow existing patterns in the codebase for component structure and naming.
 
