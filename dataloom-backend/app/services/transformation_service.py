@@ -91,20 +91,30 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     return ops[condition_str]()
 
 
-def apply_sort(df: pd.DataFrame, column: str, ascending: bool) -> pd.DataFrame:
-    """Sort DataFrame by a column.
+def apply_sort(df: pd.DataFrame, criteria: list[dict]) -> pd.DataFrame:
+    """Sort DataFrame by one or more columns.
 
     Args:
         df: Source DataFrame.
-        column: Column name to sort by.
-        ascending: Sort direction.
+        criteria: List of dicts, each with 'column' (str) and 'ascending' (bool).
+                  Order determines sort priority (first = primary key).
 
     Returns:
         Sorted DataFrame.
+
+    Raises:
+        TransformationError: If criteria list is empty or any column is not found.
     """
-    if column not in df.columns:
-        raise TransformationError(f"Column '{column}' not found")
-    return df.sort_values(by=column, ascending=ascending)
+    if not criteria:
+        raise TransformationError("sort_criteria must contain at least one criterion")
+
+    missing = [c["column"] for c in criteria if c["column"] not in df.columns]
+    if missing:
+        raise TransformationError(f"Column(s) not found: {missing}")
+
+    columns = [c["column"] for c in criteria]
+    ascending = [c["ascending"] for c in criteria]
+    return df.sort_values(by=columns, ascending=ascending)
 
 
 def add_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
@@ -483,6 +493,14 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == "trimWhitespace":
         column = action_details["trim_whitespace_params"]["column"]
         return trim_whitespace(df, column)
+
+    elif action_type == "sort":
+        sort_params = action_details.get("sort_params", {})
+        criteria = [
+            {"column": c["column"], "ascending": c["ascending"]}
+            for c in sort_params.get("sort_criteria", [])
+        ]
+        return apply_sort(df, criteria)
 
     elif action_type == "dropNa":
         columns = action_details.get("drop_na_params", {}).get("columns")
