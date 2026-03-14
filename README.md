@@ -51,6 +51,9 @@ cd dataloom-backend && uv run pytest
 
 # Frontend
 cd dataloom-frontend && npm run test
+
+# Frontend type-checking (staged JS migration)
+cd dataloom-frontend && npm run typecheck
 ```
 
 ## Project Structure

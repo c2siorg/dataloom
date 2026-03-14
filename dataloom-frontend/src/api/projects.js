@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * API functions for project CRUD operations.
  * @module api/projects
@@ -9,7 +11,7 @@ import client from "./client";
  * @param {File} file - The CSV file to upload.
  * @param {string} projectName - Name for the new project.
  * @param {string} projectDescription - Description for the new project.
- * @returns {Promise<Object>} The created project response.
+ * @returns {Promise<import("./types").ProjectResponse>} The created project response.
  */
 export const uploadProject = async (file, projectName, projectDescription) => {
   const formData = new FormData();
@@ -23,7 +25,7 @@ export const uploadProject = async (file, projectName, projectDescription) => {
 /**
  * Fetch full project details including rows and columns.
  * @param {string} projectId - The project ID.
- * @returns {Promise<Object>} Project details with columns and rows.
+ * @returns {Promise<import("./types").ProjectResponse>} Project details with columns and rows.
  */
 export const getProjectDetails = async (projectId) => {
   const response = await client.get(`/projects/get/${projectId}`);
@@ -32,7 +34,7 @@ export const getProjectDetails = async (projectId) => {
 
 /**
  * Fetch the most recently modified projects.
- * @returns {Promise<Array>} List of recent project summaries.
+ * @returns {Promise<import("./types").RecentProjectResponse[]>} List of recent project summaries.
  */
 export const getRecentProjects = async () => {
   const response = await client.get("/projects/recent");
@@ -43,7 +45,7 @@ export const getRecentProjects = async () => {
  * Save the current project state as a checkpoint.
  * @param {string} projectId - The project ID.
  * @param {string} commitMessage - Description of changes.
- * @returns {Promise<Object>} Updated project response.
+ * @returns {Promise<import("./types").ProjectResponse>} Updated project response.
  */
 export const saveProject = async (projectId, commitMessage) => {
   const response = await client.post(
@@ -56,7 +58,7 @@ export const saveProject = async (projectId, commitMessage) => {
  * Revert project to a previous checkpoint.
  * @param {string} projectId - The project ID.
  * @param {string} checkpointId - The checkpoint ID to revert to.
- * @returns {Promise<Object>} Reverted project response.
+ * @returns {Promise<import("./types").ProjectResponse>} Reverted project response.
  */
 export const revertToCheckpoint = async (projectId, checkpointId) => {
   const response = await client.post(`/projects/${projectId}/revert?checkpoint_id=${checkpointId}`);
@@ -78,7 +80,7 @@ export const exportProject = async (projectId) => {
 /**
  * Delete a project and its associated files.
  * @param {string} projectId - The project ID.
- * @returns {Promise<Object>} Success confirmation.
+ * @returns {Promise<{ success: boolean, message: string }>} Success confirmation.
  */
 export const deleteProject = async (projectId) => {
   const response = await client.delete(`/projects/${projectId}`);
