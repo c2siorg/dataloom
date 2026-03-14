@@ -242,13 +242,26 @@ def rename_column(df: pd.DataFrame, col_index: int, new_name: str) -> pd.DataFra
 
     Returns:
         DataFrame with the column renamed.
+
+    Raises:
+        TransformationError: If new_name is empty or whitespace.
+        TransformationError: If col_index is out of range.
+        TransformationError: If new_name already exists in df.columns
+                             (unless new_name equals the current column name).
     """
     if col_index < 0 or col_index >= len(df.columns):
-        raise TransformationError(f"Column index {col_index} out of range (0-{len(df.columns) - 1})")
+        raise TransformationError(
+            f"Column index {col_index} is out of range (DataFrame has {len(df.columns)} columns)."
+        )
     if not new_name or not new_name.strip():
-        raise TransformationError("New column name cannot be empty")
+        raise TransformationError("New column name cannot be empty or whitespace.")
 
     old_name = df.columns[col_index]
+
+    # Check if new_name already exists and is different from current column name
+    if new_name in df.columns and new_name != old_name:
+        raise TransformationError(f"Column '{new_name}' already exists. Please choose a different name.")
+
     return df.rename(columns={old_name: new_name})
 
 
