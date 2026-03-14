@@ -91,11 +91,24 @@ class FilterParameters(BaseModel):
     value: str
 
 
-class SortParameters(BaseModel):
-    """Parameters for a column sort operation."""
+class SortCriterion(BaseModel):
+    """A single sort criterion: a column name and sort direction."""
 
     column: str
     ascending: bool
+
+
+class SortParameters(BaseModel):
+    """Parameters for a multi-column sort operation."""
+
+    sort_criteria: list[SortCriterion]
+
+    @field_validator("sort_criteria")
+    @classmethod
+    def criteria_must_not_be_empty(cls, v):
+        if len(v) == 0:
+            raise ValueError("sort_criteria must contain at least one criterion")
+        return v
 
 
 class AddOrDeleteRow(BaseModel):

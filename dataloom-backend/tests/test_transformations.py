@@ -67,16 +67,35 @@ class TestFilter:
 
 class TestSort:
     def test_sort_ascending(self, sample_df):
-        result = apply_sort(sample_df, "age", True)
+        result = apply_sort(sample_df, [{"column": "age", "ascending": True}])
         assert result.iloc[0]["age"] == 25
 
     def test_sort_descending(self, sample_df):
-        result = apply_sort(sample_df, "age", False)
+        result = apply_sort(sample_df, [{"column": "age", "ascending": False}])
         assert result.iloc[0]["age"] == 35
 
     def test_sort_invalid_column(self, sample_df):
         with pytest.raises(TransformationError):
-            apply_sort(sample_df, "nonexistent", True)
+            apply_sort(sample_df, [{"column": "nonexistent", "ascending": True}])
+
+    def test_sort_empty_criteria_rejected(self, sample_df):
+        with pytest.raises(TransformationError, match="at least one criterion"):
+            apply_sort(sample_df, [])
+
+    def test_multi_sort_primary_secondary(self, sample_df):
+        # Sort city ascending (Chicago < Los Angeles < New York),
+        # then age descending within same city
+        criteria = [
+            {"column": "city", "ascending": True},
+            {"column": "age", "ascending": False},
+        ]
+        result = apply_sort(sample_df, criteria)
+        assert result.iloc[0]["city"] == "Chicago"
+
+    def test_multi_sort_single_criterion_compat(self, sample_df):
+        """Single-criterion list behaves like the old single-column sort."""
+        result = apply_sort(sample_df, [{"column": "age", "ascending": True}])
+        assert list(result["age"]) == [25, 30, 35]
 
 
 class TestAddRow:
