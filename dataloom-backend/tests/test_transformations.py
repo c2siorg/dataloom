@@ -9,6 +9,7 @@ from app.services.transformation_service import (
     add_row,
     advanced_query,
     apply_filter,
+    apply_logged_transformation,
     apply_sort,
     change_cell_value,
     delete_column,
@@ -186,6 +187,32 @@ class TestPivotTable:
         result = pivot_table(df, "city", "sales", aggfunc="sum")
         assert "city" in result.columns
         assert "sales" in result.columns
+
+
+class TestDelRowReplay:
+    def test_delRow_replay_resets_index_after_multiple_deletions(self):
+        df = pd.DataFrame({"A": [10, 20, 30, 40, 50]})
+
+        log = [
+            {"action_type": "delRow", "action_details": {"row_params": {"index": 1}}},
+            {"action_type": "delRow", "action_details": {"row_params": {"index": 1}}},
+        ]
+
+        for entry in log:
+            df = apply_logged_transformation(df, entry["action_type"], entry["action_details"])
+
+        assert list(df.index) == list(range(len(df)))
+        assert list(df["A"]) == [10, 40, 50]
+
+    def test_delRow_invalid_index_raises_transformation_error(self):
+        df = pd.DataFrame({"A": [1, 2, 3]})
+
+        with pytest.raises(TransformationError):
+            apply_logged_transformation(
+                df,
+                "delRow",
+                {"row_params": {"index": 10}},
+            )
 
 
 class TestRenameColumn:
