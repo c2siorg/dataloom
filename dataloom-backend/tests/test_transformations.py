@@ -189,7 +189,6 @@ class TestPivotTable:
         assert "sales" in result.columns
 
 
-<<<<<<< HEAD
 class TestDelRowReplay:
     def test_delRow_replay_resets_index_after_multiple_deletions(self):
         df = pd.DataFrame({"A": [10, 20, 30, 40, 50]})
@@ -214,7 +213,7 @@ class TestDelRowReplay:
                 "delRow",
                 {"row_params": {"index": 10}},
             )
-=======
+
 class TestRenameColumn:
     def test_rename_column_to_existing_name(self, sample_df):
         with pytest.raises(TransformationError, match="already exists"):
@@ -236,4 +235,4 @@ class TestRenameColumn:
         df = pd.DataFrame([[1, 2, 3]], columns=["name", "name", "age"])
         with pytest.raises(TransformationError, match="already exists"):
             rename_column(df, 2, "name")
->>>>>>> d10812f (fix(transform): block duplicate target names in rename column)
+
