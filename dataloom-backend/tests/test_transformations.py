@@ -214,6 +214,7 @@ class TestDelRowReplay:
                 {"row_params": {"index": 10}},
             )
 
+
 class TestRenameColumn:
     def test_rename_column_to_existing_name(self, sample_df):
         with pytest.raises(TransformationError, match="already exists"):
@@ -235,4 +236,3 @@ class TestRenameColumn:
         df = pd.DataFrame([[1, 2, 3]], columns=["name", "name", "age"])
         with pytest.raises(TransformationError, match="already exists"):
             rename_column(df, 2, "name")
-
