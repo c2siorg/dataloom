@@ -274,23 +274,15 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
     try:
         if target_type == "string":
             df[column] = df[column].astype(str)
-        elif target_type == "integer":
-            df[column] = pd.to_numeric(df[column], errors="coerce").astype("Int64")
-        elif target_type == "float":
+        elif target_type in ("integer", "float"):
             df[column] = pd.to_numeric(df[column], errors="coerce")
         elif target_type == "boolean":
             truthy = {"true", "1", "yes", "y", "on"}
             falsy = {"false", "0", "no", "n", "off"}
-            df[column] = (
-                df[column]
-                .apply(
-                    lambda v: (
-                        True
-                        if str(v).strip().lower() in truthy
-                        else (False if str(v).strip().lower() in falsy else None)
-                    )
+            df[column] = df[column].apply(
+                lambda v: (
+                    True if str(v).strip().lower() in truthy else (False if str(v).strip().lower() in falsy else None)
                 )
-                .astype("boolean")
             )
         elif target_type == "datetime":
             df[column] = pd.to_datetime(df[column], errors="coerce")
