@@ -104,12 +104,11 @@ async def save_project(
     original_path = get_original_path(project.file_path)
     df = read_csv_safe(original_path)
 
-    # Get all unapplied logs for this project
+    # Get all logs for this project to replay full cumulative history
     logs = (
         db.query(models.ProjectChangeLog)
         .filter(
             models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.applied == False,  # noqa: E712
         )
         .order_by(models.ProjectChangeLog.timestamp)
         .all()
