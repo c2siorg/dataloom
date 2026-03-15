@@ -103,3 +103,52 @@ class TestFormatSize:
 
     def test_zero(self):
         assert _format_size(0) == "0.0 B"
+
+
+def test_upload_tsv_file(client, tmp_path):
+    """TSV file should be parsed correctly using tab separator."""
+    tsv_content = "name\tage\tcity\nAlice\t30\tNYC\nBob\t25\tLA"
+    tsv_file = tmp_path / "test.tsv"
+    tsv_file.write_text(tsv_content)
+    with open(tsv_file, "rb") as f:
+        response = client.post(
+            "/projects/upload",
+            data={"projectName": "TSV Test", "projectDescription": "test"},
+            files={"file": ("test.tsv", f, "text/tab-separated-values")},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["columns"] == ["name", "age", "city"]
+    assert data["row_count"] == 2
+
+
+def test_upload_parquet_file(client, tmp_path):
+    """Parquet file should be parsed correctly using pyarrow."""
+    import pandas as pd
+
+    df = pd.DataFrame({"name": ["Alice", "Bob"], "age": [30, 25]})
+    parquet_file = tmp_path / "test.parquet"
+    df.to_parquet(parquet_file, index=False)
+    with open(parquet_file, "rb") as f:
+        response = client.post(
+            "/projects/upload",
+            data={"projectName": "Parquet Test", "projectDescription": "test"},
+            files={"file": ("test.parquet", f, "application/octet-stream")},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["columns"] == ["name", "age"]
+    assert data["row_count"] == 2
+
+
+def test_upload_unsupported_format_rejected(client, tmp_path):
+    """Unsupported formats should return 400."""
+    bad_file = tmp_path / "test.xml"
+    bad_file.write_text("<data></data>")
+    with open(bad_file, "rb") as f:
+        response = client.post(
+            "/projects/upload",
+            data={"projectName": "Bad", "projectDescription": "test"},
+            files={"file": ("test.xml", f, "application/xml")},
+        )
+    assert response.status_code == 400

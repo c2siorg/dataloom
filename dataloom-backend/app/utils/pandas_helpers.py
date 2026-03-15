@@ -27,6 +27,36 @@ def read_csv_safe(path: Path) -> pd.DataFrame:
         raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}") from e
 
 
+def read_file_safe(path: Path) -> pd.DataFrame:
+    """Read CSV, TSV, or Parquet files safely.
+
+    Args:
+        path: Path to the uploaded file.
+
+    Returns:
+        DataFrame with file contents.
+
+    Raises:
+        HTTPException: If file not found, unreadable, or unsupported format.
+    """
+    ext = Path(path).suffix.lower()
+    try:
+        if ext == ".csv":
+            return pd.read_csv(path)
+        elif ext == ".tsv":
+            return pd.read_csv(path, sep="\t")
+        elif ext == ".parquet":
+            return pd.read_parquet(path)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported file format: '{ext}'")
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"File not found: {path}") from None
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}") from e
+
+
 def save_csv_safe(df: pd.DataFrame, path: Path) -> None:
     """Save a DataFrame to CSV safely.
 
