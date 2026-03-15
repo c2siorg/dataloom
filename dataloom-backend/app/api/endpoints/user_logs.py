@@ -4,15 +4,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app import database, models, schemas
+from app.api.dependencies import current_active_user, get_project_or_404
+from app.models import User
 
 router = APIRouter()
 
 
 @router.get("/{project_id}", response_model=list[schemas.LogResponse])
-def get_logs(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+def get_logs(
+    project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+    user: User = Depends(current_active_user),
+):
+    project = get_project_or_404(project_id, db, user)
     logs = (
         db.query(models.ProjectChangeLog)
-        .filter(models.ProjectChangeLog.project_id == project_id)
+        .filter(models.ProjectChangeLog.project_id == project.project_id)
         .order_by(models.ProjectChangeLog.timestamp.desc())
         .all()
     )
@@ -31,10 +38,15 @@ def get_logs(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
 
 
 @router.get("/checkpoints/{project_id}", response_model=schemas.CheckpointResponse)
-def get_last_checkpoint(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+def get_last_checkpoint(
+    project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+    user: User = Depends(current_active_user),
+):
+    project = get_project_or_404(project_id, db, user)
     last_checkpoint = (
         db.query(models.Checkpoint)
-        .filter(models.Checkpoint.project_id == project_id)
+        .filter(models.Checkpoint.project_id == project.project_id)
         .order_by(models.Checkpoint.created_at.desc())
         .first()
     )

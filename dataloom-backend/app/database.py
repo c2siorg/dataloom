@@ -1,14 +1,13 @@
-from collections.abc import Generator
+"""Compatibility module for existing database imports."""
 
-from sqlmodel import Session, create_engine
+from app.db.base import AuthBase
+from app.db.session import async_engine, async_session_maker, engine, get_async_session, get_db
 
-from app.config import get_settings
-
-settings = get_settings()
-
-engine = create_engine(settings.database_url, pool_pre_ping=True)
-
-
-def get_db() -> Generator[Session, None, None]:
-    with Session(engine) as session:
-        yield session
+__all__ = [
+    "AuthBase",
+    "async_engine",
+    "async_session_maker",
+    "engine",
+    "get_async_session",
+    "get_db",
+]
