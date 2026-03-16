@@ -1,6 +1,6 @@
 """Project CRUD API endpoints.
 
-Handles upload, retrieval, save (checkpoint), and revert operations.
+Handles upload, retrieval, save (checkpoint), revert, and undo operations.
 """
 
 import uuid
@@ -16,7 +16,9 @@ from app.services.file_service import delete_project_files, get_original_path, s
 from app.services.project_service import (
     create_checkpoint,
     create_project,
+    delete_change_log,
     delete_project,
+    get_last_change_log,
     get_recent_projects,
 )
 from app.services.transformation_service import apply_logged_transformation
@@ -211,6 +213,63 @@ async def revert_to_checkpoint(
 
     resp = dataframe_to_response(df)
     logger.info("Project reverted: id=%s, checkpoint_id=%s", project_id, checkpoint_id)
+    return {
+        "filename": project.name,
+        "file_path": project.file_path,
+        "project_id": project.project_id,
+        **resp,
+    }
+
+
+@router.post("/{project_id}/undo", response_model=schemas.ProjectResponse)
+async def undo_last_transformation(
+    project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+):
+    """Undo the most recent transformation.
+
+    Removes the last change log entry and rebuilds the working copy
+    by replaying all remaining logs onto the original file.
+    This approach is reliable because it rebuilds from a known-good
+    starting point rather than computing inverse transformations.
+    """
+    project = get_project_or_404(project_id, db)
+
+    # Get the last (most recent) log entry
+    last_log = get_last_change_log(db, project_id)
+    if not last_log:
+        raise HTTPException(status_code=404, detail="No transformations to undo")
+
+    # Delete the last log entry
+    delete_change_log(db, last_log)
+
+    # Rebuild working copy from original + remaining logs
+    original_path = get_original_path(project.file_path)
+    df = read_csv_safe(original_path)
+
+    # Get all remaining logs (both applied and unapplied) in order
+    remaining_logs = (
+        db.query(models.ProjectChangeLog)
+        .filter(models.ProjectChangeLog.project_id == project_id)
+        .order_by(models.ProjectChangeLog.timestamp)
+        .all()
+    )
+
+    # Replay each remaining transformation onto the original
+    for log in remaining_logs:
+        df = apply_logged_transformation(df, log.action_type, log.action_details)
+
+    # Save rebuilt data as working copy
+    save_csv_safe(df, project.file_path)
+    db.commit()
+
+    resp = dataframe_to_response(df)
+    logger.info(
+        "Undo: project_id=%s, removed log_id=%s, remaining_logs=%d",
+        project_id,
+        last_log.change_log_id,
+        len(remaining_logs),
+    )
     return {
         "filename": project.name,
         "file_path": project.file_path,

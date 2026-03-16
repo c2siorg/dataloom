@@ -8,7 +8,7 @@ import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
 const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
-  const { columns } = useProjectContext();
+  const { columns, updateData } = useProjectContext();
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -29,6 +29,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
       });
 
       onTransform(response);
+      updateData(response.columns, response.rows, response.dtypes);
       onClose();
     } catch (err) {
       console.error("Error casting data type:", err);

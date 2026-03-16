@@ -11,5 +11,5 @@ export {
   exportProject,
   deleteProject,
 } from "./projects";
-export { transformProject } from "./transforms";
+export { transformProject, undoLastTransformation } from "./transforms";
 export { getLogs, getCheckpoints } from "./logs";

@@ -121,3 +121,33 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     db.commit()
     logger.info("Checkpoint created: id=%s, project_id=%s, logs_applied=%d", checkpoint.id, project_id, len(logs))
     return checkpoint
+
+
+def get_last_change_log(db: Session, project_id: uuid.UUID) -> models.ProjectChangeLog | None:
+    """Get the most recent change log entry for a project.
+
+    Args:
+        db: Database session.
+        project_id: The project to query.
+
+    Returns:
+        The most recent ProjectChangeLog entry, or None if no logs exist.
+    """
+    return (
+        db.query(models.ProjectChangeLog)
+        .filter(models.ProjectChangeLog.project_id == project_id)
+        .order_by(models.ProjectChangeLog.change_log_id.desc())
+        .first()
+    )
+
+
+def delete_change_log(db: Session, log: models.ProjectChangeLog) -> None:
+    """Delete a single change log entry.
+
+    Args:
+        db: Database session.
+        log: The ProjectChangeLog entry to delete.
+    """
+    db.delete(log)
+    db.flush()
+    logger.debug("Deleted change log: id=%s, project_id=%s", log.change_log_id, log.project_id)
