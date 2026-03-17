@@ -58,9 +58,13 @@ const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">Find:</label>
+          <label htmlFor="find-value" className="block text-sm font-medium text-gray-700">
+            Find:
+          </label>
           <input
+            id="find-value"
             type="text"
+            placeholder="Text to find"
             value={findValue}
             onChange={(e) => setFindValue(e.target.value)}
             className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
@@ -69,9 +73,13 @@ const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">Replace with:</label>
+          <label htmlFor="replace-value" className="block text-sm font-medium text-gray-700">
+            Replace with:
+          </label>
           <input
+            id="replace-value"
             type="text"
+            placeholder="Replacement text"
             value={replaceValue}
             onChange={(e) => setReplaceValue(e.target.value)}
             className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
