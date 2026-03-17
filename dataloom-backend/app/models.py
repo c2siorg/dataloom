@@ -89,3 +89,21 @@ class Checkpoint(SQLModel, table=True):
     )
 
     project: Project | None = Relationship(back_populates="checkpoints")
+
+
+class Pipeline(SQLModel, table=True):
+    """A reusable named transformation pipeline."""
+
+    __tablename__ = "pipelines"
+
+    id: uuid_mod.UUID = Field(
+        default_factory=uuid_mod.uuid4,
+        sa_column=Column(sa.Uuid, primary_key=True, default=uuid_mod.uuid4),
+    )
+    name: str = Field(index=True)
+    description: str | None = None
+    steps: list = Field(sa_column=sa.Column(sa.JSON, nullable=False))
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime, server_default=func.now()),
+    )

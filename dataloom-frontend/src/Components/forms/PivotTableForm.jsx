@@ -5,6 +5,7 @@ import { transformProject } from "../../api";
 import { PIVOT_TABLES } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import ColumnSelect from "../common/ColumnSelect";
 
 const PivotTableForm = ({ projectId, onClose }) => {
   const [index, setIndex] = useState("");
@@ -40,37 +41,26 @@ const PivotTableForm = ({ projectId, onClose }) => {
         <h3 className="font-semibold text-gray-900 mb-2">Pivot Table</h3>
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Index:</label>
-            <input
-              type="text"
+            <ColumnSelect
               value={index}
               onChange={(e) => setIndex(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              placeholder="e.g., col1,col2"
-              required
+              label="Index"
+              allowMultiple
             />
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Column:</label>
-            <input
-              type="text"
+            <ColumnSelect
               value={column}
               onChange={(e) => setColumn(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              required
+              label="Column"
+              required={false}
+              placeholder="(optional)"
             />
           </div>
         </div>
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Value:</label>
-            <input
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              required
-            />
+            <ColumnSelect value={value} onChange={(e) => setValue(e.target.value)} label="Value" />
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Aggregation Function:</label>

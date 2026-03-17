@@ -1,5 +1,3 @@
-"""File storage and management service for dataset uploads."""
-
 import shutil
 from pathlib import Path
 
@@ -8,55 +6,51 @@ from app.utils.security import resolve_upload_path, sanitize_filename
 
 logger = get_logger(__name__)
 
+SUPPORTED_EXTENSIONS = {".csv", ".xlsx", ".json", ".parquet", ".tsv"}
+
 
 def store_upload(file) -> tuple[Path, Path]:
-    """Store an uploaded file and create a working copy.
-
-    Saves the file with a sanitized name and creates a _copy.csv for
-    transformation operations, keeping the original pristine.
-
-    Args:
-        file: The FastAPI UploadFile object.
-
-    Returns:
-        Tuple of (original_path, copy_path).
-    """
     safe_name = sanitize_filename(file.filename)
     original_path = resolve_upload_path(safe_name)
 
     with open(original_path, "wb+") as f:
         shutil.copyfileobj(file.file, f)
 
-    copy_path = Path(str(original_path).replace(".csv", "_copy.csv"))
-    shutil.copy2(original_path, copy_path)
+    copy_name = _to_csv_name(str(original_path))
+    copy_path = Path(copy_name)
+
+    _convert_to_csv(original_path, copy_path)
 
     logger.info("Stored upload: original=%s, copy=%s", original_path, copy_path)
     return original_path, copy_path
 
 
+def _to_csv_name(path_str: str) -> str:
+    p = Path(path_str)
+    return str(p.with_suffix("")).replace(p.stem, p.stem + "_copy") + ".csv"
+
+
+def _convert_to_csv(source: Path, dest: Path) -> None:
+    import pandas as pd
+
+    ext = source.suffix.lower()
+    if ext == ".csv":
+        shutil.copy2(source, dest)
+    elif ext == ".tsv":
+        df = pd.read_csv(source, sep="\t")
+        df.to_csv(dest, index=False)
+    elif ext == ".xlsx":
+        df = pd.read_excel(source)
+        df.to_csv(dest, index=False)
+    elif ext == ".json":
+        df = pd.read_json(source)
+        df.to_csv(dest, index=False)
+    elif ext == ".parquet":
+        df = pd.read_parquet(source)
+        df.to_csv(dest, index=False)
+    else:
+        raise ValueError(f"Unsupported file format: {ext}")
+
+
 def get_original_path(copy_path: str) -> Path:
-    """Derive the original file path from a working copy path.
-
-    Args:
-        copy_path: Path to the _copy.csv working file.
-
-    Returns:
-        Path to the original CSV file.
-    """
     return Path(copy_path.replace("_copy.csv", ".csv"))
-
-
-def delete_project_files(copy_path: str) -> None:
-    """Delete both the working copy and original file for a project.
-
-    Args:
-        copy_path: Path to the _copy.csv working file.
-    """
-    original_path = get_original_path(copy_path)
-
-    for path in [Path(copy_path), original_path]:
-        try:
-            path.unlink()
-            logger.info("Deleted file: %s", path)
-        except FileNotFoundError:
-            logger.warning("File already missing: %s", path)

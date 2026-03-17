@@ -24,9 +24,25 @@ class TestValidateUploadFile:
         validate_upload_file(file)
 
     def test_non_csv_rejected(self):
-        file = MockUploadFile("data.xlsx")
+        file = MockUploadFile("data.exe")
         with pytest.raises(HTTPException, match="not allowed"):
             validate_upload_file(file)
+
+    def test_xlsx_accepted(self):
+        file = MockUploadFile("data.xlsx")
+        validate_upload_file(file)
+
+    def test_json_accepted(self):
+        file = MockUploadFile("data.json")
+        validate_upload_file(file)
+
+    def test_parquet_accepted(self):
+        file = MockUploadFile("data.parquet")
+        validate_upload_file(file)
+
+    def test_tsv_accepted(self):
+        file = MockUploadFile("data.tsv")
+        validate_upload_file(file)
 
     def test_exe_rejected(self):
         file = MockUploadFile("malware.exe")

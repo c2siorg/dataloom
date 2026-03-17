@@ -14,12 +14,10 @@ class FilterCondition(StrEnum):
     """Supported filter comparison operators."""
 
     EQ = "="
-    NEQ = "!="
     GT = ">"
     LT = "<"
     GTE = ">="
     LTE = "<="
-    CONTAINS = "contains"
 
 
 class OperationType(StrEnum):
@@ -105,23 +103,14 @@ class AddOrDeleteRow(BaseModel):
 
 
 class AddColumn(BaseModel):
-    """Parameters for adding a column.
-
-    Attributes:
-        index: Zero-based column index where column will be inserted.
-        name: Column name; required for add operations.
-    """
+    """Parameters for adding a column."""
 
     index: int
-    name: str | None = None
+    name: str
 
 
 class DeleteColumn(BaseModel):
-    """Parameters for deleting a column.
-
-    Attributes:
-        index: Zero-based column index to delete.
-    """
+    """Parameters for deleting a column."""
 
     index: int
 
@@ -262,7 +251,6 @@ class BasicQueryResponse(BaseModel):
     row_count: int
     columns: list[str]
     rows: list[list]
-    dtypes: dict[str, str] = {}
 
 
 class ProjectResponse(BaseModel):
@@ -274,7 +262,7 @@ class ProjectResponse(BaseModel):
     columns: list[str]
     row_count: int
     rows: list[list]
-    dtypes: dict[str, str] = {}
+    profile: dict | None = None
 
 
 # --- Other response schemas ---
@@ -309,3 +297,62 @@ class LastResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- Profiling schemas ---
+
+
+class NumericStatsSchema(BaseModel):
+    """Statistics for a numeric column."""
+
+    mean: float | None = None
+    median: float | None = None
+    std: float | None = None
+    min: float | None = None
+    max: float | None = None
+    q1: float | None = None
+    q3: float | None = None
+    skewness: float | None = None
+
+
+class FrequentValueSchema(BaseModel):
+    """A value and its occurrence count."""
+
+    value: str
+    count: int
+
+
+class CategoricalStatsSchema(BaseModel):
+    """Statistics for a categorical column."""
+
+    top_values: list[FrequentValueSchema] = []
+    mode: str | None = None
+
+
+class ColumnProfileSchema(BaseModel):
+    """Profile for a single column."""
+
+    name: str
+    dtype: str
+    missing_count: int
+    missing_percentage: float
+    unique_count: int
+    numeric_stats: NumericStatsSchema | None = None
+    categorical_stats: CategoricalStatsSchema | None = None
+
+
+class DatasetSummarySchema(BaseModel):
+    """Dataset-level summary metrics."""
+
+    row_count: int
+    column_count: int
+    missing_count: int
+    memory_usage_bytes: int
+    duplicate_row_count: int
+
+
+class ProfileResponse(BaseModel):
+    """Full profile response for a project."""
+
+    summary: DatasetSummarySchema
+    columns: list[ColumnProfileSchema]

@@ -19,15 +19,6 @@ class TransformationError(Exception):
 
 
 def get_column_type(df: pd.DataFrame, column: str) -> str:
-    """Determine whether a column contains string or numeric data.
-
-    Args:
-        df: Source DataFrame.
-        column: Column name to inspect.
-
-    Returns:
-        'string', 'numeric', or 'unknown'.
-    """
     dtype = df[column].dtype
     if pd.api.types.is_string_dtype(dtype):
         return "string"
@@ -37,37 +28,11 @@ def get_column_type(df: pd.DataFrame, column: str) -> str:
 
 
 def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> pd.DataFrame:
-    """Filter DataFrame rows by a column condition.
+    if column not in df.columns:
+        raise TransformationError(f"Column '{column}' not found")
 
-    Automatically casts value to float for numeric columns.
-    Column names are matched after stripping whitespace.
-
-    Args:
-        df: Source DataFrame.
-        column: Column name to filter on.
-        condition: One of '=', '!=', '>', '<', '>=', '<=', 'contains'.
-        value: The comparison value (as string, cast if needed).
-
-    Returns:
-        Filtered DataFrame.
-
-    Raises:
-        TransformationError: If column not found or condition unsupported.
-    """
-    # Strip whitespace from column name and create a mapping of stripped -> original
-    column_stripped = column.strip()
-    stripped_to_original = {col.strip(): col for col in df.columns}
-
-    if column_stripped not in stripped_to_original:
-        available = list(df.columns)
-        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
-
-    # Use the original column name from the DataFrame
-    column = stripped_to_original[column_stripped]
-
-    # Cast value to numeric if column is numeric (for comparison operators)
     col_type = get_column_type(df, column)
-    if col_type == "numeric" and condition in ("=", "!=", ">", "<", ">=", "<="):
+    if col_type == "numeric":
         try:
             value = float(value)
         except ValueError:
@@ -80,43 +45,22 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
         "<": lambda: df[df[column] < value],
         ">=": lambda: df[df[column] >= value],
         "<=": lambda: df[df[column] <= value],
-        "contains": lambda: df[df[column].astype(str).str.contains(value, na=False)],
+        "contains": lambda: df[df[column].astype(str).str.contains(str(value), case=False, na=False)],
     }
 
-    condition_str = condition.value if hasattr(condition, "value") else str(condition)
+    if condition not in ops:
+        raise TransformationError(f"Unsupported filter condition: {condition}")
 
-    if condition_str not in ops:
-        raise TransformationError(f"Unsupported filter condition: {condition_str}")
-
-    return ops[condition_str]()
+    return ops[condition]()
 
 
 def apply_sort(df: pd.DataFrame, column: str, ascending: bool) -> pd.DataFrame:
-    """Sort DataFrame by a column.
-
-    Args:
-        df: Source DataFrame.
-        column: Column name to sort by.
-        ascending: Sort direction.
-
-    Returns:
-        Sorted DataFrame.
-    """
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
     return df.sort_values(by=column, ascending=ascending)
 
 
 def add_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
-    """Insert a blank row at the specified index.
-
-    Args:
-        df: Source DataFrame.
-        index: Row position for insertion.
-
-    Returns:
-        DataFrame with new row inserted.
-    """
     if index < 0 or index > len(df):
         raise TransformationError(f"Row index {index} out of range (0-{len(df)})")
 
@@ -125,31 +69,12 @@ def add_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
 
 
 def delete_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
-    """Delete the row at the specified index.
-
-    Args:
-        df: Source DataFrame.
-        index: Row position to delete.
-
-    Returns:
-        DataFrame with row removed.
-    """
     if index < 0 or index >= len(df):
         raise TransformationError(f"Row index {index} out of range (0-{len(df) - 1})")
     return df.drop(index).reset_index(drop=True)
 
 
 def add_column(df: pd.DataFrame, index: int, name: str) -> pd.DataFrame:
-    """Insert a new empty column at the specified position.
-
-    Args:
-        df: Source DataFrame.
-        index: Column position for insertion.
-        name: Name for the new column.
-
-    Returns:
-        DataFrame with new column inserted.
-    """
     if index < 0 or index > len(df.columns):
         raise TransformationError(f"Column index {index} out of range (0-{len(df.columns)})")
 
@@ -159,15 +84,6 @@ def add_column(df: pd.DataFrame, index: int, name: str) -> pd.DataFrame:
 
 
 def delete_column(df: pd.DataFrame, index: int) -> pd.DataFrame:
-    """Delete the column at the specified index.
-
-    Args:
-        df: Source DataFrame.
-        index: Column position to delete.
-
-    Returns:
-        DataFrame with column removed.
-    """
     if index < 0 or index >= len(df.columns):
         raise TransformationError(f"Column index {index} out of range (0-{len(df.columns) - 1})")
 
@@ -176,41 +92,17 @@ def delete_column(df: pd.DataFrame, index: int) -> pd.DataFrame:
 
 
 def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -> pd.DataFrame:
-    """Update a single cell value.
-
-    Note: col_index is 1-based from the frontend (skipping S.No. column).
-
-    Args:
-        df: Source DataFrame.
-        row_index: Row position (0-based).
-        col_index: Column position (1-based from frontend).
-        value: New cell value.
-
-    Returns:
-        DataFrame with updated cell.
-    """
     df = df.copy()
 
     if row_index >= len(df) or col_index >= len(df.columns) + 1:
         raise TransformationError("Row or column index out of bounds")
 
-    # col_index is 1-based from frontend (accounting for S.No. column)
     column_name = df.columns[col_index - 1]
     df.at[row_index, column_name] = value
     return df
 
 
 def fill_empty(df: pd.DataFrame, fill_value, column_index: int = None) -> pd.DataFrame:
-    """Fill empty/NaN cells with a specified value.
-
-    Args:
-        df: Source DataFrame.
-        fill_value: Value to fill empty cells with.
-        column_index: Optional specific column index. If None, fills all columns.
-
-    Returns:
-        DataFrame with empty cells filled.
-    """
     df = df.copy()
     if column_index is not None:
         if column_index < 0 or column_index >= len(df.columns):
@@ -223,22 +115,6 @@ def fill_empty(df: pd.DataFrame, fill_value, column_index: int = None) -> pd.Dat
 
 
 def rename_column(df: pd.DataFrame, col_index: int, new_name: str) -> pd.DataFrame:
-    """Rename a column by its positional index.
-
-    Args:
-        df: Source DataFrame.
-        col_index: 0-based column position.
-        new_name: The new column name.
-
-    Returns:
-        DataFrame with the column renamed.
-
-    Raises:
-        TransformationError: If new_name is empty or whitespace.
-        TransformationError: If col_index is out of range.
-        TransformationError: If new_name already exists in df.columns
-                             (unless new_name equals the current column name).
-    """
     if col_index < 0 or col_index >= len(df.columns):
         raise TransformationError(
             f"Column index {col_index} is out of range (DataFrame has {len(df.columns)} columns)."
@@ -248,7 +124,6 @@ def rename_column(df: pd.DataFrame, col_index: int, new_name: str) -> pd.DataFra
 
     old_name = df.columns[col_index]
 
-    # Check if new_name already exists and is different from current column name
     if new_name in df.columns and new_name != old_name:
         raise TransformationError(f"Column '{new_name}' already exists. Please choose a different name.")
 
@@ -256,19 +131,8 @@ def rename_column(df: pd.DataFrame, col_index: int, new_name: str) -> pd.DataFra
 
 
 def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFrame:
-    """Cast a column to a different data type.
-
-    Args:
-        df: Source DataFrame.
-        column: Column name to cast.
-        target_type: One of 'string', 'integer', 'float', 'boolean', 'datetime'.
-
-    Returns:
-        DataFrame with the column cast to the target type.
-    """
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
-
     df = df.copy()
     try:
         if target_type == "string":
@@ -278,18 +142,14 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
         elif target_type == "float":
             df[column] = pd.to_numeric(df[column], errors="coerce")
         elif target_type == "boolean":
-            truthy = {"true", "1", "yes", "y", "on"}
-            falsy = {"false", "0", "no", "n", "off"}
-            df[column] = (
-                df[column]
-                .apply(
-                    lambda v: (
-                        True
-                        if str(v).strip().lower() in truthy
-                        else (False if str(v).strip().lower() in falsy else None)
-                    )
+            true_vals = {"true", "yes", "1", "t", "y"}
+            false_vals = {"false", "no", "0", "f", "n"}
+            df[column] = df[column].apply(
+                lambda x: (
+                    True
+                    if str(x).strip().lower() in true_vals
+                    else (False if str(x).strip().lower() in false_vals else pd.NA)
                 )
-                .astype("boolean")
             )
         elif target_type == "datetime":
             df[column] = pd.to_datetime(df[column], errors="coerce")
@@ -299,98 +159,38 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
         raise
     except Exception as e:
         raise TransformationError(f"Failed to cast column '{column}' to {target_type}: {e}") from e
-
     return df
 
 
 def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
-    """Trim leading and trailing whitespace from string columns.
-
-    Args:
-        df: Source DataFrame.
-        column: Column name to trim, or "All string columns" to trim all string columns.
-
-    Returns:
-        DataFrame with whitespace trimmed from specified column(s).
-    """
+    if column not in df.columns:
+        raise TransformationError(f"Column '{column}' not found")
     df = df.copy()
-
-    if column == "All string columns":
-        for col in df.columns:
-            if pd.api.types.is_string_dtype(df[col]) or pd.api.types.is_object_dtype(df[col]):
-                df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
-    else:
-        if column not in df.columns:
-            raise TransformationError(f"Column '{column}' not found")
-        df[column] = df[column].apply(lambda x: x.strip() if isinstance(x, str) else x)
-
+    if pd.api.types.is_string_dtype(df[column]):
+        df[column] = df[column].str.strip()
     return df
 
 
 def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
-    """Remove duplicate rows based on specified columns.
-
-    Args:
-        df: Source DataFrame.
-        columns: Comma-separated column names.
-        keep: Which duplicates to keep ('first', 'last', or False for none).
-
-    Returns:
-        DataFrame with duplicates removed.
-    """
     col_list = [c.strip() for c in columns.split(",")]
-
     missing = [c for c in col_list if c not in df.columns]
     if missing:
         raise TransformationError(f"Columns {missing} not found in dataset")
-
     return df.drop_duplicates(subset=col_list, keep=keep)
 
 
 def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
-    """Filter DataFrame using a pandas query expression.
-
-    Validates the query for injection attacks, normalizes quote characters,
-    and wraps non-identifier column names in backticks.
-
-    Args:
-        df: Source DataFrame.
-        query_string: Pandas query syntax string.
-
-    Returns:
-        Filtered DataFrame.
-    """
-    # Validate for injection patterns
     validate_query_string(query_string)
-
-    # Normalize quotes
     query_string = query_string.replace("'", '"').strip()
-
-    # Wrap non-identifier column names in backticks
     for col in df.columns:
         if not col.isidentifier():
             query_string = query_string.replace(col, f"`{col}`")
-
     logger.debug("Executing query: %s", query_string)
     return df.query(query_string, local_dict={"__builtins__": {}})
 
 
 def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, aggfunc: str = "sum") -> pd.DataFrame:
-    """Create a pivot table from the DataFrame.
-
-    Args:
-        df: Source DataFrame.
-        index: Comma-separated column names for the pivot index.
-        value: Column to aggregate.
-        column: Optional column to pivot on.
-        aggfunc: Aggregation function name.
-
-    Returns:
-        Pivoted DataFrame with string column names and reset index.
-    """
     index_cols = [c.strip() for c in index.split(",")]
-
-    # Validate all required columns exist
     all_cols = index_cols + ([column] if column else []) + [value]
     missing = [c for c in all_cols if c not in df.columns]
     if missing:
@@ -406,16 +206,6 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
 
 
 def drop_na(df: pd.DataFrame, columns: list[str] | None = None) -> pd.DataFrame:
-    """Drop rows with missing/NaN values.
-
-    Args:
-        df: Source DataFrame.
-        columns: Optional list of column names to check for NaN.
-                 If None, drops rows where ANY column has NaN.
-
-    Returns:
-        DataFrame with NaN rows removed.
-    """
     if columns is not None:
         if len(columns) == 0:
             raise TransformationError("columns list must not be empty")
@@ -429,23 +219,6 @@ def drop_na(df: pd.DataFrame, columns: list[str] | None = None) -> pd.DataFrame:
 
 
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
-    """Replay a logged transformation from its serialized form.
-
-    Used by the save endpoint to apply pending transformations to the original
-    dataset file. Each action_details dict contains the serialized parameters
-    from the original TransformationInput.
-
-    Args:
-        df: Source DataFrame.
-        action_type: The operation type string.
-        action_details: Dict of the full transformation parameters.
-
-    Returns:
-        Transformed DataFrame.
-
-    Raises:
-        TransformationError: If the transformation cannot be applied.
-    """
     if action_type == "addRow":
         index = action_details["row_params"]["index"]
         return add_row(df, index)
