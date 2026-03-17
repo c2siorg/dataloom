@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
+import { STRING_REPLACE } from "../../constants/operationTypes";
 
 const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
   const { columns } = useProjectContext();
@@ -17,7 +18,7 @@ const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
 
     try {
       const response = await transformProject(projectId, {
-        operation_type: "stringReplace",
+        transformation_type: STRING_REPLACE,
         string_replace_params: {
           column,
           find_value: findValue,
