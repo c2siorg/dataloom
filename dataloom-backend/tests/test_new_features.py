@@ -1,6 +1,7 @@
 """Tests for new features: rename column, cast data type, export, and delete project."""
 
 import csv
+from io import BytesIO
 
 import pandas as pd
 import pytest
@@ -215,8 +216,9 @@ class TestAddDeleteColumnEndpoint:
 
 
 class TestExportEndpoint:
-    def test_export_project(self, client, sample_csv, db):
-        # Upload a project first
+    @pytest.fixture(scope="class")
+    def uploaded_project(self, client, sample_csv, db):
+        """Upload a project once for all tests in this class."""
         with open(sample_csv, "rb") as f:
             response = client.post(
                 "/projects/upload",
@@ -224,7 +226,11 @@ class TestExportEndpoint:
                 data={"projectName": "Export Test", "projectDescription": "Test export"},
             )
         assert response.status_code == 200
-        project_id = response.json()["project_id"]
+        return response.json()["project_id"]
+
+    def test_export_project(self, client, uploaded_project):
+        # Upload a project first (now using fixture)
+        project_id = uploaded_project
 
         # Export the project
         export_response = client.get(f"/projects/{project_id}/export")
@@ -241,6 +247,30 @@ class TestExportEndpoint:
     def test_export_nonexistent_project(self, client):
         response = client.get("/projects/00000000-0000-0000-0000-000000000000/export")
         assert response.status_code == 404
+
+    def test_export_project_xlsx(self, client, uploaded_project):
+        project_id = uploaded_project
+
+        export_response = client.get(f"/projects/{project_id}/export?format=xlsx")
+        assert export_response.status_code == 200
+        assert (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            in export_response.headers["content-type"]
+        )
+
+        exported_df = pd.read_excel(BytesIO(export_response.content))
+        assert list(exported_df.columns) == ["name", "age", "city"]
+        assert len(exported_df) == 4
+        assert exported_df.iloc[0]["name"] == "Alice"
+        assert exported_df.iloc[0]["age"] == 30
+        assert "filename=" in export_response.headers.get("content-disposition", "")
+
+    @pytest.mark.parametrize("bad_format", ["pdf", "json", "xls", ""])
+    def test_export_invalid_format(self, client, uploaded_project, bad_format):
+        project_id = uploaded_project
+
+        response = client.get(f"/projects/{project_id}/export?format={bad_format}")
+        assert response.status_code == 422
 
 
 # --- Delete Endpoint Tests ---

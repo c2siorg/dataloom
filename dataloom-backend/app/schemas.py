@@ -5,7 +5,7 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 # --- Enums ---
 
@@ -306,6 +306,4 @@ class LastResponse(BaseModel):
     name: str
     description: str | None
     last_modified: datetime.datetime
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

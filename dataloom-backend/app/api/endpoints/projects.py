@@ -3,9 +3,13 @@
 Handles upload, retrieval, save (checkpoint), and revert operations.
 """
 
+import os
 import uuid
+from io import BytesIO
+from typing import Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from sqlmodel import Session
 
@@ -207,10 +211,53 @@ async def revert_to_checkpoint(
 
 
 @router.get("/{project_id}/export")
-async def export_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Download the current working copy of a project as a CSV file."""
+async def export_project(
+    project_id: uuid.UUID,
+    export_format: Literal["csv", "xlsx"] = Query(default="csv", alias="format"),
+    db: Session = Depends(database.get_db),
+):
+    """Download the current working copy of a project as CSV or XLSX."""
     project = get_project_or_404(project_id, db)
-    return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
+
+    if export_format == "csv":
+        ascii_name = project.name.encode("ascii", errors="replace").decode().replace('"', "'")
+        csv_headers = {
+            "Content-Disposition": (
+                f"attachment; filename=\"{ascii_name}.csv\"; filename*=UTF-8''{quote(project.name)}.csv"
+            )
+        }
+        return FileResponse(
+            project.file_path,
+            media_type="text/csv",
+            headers=csv_headers,
+        )
+
+    MAX_EXPORT_BYTES = 100 * 1024 * 1024  # 100 MB
+    file_size = os.path.getsize(project.file_path)
+    if file_size > MAX_EXPORT_BYTES:
+        raise HTTPException(status_code=413, detail="File too large to export as XLSX")
+
+    ascii_name = project.name.encode("ascii", errors="replace").decode().replace('"', "'")
+    headers = {
+        "Content-Disposition": (
+            f"attachment; filename=\"{ascii_name}.xlsx\"; filename*=UTF-8''{quote(project.name)}.xlsx"
+        )
+    }
+
+    try:
+        df = read_csv_safe(project.file_path)
+        output = BytesIO()
+        df.to_excel(output, index=False, engine="openpyxl")
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Project data file not found on disk") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to generate XLSX export") from exc
+
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
 
 
 @router.delete("/{project_id}")
