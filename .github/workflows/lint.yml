@@ -1,18 +1,16 @@
 name: Lint
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
   push:
     branches: [main]
-  issue_comment:
-    types: [created]
 
 concurrency:
   group: >-
-    lint-${{
-      github.event_name == 'issue_comment'
-        && format('pr-{0}', github.event.issue.number)
+    ci-${{
+      github.event_name == 'pull_request_target'
+        && format('pr-{0}', github.event.pull_request.number)
         || github.ref
     }}
   cancel-in-progress: true
@@ -24,21 +22,18 @@ permissions:
 jobs:
   frontend-lint:
     name: Frontend Lint
-    if: >-
-      github.event_name != 'issue_comment'
-      || (
-        github.event.issue.pull_request
-        && contains(github.event.comment.body, '/lint')
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-      )
     runs-on: ubuntu-latest
+    outputs:
+      eslint: ${{ steps.eslint.outcome }}
+      prettier: ${{ steps.prettier.outcome }}
     defaults:
       run:
         working-directory: dataloom-frontend
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || '' }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || '' }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -56,77 +51,24 @@ jobs:
         continue-on-error: true
         run: npx prettier --check "src/**/*.{js,jsx,css,md}"
 
-      - name: Comment on PR
-        if: github.event_name != 'push' && (steps.eslint.outcome == 'failure' || steps.prettier.outcome == 'failure')
-        continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const marker = '<!-- lint-frontend-bot -->';
-            let body = marker + '\n## Frontend Lint Failed\n\n';
-            if ('${{ steps.eslint.outcome }}' === 'failure') {
-              body += '**ESLint:** Run `npx eslint --fix . --ext js,jsx` in `dataloom-frontend/`\n\n';
-            }
-            if ('${{ steps.prettier.outcome }}' === 'failure') {
-              body += '**Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,css,md}"` in `dataloom-frontend/`\n\n';
-            }
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find(c => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: existing.id, body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: context.issue.number, body,
-              });
-            }
-
-      - name: Delete stale comment
-        if: github.event_name != 'push' && steps.eslint.outcome == 'success' && steps.prettier.outcome == 'success'
-        continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const marker = '<!-- lint-frontend-bot -->';
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find(c => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: existing.id,
-              });
-            }
-
       - name: Fail if checks failed
         if: steps.eslint.outcome == 'failure' || steps.prettier.outcome == 'failure'
         run: exit 1
 
   backend-lint:
     name: Backend Lint
-    if: >-
-      github.event_name != 'issue_comment'
-      || (
-        github.event.issue.pull_request
-        && contains(github.event.comment.body, '/lint')
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-      )
     runs-on: ubuntu-latest
+    outputs:
+      ruff-lint: ${{ steps.ruff-lint.outcome }}
+      ruff-format: ${{ steps.ruff-format.outcome }}
     defaults:
       run:
         working-directory: dataloom-backend
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || '' }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || '' }}
       - uses: astral-sh/setup-uv@v4
       - uses: actions/setup-python@v5
         with:
@@ -143,121 +85,132 @@ jobs:
         continue-on-error: true
         run: uv run ruff format --check .
 
-      - name: Comment on PR
-        if: github.event_name != 'push' && (steps.ruff-lint.outcome == 'failure' || steps.ruff-format.outcome == 'failure')
-        continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const marker = '<!-- lint-backend-bot -->';
-            let body = marker + '\n## Backend Lint Failed\n\n';
-            if ('${{ steps.ruff-lint.outcome }}' === 'failure') {
-              body += '**Ruff lint:** Run `uv run ruff check --fix .` in `dataloom-backend/`\n\n';
-            }
-            if ('${{ steps.ruff-format.outcome }}' === 'failure') {
-              body += '**Ruff format:** Run `uv run ruff format .` in `dataloom-backend/`\n\n';
-            }
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find(c => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: existing.id, body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: context.issue.number, body,
-              });
-            }
-
-      - name: Delete stale comment
-        if: github.event_name != 'push' && steps.ruff-lint.outcome == 'success' && steps.ruff-format.outcome == 'success'
-        continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const marker = '<!-- lint-backend-bot -->';
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find(c => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: existing.id,
-              });
-            }
-
       - name: Fail if checks failed
         if: steps.ruff-lint.outcome == 'failure' || steps.ruff-format.outcome == 'failure'
         run: exit 1
 
   rebase-check:
     name: Rebase Check
-    if: >-
-      github.event_name == 'pull_request'
-      || (
-        github.event_name == 'issue_comment'
-        && github.event.issue.pull_request
-        && contains(github.event.comment.body, '/lint')
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-      )
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
+    outputs:
+      behind_count: ${{ steps.rebase.outputs.behind_count }}
+      merge_commits: ${{ steps.rebase.outputs.merge_commits }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || '' }}
+
+      - name: Fetch PR head
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: git fetch origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr-head"
 
       - name: Check rebase status
         id: rebase
         run: |
-          git fetch origin main
-
-          # Check for merge commits in the PR branch
-          MERGE_COMMITS=$(git log --merges origin/main..HEAD --oneline)
-
-          # Check how many commits the branch is behind main
-          BEHIND_COUNT=$(git rev-list --count HEAD..origin/main)
+          MERGE_COMMITS=$(git log --merges origin/main..origin/pr-head --oneline)
+          BEHIND_COUNT=$(git rev-list --count origin/pr-head..origin/main)
 
           echo "merge_commits<<EOF" >> "$GITHUB_OUTPUT"
           echo "$MERGE_COMMITS" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
           echo "behind_count=$BEHIND_COUNT" >> "$GITHUB_OUTPUT"
 
-      - name: Comment if rebase needed
-        if: steps.rebase.outputs.behind_count != '0' || steps.rebase.outputs.merge_commits != ''
-        continue-on-error: true
+  pr-comment:
+    name: PR Comment
+    needs: [frontend-lint, backend-lint, rebase-check]
+    if: always() && github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post or delete combined comment
         uses: actions/github-script@v7
         env:
-          BEHIND_COUNT: ${{ steps.rebase.outputs.behind_count }}
-          MERGE_COMMITS: ${{ steps.rebase.outputs.merge_commits }}
+          ESLINT: ${{ needs.frontend-lint.outputs.eslint }}
+          PRETTIER: ${{ needs.frontend-lint.outputs.prettier }}
+          RUFF_LINT: ${{ needs.backend-lint.outputs.ruff-lint }}
+          RUFF_FORMAT: ${{ needs.backend-lint.outputs.ruff-format }}
+          BEHIND_COUNT: ${{ needs.rebase-check.outputs.behind_count }}
+          MERGE_COMMITS: ${{ needs.rebase-check.outputs.merge_commits }}
+          PR_COMMITS: ${{ github.event.pull_request.commits }}
         with:
           script: |
-            const marker = '<!-- rebase-bot -->';
-            const behind = parseInt(process.env.BEHIND_COUNT);
-            const mergeCommits = (process.env.MERGE_COMMITS || '').trim();
-
-            let body = marker + '\n## Rebase Required\n\n';
-            if (behind > 0) {
-              body += `Your branch is **${behind} commit(s) behind \`main\`**. Please rebase onto the latest \`main\`.\n\n`;
-            }
-            if (mergeCommits) {
-              body += '**Merge commits detected** in this PR. Please use rebase instead of merge:\n\n';
-              body += '```\n' + mergeCommits + '\n```\n\n';
-            }
-            body += '### How to fix\n```bash\ngit fetch origin\ngit rebase origin/main\ngit push --force-with-lease\n```\n';
+            const marker = '<!-- ci-bot -->';
+            const oldMarkers = ['<!-- lint-frontend-bot -->', '<!-- lint-backend-bot -->', '<!-- rebase-bot -->'];
+            const prNumber = context.payload.pull_request.number;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: prNumber,
             });
+
+            // Clean up old individual comments from previous workflow version
+            for (const old of oldMarkers) {
+              const c = comments.find(c => c.body.includes(old));
+              if (c) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: c.id,
+                });
+              }
+            }
+
+            // Build combined comment sections
+            const sections = [];
+
+            const eslintFailed = process.env.ESLINT === 'failure';
+            const prettierFailed = process.env.PRETTIER === 'failure';
+            if (eslintFailed || prettierFailed) {
+              let s = '### Frontend\n\n';
+              if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix . --ext js,jsx` in `dataloom-frontend/`\n';
+              if (prettierFailed) s += '- **Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,css,md}"` in `dataloom-frontend/`\n';
+              sections.push(s);
+            }
+
+            const ruffLintFailed = process.env.RUFF_LINT === 'failure';
+            const ruffFormatFailed = process.env.RUFF_FORMAT === 'failure';
+            if (ruffLintFailed || ruffFormatFailed) {
+              let s = '### Backend\n\n';
+              if (ruffLintFailed) s += '- **Ruff lint:** Run `uv run ruff check --fix .` in `dataloom-backend/`\n';
+              if (ruffFormatFailed) s += '- **Ruff format:** Run `uv run ruff format .` in `dataloom-backend/`\n';
+              sections.push(s);
+            }
+
+            const behind = parseInt(process.env.BEHIND_COUNT || '0');
+            const mergeCommits = (process.env.MERGE_COMMITS || '').trim();
+            if (behind > 0 || mergeCommits) {
+              let s = '### Rebase\n\n';
+              if (behind > 0) s += `Your branch is **${behind} commit(s) behind \`main\`**. Please rebase.\n\n`;
+              if (mergeCommits) s += '**Merge commits detected** — please use rebase instead of merge:\n\n```\n' + mergeCommits + '\n```\n\n';
+              sections.push(s);
+            }
+
+            const prCommits = parseInt(process.env.PR_COMMITS || '1');
+            if (prCommits > 1) {
+              sections.push(`### Squash\n\nYour PR has **${prCommits} commits**. Please squash into a single commit.\n`);
+            }
+
             const existing = comments.find(c => c.body.includes(marker));
+
+            if (sections.length === 0) {
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: existing.id,
+                });
+              }
+              return;
+            }
+
+            let body = marker + '\n## PR Review\n\n';
+            body += sections.join('\n');
+
+            if (behind > 0 || mergeCommits || prCommits > 1) {
+              body += '\n### How to fix\n```bash\ngit fetch origin\ngit rebase -i origin/main   # mark all but first commit as "squash"\ngit push --force-with-lease\n```\n';
+            }
+
+            body += '\n---\n*This comment updates automatically on each push.*\n';
+
             if (existing) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner, repo: context.repo.repo,
@@ -266,25 +219,6 @@ jobs:
             } else {
               await github.rest.issues.createComment({
                 owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: context.issue.number, body,
-              });
-            }
-
-      - name: Delete stale comment
-        if: steps.rebase.outputs.behind_count == '0' && steps.rebase.outputs.merge_commits == ''
-        continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const marker = '<!-- rebase-bot -->';
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find(c => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.deleteComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: existing.id,
+                issue_number: prNumber, body,
               });
             }
