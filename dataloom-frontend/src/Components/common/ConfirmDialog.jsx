@@ -12,7 +12,7 @@ import Button from "./Button";
 export default function ConfirmDialog({ isOpen, message, onConfirm, onCancel }) {
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title="Confirm">
-      <p className="mb-6 text-gray-700">{message}</p>
+      <p className="mb-6 text-gray-700 dark:text-dark-muted">{message}</p>
       <div className="flex justify-end gap-3">
         <Button variant="secondary" onClick={onCancel}>
           Cancel

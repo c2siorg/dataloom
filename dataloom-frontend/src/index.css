@@ -2,8 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --dark-bg: 15 18 28;
+  --dark-surface: 25 30 45;
+  --dark-border: 60 70 90;
+  --dark-text: 230 230 230;
+  --dark-muted: 140 150 170;
+}
+
 @layer base {
   body {
     @apply bg-white text-gray-900 antialiased;
+  }
+  .dark body {
+    background-color: rgb(var(--dark-bg));
+    color: rgb(var(--dark-text));
+  }
+
+  .dark * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--dark-border)) rgb(var(--dark-bg));
+  }
+
+  .dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: rgb(var(--dark-bg));
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: rgb(var(--dark-border));
+    border-radius: 20px;
+    border: 2px solid rgb(var(--dark-bg));
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--dark-muted));
   }
 }

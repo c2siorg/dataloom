@@ -275,16 +275,16 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   };
 
   return (
-    <div className="bg-white border-b border-gray-200">
-      <div className="flex items-center gap-0 border-b border-gray-200 px-8">
+    <div className="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border">
+      <div className="flex items-center gap-0 border-b border-gray-200 dark:border-dark-border px-8">
         {Object.keys(tabs).map((tabName) => (
           <button
             key={tabName}
             onClick={() => setActiveTab(tabName)}
             className={`px-4 py-1.5 text-sm font-medium ${
               activeTab === tabName
-                ? "text-blue-600 border-b-2 border-blue-500"
-                : "text-gray-500 hover:text-gray-700"
+                ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-500"
+                : "text-gray-500 dark:text-dark-muted hover:text-gray-700 dark:hover:text-dark-text"
             }`}
           >
             {tabName}
@@ -295,7 +295,9 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       <div className="flex items-stretch gap-3 px-8 py-2 min-h-[64px]">
         {tabs[activeTab].map((section, sectionIdx) => (
           <div key={section.group} className="flex items-stretch gap-3">
-            {sectionIdx > 0 && <div className="w-px bg-gray-200 self-stretch" />}
+            {sectionIdx > 0 && (
+              <div className="w-px bg-gray-200 dark:bg-dark-border self-stretch" />
+            )}
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-1 flex-1">
                 {section.items.map((item) => {
@@ -305,20 +307,24 @@ const MenuNavbar = ({ projectId, onTransform }) => {
                       key={item.label}
                       onClick={item.onClick}
                       className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md ${
-                        isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
+                        isActive
+                          ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                          : "hover:bg-gray-100 dark:hover:bg-dark-border"
                       }`}
                     >
                       <item.icon
-                        className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-gray-600"}`}
+                        className={`w-5 h-5 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-dark-muted"}`}
                       />
-                      <span className={`text-xs ${isActive ? "text-blue-600" : "text-gray-700"}`}>
+                      <span
+                        className={`text-xs ${isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-700 dark:text-dark-muted"}`}
+                      >
                         {item.label}
                       </span>
                     </button>
                   );
                 })}
               </div>
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
+              <span className="text-[10px] text-gray-400 dark:text-dark-muted uppercase tracking-wider mt-0.5">
                 {section.group}
               </span>
             </div>
