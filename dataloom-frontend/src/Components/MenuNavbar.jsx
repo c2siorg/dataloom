@@ -41,7 +41,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
   const [showMeltForm, setShowMeltForm] = useState(false);
   const [logs, setLogs] = useState([]);
-  const [checkpoints, setCheckpoints] = useState(null);
+  const [checkpoints, setCheckpoints] = useState([]);
   const [isInputOpen, setIsInputOpen] = useState(false);
   const [confirmData, setConfirmData] = useState(null);
   const [toast, setToast] = useState(null);
@@ -58,10 +58,10 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const fetchCheckpoints = useCallback(async () => {
     try {
       const checkpointsResponse = await getCheckpoints(projectId);
-      console.log("CHECKPOINT RESPONSE:", checkpointsResponse);
-      setCheckpoints(checkpointsResponse);
+      setCheckpoints(checkpointsResponse || []);
     } catch (error) {
       console.error("Error fetching checkpoints:", error);
+      setCheckpoints([]);
     }
   }, [projectId]);
 
