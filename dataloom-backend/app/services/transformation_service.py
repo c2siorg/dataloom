@@ -14,16 +14,17 @@ logger = get_logger(__name__)
 
 class TransformationError(Exception):
     """Raised when a transformation cannot be applied due to invalid input."""
+
     pass
 
 
 def get_column_type(df: pd.DataFrame, column: str) -> str:
     dtype = df[column].dtype
     if pd.api.types.is_string_dtype(dtype):
-        return 'string'
+        return "string"
     elif pd.api.types.is_numeric_dtype(dtype):
-        return 'numeric'
-    return 'unknown'
+        return "numeric"
+    return "unknown"
 
 
 def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> pd.DataFrame:
@@ -31,20 +32,20 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
         raise TransformationError(f"Column '{column}' not found")
 
     col_type = get_column_type(df, column)
-    if col_type == 'numeric':
+    if col_type == "numeric":
         try:
             value = float(value)
         except ValueError:
             raise TransformationError(f"Invalid numeric value: {value}") from None
 
     ops = {
-        '=': lambda: df[df[column] == value],
-        '!=': lambda: df[df[column] != value],
-        '>': lambda: df[df[column] > value],
-        '<': lambda: df[df[column] < value],
-        '>=': lambda: df[df[column] >= value],
-        '<=': lambda: df[df[column] <= value],
-        'contains': lambda: df[df[column].astype(str).str.contains(str(value), case=False, na=False)],
+        "=": lambda: df[df[column] == value],
+        "!=": lambda: df[df[column] != value],
+        ">": lambda: df[df[column] > value],
+        "<": lambda: df[df[column] < value],
+        ">=": lambda: df[df[column] >= value],
+        "<=": lambda: df[df[column] <= value],
+        "contains": lambda: df[df[column].astype(str).str.contains(str(value), case=False, na=False)],
     }
 
     if condition not in ops:
@@ -69,7 +70,7 @@ def add_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
 
 def delete_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
     if index < 0 or index >= len(df):
-        raise TransformationError(f"Row index {index} out of range (0-{len(df)-1})")
+        raise TransformationError(f"Row index {index} out of range (0-{len(df) - 1})")
     return df.drop(index).reset_index(drop=True)
 
 
@@ -84,7 +85,7 @@ def add_column(df: pd.DataFrame, index: int, name: str) -> pd.DataFrame:
 
 def delete_column(df: pd.DataFrame, index: int) -> pd.DataFrame:
     if index < 0 or index >= len(df.columns):
-        raise TransformationError(f"Column index {index} out of range (0-{len(df.columns)-1})")
+        raise TransformationError(f"Column index {index} out of range (0-{len(df.columns) - 1})")
 
     column_name = df.columns[index]
     return df.drop(column_name, axis=1)
@@ -144,8 +145,11 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
             true_vals = {"true", "yes", "1", "t", "y"}
             false_vals = {"false", "no", "0", "f", "n"}
             df[column] = df[column].apply(
-                lambda x: True if str(x).strip().lower() in true_vals
-                else (False if str(x).strip().lower() in false_vals else pd.NA)
+                lambda x: (
+                    True
+                    if str(x).strip().lower() in true_vals
+                    else (False if str(x).strip().lower() in false_vals else pd.NA)
+                )
             )
         elif target_type == "datetime":
             df[column] = pd.to_datetime(df[column], errors="coerce")
@@ -168,7 +172,7 @@ def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
 
 
 def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
-    col_list = [c.strip() for c in columns.split(',')]
+    col_list = [c.strip() for c in columns.split(",")]
     missing = [c for c in col_list if c not in df.columns]
     if missing:
         raise TransformationError(f"Columns {missing} not found in dataset")
@@ -180,13 +184,13 @@ def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
     query_string = query_string.replace("'", '"').strip()
     for col in df.columns:
         if not col.isidentifier():
-            query_string = query_string.replace(col, f'`{col}`')
+            query_string = query_string.replace(col, f"`{col}`")
     logger.debug("Executing query: %s", query_string)
     return df.query(query_string, local_dict={"__builtins__": {}})
 
 
 def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, aggfunc: str = "sum") -> pd.DataFrame:
-    index_cols = [c.strip() for c in index.split(',')]
+    index_cols = [c.strip() for c in index.split(",")]
     all_cols = index_cols + ([column] if column else []) + [value]
     missing = [c for c in all_cols if c not in df.columns]
     if missing:
@@ -215,12 +219,12 @@ def drop_na(df: pd.DataFrame, columns: list[str] | None = None) -> pd.DataFrame:
 
 
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
-    if action_type == 'addRow':
-        index = action_details['row_params']['index']
+    if action_type == "addRow":
+        index = action_details["row_params"]["index"]
         return add_row(df, index)
 
-    elif action_type == 'delRow':
-        index = action_details['row_params']['index']
+    elif action_type == "delRow":
+        index = action_details["row_params"]["index"]
         if index < 0 or index >= len(df):
             raise TransformationError(f"Row index {index} out of range")
         return df.drop(index)
@@ -236,20 +240,20 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         index = params["index"]
         return delete_column(df, index)
 
-    elif action_type == 'changeCellValue':
-        row_index = action_details['change_cell_value']['row_index']
-        col_index = action_details['change_cell_value']['col_index']
-        new_value = action_details['change_cell_value']['fill_value']
+    elif action_type == "changeCellValue":
+        row_index = action_details["change_cell_value"]["row_index"]
+        col_index = action_details["change_cell_value"]["col_index"]
+        new_value = action_details["change_cell_value"]["fill_value"]
         return change_cell_value(df, row_index, col_index, new_value)
 
-    elif action_type == 'fillEmpty':
-        fill_value = action_details['fill_empty_params']['fill_value']
-        column_index = action_details['fill_empty_params'].get('index')
+    elif action_type == "fillEmpty":
+        fill_value = action_details["fill_empty_params"]["fill_value"]
+        column_index = action_details["fill_empty_params"].get("index")
         return fill_empty(df, fill_value, column_index)
 
-    elif action_type == 'dropDuplicate':
-        columns = action_details['drop_duplicate']['columns']
-        keep = action_details['drop_duplicate']['keep']
+    elif action_type == "dropDuplicate":
+        columns = action_details["drop_duplicate"]["columns"]
+        keep = action_details["drop_duplicate"]["keep"]
         return drop_duplicates(df, columns, keep)
 
     elif action_type == "renameCol":

@@ -70,10 +70,7 @@ def compute_categorical_stats(series: pd.Series) -> CategoricalStatsSchema | Non
         return None
 
     top = series.value_counts().head(5)
-    top_values = [
-        FrequentValueSchema(value=str(val), count=int(cnt))
-        for val, cnt in top.items()
-    ]
+    top_values = [FrequentValueSchema(value=str(val), count=int(cnt)) for val, cnt in top.items()]
 
     mode_result = series.mode()
     mode = str(mode_result.iloc[0]) if len(mode_result) > 0 else None
@@ -111,7 +108,5 @@ def compute_column_profile(name: str, series: pd.Series) -> ColumnProfileSchema:
 def compute_profile(df: pd.DataFrame) -> ProfileResponse:
     """Compute the full dataset profile: summary + all column profiles."""
     summary = compute_dataset_summary(df)
-    columns = [
-        compute_column_profile(col, df[col]) for col in df.columns
-    ]
+    columns = [compute_column_profile(col, df[col]) for col in df.columns]
     return ProfileResponse(summary=summary, columns=columns)

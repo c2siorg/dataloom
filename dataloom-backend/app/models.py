@@ -107,4 +107,3 @@ class Pipeline(SQLModel, table=True):
         default=None,
         sa_column=Column(DateTime, server_default=func.now()),
     )
-

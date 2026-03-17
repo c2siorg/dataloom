@@ -90,9 +90,7 @@ describe("Property 8: Column detail modal renders all required information", () 
   it("should render all numeric stats (mean, median, std, min, max, Q1, Q3, skewness) for numeric columns", () => {
     fc.assert(
       fc.property(numericColumnArb, (column) => {
-        const { unmount } = render(
-          <ColumnDetailModal columnProfile={column} onClose={() => {}} />
-        );
+        const { unmount } = render(<ColumnDetailModal columnProfile={column} onClose={() => {}} />);
 
         const statsSection = screen.getByTestId("numeric-detail-stats");
 
@@ -126,16 +124,14 @@ describe("Property 8: Column detail modal renders all required information", () 
 
         unmount();
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 
   it("should render up to 5 top frequent values with counts and mode for categorical columns", () => {
     fc.assert(
       fc.property(categoricalColumnArb, (column) => {
-        const { unmount } = render(
-          <ColumnDetailModal columnProfile={column} onClose={() => {}} />
-        );
+        const { unmount } = render(<ColumnDetailModal columnProfile={column} onClose={() => {}} />);
 
         const statsSection = screen.getByTestId("categorical-detail-stats");
         const topFive = (column.categorical_stats.top_values || []).slice(0, 5);
@@ -156,7 +152,7 @@ describe("Property 8: Column detail modal renders all required information", () 
 
         unmount();
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

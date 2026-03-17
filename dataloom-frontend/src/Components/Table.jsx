@@ -13,7 +13,6 @@ import {
 } from "../constants/operationTypes";
 import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
-import DtypeBadge from "./common/DtypeBadge";
 import PropTypes from "prop-types";
 
 const MenuButton = ({ children, onClick }) => (
@@ -78,7 +77,10 @@ const Table = ({ projectId, data: externalData }) => {
       message: "Enter column name:",
       defaultValue: "",
       onSubmit: async (newColumnName) => {
-        if (!newColumnName) { setInputConfig(null); return; }
+        if (!newColumnName) {
+          setInputConfig(null);
+          return;
+        }
         try {
           const response = await transformProject(projectId, {
             operation_type: ADD_COLUMN,
@@ -114,7 +116,10 @@ const Table = ({ projectId, data: externalData }) => {
       message: "Enter new column name:",
       defaultValue: "",
       onSubmit: async (newName) => {
-        if (!newName) { setInputConfig(null); return; }
+        if (!newName) {
+          setInputConfig(null);
+          return;
+        }
         try {
           const response = await transformProject(projectId, {
             operation_type: RENAME_COLUMN,
@@ -198,9 +203,7 @@ const Table = ({ projectId, data: externalData }) => {
                   className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                   onContextMenu={(e) => open(e, { type: "column", columnIndex })}
                 >
-                  <button
-                    className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150"
-                  >
+                  <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
                     {column}
                   </button>
                 </th>
@@ -233,7 +236,9 @@ const Table = ({ projectId, data: externalData }) => {
                     ) : (
                       <div
                         onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
-                        className={cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""}
+                        className={
+                          cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""
+                        }
                       >
                         {cell}
                       </div>
@@ -256,9 +261,15 @@ const Table = ({ projectId, data: externalData }) => {
           if (data.type === "column") {
             return (
               <>
-                <MenuButton onClick={() => handleAddColumn(data.columnIndex)}>Add Column</MenuButton>
-                <MenuButton onClick={() => handleDeleteColumn(data.columnIndex)}>Delete Column</MenuButton>
-                <MenuButton onClick={() => handleRenameColumn(data.columnIndex)}>Rename Column</MenuButton>
+                <MenuButton onClick={() => handleAddColumn(data.columnIndex)}>
+                  Add Column
+                </MenuButton>
+                <MenuButton onClick={() => handleDeleteColumn(data.columnIndex)}>
+                  Delete Column
+                </MenuButton>
+                <MenuButton onClick={() => handleRenameColumn(data.columnIndex)}>
+                  Rename Column
+                </MenuButton>
               </>
             );
           }

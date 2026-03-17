@@ -24,11 +24,26 @@ const MissingRing = ({ percentage }) => {
   return (
     <svg width="40" height="40" className="flex-shrink-0">
       <circle cx="20" cy="20" r={r} fill="none" stroke="#f3f4f6" strokeWidth="3" />
-      <circle cx="20" cy="20" r={r} fill="none" stroke={color} strokeWidth="3"
-        strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-        transform="rotate(-90 20 20)" className="transition-all duration-500" />
-      <text x="20" y="20" textAnchor="middle" dominantBaseline="central"
-        className="text-[9px] font-bold fill-gray-600">
+      <circle
+        cx="20"
+        cy="20"
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth="3"
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        transform="rotate(-90 20 20)"
+        className="transition-all duration-500"
+      />
+      <text
+        x="20"
+        y="20"
+        textAnchor="middle"
+        dominantBaseline="central"
+        className="text-[9px] font-bold fill-gray-600"
+      >
         {percentage < 1 && percentage > 0 ? "<1" : Math.round(percentage)}%
       </text>
     </svg>
@@ -44,7 +59,6 @@ const dtypeBadgeStyles = {
   boolean: "bg-amber-500/10 text-amber-600 ring-amber-500/20",
 };
 
-
 /** Mini bar for top values inside a card */
 const MiniBar = ({ values, maxCount }) => {
   if (!values || values.length === 0) return null;
@@ -52,12 +66,18 @@ const MiniBar = ({ values, maxCount }) => {
     <div className="space-y-1">
       {values.slice(0, 3).map((item, i) => (
         <div key={`${item.value}-${i}`} className="flex items-center gap-1.5 text-[11px]">
-          <span className="w-14 truncate text-gray-500" title={item.value}>{item.value}</span>
+          <span className="w-14 truncate text-gray-500" title={item.value}>
+            {item.value}
+          </span>
           <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
-              style={{ width: `${Math.max((item.count / maxCount) * 100, 6)}%` }} />
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
+              style={{ width: `${Math.max((item.count / maxCount) * 100, 6)}%` }}
+            />
           </div>
-          <span className="text-gray-400 w-6 text-right tabular-nums text-[10px]">{item.count}</span>
+          <span className="text-gray-400 w-6 text-right tabular-nums text-[10px]">
+            {item.count}
+          </span>
         </div>
       ))}
     </div>
@@ -85,19 +105,30 @@ const NumericStatsCompact = ({ stats }) => (
 );
 
 NumericStatsCompact.propTypes = {
-  stats: PropTypes.shape({ mean: PropTypes.number, median: PropTypes.number, min: PropTypes.number, max: PropTypes.number }).isRequired,
+  stats: PropTypes.shape({
+    mean: PropTypes.number,
+    median: PropTypes.number,
+    min: PropTypes.number,
+    max: PropTypes.number,
+  }).isRequired,
 };
 
 const CategoricalStatsCompact = ({ stats }) => {
   const top = (stats.top_values || []).slice(0, 3);
   if (top.length === 0) return null;
   const maxCount = Math.max(...top.map((v) => v.count), 1);
-  return <div data-testid="categorical-stats" className="mt-2"><MiniBar values={top} maxCount={maxCount} /></div>;
+  return (
+    <div data-testid="categorical-stats" className="mt-2">
+      <MiniBar values={top} maxCount={maxCount} />
+    </div>
+  );
 };
 
 CategoricalStatsCompact.propTypes = {
   stats: PropTypes.shape({
-    top_values: PropTypes.arrayOf(PropTypes.shape({ value: PropTypes.string.isRequired, count: PropTypes.number.isRequired })),
+    top_values: PropTypes.arrayOf(
+      PropTypes.shape({ value: PropTypes.string.isRequired, count: PropTypes.number.isRequired }),
+    ),
   }).isRequired,
 };
 
@@ -111,18 +142,30 @@ const ColumnCard = ({ column, onClick }) => {
       role="button"
       tabIndex={0}
       onClick={() => onClick(column.name)}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(column.name); } }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick(column.name);
+        }
+      }}
       className="group w-56 flex-shrink-0 p-3.5 bg-white border border-gray-150 rounded-xl hover:border-blue-300 hover:shadow-lg hover:shadow-blue-50 cursor-pointer transition-all duration-200 snap-start"
     >
       {/* Header row */}
       <div className="flex items-center gap-2.5 mb-2">
         <MissingRing percentage={column.missing_percentage} />
         <div className="min-w-0 flex-1">
-          <span data-testid="column-name" className="text-sm font-semibold text-gray-800 block truncate group-hover:text-blue-600 transition-colors" title={column.name}>
+          <span
+            data-testid="column-name"
+            className="text-sm font-semibold text-gray-800 block truncate group-hover:text-blue-600 transition-colors"
+            title={column.name}
+          >
             {column.name}
           </span>
           <div className="flex items-center gap-2 mt-0.5">
-            <span data-testid="column-dtype" className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ring-1 ring-inset ${badgeStyle}`}>
+            <span
+              data-testid="column-dtype"
+              className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ring-1 ring-inset ${badgeStyle}`}
+            >
               {column.dtype}
             </span>
             <span className="text-[10px] text-gray-400">{column.unique_count} unique</span>
@@ -131,21 +174,33 @@ const ColumnCard = ({ column, onClick }) => {
       </div>
 
       {/* Hidden for test compatibility */}
-      <div data-testid="column-missing" className="sr-only">Missing: {column.missing_count} ({column.missing_percentage.toFixed(1)}%)</div>
-      <div data-testid="column-unique" className="sr-only">Unique: {column.unique_count}</div>
+      <div data-testid="column-missing" className="sr-only">
+        Missing: {column.missing_count} ({column.missing_percentage.toFixed(1)}%)
+      </div>
+      <div data-testid="column-unique" className="sr-only">
+        Unique: {column.unique_count}
+      </div>
 
       {/* Stats */}
-      {column.dtype === "numeric" && column.numeric_stats && <NumericStatsCompact stats={column.numeric_stats} />}
-      {column.dtype === "categorical" && column.categorical_stats && <CategoricalStatsCompact stats={column.categorical_stats} />}
+      {column.dtype === "numeric" && column.numeric_stats && (
+        <NumericStatsCompact stats={column.numeric_stats} />
+      )}
+      {column.dtype === "categorical" && column.categorical_stats && (
+        <CategoricalStatsCompact stats={column.categorical_stats} />
+      )}
     </div>
   );
 };
 
 ColumnCard.propTypes = {
   column: PropTypes.shape({
-    name: PropTypes.string.isRequired, dtype: PropTypes.string.isRequired,
-    missing_count: PropTypes.number.isRequired, missing_percentage: PropTypes.number.isRequired,
-    unique_count: PropTypes.number.isRequired, numeric_stats: PropTypes.object, categorical_stats: PropTypes.object,
+    name: PropTypes.string.isRequired,
+    dtype: PropTypes.string.isRequired,
+    missing_count: PropTypes.number.isRequired,
+    missing_percentage: PropTypes.number.isRequired,
+    unique_count: PropTypes.number.isRequired,
+    numeric_stats: PropTypes.object,
+    categorical_stats: PropTypes.object,
   }).isRequired,
   onClick: PropTypes.func.isRequired,
 };
@@ -163,11 +218,16 @@ const DatasetSummary = ({ summary }) => {
   return (
     <div data-testid="dataset-summary" className="flex items-center gap-3">
       {items.map((item) => (
-        <div key={item.label} data-testid={`summary-${item.label.toLowerCase()}`}
-          className="flex items-center gap-1.5 bg-white/80 border border-gray-100 rounded-lg px-3 py-1.5">
+        <div
+          key={item.label}
+          data-testid={`summary-${item.label.toLowerCase()}`}
+          className="flex items-center gap-1.5 bg-white/80 border border-gray-100 rounded-lg px-3 py-1.5"
+        >
           <span className="text-sm">{item.icon}</span>
           <div>
-            <div className="text-[9px] uppercase tracking-wider text-gray-400 leading-none">{item.label}</div>
+            <div className="text-[9px] uppercase tracking-wider text-gray-400 leading-none">
+              {item.label}
+            </div>
             <div className="text-xs font-bold text-gray-800">{item.value}</div>
           </div>
         </div>
@@ -178,8 +238,10 @@ const DatasetSummary = ({ summary }) => {
 
 DatasetSummary.propTypes = {
   summary: PropTypes.shape({
-    row_count: PropTypes.number.isRequired, column_count: PropTypes.number.isRequired,
-    missing_count: PropTypes.number.isRequired, memory_usage_bytes: PropTypes.number.isRequired,
+    row_count: PropTypes.number.isRequired,
+    column_count: PropTypes.number.isRequired,
+    missing_count: PropTypes.number.isRequired,
+    memory_usage_bytes: PropTypes.number.isRequired,
     duplicate_row_count: PropTypes.number.isRequired,
   }).isRequired,
 };
@@ -209,7 +271,9 @@ const ProfilePanel = ({ profileData, onClose, onColumnClick }) => {
         <div className="flex items-center gap-4">
           <div>
             <h2 className="text-base font-bold text-gray-900 tracking-tight">Data Profile</h2>
-            <p className="text-[10px] text-gray-400">{profileData.columns.length} columns analyzed</p>
+            <p className="text-[10px] text-gray-400">
+              {profileData.columns.length} columns analyzed
+            </p>
           </div>
           <div className="h-8 w-px bg-gray-200" />
           <DatasetSummary summary={profileData.summary} />
@@ -230,19 +294,26 @@ const ProfilePanel = ({ profileData, onClose, onColumnClick }) => {
 
           {/* Type filter pills */}
           <div className="flex gap-1">
-            <button onClick={() => setFilterType("all")}
+            <button
+              onClick={() => setFilterType("all")}
               className={`text-[10px] font-medium px-2 py-1 rounded-full transition-all ${
-                filterType === "all" ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-              }`}>
+                filterType === "all"
+                  ? "bg-gray-800 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
               All
             </button>
             {types.map((t) => {
               const style = dtypeBadgeStyles[t] || "";
               return (
-                <button key={t} onClick={() => setFilterType(t)}
+                <button
+                  key={t}
+                  onClick={() => setFilterType(t)}
                   className={`text-[10px] font-medium px-2 py-1 rounded-full transition-all ${
                     filterType === t ? "bg-gray-800 text-white" : `${style} hover:opacity-80`
-                  }`}>
+                  }`}
+                >
                   {t}
                 </button>
               );
@@ -263,7 +334,10 @@ const ProfilePanel = ({ profileData, onClose, onColumnClick }) => {
 
       {/* Horizontal scrolling column cards */}
       <div className="px-5 py-4">
-        <div data-testid="column-list" className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+        <div
+          data-testid="column-list"
+          className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
+        >
           {filtered.map((col) => (
             <ColumnCard key={col.name} column={col} onClick={onColumnClick} />
           ))}
@@ -281,16 +355,22 @@ const ProfilePanel = ({ profileData, onClose, onColumnClick }) => {
 ProfilePanel.propTypes = {
   profileData: PropTypes.shape({
     summary: PropTypes.shape({
-      row_count: PropTypes.number.isRequired, column_count: PropTypes.number.isRequired,
-      missing_count: PropTypes.number.isRequired, memory_usage_bytes: PropTypes.number.isRequired,
+      row_count: PropTypes.number.isRequired,
+      column_count: PropTypes.number.isRequired,
+      missing_count: PropTypes.number.isRequired,
+      memory_usage_bytes: PropTypes.number.isRequired,
       duplicate_row_count: PropTypes.number.isRequired,
     }).isRequired,
     columns: PropTypes.arrayOf(
       PropTypes.shape({
-        name: PropTypes.string.isRequired, dtype: PropTypes.string.isRequired,
-        missing_count: PropTypes.number.isRequired, missing_percentage: PropTypes.number.isRequired,
-        unique_count: PropTypes.number.isRequired, numeric_stats: PropTypes.object, categorical_stats: PropTypes.object,
-      })
+        name: PropTypes.string.isRequired,
+        dtype: PropTypes.string.isRequired,
+        missing_count: PropTypes.number.isRequired,
+        missing_percentage: PropTypes.number.isRequired,
+        unique_count: PropTypes.number.isRequired,
+        numeric_stats: PropTypes.object,
+        categorical_stats: PropTypes.object,
+      }),
     ).isRequired,
   }),
   onClose: PropTypes.func.isRequired,

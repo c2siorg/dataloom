@@ -20,6 +20,7 @@ router = APIRouter()
 
 class MergeRequest(BaseModel):
     """Request body for merge/join operations."""
+
     right_project_id: uuid.UUID
     how: str = "inner"
     left_on: str | None = None
@@ -29,6 +30,7 @@ class MergeRequest(BaseModel):
 
 class ConcatRequest(BaseModel):
     """Request body for concatenation operations."""
+
     project_ids: list[uuid.UUID]
     axis: int = 0
 
@@ -48,7 +50,8 @@ async def merge_projects(
 
     try:
         result = merge_datasets(
-            left_df, right_df,
+            left_df,
+            right_df,
             how=request.how,
             left_on=request.left_on,
             right_on=request.right_on,

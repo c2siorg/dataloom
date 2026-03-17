@@ -43,10 +43,7 @@ const SortForm = ({ projectId, onClose }) => {
         <h3 className="font-semibold text-gray-900 mb-2">Sort Dataset</h3>
         <div className="flex flex-wrap mb-4">
           <div className="w-full sm:w-1/2 mb-2">
-            <ColumnSelect
-              value={column}
-              onChange={(e) => setColumn(e.target.value)}
-            />
+            <ColumnSelect value={column} onChange={(e) => setColumn(e.target.value)} />
           </div>
           <div className="w-full sm:w-1/2 mb-2 pl-2">
             <label className="block mb-1 text-sm font-medium text-gray-700">Order:</label>

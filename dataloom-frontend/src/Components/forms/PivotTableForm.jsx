@@ -60,11 +60,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
         </div>
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
-            <ColumnSelect
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              label="Value"
-            />
+            <ColumnSelect value={value} onChange={(e) => setValue(e.target.value)} label="Value" />
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Aggregation Function:</label>

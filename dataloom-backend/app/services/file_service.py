@@ -53,4 +53,4 @@ def _convert_to_csv(source: Path, dest: Path) -> None:
 
 
 def get_original_path(copy_path: str) -> Path:
-    return Path(copy_path.replace('_copy.csv', '.csv'))
+    return Path(copy_path.replace("_copy.csv", ".csv"))

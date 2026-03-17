@@ -83,7 +83,7 @@ const renderDataScreen = () => {
       <Routes>
         <Route path="/project/:projectId" element={<DataScreen />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 };
 

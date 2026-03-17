@@ -47,7 +47,9 @@ const ExportPanel = ({ projectId, onClose }) => {
     <div className="p-4 border border-gray-200 rounded-lg bg-white">
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-semibold text-gray-900">Export Data</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">
+          &times;
+        </button>
       </div>
 
       <div className="mb-4">

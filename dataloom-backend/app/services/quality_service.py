@@ -14,9 +14,7 @@ def assess_quality(df: pd.DataFrame) -> dict:
     missing_score = max(0, 100 - missing_result["missing_percentage"] * 2)
     pattern_score = max(0, 100 - pattern_result["issue_count"] * 5)
 
-    overall = round(
-        dup_score * 0.25 + outlier_score * 0.25 + missing_score * 0.3 + pattern_score * 0.2, 1
-    )
+    overall = round(dup_score * 0.25 + outlier_score * 0.25 + missing_score * 0.3 + pattern_score * 0.2, 1)
 
     suggestions = _generate_suggestions(dup_result, outlier_result, missing_result, pattern_result)
 
@@ -115,20 +113,24 @@ def detect_pattern_issues(df: pd.DataFrame) -> dict:
 
         ws_count = int(series.str.strip().ne(series).sum())
         if ws_count > 0:
-            issues.append({
-                "column": col,
-                "issue": "leading_trailing_whitespace",
-                "count": ws_count,
-            })
+            issues.append(
+                {
+                    "column": col,
+                    "issue": "leading_trailing_whitespace",
+                    "count": ws_count,
+                }
+            )
 
         numeric_like = series.apply(_is_numeric_string)
         numeric_pct = numeric_like.mean()
         if 0.5 < numeric_pct < 1.0:
-            issues.append({
-                "column": col,
-                "issue": "mixed_numeric_strings",
-                "count": int((~numeric_like).sum()),
-            })
+            issues.append(
+                {
+                    "column": col,
+                    "issue": "mixed_numeric_strings",
+                    "count": int((~numeric_like).sum()),
+                }
+            )
 
     return {
         "issues": issues,
@@ -188,35 +190,43 @@ def _generate_suggestions(dup_result, outlier_result, missing_result, pattern_re
     suggestions = []
 
     if dup_result["exact_duplicate_count"] > 0:
-        suggestions.append({
-            "fix_type": "drop_duplicates",
-            "description": f"Remove {dup_result['exact_duplicate_count']} duplicate rows",
-            "params": {},
-        })
+        suggestions.append(
+            {
+                "fix_type": "drop_duplicates",
+                "description": f"Remove {dup_result['exact_duplicate_count']} duplicate rows",
+                "params": {},
+            }
+        )
 
     for col, info in missing_result["columns"].items():
         if info["percentage"] < 50:
-            suggestions.append({
-                "fix_type": "fill_missing",
-                "description": f"Fill {info['count']} missing values in '{col}'",
-                "params": {"column": col, "strategy": "mean"},
-            })
+            suggestions.append(
+                {
+                    "fix_type": "fill_missing",
+                    "description": f"Fill {info['count']} missing values in '{col}'",
+                    "params": {"column": col, "strategy": "mean"},
+                }
+            )
 
     for issue in pattern_result["issues"]:
         if issue["issue"] == "leading_trailing_whitespace":
-            suggestions.append({
-                "fix_type": "trim_whitespace",
-                "description": f"Trim whitespace in '{issue['column']}' ({issue['count']} values)",
-                "params": {},
-            })
+            suggestions.append(
+                {
+                    "fix_type": "trim_whitespace",
+                    "description": f"Trim whitespace in '{issue['column']}' ({issue['count']} values)",
+                    "params": {},
+                }
+            )
             break
 
     for col, info in outlier_result["columns"].items():
         if info["percentage"] > 5:
-            suggestions.append({
-                "fix_type": "remove_outliers",
-                "description": f"Remove {info['count']} outliers in '{col}'",
-                "params": {"column": col},
-            })
+            suggestions.append(
+                {
+                    "fix_type": "remove_outliers",
+                    "description": f"Remove {info['count']} outliers in '{col}'",
+                    "params": {"column": col},
+                }
+            )
 
     return suggestions

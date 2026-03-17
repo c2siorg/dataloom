@@ -46,9 +46,7 @@ describe("ColumnDetailModal", () => {
   });
 
   it("renders nothing when columnProfile is null", () => {
-    const { container } = render(
-      <ColumnDetailModal columnProfile={null} onClose={vi.fn()} />
-    );
+    const { container } = render(<ColumnDetailModal columnProfile={null} onClose={vi.fn()} />);
     expect(container.firstChild).toBeNull();
   });
 

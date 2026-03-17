@@ -62,7 +62,7 @@ describe("ProfilePanel", () => {
 
   it("renders nothing when profileData is null", () => {
     const { container } = render(
-      <ProfilePanel profileData={null} onClose={vi.fn()} onColumnClick={vi.fn()} />
+      <ProfilePanel profileData={null} onClose={vi.fn()} onColumnClick={vi.fn()} />,
     );
     expect(container.firstChild).toBeNull();
   });

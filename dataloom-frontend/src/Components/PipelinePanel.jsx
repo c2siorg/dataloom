@@ -30,7 +30,9 @@ const StepEditor = ({ step, index, columns, onChange, onRemove }) => {
     <div className="border border-gray-200 rounded p-3 mb-2 bg-gray-50">
       <div className="flex justify-between items-center mb-2">
         <span className="text-xs font-medium text-gray-500">Step {index + 1}</span>
-        <button onClick={() => onRemove(index)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+        <button onClick={() => onRemove(index)} className="text-xs text-red-500 hover:text-red-700">
+          Remove
+        </button>
       </div>
       <select
         value={step.operation_type || ""}
@@ -38,57 +40,132 @@ const StepEditor = ({ step, index, columns, onChange, onRemove }) => {
         className="border border-gray-300 rounded px-2 py-1 text-sm w-full mb-2 bg-white"
       >
         <option value="">Select operation...</option>
-        {STEP_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+        {STEP_TYPES.map((t) => (
+          <option key={t.value} value={t.value}>
+            {t.label}
+          </option>
+        ))}
       </select>
 
       {step.operation_type === "filter" && (
         <div className="flex gap-2">
-          <select value={step.parameters?.column || ""} onChange={(e) => updateField("parameters.column", e.target.value)} className="border rounded px-2 py-1 text-sm flex-1 bg-white">
+          <select
+            value={step.parameters?.column || ""}
+            onChange={(e) => updateField("parameters.column", e.target.value)}
+            className="border rounded px-2 py-1 text-sm flex-1 bg-white"
+          >
             <option value="">Column</option>
-            {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+            {columns.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
-          <select value={step.parameters?.condition || "="} onChange={(e) => updateField("parameters.condition", e.target.value)} className="border rounded px-2 py-1 text-sm w-16 bg-white">
-            <option value="=">=</option><option value="!=">!=</option><option value=">">&gt;</option><option value="<">&lt;</option>
+          <select
+            value={step.parameters?.condition || "="}
+            onChange={(e) => updateField("parameters.condition", e.target.value)}
+            className="border rounded px-2 py-1 text-sm w-16 bg-white"
+          >
+            <option value="=">=</option>
+            <option value="!=">!=</option>
+            <option value=">">&gt;</option>
+            <option value="<">&lt;</option>
           </select>
-          <input value={step.parameters?.value || ""} onChange={(e) => updateField("parameters.value", e.target.value)} placeholder="Value" className="border rounded px-2 py-1 text-sm flex-1" />
+          <input
+            value={step.parameters?.value || ""}
+            onChange={(e) => updateField("parameters.value", e.target.value)}
+            placeholder="Value"
+            className="border rounded px-2 py-1 text-sm flex-1"
+          />
         </div>
       )}
 
       {step.operation_type === "sort" && (
         <div className="flex gap-2">
-          <select value={step.sort_params?.column || ""} onChange={(e) => updateField("sort_params.column", e.target.value)} className="border rounded px-2 py-1 text-sm flex-1 bg-white">
+          <select
+            value={step.sort_params?.column || ""}
+            onChange={(e) => updateField("sort_params.column", e.target.value)}
+            className="border rounded px-2 py-1 text-sm flex-1 bg-white"
+          >
             <option value="">Column</option>
-            {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+            {columns.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
-          <select value={step.sort_params?.ascending ?? true} onChange={(e) => updateField("sort_params.ascending", e.target.value === "true")} className="border rounded px-2 py-1 text-sm bg-white">
-            <option value="true">Ascending</option><option value="false">Descending</option>
+          <select
+            value={step.sort_params?.ascending ?? true}
+            onChange={(e) => updateField("sort_params.ascending", e.target.value === "true")}
+            className="border rounded px-2 py-1 text-sm bg-white"
+          >
+            <option value="true">Ascending</option>
+            <option value="false">Descending</option>
           </select>
         </div>
       )}
 
       {step.operation_type === "fillEmpty" && (
         <div className="flex gap-2">
-          <select value={step.fill_empty_params?.index ?? ""} onChange={(e) => updateField("fill_empty_params.index", e.target.value === "" ? null : Number(e.target.value))} className="border rounded px-2 py-1 text-sm flex-1 bg-white">
+          <select
+            value={step.fill_empty_params?.index ?? ""}
+            onChange={(e) =>
+              updateField(
+                "fill_empty_params.index",
+                e.target.value === "" ? null : Number(e.target.value),
+              )
+            }
+            className="border rounded px-2 py-1 text-sm flex-1 bg-white"
+          >
             <option value="">All columns</option>
-            {columns.map((c, i) => <option key={c} value={i}>{c}</option>)}
+            {columns.map((c, i) => (
+              <option key={c} value={i}>
+                {c}
+              </option>
+            ))}
           </select>
-          <input value={step.fill_empty_params?.fill_value || ""} onChange={(e) => updateField("fill_empty_params.fill_value", e.target.value)} placeholder="Fill value" className="border rounded px-2 py-1 text-sm flex-1" />
+          <input
+            value={step.fill_empty_params?.fill_value || ""}
+            onChange={(e) => updateField("fill_empty_params.fill_value", e.target.value)}
+            placeholder="Fill value"
+            className="border rounded px-2 py-1 text-sm flex-1"
+          />
         </div>
       )}
 
       {step.operation_type === "dropDuplicate" && (
         <div className="flex gap-2">
-          <input value={step.drop_duplicate?.columns || ""} onChange={(e) => updateField("drop_duplicate.columns", e.target.value)} placeholder="Columns (comma-separated)" className="border rounded px-2 py-1 text-sm flex-1" />
-          <select value={step.drop_duplicate?.keep || "first"} onChange={(e) => updateField("drop_duplicate.keep", e.target.value)} className="border rounded px-2 py-1 text-sm bg-white">
-            <option value="first">Keep First</option><option value="last">Keep Last</option>
+          <input
+            value={step.drop_duplicate?.columns || ""}
+            onChange={(e) => updateField("drop_duplicate.columns", e.target.value)}
+            placeholder="Columns (comma-separated)"
+            className="border rounded px-2 py-1 text-sm flex-1"
+          />
+          <select
+            value={step.drop_duplicate?.keep || "first"}
+            onChange={(e) => updateField("drop_duplicate.keep", e.target.value)}
+            className="border rounded px-2 py-1 text-sm bg-white"
+          >
+            <option value="first">Keep First</option>
+            <option value="last">Keep Last</option>
           </select>
         </div>
       )}
 
       {step.operation_type === "formula" && (
         <div className="flex gap-2">
-          <input value={step.formula?.name || ""} onChange={(e) => updateField("formula.name", e.target.value)} placeholder="Column name" className="border rounded px-2 py-1 text-sm flex-1" />
-          <input value={step.formula?.expression || ""} onChange={(e) => updateField("formula.expression", e.target.value)} placeholder="Expression (e.g. col1 + col2)" className="border rounded px-2 py-1 text-sm flex-1" />
+          <input
+            value={step.formula?.name || ""}
+            onChange={(e) => updateField("formula.name", e.target.value)}
+            placeholder="Column name"
+            className="border rounded px-2 py-1 text-sm flex-1"
+          />
+          <input
+            value={step.formula?.expression || ""}
+            onChange={(e) => updateField("formula.expression", e.target.value)}
+            placeholder="Expression (e.g. col1 + col2)"
+            className="border rounded px-2 py-1 text-sm flex-1"
+          />
         </div>
       )}
     </div>
@@ -117,12 +194,17 @@ const PipelinePanel = ({ projectId, onClose, onTransform }) => {
 
   useEffect(() => {
     fetchPipelines();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchPipelines = async () => {
     setLoading(true);
-    try { setPipelines(await listPipelines()); } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    try {
+      setPipelines(await listPipelines());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRun = async (pipelineId) => {
@@ -132,8 +214,11 @@ const PipelinePanel = ({ projectId, onClose, onTransform }) => {
       const result = await runPipeline(projectId, pipelineId);
       onTransform(result);
       onClose();
-    } catch (err) { handleError(err); }
-    finally { setRunning(null); }
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setRunning(null);
+    }
   };
 
   const handleStepChange = (index, updated) => {
@@ -157,8 +242,11 @@ const PipelinePanel = ({ projectId, onClose, onTransform }) => {
       setNewDesc("");
       setSteps([]);
       await fetchPipelines();
-    } catch (err) { handleError(err); }
-    finally { setSaving(false); }
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -166,27 +254,57 @@ const PipelinePanel = ({ projectId, onClose, onTransform }) => {
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-semibold text-gray-900">Transformation Pipelines</h3>
         <div className="flex gap-2">
-          <button onClick={() => setShowCreate(!showCreate)} className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded">
+          <button
+            onClick={() => setShowCreate(!showCreate)}
+            className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
+          >
             {showCreate ? "Cancel" : "+ New Pipeline"}
           </button>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">
+            &times;
+          </button>
         </div>
       </div>
 
       {showCreate && (
         <div className="mb-4 border border-blue-200 rounded p-3 bg-blue-50">
           <div className="flex gap-2 mb-2">
-            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Pipeline name" className="border rounded px-2 py-1 text-sm flex-1" required />
-            <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Description (optional)" className="border rounded px-2 py-1 text-sm flex-1" />
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Pipeline name"
+              className="border rounded px-2 py-1 text-sm flex-1"
+              required
+            />
+            <input
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              placeholder="Description (optional)"
+              className="border rounded px-2 py-1 text-sm flex-1"
+            />
           </div>
           {steps.map((step, i) => (
-            <StepEditor key={i} step={step} index={i} columns={columns} onChange={handleStepChange} onRemove={handleRemoveStep} />
+            <StepEditor
+              key={i}
+              step={step}
+              index={i}
+              columns={columns}
+              onChange={handleStepChange}
+              onRemove={handleRemoveStep}
+            />
           ))}
           <div className="flex gap-2 mt-2">
-            <button onClick={() => setSteps([...steps, { operation_type: "" }])} className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded">
+            <button
+              onClick={() => setSteps([...steps, { operation_type: "" }])}
+              className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded"
+            >
               + Add Step
             </button>
-            <button onClick={handleSavePipeline} disabled={saving || !newName.trim() || steps.length === 0} className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50">
+            <button
+              onClick={handleSavePipeline}
+              disabled={saving || !newName.trim() || steps.length === 0}
+              className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50"
+            >
               {saving ? "Saving..." : "Save Pipeline"}
             </button>
           </div>
@@ -196,7 +314,9 @@ const PipelinePanel = ({ projectId, onClose, onTransform }) => {
       {loading ? (
         <p className="text-gray-500 text-sm">Loading pipelines...</p>
       ) : pipelines.length === 0 && !showCreate ? (
-        <p className="text-gray-500 text-sm">No saved pipelines yet. Click &quot;+ New Pipeline&quot; to create one.</p>
+        <p className="text-gray-500 text-sm">
+          No saved pipelines yet. Click &quot;+ New Pipeline&quot; to create one.
+        </p>
       ) : (
         <div className="space-y-2">
           {pipelines.map((p) => (

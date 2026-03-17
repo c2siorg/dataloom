@@ -50,11 +50,7 @@ const FilterForm = ({ projectId, onClose }) => {
         <h3 className="font-semibold text-gray-900 mb-2">Filter Dataset</h3>
         <div className="flex flex-wrap mb-4">
           <div className="w-full sm:w-1/3 mb-2">
-            <ColumnSelect
-              value={filterParams.column}
-              onChange={handleInputChange}
-              name="column"
-            />
+            <ColumnSelect value={filterParams.column} onChange={handleInputChange} name="column" />
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
             <label className="block mb-1 text-sm font-medium text-gray-700">Condition:</label>

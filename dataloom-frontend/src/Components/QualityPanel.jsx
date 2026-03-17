@@ -3,7 +3,12 @@ import PropTypes from "prop-types";
 import { getQualityAssessment, applyQualityFix } from "../api";
 
 const ScoreBadge = ({ score }) => {
-  const color = score >= 80 ? "bg-green-100 text-green-800" : score >= 50 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800";
+  const color =
+    score >= 80
+      ? "bg-green-100 text-green-800"
+      : score >= 50
+        ? "bg-yellow-100 text-yellow-800"
+        : "bg-red-100 text-red-800";
   return <span className={`text-2xl font-bold px-4 py-2 rounded-lg ${color}`}>{score}/100</span>;
 };
 
@@ -57,7 +62,9 @@ const QualityPanel = ({ projectId, onClose, onTransform }) => {
     <div className="p-4 border border-gray-200 rounded-lg bg-white max-h-96 overflow-y-auto">
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-semibold text-gray-900">Data Quality Assessment</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">
+          &times;
+        </button>
       </div>
 
       <div className="flex items-center gap-3 mb-4">
@@ -68,15 +75,21 @@ const QualityPanel = ({ projectId, onClose, onTransform }) => {
       <div className="grid grid-cols-3 gap-3 mb-4 text-sm">
         <div className="bg-gray-50 p-2 rounded">
           <div className="text-gray-500">Duplicates</div>
-          <div className="font-semibold">{data.duplicates.exact_duplicate_count} ({data.duplicates.duplicate_percentage}%)</div>
+          <div className="font-semibold">
+            {data.duplicates.exact_duplicate_count} ({data.duplicates.duplicate_percentage}%)
+          </div>
         </div>
         <div className="bg-gray-50 p-2 rounded">
           <div className="text-gray-500">Outliers</div>
-          <div className="font-semibold">{data.outliers.total_outlier_count} ({data.outliers.total_outlier_percentage}%)</div>
+          <div className="font-semibold">
+            {data.outliers.total_outlier_count} ({data.outliers.total_outlier_percentage}%)
+          </div>
         </div>
         <div className="bg-gray-50 p-2 rounded">
           <div className="text-gray-500">Missing</div>
-          <div className="font-semibold">{data.missing.total_missing} ({data.missing.missing_percentage}%)</div>
+          <div className="font-semibold">
+            {data.missing.total_missing} ({data.missing.missing_percentage}%)
+          </div>
         </div>
       </div>
 

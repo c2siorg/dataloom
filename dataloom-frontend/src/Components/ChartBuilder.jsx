@@ -1,10 +1,29 @@
 import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import { LuX, LuChartBar, LuChartLine, LuChartPie, LuChartScatter, LuChartColumn } from "react-icons/lu";
 import {
-  BarChart, Bar, LineChart, Line, ScatterChart, Scatter,
-  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer,
+  LuX,
+  LuChartBar,
+  LuChartLine,
+  LuChartPie,
+  LuChartScatter,
+  LuChartColumn,
+} from "react-icons/lu";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  ScatterChart,
+  Scatter,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
 } from "recharts";
 import { getChartColumns, getChartData } from "../api";
 
@@ -19,16 +38,30 @@ const CHART_TYPES = [
 const AGG_OPTIONS = ["mean", "sum", "count", "min", "max", "median"];
 
 const COLORS = [
-  "#6366f1", "#06b6d4", "#10b981", "#f59e0b", "#ef4444",
-  "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#3b82f6",
+  "#6366f1",
+  "#06b6d4",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+  "#14b8a6",
+  "#f97316",
+  "#3b82f6",
 ];
 
 /** Dropdown select */
 const Select = ({ label, value, onChange, options, placeholder, disabled }) => (
   <div className="space-y-1">
-    <label className="text-[10px] uppercase tracking-widest text-gray-400 font-medium">{label}</label>
-    <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}
-      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 disabled:opacity-30 cursor-pointer">
+    <label className="text-[10px] uppercase tracking-widest text-gray-400 font-medium">
+      {label}
+    </label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-300 disabled:opacity-30 cursor-pointer"
+    >
       <option value="">{placeholder || "Select..."}</option>
       {options.map((opt) => (
         <option key={opt.value || opt} value={opt.value || opt}>
@@ -40,8 +73,12 @@ const Select = ({ label, value, onChange, options, placeholder, disabled }) => (
 );
 
 Select.propTypes = {
-  label: PropTypes.string.isRequired, value: PropTypes.string, onChange: PropTypes.func.isRequired,
-  options: PropTypes.array.isRequired, placeholder: PropTypes.string, disabled: PropTypes.bool,
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
+  options: PropTypes.array.isRequired,
+  placeholder: PropTypes.string,
+  disabled: PropTypes.bool,
 };
 
 /** Truncate long labels */
@@ -53,8 +90,16 @@ const truncLabel = (str, max = 14) => {
 /** Custom X-axis tick that truncates and rotates neatly */
 const CleanXTick = ({ x, y, payload }) => (
   <g transform={`translate(${x},${y})`}>
-    <text x={0} y={0} dy={12} textAnchor="end" fill="#6b7280" fontSize={10}
-      transform="rotate(-40)" style={{ fontFamily: "system-ui" }}>
+    <text
+      x={0}
+      y={0}
+      dy={12}
+      textAnchor="end"
+      fill="#6b7280"
+      fontSize={10}
+      transform="rotate(-40)"
+      style={{ fontFamily: "system-ui" }}
+    >
       {truncLabel(payload.value, 16)}
     </text>
   </g>
@@ -64,8 +109,12 @@ CleanXTick.propTypes = { x: PropTypes.number, y: PropTypes.number, payload: Prop
 
 /** Shared tooltip style */
 const tooltipStyle = {
-  background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10,
-  fontSize: 12, padding: "8px 12px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+  background: "#fff",
+  border: "1px solid #e5e7eb",
+  borderRadius: 10,
+  fontSize: 12,
+  padding: "8px 12px",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
 };
 
 /** Shared axis label style */
@@ -89,14 +138,31 @@ const ChartRenderer = ({ chartType, data, xColumn, yColumn, series }) => {
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={margins} barCategoryGap="20%">
           <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-          <XAxis dataKey="x" tick={<CleanXTick />} interval={0} height={70}
-            label={{ value: xColumn, position: "insideBottom", offset: -5, style: axisLabelStyle }} />
-          <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false}
-            label={{ value: yColumn || "count", angle: -90, position: "insideLeft", offset: -10, style: axisLabelStyle }} />
+          <XAxis
+            dataKey="x"
+            tick={<CleanXTick />}
+            interval={0}
+            height={70}
+            label={{ value: xColumn, position: "insideBottom", offset: -5, style: axisLabelStyle }}
+          />
+          <YAxis
+            tick={{ fill: "#6b7280", fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            label={{
+              value: yColumn || "count",
+              angle: -90,
+              position: "insideLeft",
+              offset: -10,
+              style: axisLabelStyle,
+            }}
+          />
           <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(99,102,241,0.06)" }} />
           <Legend wrapperStyle={{ paddingTop: 8 }} />
           {series ? (
-            series.map((s, i) => <Bar key={s} dataKey={s} fill={COLORS[i % COLORS.length]} radius={[5, 5, 0, 0]} />)
+            series.map((s, i) => (
+              <Bar key={s} dataKey={s} fill={COLORS[i % COLORS.length]} radius={[5, 5, 0, 0]} />
+            ))
           ) : (
             <Bar dataKey="y" fill={COLORS[0]} radius={[5, 5, 0, 0]} name={yColumn || "count"} />
           )}
@@ -110,16 +176,49 @@ const ChartRenderer = ({ chartType, data, xColumn, yColumn, series }) => {
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={margins}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-          <XAxis dataKey="x" tick={<CleanXTick />} interval={0} height={70}
-            label={{ value: xColumn, position: "insideBottom", offset: -5, style: axisLabelStyle }} />
-          <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false}
-            label={{ value: yColumn || "count", angle: -90, position: "insideLeft", offset: -10, style: axisLabelStyle }} />
+          <XAxis
+            dataKey="x"
+            tick={<CleanXTick />}
+            interval={0}
+            height={70}
+            label={{ value: xColumn, position: "insideBottom", offset: -5, style: axisLabelStyle }}
+          />
+          <YAxis
+            tick={{ fill: "#6b7280", fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            label={{
+              value: yColumn || "count",
+              angle: -90,
+              position: "insideLeft",
+              offset: -10,
+              style: axisLabelStyle,
+            }}
+          />
           <Tooltip contentStyle={tooltipStyle} />
           <Legend wrapperStyle={{ paddingTop: 8 }} />
           {series ? (
-            series.map((s, i) => <Line key={s} type="monotone" dataKey={s} stroke={COLORS[i % COLORS.length]} strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2 }} activeDot={{ r: 5 }} />)
+            series.map((s, i) => (
+              <Line
+                key={s}
+                type="monotone"
+                dataKey={s}
+                stroke={COLORS[i % COLORS.length]}
+                strokeWidth={2.5}
+                dot={{ r: 3, strokeWidth: 2 }}
+                activeDot={{ r: 5 }}
+              />
+            ))
           ) : (
-            <Line type="monotone" dataKey="y" stroke={COLORS[0]} strokeWidth={2.5} dot={{ r: 3, strokeWidth: 2 }} activeDot={{ r: 5 }} name={yColumn || "count"} />
+            <Line
+              type="monotone"
+              dataKey="y"
+              stroke={COLORS[0]}
+              strokeWidth={2.5}
+              dot={{ r: 3, strokeWidth: 2 }}
+              activeDot={{ r: 5 }}
+              name={yColumn || "count"}
+            />
           )}
         </LineChart>
       </ResponsiveContainer>
@@ -132,10 +231,32 @@ const ChartRenderer = ({ chartType, data, xColumn, yColumn, series }) => {
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={scatterMargins}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-            <XAxis dataKey="x" name={xColumn} tick={{ fill: "#6b7280", fontSize: 11 }} tickLine={false}
-              label={{ value: xColumn, position: "insideBottom", offset: -5, style: axisLabelStyle }} />
-            <YAxis dataKey="y" name={yColumn} tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false}
-              label={{ value: yColumn, angle: -90, position: "insideLeft", offset: -10, style: axisLabelStyle }} />
+            <XAxis
+              dataKey="x"
+              name={xColumn}
+              tick={{ fill: "#6b7280", fontSize: 11 }}
+              tickLine={false}
+              label={{
+                value: xColumn,
+                position: "insideBottom",
+                offset: -5,
+                style: axisLabelStyle,
+              }}
+            />
+            <YAxis
+              dataKey="y"
+              name={yColumn}
+              tick={{ fill: "#6b7280", fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              label={{
+                value: yColumn,
+                angle: -90,
+                position: "insideLeft",
+                offset: -10,
+                style: axisLabelStyle,
+              }}
+            />
             <Tooltip contentStyle={tooltipStyle} />
             <Scatter data={data} fill={COLORS[0]} shape="circle" />
           </ScatterChart>
@@ -147,14 +268,37 @@ const ChartRenderer = ({ chartType, data, xColumn, yColumn, series }) => {
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={scatterMargins}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-          <XAxis dataKey="x" name={xColumn} tick={{ fill: "#6b7280", fontSize: 11 }} tickLine={false}
-            label={{ value: xColumn, position: "insideBottom", offset: -5, style: axisLabelStyle }} />
-          <YAxis dataKey="y" name={yColumn} tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false}
-            label={{ value: yColumn, angle: -90, position: "insideLeft", offset: -10, style: axisLabelStyle }} />
+          <XAxis
+            dataKey="x"
+            name={xColumn}
+            tick={{ fill: "#6b7280", fontSize: 11 }}
+            tickLine={false}
+            label={{ value: xColumn, position: "insideBottom", offset: -5, style: axisLabelStyle }}
+          />
+          <YAxis
+            dataKey="y"
+            name={yColumn}
+            tick={{ fill: "#6b7280", fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            label={{
+              value: yColumn,
+              angle: -90,
+              position: "insideLeft",
+              offset: -10,
+              style: axisLabelStyle,
+            }}
+          />
           <Tooltip contentStyle={tooltipStyle} />
           <Legend wrapperStyle={{ paddingTop: 8 }} />
           {groups.map(([name, points], i) => (
-            <Scatter key={name} name={name} data={points} fill={COLORS[i % COLORS.length]} shape="circle" />
+            <Scatter
+              key={name}
+              name={name}
+              data={points}
+              fill={COLORS[i % COLORS.length]}
+              shape="circle"
+            />
           ))}
         </ScatterChart>
       </ResponsiveContainer>
@@ -166,10 +310,25 @@ const ChartRenderer = ({ chartType, data, xColumn, yColumn, series }) => {
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={margins} barCategoryGap="8%">
           <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-          <XAxis dataKey="bin" tick={<CleanXTick />} interval={0} height={70}
-            label={{ value: xColumn, position: "insideBottom", offset: -5, style: axisLabelStyle }} />
-          <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false}
-            label={{ value: "count", angle: -90, position: "insideLeft", offset: -10, style: axisLabelStyle }} />
+          <XAxis
+            dataKey="bin"
+            tick={<CleanXTick />}
+            interval={0}
+            height={70}
+            label={{ value: xColumn, position: "insideBottom", offset: -5, style: axisLabelStyle }}
+          />
+          <YAxis
+            tick={{ fill: "#6b7280", fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            label={{
+              value: "count",
+              angle: -90,
+              position: "insideLeft",
+              offset: -10,
+              style: axisLabelStyle,
+            }}
+          />
           <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(16,185,129,0.06)" }} />
           <Bar dataKey="count" fill={COLORS[2]} radius={[5, 5, 0, 0]} />
         </BarChart>
@@ -185,10 +344,23 @@ const ChartRenderer = ({ chartType, data, xColumn, yColumn, series }) => {
     return (
       <ResponsiveContainer width="100%" height="100%">
         <PieChart margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius="60%" innerRadius="30%"
-            label={renderLabel} labelLine={{ stroke: "#d1d5db", strokeWidth: 1 }}
-            paddingAngle={2} strokeWidth={2} stroke="#fff">
-            {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="45%"
+            outerRadius="60%"
+            innerRadius="30%"
+            label={renderLabel}
+            labelLine={{ stroke: "#d1d5db", strokeWidth: 1 }}
+            paddingAngle={2}
+            strokeWidth={2}
+            stroke="#fff"
+          >
+            {data.map((_, i) => (
+              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            ))}
           </Pie>
           <Tooltip contentStyle={tooltipStyle} />
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
@@ -201,8 +373,11 @@ const ChartRenderer = ({ chartType, data, xColumn, yColumn, series }) => {
 };
 
 ChartRenderer.propTypes = {
-  chartType: PropTypes.string.isRequired, data: PropTypes.any,
-  xColumn: PropTypes.string, yColumn: PropTypes.string, series: PropTypes.array,
+  chartType: PropTypes.string.isRequired,
+  data: PropTypes.any,
+  xColumn: PropTypes.string,
+  yColumn: PropTypes.string,
+  series: PropTypes.array,
 };
 
 /** Main ChartBuilder panel */
@@ -276,9 +451,12 @@ const ChartBuilder = ({ projectId, onClose }) => {
             <p className="text-[10px] text-gray-400">Visualize your data</p>
           </div>
         </div>
-        <button data-testid="chart-builder-close" onClick={onClose}
+        <button
+          data-testid="chart-builder-close"
+          onClick={onClose}
           className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-          aria-label="Close chart builder">
+          aria-label="Close chart builder"
+        >
           <LuX className="w-4 h-4" />
         </button>
       </div>
@@ -288,16 +466,21 @@ const ChartBuilder = ({ projectId, onClose }) => {
         <div className="w-64 flex-shrink-0 border-r border-gray-100 p-4 space-y-5 bg-gray-50/50">
           {/* Chart type picker */}
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-medium">Chart Type</label>
+            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-medium">
+              Chart Type
+            </label>
             <div className="flex flex-col gap-1.5">
               {CHART_TYPES.map((ct) => (
-                <button key={ct.id} onClick={() => setChartType(ct.id)}
+                <button
+                  key={ct.id}
+                  onClick={() => setChartType(ct.id)}
                   className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all border text-left ${
                     chartType === ct.id
                       ? "bg-indigo-50 border-indigo-200 text-indigo-600"
                       : "bg-white border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                   }`}
-                  title={ct.label}>
+                  title={ct.label}
+                >
                   <ct.icon className="w-4 h-4 flex-shrink-0" />
                   <span className="text-xs font-medium">{ct.label}</span>
                 </button>
@@ -305,21 +488,46 @@ const ChartBuilder = ({ projectId, onClose }) => {
             </div>
           </div>
 
-          <Select label="X Axis" value={xColumn} onChange={setXColumn} options={allColOptions} placeholder="Select column..." />
+          <Select
+            label="X Axis"
+            value={xColumn}
+            onChange={setXColumn}
+            options={allColOptions}
+            placeholder="Select column..."
+          />
 
           {needsY && (
-            <Select label="Y Axis" value={yColumn} onChange={setYColumn}
+            <Select
+              label="Y Axis"
+              value={yColumn}
+              onChange={setYColumn}
               options={chartType === "scatter" ? allColOptions : numericColOptions}
-              placeholder={chartType === "scatter" ? "Select column..." : "Optional (count if empty)"} />
+              placeholder={
+                chartType === "scatter" ? "Select column..." : "Optional (count if empty)"
+              }
+            />
           )}
 
           {chartType !== "histogram" && chartType !== "pie" && (
-            <Select label="Group By" value={groupBy} onChange={setGroupBy} options={allColOptions} placeholder="None" />
+            <Select
+              label="Group By"
+              value={groupBy}
+              onChange={setGroupBy}
+              options={allColOptions}
+              placeholder="None"
+            />
           )}
 
           {needsAgg && yColumn && (
-            <Select label="Aggregation" value={aggFunction} onChange={setAggFunction}
-              options={AGG_OPTIONS.map((a) => ({ value: a, label: a.charAt(0).toUpperCase() + a.slice(1) }))} />
+            <Select
+              label="Aggregation"
+              value={aggFunction}
+              onChange={setAggFunction}
+              options={AGG_OPTIONS.map((a) => ({
+                value: a,
+                label: a.charAt(0).toUpperCase() + a.slice(1),
+              }))}
+            />
           )}
         </div>
 
@@ -335,7 +543,13 @@ const ChartBuilder = ({ projectId, onClose }) => {
               {error}
             </div>
           )}
-          <ChartRenderer chartType={chartType} data={chartData} xColumn={xColumn} yColumn={yColumn} series={series} />
+          <ChartRenderer
+            chartType={chartType}
+            data={chartData}
+            xColumn={xColumn}
+            yColumn={yColumn}
+            series={series}
+          />
         </div>
       </div>
     </div>

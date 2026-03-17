@@ -33,9 +33,7 @@ const columnNameArb = fc
 
 /** Arbitrary for a frequent value entry with unique prefixed values */
 const frequentValueArb = fc.record({
-  value: fc
-    .integer({ min: 1000, max: 9999 })
-    .map((n) => `fv${n}`),
+  value: fc.integer({ min: 1000, max: 9999 }).map((n) => `fv${n}`),
   count: fc.integer({ min: 1, max: 10000 }),
 });
 
@@ -113,7 +111,6 @@ const summaryArb = fc.record({
   duplicate_row_count: fc.integer({ min: 0, max: 100000 }),
 });
 
-
 describe("Property 7: Column card renders all required information", () => {
   it("should render column name, dtype, missing count/percentage, and unique count for any column", () => {
     fc.assert(
@@ -124,40 +121,30 @@ describe("Property 7: Column card renders all required information", () => {
         };
 
         const { unmount } = render(
-          <ProfilePanel
-            profileData={profileData}
-            onClose={() => {}}
-            onColumnClick={() => {}}
-          />
+          <ProfilePanel profileData={profileData} onClose={() => {}} onColumnClick={() => {}} />,
         );
 
         const card = screen.getByTestId(`column-card-${column.name}`);
 
         // Column name is displayed
-        expect(within(card).getByTestId("column-name")).toHaveTextContent(
-          column.name
-        );
+        expect(within(card).getByTestId("column-name")).toHaveTextContent(column.name);
 
         // Data type badge is displayed
-        expect(within(card).getByTestId("column-dtype")).toHaveTextContent(
-          column.dtype
-        );
+        expect(within(card).getByTestId("column-dtype")).toHaveTextContent(column.dtype);
 
         // Missing count and percentage are displayed
         const missingEl = within(card).getByTestId("column-missing");
         expect(missingEl).toHaveTextContent(String(column.missing_count));
-        expect(missingEl).toHaveTextContent(
-          `${column.missing_percentage.toFixed(1)}%`
-        );
+        expect(missingEl).toHaveTextContent(`${column.missing_percentage.toFixed(1)}%`);
 
         // Unique count is displayed
         expect(within(card).getByTestId("column-unique")).toHaveTextContent(
-          String(column.unique_count)
+          String(column.unique_count),
         );
 
         unmount();
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 
@@ -170,32 +157,20 @@ describe("Property 7: Column card renders all required information", () => {
         };
 
         const { unmount } = render(
-          <ProfilePanel
-            profileData={profileData}
-            onClose={() => {}}
-            onColumnClick={() => {}}
-          />
+          <ProfilePanel profileData={profileData} onClose={() => {}} onColumnClick={() => {}} />,
         );
 
         const card = screen.getByTestId(`column-card-${column.name}`);
         const numStats = within(card).getByTestId("numeric-stats");
 
-        expect(numStats).toHaveTextContent(
-          `Mean: ${formatNumber(column.numeric_stats.mean)}`
-        );
-        expect(numStats).toHaveTextContent(
-          `Median: ${formatNumber(column.numeric_stats.median)}`
-        );
-        expect(numStats).toHaveTextContent(
-          `Min: ${formatNumber(column.numeric_stats.min)}`
-        );
-        expect(numStats).toHaveTextContent(
-          `Max: ${formatNumber(column.numeric_stats.max)}`
-        );
+        expect(numStats).toHaveTextContent(`Mean: ${formatNumber(column.numeric_stats.mean)}`);
+        expect(numStats).toHaveTextContent(`Median: ${formatNumber(column.numeric_stats.median)}`);
+        expect(numStats).toHaveTextContent(`Min: ${formatNumber(column.numeric_stats.min)}`);
+        expect(numStats).toHaveTextContent(`Max: ${formatNumber(column.numeric_stats.max)}`);
 
         unmount();
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 
@@ -208,18 +183,11 @@ describe("Property 7: Column card renders all required information", () => {
         };
 
         const { unmount, container } = render(
-          <ProfilePanel
-            profileData={profileData}
-            onClose={() => {}}
-            onColumnClick={() => {}}
-          />
+          <ProfilePanel profileData={profileData} onClose={() => {}} onColumnClick={() => {}} />,
         );
 
         const card = within(container).getByTestId(`column-card-${column.name}`);
-        const topThree = (column.categorical_stats.top_values || []).slice(
-          0,
-          3
-        );
+        const topThree = (column.categorical_stats.top_values || []).slice(0, 3);
 
         if (topThree.length > 0) {
           const catStats = within(card).getByTestId("categorical-stats");
@@ -229,9 +197,7 @@ describe("Property 7: Column card renders all required information", () => {
           }
         } else {
           // No categorical stats rendered when top_values is empty
-          expect(
-            within(card).queryByTestId("categorical-stats")
-          ).not.toBeInTheDocument();
+          expect(within(card).queryByTestId("categorical-stats")).not.toBeInTheDocument();
         }
 
         // Values beyond the top 3 should NOT appear
@@ -241,7 +207,7 @@ describe("Property 7: Column card renders all required information", () => {
           for (const item of beyondThree) {
             // Only check if the value is unique (not also in top 3)
             const inTopThree = topThree.some(
-              (t) => t.value === item.value || String(t.count) === String(item.count)
+              (t) => t.value === item.value || String(t.count) === String(item.count),
             );
             if (!inTopThree) {
               expect(catStats).not.toHaveTextContent(item.value);
@@ -251,7 +217,7 @@ describe("Property 7: Column card renders all required information", () => {
 
         unmount();
       }),
-      { numRuns: 100 }
+      { numRuns: 100 },
     );
   });
 });

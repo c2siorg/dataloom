@@ -22,6 +22,7 @@ router = APIRouter()
 
 # --- Formula column ---
 
+
 class FormulaRequest(BaseModel):
     name: str
     expression: str
@@ -43,15 +44,14 @@ async def create_formula_column(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     save_csv_safe(result, project.file_path)
-    log_transformation(db, project_id, "formula", {
-        "formula": {"name": request.name, "expression": request.expression}
-    })
+    log_transformation(db, project_id, "formula", {"formula": {"name": request.name, "expression": request.expression}})
 
     resp = dataframe_to_response(result)
     return {"project_id": project_id, "operation_type": "formula", **resp}
 
 
 # --- Pipelines ---
+
 
 class PipelineCreate(BaseModel):
     name: str

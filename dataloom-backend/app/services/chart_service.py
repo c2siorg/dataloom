@@ -1,6 +1,5 @@
 """Service for computing chart-ready data from pandas DataFrames."""
 
-
 import pandas as pd
 
 
@@ -61,10 +60,12 @@ def _compute_histogram(df: pd.DataFrame, column: str, limit: int) -> dict:
         value_counts = counts.value_counts().sort_index()
         data = []
         for interval, count in value_counts.items():
-            data.append({
-                "bin": f"{interval.left:.1f}-{interval.right:.1f}",
-                "count": int(count),
-            })
+            data.append(
+                {
+                    "bin": f"{interval.left:.1f}-{interval.right:.1f}",
+                    "count": int(count),
+                }
+            )
     else:
         value_counts = series.value_counts().head(limit)
         data = [{"bin": str(val), "count": int(cnt)} for val, cnt in value_counts.items()]
@@ -78,11 +79,13 @@ def _compute_pie(df: pd.DataFrame, column: str, limit: int) -> dict:
     total = top.sum()
     data = []
     for val, cnt in top.items():
-        data.append({
-            "name": str(val),
-            "value": int(cnt),
-            "percentage": round((cnt / total) * 100, 1) if total > 0 else 0,
-        })
+        data.append(
+            {
+                "name": str(val),
+                "value": int(cnt),
+                "percentage": round((cnt / total) * 100, 1) if total > 0 else 0,
+            }
+        )
     return {"chart_type": "pie", "data": data, "x_column": column}
 
 
@@ -98,22 +101,23 @@ def _compute_scatter(df: pd.DataFrame, x_col: str, y_col: str | None, group_by: 
         for grp_name, grp_df in subset.groupby(group_by):
             points = grp_df.head(limit)
             groups[str(grp_name)] = [
-                {"x": _safe_val(row[x_col]), "y": _safe_val(row[y_col])}
-                for _, row in points.iterrows()
+                {"x": _safe_val(row[x_col]), "y": _safe_val(row[y_col])} for _, row in points.iterrows()
             ]
         return {"chart_type": "scatter", "data": groups, "x_column": x_col, "y_column": y_col, "grouped": True}
     else:
         points = subset.head(limit * 5)
-        data = [
-            {"x": _safe_val(row[x_col]), "y": _safe_val(row[y_col])}
-            for _, row in points.iterrows()
-        ]
+        data = [{"x": _safe_val(row[x_col]), "y": _safe_val(row[y_col])} for _, row in points.iterrows()]
         return {"chart_type": "scatter", "data": data, "x_column": x_col, "y_column": y_col, "grouped": False}
 
 
 def _compute_aggregated(
-    df: pd.DataFrame, chart_type: str, x_col: str, y_col: str | None,
-    group_by: str | None, agg_function: str, limit: int,
+    df: pd.DataFrame,
+    chart_type: str,
+    x_col: str,
+    y_col: str | None,
+    group_by: str | None,
+    agg_function: str,
+    limit: int,
 ) -> dict:
     """Compute aggregated bar/line chart data."""
     if not y_col:

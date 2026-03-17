@@ -52,9 +52,7 @@ const FormulaPanel = ({ projectId, onClose, onTransform }) => {
             placeholder="e.g., quantity * unit_price"
             required
           />
-          <p className="text-xs text-gray-400 mt-1">
-            Available columns: {columns.join(", ")}
-          </p>
+          <p className="text-xs text-gray-400 mt-1">Available columns: {columns.join(", ")}</p>
         </div>
         <div className="flex justify-between">
           <button
@@ -64,7 +62,11 @@ const FormulaPanel = ({ projectId, onClose, onTransform }) => {
           >
             {loading ? "Creating..." : "Create Column"}
           </button>
-          <button type="button" onClick={onClose} className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150">
+          <button
+            type="button"
+            onClick={onClose}
+            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150"
+          >
             Cancel
           </button>
         </div>

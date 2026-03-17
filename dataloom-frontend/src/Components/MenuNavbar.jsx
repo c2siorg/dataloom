@@ -55,13 +55,25 @@ const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
   }, [activePanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchLogs = async () => {
-    try { setLogs(await getLogs(projectId)); } catch (e) { console.error(e); }
+    try {
+      setLogs(await getLogs(projectId));
+    } catch (e) {
+      console.error(e);
+    }
   };
   const fetchCheckpoints = async () => {
-    try { setCheckpoints(await getCheckpoints(projectId)); } catch (e) { console.error(e); }
+    try {
+      setCheckpoints(await getCheckpoints(projectId));
+    } catch (e) {
+      console.error(e);
+    }
   };
   const fetchProfileData = async () => {
-    try { setProfileData(await getProjectProfile(projectId)); } catch (e) { console.error(e); }
+    try {
+      setProfileData(await getProjectProfile(projectId));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSave = async () => {
@@ -70,7 +82,10 @@ const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
       try {
         await saveProject(projectId, msg);
         alert("Project saved successfully!");
-      } catch (e) { console.error(e); alert("Failed to save project."); }
+      } catch (e) {
+        console.error(e);
+        alert("Failed to save project.");
+      }
     }
   };
 
@@ -80,12 +95,18 @@ const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
         const response = await revertToCheckpoint(projectId, checkpointId);
         onTransform(response);
         alert("Project reverted successfully!");
-      } catch (e) { console.error(e); alert("Failed to revert project."); }
+      } catch (e) {
+        console.error(e);
+        alert("Failed to revert project.");
+      }
     }
   };
 
   const handleMenuClick = (panel) => {
-    if (activePanel === panel) { setActivePanel(null); return; }
+    if (activePanel === panel) {
+      setActivePanel(null);
+      return;
+    }
     setActivePanel(panel);
     if (panel === "ProfilePanel") fetchProfileData();
   };
@@ -101,16 +122,32 @@ const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
         items: [
           { label: "Filter", icon: LuFilter, onClick: () => handleMenuClick("FilterForm") },
           { label: "Sort", icon: LuArrowUpDown, onClick: () => handleMenuClick("SortForm") },
-          { label: "Drop Dup", icon: LuCopyMinus, onClick: () => handleMenuClick("DropDuplicateForm") },
+          {
+            label: "Drop Dup",
+            icon: LuCopyMinus,
+            onClick: () => handleMenuClick("DropDuplicateForm"),
+          },
           { label: "Trim", icon: LuScissors, onClick: () => handleMenuClick("TrimWhitespaceForm") },
-          { label: "Cast Type", icon: LuRefreshCw, onClick: () => handleMenuClick("CastDataTypeForm") },
+          {
+            label: "Cast Type",
+            icon: LuRefreshCw,
+            onClick: () => handleMenuClick("CastDataTypeForm"),
+          },
         ],
       },
       {
         group: "Query",
         items: [
-          { label: "Adv Query", icon: LuCode, onClick: () => handleMenuClick("AdvQueryFilterForm") },
-          { label: "Pivot Table", icon: LuTable2, onClick: () => handleMenuClick("PivotTableForm") },
+          {
+            label: "Adv Query",
+            icon: LuCode,
+            onClick: () => handleMenuClick("AdvQueryFilterForm"),
+          },
+          {
+            label: "Pivot Table",
+            icon: LuTable2,
+            onClick: () => handleMenuClick("PivotTableForm"),
+          },
           { label: "Formula", icon: LuCalculator, onClick: () => handleMenuClick("FormulaPanel") },
         ],
       },
@@ -124,8 +161,18 @@ const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
       {
         group: "Analyze",
         items: [
-          { label: "Profile", icon: LuChartColumn, "data-testid": "profile-button", onClick: () => handleMenuClick("ProfilePanel") },
-          { label: "Visualize", icon: LuChartBar, "data-testid": "visualize-button", onClick: () => handleMenuClick("ChartBuilder") },
+          {
+            label: "Profile",
+            icon: LuChartColumn,
+            "data-testid": "profile-button",
+            onClick: () => handleMenuClick("ProfilePanel"),
+          },
+          {
+            label: "Visualize",
+            icon: LuChartBar,
+            "data-testid": "visualize-button",
+            onClick: () => handleMenuClick("ChartBuilder"),
+          },
           { label: "Quality", icon: LuShieldCheck, onClick: () => handleMenuClick("QualityPanel") },
         ],
       },
@@ -159,7 +206,9 @@ const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
             key={tabName}
             onClick={() => setActiveTab(tabName)}
             className={`px-4 py-1.5 text-sm font-medium transition-colors duration-150 ${
-              activeTab === tabName ? "text-blue-600 border-b-2 border-blue-500" : "text-gray-500 hover:text-gray-700"
+              activeTab === tabName
+                ? "text-blue-600 border-b-2 border-blue-500"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             {tabName}
@@ -185,7 +234,9 @@ const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
                   </button>
                 ))}
               </div>
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">{section.group}</span>
+              <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
+                {section.group}
+              </span>
             </div>
           </div>
         ))}
@@ -193,16 +244,34 @@ const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
 
       {activePanel === "FilterForm" && <FilterForm onClose={closePanel} projectId={projectId} />}
       {activePanel === "SortForm" && <SortForm onClose={closePanel} projectId={projectId} />}
-      {activePanel === "DropDuplicateForm" && <DropDuplicateForm projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
-      {activePanel === "TrimWhitespaceForm" && <TrimWhitespaceForm projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
-      {activePanel === "CastDataTypeForm" && <CastDataTypeForm projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
-      {activePanel === "AdvQueryFilterForm" && <AdvQueryFilterForm onClose={closePanel} projectId={projectId} />}
-      {activePanel === "PivotTableForm" && <PivotTableForm onClose={closePanel} projectId={projectId} />}
-      {activePanel === "FormulaPanel" && <FormulaPanel projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
-      {activePanel === "MergePanel" && <MergePanel projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
-      {activePanel === "PipelinePanel" && <PipelinePanel projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
+      {activePanel === "DropDuplicateForm" && (
+        <DropDuplicateForm projectId={projectId} onClose={closePanel} onTransform={onTransform} />
+      )}
+      {activePanel === "TrimWhitespaceForm" && (
+        <TrimWhitespaceForm projectId={projectId} onClose={closePanel} onTransform={onTransform} />
+      )}
+      {activePanel === "CastDataTypeForm" && (
+        <CastDataTypeForm projectId={projectId} onClose={closePanel} onTransform={onTransform} />
+      )}
+      {activePanel === "AdvQueryFilterForm" && (
+        <AdvQueryFilterForm onClose={closePanel} projectId={projectId} />
+      )}
+      {activePanel === "PivotTableForm" && (
+        <PivotTableForm onClose={closePanel} projectId={projectId} />
+      )}
+      {activePanel === "FormulaPanel" && (
+        <FormulaPanel projectId={projectId} onClose={closePanel} onTransform={onTransform} />
+      )}
+      {activePanel === "MergePanel" && (
+        <MergePanel projectId={projectId} onClose={closePanel} onTransform={onTransform} />
+      )}
+      {activePanel === "PipelinePanel" && (
+        <PipelinePanel projectId={projectId} onClose={closePanel} onTransform={onTransform} />
+      )}
       {activePanel === "Logs" && <LogsPanel logs={logs} onClose={closePanel} />}
-      {activePanel === "Checkpoints" && <CheckpointsPanel checkpoints={checkpoints} onClose={closePanel} onRevert={handleRevert} />}
+      {activePanel === "Checkpoints" && (
+        <CheckpointsPanel checkpoints={checkpoints} onClose={closePanel} onRevert={handleRevert} />
+      )}
       {activePanel === "ProfilePanel" && (
         <ProfilePanel
           profileData={profileData}
@@ -215,8 +284,12 @@ const MenuNavbar = ({ projectId, onTransform, onColumnClick }) => {
           }}
         />
       )}
-      {activePanel === "ChartBuilder" && <ChartBuilder projectId={projectId} onClose={closePanel} />}
-      {activePanel === "QualityPanel" && <QualityPanel projectId={projectId} onClose={closePanel} onTransform={onTransform} />}
+      {activePanel === "ChartBuilder" && (
+        <ChartBuilder projectId={projectId} onClose={closePanel} />
+      )}
+      {activePanel === "QualityPanel" && (
+        <QualityPanel projectId={projectId} onClose={closePanel} onTransform={onTransform} />
+      )}
       {activePanel === "ExportPanel" && <ExportPanel projectId={projectId} onClose={closePanel} />}
     </div>
   );

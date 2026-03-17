@@ -4,8 +4,6 @@ Covers: multi-format file handling, merge/join, formula columns,
 transformation pipelines, chart data, data quality, and multi-format export.
 """
 
-from pathlib import Path
-
 import pandas as pd
 import pytest
 
@@ -24,7 +22,6 @@ from app.services.quality_service import (
     detect_pattern_issues,
 )
 from app.services.transformation_service import TransformationError
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

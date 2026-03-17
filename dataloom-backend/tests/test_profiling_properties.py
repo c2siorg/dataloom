@@ -22,6 +22,7 @@ from app.services.profiling_service import (
 
 # --- Custom DataFrame strategy ---
 
+
 def dataframe_strategy():
     """Generate random DataFrames with a mix of numeric, string, and boolean columns,
     with random NaN placement. Keeps sizes small for test speed."""
@@ -193,6 +194,7 @@ def test_per_column_base_stats_correctness(df: pd.DataFrame):
         expected_unique = int(series.nunique())
         assert col_profile.unique_count == expected_unique
 
+
 # Feature: column-data-profiling, Property 4: Numeric stats correctness
 
 
@@ -217,9 +219,7 @@ def numeric_series_strategy():
         series = pd.Series(values, dtype=float)
 
         # Randomly inject NaN values
-        mask = draw(
-            st.lists(st.booleans(), min_size=n, max_size=n)
-        )
+        mask = draw(st.lists(st.booleans(), min_size=n, max_size=n))
         for i, should_null in enumerate(mask):
             if should_null:
                 series.iloc[i] = np.nan

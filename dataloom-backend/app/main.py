@@ -41,6 +41,7 @@ async def lifespan(app):
 
         from app import models  # noqa: F401
         from app.database import engine
+
         SQLModel.metadata.create_all(engine)
 
     setup_logging(settings.debug)

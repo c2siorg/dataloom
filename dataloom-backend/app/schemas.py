@@ -9,17 +9,20 @@ from pydantic import BaseModel, field_validator
 
 # --- Enums ---
 
+
 class FilterCondition(StrEnum):
     """Supported filter comparison operators."""
-    EQ = '='
-    GT = '>'
-    LT = '<'
-    GTE = '>='
-    LTE = '<='
+
+    EQ = "="
+    GT = ">"
+    LT = "<"
+    GTE = ">="
+    LTE = "<="
 
 
 class OperationType(StrEnum):
     """All supported transformation operation types."""
+
     filter = "filter"
     sort = "sort"
     addRow = "addRow"
@@ -39,22 +42,25 @@ class OperationType(StrEnum):
 
 class DropDup(StrEnum):
     """Options for which duplicate rows to keep."""
-    first = 'first'
-    last = 'last'
+
+    first = "first"
+    last = "last"
 
 
 class AggFunc(StrEnum):
     """Supported aggregation functions for pivot tables."""
-    sum = 'sum'
-    mean = 'mean'
-    median = 'median'
-    min = 'min'
-    max = 'max'
-    count = 'count'
+
+    sum = "sum"
+    mean = "mean"
+    median = "median"
+    min = "min"
+    max = "max"
+    count = "count"
 
 
 class ActionTypes(StrEnum):
     """Action types for user log entries."""
+
     filter = "filter"
     sort = "sort"
     addRow = "addRow"
@@ -74,8 +80,10 @@ class ActionTypes(StrEnum):
 
 # --- Basic transformation parameter schemas ---
 
+
 class FilterParameters(BaseModel):
     """Parameters for a column filter operation."""
+
     column: str
     condition: FilterCondition
     value: str
@@ -83,28 +91,33 @@ class FilterParameters(BaseModel):
 
 class SortParameters(BaseModel):
     """Parameters for a column sort operation."""
+
     column: str
     ascending: bool
 
 
 class AddOrDeleteRow(BaseModel):
     """Parameters for adding or deleting a row by index."""
+
     index: int
 
 
 class AddColumn(BaseModel):
     """Parameters for adding a column."""
+
     index: int
     name: str
 
 
 class DeleteColumn(BaseModel):
     """Parameters for deleting a column."""
+
     index: int
 
 
 class ChangeCellValue(BaseModel):
     """Parameters for updating a single cell value."""
+
     col_index: int
     row_index: int
     fill_value: Any
@@ -112,18 +125,21 @@ class ChangeCellValue(BaseModel):
 
 class FillEmptyParams(BaseModel):
     """Parameters for filling empty cells."""
+
     index: int | None
     fill_value: Any
 
 
 class RenameColumnParams(BaseModel):
     """Parameters for renaming a column."""
+
     col_index: int
     new_name: str
 
 
 class DataType(StrEnum):
     """Supported target types for data type casting."""
+
     string = "string"
     integer = "integer"
     float = "float"
@@ -133,17 +149,20 @@ class DataType(StrEnum):
 
 class CastDataTypeParams(BaseModel):
     """Parameters for casting a column to a different data type."""
+
     column: str
     target_type: DataType
 
 
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
+
     column: str
 
 
 class DropNaParams(BaseModel):
     """Parameters for dropping rows with missing/NaN values."""
+
     columns: list[str] | None = None
 
     @field_validator("columns")
@@ -156,19 +175,23 @@ class DropNaParams(BaseModel):
 
 # --- Complex transformation parameter schemas ---
 
+
 class DropDuplicates(BaseModel):
     """Parameters for dropping duplicate rows."""
+
     columns: str
     keep: DropDup | bool
 
 
 class AdvQuery(BaseModel):
     """Parameters for an advanced pandas query filter."""
+
     query: str
 
 
 class Pivot(BaseModel):
     """Parameters for creating a pivot table."""
+
     index: str
     column: str | None = None
     value: str
@@ -177,26 +200,32 @@ class Pivot(BaseModel):
 
 class RevertRequest(BaseModel):
     """Request body for reverting to a checkpoint."""
+
     checkpoint_id: uuid.UUID
 
 
 # --- User log schemas ---
 
+
 class UserLogsAction(BaseModel):
     """A user action to log."""
+
     projectId: uuid.UUID
     actionType: ActionTypes
 
 
 class UserLogsInput(BaseModel):
     """Input wrapper for user log actions."""
+
     user_actions: UserLogsAction | None = None
 
 
 # --- Transformation input/output schemas ---
 
+
 class TransformationInput(BaseModel):
     """Unified input for all transformation operations."""
+
     operation_type: OperationType
     parameters: FilterParameters | None = None
     sort_params: SortParameters | None = None
@@ -216,6 +245,7 @@ class TransformationInput(BaseModel):
 
 class BasicQueryResponse(BaseModel):
     """Response for transformation operations."""
+
     project_id: uuid.UUID
     operation_type: str
     row_count: int
@@ -225,6 +255,7 @@ class BasicQueryResponse(BaseModel):
 
 class ProjectResponse(BaseModel):
     """Response for project CRUD operations."""
+
     filename: str
     file_path: str
     project_id: uuid.UUID
@@ -236,8 +267,10 @@ class ProjectResponse(BaseModel):
 
 # --- Other response schemas ---
 
+
 class CheckpointResponse(BaseModel):
     """Response for checkpoint queries."""
+
     id: uuid.UUID
     message: str
     created_at: datetime.datetime
@@ -245,6 +278,7 @@ class CheckpointResponse(BaseModel):
 
 class LogResponse(BaseModel):
     """Response for change log entries."""
+
     id: int
     action_type: str
     action_details: dict
@@ -255,6 +289,7 @@ class LogResponse(BaseModel):
 
 class LastResponse(BaseModel):
     """Response for recently modified projects."""
+
     project_id: uuid.UUID
     name: str
     description: str | None
@@ -266,8 +301,10 @@ class LastResponse(BaseModel):
 
 # --- Profiling schemas ---
 
+
 class NumericStatsSchema(BaseModel):
     """Statistics for a numeric column."""
+
     mean: float | None = None
     median: float | None = None
     std: float | None = None
@@ -280,18 +317,21 @@ class NumericStatsSchema(BaseModel):
 
 class FrequentValueSchema(BaseModel):
     """A value and its occurrence count."""
+
     value: str
     count: int
 
 
 class CategoricalStatsSchema(BaseModel):
     """Statistics for a categorical column."""
+
     top_values: list[FrequentValueSchema] = []
     mode: str | None = None
 
 
 class ColumnProfileSchema(BaseModel):
     """Profile for a single column."""
+
     name: str
     dtype: str
     missing_count: int
@@ -303,6 +343,7 @@ class ColumnProfileSchema(BaseModel):
 
 class DatasetSummarySchema(BaseModel):
     """Dataset-level summary metrics."""
+
     row_count: int
     column_count: int
     missing_count: int
@@ -312,5 +353,6 @@ class DatasetSummarySchema(BaseModel):
 
 class ProfileResponse(BaseModel):
     """Full profile response for a project."""
+
     summary: DatasetSummarySchema
     columns: list[ColumnProfileSchema]

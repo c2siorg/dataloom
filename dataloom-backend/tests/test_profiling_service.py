@@ -16,12 +16,14 @@ from app.services.profiling_service import (
 @pytest.fixture
 def sample_df():
     """Create a sample DataFrame with mixed column types."""
-    return pd.DataFrame({
-        "age": [25, 30, 35, 40, 45],
-        "name": ["Alice", "Bob", "Charlie", "Alice", "Bob"],
-        "active": [True, False, True, True, False],
-        "joined": pd.to_datetime(["2020-01-01", "2021-06-15", "2022-03-10", "2023-01-01", "2024-05-20"]),
-    })
+    return pd.DataFrame(
+        {
+            "age": [25, 30, 35, 40, 45],
+            "name": ["Alice", "Bob", "Charlie", "Alice", "Bob"],
+            "active": [True, False, True, True, False],
+            "joined": pd.to_datetime(["2020-01-01", "2021-06-15", "2022-03-10", "2023-01-01", "2024-05-20"]),
+        }
+    )
 
 
 class TestClassifyColumn:

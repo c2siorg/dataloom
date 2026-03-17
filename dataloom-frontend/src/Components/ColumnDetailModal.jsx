@@ -87,7 +87,10 @@ const CategoricalDetailStats = ({ stats }) => {
         </div>
       )}
 
-      <div data-testid="categorical-detail-mode" className="flex justify-between px-4 py-2 text-sm bg-gray-50 rounded-lg">
+      <div
+        data-testid="categorical-detail-mode"
+        className="flex justify-between px-4 py-2 text-sm bg-gray-50 rounded-lg"
+      >
         <span className="text-gray-600">Mode</span>
         <span className="font-medium text-gray-900">{stats.mode ?? "N/A"}</span>
       </div>
@@ -101,7 +104,7 @@ CategoricalDetailStats.propTypes = {
       PropTypes.shape({
         value: PropTypes.string.isRequired,
         count: PropTypes.number.isRequired,
-      })
+      }),
     ),
     mode: PropTypes.string,
   }).isRequired,
@@ -125,8 +128,7 @@ const ColumnDetailModal = ({ columnProfile, onClose }) => {
 
   if (!columnProfile) return null;
 
-  const badgeColor =
-    dtypeBadgeColors[columnProfile.dtype] || "bg-gray-100 text-gray-700";
+  const badgeColor = dtypeBadgeColors[columnProfile.dtype] || "bg-gray-100 text-gray-700";
 
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) onClose();
@@ -147,10 +149,7 @@ const ColumnDetailModal = ({ columnProfile, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div className="flex items-center gap-2">
-            <h2
-              data-testid="column-detail-name"
-              className="text-lg font-semibold text-gray-900"
-            >
+            <h2 data-testid="column-detail-name" className="text-lg font-semibold text-gray-900">
               {columnProfile.name}
             </h2>
             <span
@@ -176,7 +175,8 @@ const ColumnDetailModal = ({ columnProfile, onClose }) => {
             <div className="bg-gray-50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-500">Missing</div>
               <div className="text-sm font-semibold text-gray-800">
-                {columnProfile.missing_count.toLocaleString()} ({columnProfile.missing_percentage.toFixed(1)}%)
+                {columnProfile.missing_count.toLocaleString()} (
+                {columnProfile.missing_percentage.toFixed(1)}%)
               </div>
             </div>
             <div className="bg-gray-50 rounded-lg p-3 text-center">
@@ -187,9 +187,7 @@ const ColumnDetailModal = ({ columnProfile, onClose }) => {
             </div>
             <div className="bg-gray-50 rounded-lg p-3 text-center">
               <div className="text-xs text-gray-500">Type</div>
-              <div className="text-sm font-semibold text-gray-800">
-                {columnProfile.dtype}
-              </div>
+              <div className="text-sm font-semibold text-gray-800">{columnProfile.dtype}</div>
             </div>
           </div>
 
@@ -228,7 +226,7 @@ ColumnDetailModal.propTypes = {
         PropTypes.shape({
           value: PropTypes.string.isRequired,
           count: PropTypes.number.isRequired,
-        })
+        }),
       ),
       mode: PropTypes.string,
     }),

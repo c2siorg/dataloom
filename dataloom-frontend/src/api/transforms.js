@@ -22,6 +22,9 @@ export const transformProject = async (projectId, transformationInput) => {
  * @returns {Promise<Object>} Transformation result.
  */
 export const complexTransformProject = async (projectId, transformationInput) => {
-  const response = await client.post(`/projects/${projectId}/Complextransform`, transformationInput);
+  const response = await client.post(
+    `/projects/${projectId}/Complextransform`,
+    transformationInput,
+  );
   return response.data;
 };
