@@ -40,6 +40,7 @@ class OperationType(StrEnum):
     renameCol = "renameCol"
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
+    dropNa = "dropNa"
     melt = "melt"
     sample = "sample"
     stringReplace = "stringReplace"
@@ -195,6 +196,13 @@ class StringReplaceParams(BaseModel):
     column: str
     find_value: str
     replace_value: str
+
+    @field_validator("find_value")
+    @classmethod
+    def find_value_must_not_be_empty(cls, v: str) -> str:
+        if not v:
+            raise ValueError("find_value must not be empty")
+        return v
 
 
 # --- Complex transformation parameter schemas ---
