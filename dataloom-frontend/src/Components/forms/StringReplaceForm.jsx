@@ -27,13 +27,11 @@ const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
       });
 
       onTransform(response);
+      onClose();
     } catch (error) {
       console.error("Error replacing string:", error);
-
       showToast(error.response?.data?.detail || "Failed to replace string.", "error");
     }
-
-    onClose();
   };
 
   return (
