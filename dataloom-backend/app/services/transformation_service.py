@@ -343,6 +343,12 @@ def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
 
+    if not (pd.api.types.is_string_dtype(df[column]) or pd.api.types.is_object_dtype(df[column])):
+        raise TransformationError(
+            f"Column '{column}' is not a string column (dtype: {df[column].dtype}). "
+            "Cast it to string first before using string replace."
+        )
+
     df = df.copy()
     df[column] = df[column].astype(str).str.replace(find_value, replace_value, regex=False)
     return df
