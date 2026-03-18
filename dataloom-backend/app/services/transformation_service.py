@@ -591,9 +591,13 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         return melt_dataframe(df, params)
 
     elif action_type == "stringReplace":
-        column = action_details["string_replace_params"]["column"]
-        find_value = action_details["string_replace_params"]["find_value"]
-        replace_value = action_details["string_replace_params"]["replace_value"]
+        params = action_details.get("string_replace_params", {})
+        column = params.get("column")
+        find_value = params.get("find_value")
+        replace_value = params.get("replace_value")
+        if not column or find_value is None or replace_value is None:
+            logger.warning("Missing params for stringReplace replay: %s", action_details)
+            return df
         return string_replace(df, column, find_value, replace_value)
 
     else:
