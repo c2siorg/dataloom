@@ -5,40 +5,33 @@ import DataLoomLogo from "./common/DataLoomLogo";
 const Navbar = () => {
   const location = useLocation();
   const { projectName } = useProjectContext();
-  const isSmall = location.pathname.startsWith("/workspace/");
+  const isWorkspacePage = location.pathname.startsWith("/workspace/");
+  const displayProjectName = projectName || "Untitled Project";
 
   return (
     <header role="banner">
       <nav
         aria-label="Main navigation"
-        className={`bg-white border-b border-gray-200 flex p-4 transition-all duration-300 ${
-          isSmall ? "h-12" : "h-16"
-        }`}
+        className="bg-white border-b border-gray-200 flex items-center h-14 px-4 md:px-10"
       >
-        <div
-          className={`text-gray-900 font-semibold ${
-            isSmall ? "text-base" : "text-lg"
-          } flex items-center ml-4 md:ml-10`}
-        >
+        <div className="text-gray-900 font-semibold flex items-center">
           <Link to="/projects" className="flex items-center gap-2">
-            <DataLoomLogo className={isSmall ? "w-5 h-5" : "w-6 h-6"} />
-            DataLoom
+            <DataLoomLogo className="w-5 h-5" />
+            <span className="text-base">DataLoom</span>
           </Link>
         </div>
-        {isSmall && (
-          <div
-            className={`text-gray-700 font-medium ${
-              isSmall ? "text-base" : "text-lg"
-            } flex items-center ml-auto mr-4`}
-          >
-            {projectName || "Untitled Project"}
-          </div>
-        )}
-        <div className="ml-auto text-gray-500 items-end">
+        <div className="ml-auto flex items-center gap-2 min-w-0">
+          {isWorkspacePage && (
+            <div
+              className="text-gray-700 font-medium text-base min-w-0 max-w-[50vw] md:max-w-md mr-2 truncate"
+              title={displayProjectName}
+            >
+              {displayProjectName}
+            </div>
+          )}
           <button
-            className={`bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-150 ${
-              isSmall ? "py-1 px-3 text-sm" : "py-2 px-4"
-            }`}
+            type="button"
+            className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150"
           >
             Profile
           </button>
