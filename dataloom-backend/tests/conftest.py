@@ -1,4 +1,7 @@
-"""Test configuration and fixtures for the DataLoom backend tests."""
+import os
+
+# Set test environment variables before any app imports to avoid lru_cache issues
+os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 
 import csv
 
@@ -11,7 +14,6 @@ from app.main import app
 
 # Use SQLite for tests
 TEST_DATABASE_URL = "sqlite:///./test.db"
-
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 
 

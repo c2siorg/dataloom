@@ -8,6 +8,7 @@ Create Date: 2026-02-22 14:00:00.000000
 
 import csv
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -117,6 +118,7 @@ def upgrade() -> None:
     for sample in SAMPLE_PROJECTS:
         original_path = upload_dir / f"{sample['filename']}.csv"
         copy_path = upload_dir / f"{sample['filename']}_copy.csv"
+        now = datetime.now(UTC)
 
         _write_csv(original_path, sample["headers"], sample["rows"])
         _write_csv(copy_path, sample["headers"], sample["rows"])
@@ -124,13 +126,15 @@ def upgrade() -> None:
         bind.execute(
             sa.text(
                 "INSERT INTO projects (project_id, name, description, file_path, upload_date, last_modified)"
-                " VALUES (:project_id, :name, :description, :file_path, now(), now())"
+                " VALUES (:project_id, :name, :description, :file_path, :upload_date, :last_modified)"
             ),
             {
                 "project_id": sample["project_id"],
                 "name": sample["name"],
                 "description": sample["description"],
                 "file_path": str(copy_path),
+                "upload_date": now,
+                "last_modified": now,
             },
         )
 

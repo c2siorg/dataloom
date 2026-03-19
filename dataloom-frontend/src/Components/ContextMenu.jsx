@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import PropTypes from "prop-types";
-const ContextMenu = ({ isOpen, position, contextData, onClose, actions }) => {
+const ContextMenu = ({
+  isOpen,
+  position,
+  contextData,
+  onClose,
+  actions,
+  "data-testid": dataTestId,
+}) => {
   const menuRef = useRef(null);
 
   const [adjustedPosition, setAdjustedPosition] = useState(position);
@@ -67,6 +74,7 @@ const ContextMenu = ({ isOpen, position, contextData, onClose, actions }) => {
       ref={menuRef}
       role="menu"
       aria-label="Context menu"
+      data-testid={dataTestId}
       className="fixed bg-white border border-gray-200 rounded-lg shadow-lg p-1 z-50"
       style={{
         top: adjustedPosition.y,
@@ -91,6 +99,7 @@ ContextMenu.propTypes = {
   contextData: PropTypes.object,
   onClose: PropTypes.func.isRequired,
   actions: PropTypes.func.isRequired,
+  "data-testid": PropTypes.string,
 };
 
 export default ContextMenu;

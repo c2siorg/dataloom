@@ -19,8 +19,72 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _bootstrap_fresh_schema() -> None:
+    """Create base UUID schema for fresh databases."""
+    bind = op.get_bind()
+    uuid_default = sa.text("gen_random_uuid()") if bind.dialect.name == "postgresql" else None
+
+    op.create_table(
+        "datasets",
+        sa.Column("dataset_id", sa.Uuid(), nullable=False, server_default=uuid_default),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("description", sa.String(), nullable=True),
+        sa.Column("upload_date", sa.DateTime(), nullable=True, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("last_modified", sa.DateTime(), nullable=True, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("file_path", sa.String(), nullable=False),
+        sa.PrimaryKeyConstraint("dataset_id"),
+    )
+
+    op.create_table(
+        "checkpoints",
+        sa.Column("id", sa.Uuid(), nullable=False, server_default=uuid_default),
+        sa.Column("dataset_id", sa.Uuid(), nullable=False),
+        sa.Column("message", sa.String(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=True, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.ForeignKeyConstraint(
+            ["dataset_id"],
+            ["datasets.dataset_id"],
+            name=op.f("checkpoints_dataset_id_fkey"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "user_logs",
+        sa.Column("change_log_id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("dataset_id", sa.Uuid(), nullable=False),
+        sa.Column("action_type", sa.String(length=50), nullable=False),
+        sa.Column("action_details", sa.JSON(), nullable=False),
+        sa.Column("timestamp", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("checkpoint_id", sa.Uuid(), nullable=True),
+        sa.Column("applied", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.ForeignKeyConstraint(
+            ["checkpoint_id"],
+            ["checkpoints.id"],
+            name=op.f("user_logs_checkpoint_id_fkey"),
+            ondelete="SET NULL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["dataset_id"],
+            ["datasets.dataset_id"],
+            name=op.f("user_logs_dataset_id_fkey"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("change_log_id"),
+    )
+
+    op.create_index(op.f("ix_checkpoints_id"), "checkpoints", ["id"], unique=False)
+    op.create_index(op.f("ix_datasets_dataset_id"), "datasets", ["dataset_id"], unique=False)
+
+
 def upgrade() -> None:
     """Upgrade schema."""
+    inspector = sa.inspect(op.get_bind())
+    if not inspector.has_table("datasets"):
+        _bootstrap_fresh_schema()
+        return
+
     # Step 1: Drop all foreign keys that reference columns being altered
     op.drop_constraint(op.f("checkpoints_dataset_id_fkey"), "checkpoints", type_="foreignkey")
     op.drop_constraint(op.f("user_logs_dataset_id_fkey"), "user_logs", type_="foreignkey")

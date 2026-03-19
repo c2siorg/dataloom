@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.endpoints import projects, transformations, user_logs
 from app.config import get_settings
+from app.database import init_sqlite_schema
 from app.exceptions import AppException, app_exception_handler
 from app.services.transformation_service import TransformationError
 from app.utils.logging import get_logger, setup_logging
@@ -22,16 +23,21 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app):
     """Application startup/shutdown lifecycle."""
-    from alembic.config import Config
-
-    from alembic import command
-
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
-
     settings = get_settings()
     setup_logging(settings.debug)
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+
+    # Use Alembic for non-SQLite databases; initialize SQLite from ORM metadata.
+    if not settings.database_url.startswith("sqlite"):
+        from alembic.config import Config
+
+        from alembic import command
+
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+    else:
+        init_sqlite_schema()
+        logger.info("Initialized SQLite schema via SQLModel metadata")
 
     logger.info("DataLoom backend starting (debug=%s)", settings.debug)
     yield

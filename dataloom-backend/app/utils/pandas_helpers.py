@@ -7,24 +7,35 @@ import pandas as pd
 from fastapi import HTTPException
 
 
-def read_csv_safe(path: Path) -> pd.DataFrame:
-    """Read a CSV file safely with error handling.
+def read_file_safe(path: str | Path) -> pd.DataFrame:
+    """Read a CSV, JSON, or Excel file safely with error handling based on extension.
 
     Args:
-        path: Path to the CSV file.
+        path: Path to the data file.
 
     Returns:
-        DataFrame with the CSV contents.
+        DataFrame with the file contents.
 
     Raises:
-        HTTPException: If the file cannot be read.
+        HTTPException: If the file cannot be read or format is unsupported.
     """
+    path = Path(path)
     try:
-        return pd.read_csv(path)
+        ext = path.suffix.lower()
+        if ext == ".csv":
+            return pd.read_csv(path)
+        elif ext == ".json":
+            return pd.read_json(path)
+        elif ext in [".xlsx", ".xls"]:
+            return pd.read_excel(path)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported file format: {ext}")
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"CSV file not found: {path}") from None
+        raise HTTPException(status_code=404, detail=f"File not found: {path}") from None
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Error reading file {path.name}: {str(e)}") from e
 
 
 def save_csv_safe(df: pd.DataFrame, path: Path) -> None:

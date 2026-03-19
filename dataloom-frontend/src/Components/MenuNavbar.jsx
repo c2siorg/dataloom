@@ -266,6 +266,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         {Object.keys(tabs).map((tabName) => (
           <button
             key={tabName}
+            data-testid={`tab-${tabName.toLowerCase()}`}
             onClick={() => setActiveTab(tabName)}
             className={`px-4 py-1.5 text-sm font-medium ${
               activeTab === tabName
@@ -289,6 +290,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
                   return (
                     <button
                       key={item.label}
+                      data-testid={`toolbar-${item.label.toLowerCase().replace(/ /g, "-")}`}
                       onClick={item.onClick}
                       className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md ${
                         isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
