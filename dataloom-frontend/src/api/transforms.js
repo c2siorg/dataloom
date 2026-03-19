@@ -14,3 +14,17 @@ export const transformProject = async (projectId, transformationInput) => {
   const response = await client.post(`/projects/${projectId}/transform`, transformationInput);
   return response.data;
 };
+
+/**
+ * Apply a groupby aggregation transformation.
+ * @param {string} projectId - The project ID.
+ * @param {Object} params - GroupBy parameters.
+ * @returns {Promise<Object>} Aggregated result.
+ */
+export const groupByTransform = async (projectId, params) => {
+  const response = await client.post(`/projects/${projectId}/transform`, {
+    operation_type: "groupby",
+    groupby_params: params,
+  });
+  return response.data;
+};
