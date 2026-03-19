@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
-COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables", "dropNa", "melt"}
+COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables", "dropNa", "melt", "groupby"}
 
 
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
@@ -136,6 +136,12 @@ def _handle_complex_transform(df, transformation_input, project, db, project_id)
         if not transformation_input.melt_params:
             raise HTTPException(status_code=400, detail="Melt parameters required")
         return ts.melt_dataframe(df, transformation_input.melt_params), False
+
+    elif op == "groupby":
+        if not transformation_input.groupby_params:
+            raise HTTPException(status_code=400, detail="GroupBy parameters required")
+        p = transformation_input.groupby_params
+        return ts.group_by(df, p.columns, p.agg_column, p.agg_function), True
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")

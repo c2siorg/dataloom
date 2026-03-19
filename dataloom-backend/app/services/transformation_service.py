@@ -479,6 +479,37 @@ def melt_dataframe(df: pd.DataFrame, params: MeltParams | dict) -> pd.DataFrame:
         raise TransformationError(f"Melt operation failed: {str(e)}") from e
 
 
+def group_by(df: pd.DataFrame, columns: list[str], agg_column: str, agg_function: str) -> pd.DataFrame:
+    """Group DataFrame by columns and apply aggregation.
+
+    Args:
+        df: Source DataFrame.
+        columns: List of column names to group by.
+        agg_column: Column to aggregate.
+        agg_function: One of sum, mean, count, min, max, median.
+
+    Returns:
+        Aggregated DataFrame with flat structure.
+
+    Raises:
+        TransformationError: If columns not found or invalid function.
+    """
+    all_cols = columns + [agg_column]
+    missing = [c for c in all_cols if c not in df.columns]
+    if missing:
+        raise TransformationError(f"Columns {missing} not found in dataset")
+
+    valid_functions = {"sum", "mean", "count", "min", "max", "median"}
+    if agg_function not in valid_functions:
+        raise TransformationError(f"Unsupported aggregation function: {agg_function}. Use: {valid_functions}")
+
+    result = df.groupby(columns, as_index=False)[agg_column].agg(agg_function)
+    result.columns = [str(c) for c in result.columns]
+    for col in result.select_dtypes(include=["float"]).columns:
+        result[col] = result[col].round(2)
+    return result
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
@@ -553,6 +584,10 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == "melt":
         params = action_details["melt_params"]
         return melt_dataframe(df, params)
+
+    elif action_type == "groupby":
+        params = action_details["groupby_params"]
+        return group_by(df, params["columns"], params["agg_column"], params["agg_function"])
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
