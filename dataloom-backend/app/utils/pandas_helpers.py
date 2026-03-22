@@ -1,5 +1,6 @@
 """Pandas utility functions for safe CSV operations and response building."""
 
+import math
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +61,36 @@ def _map_dtype(dtype) -> str:
         return "unknown"
 
 
+def _normalize_response_value(value: Any) -> Any:
+    """Normalize a DataFrame cell for JSON response serialization.
+
+    Preserves real empty strings while converting missing or non-finite
+    values to ``None`` so the API can distinguish ``null`` from ``""``.
+    """
+    if value is None:
+        return None
+
+    try:
+        missing = pd.isna(value)
+        # pd.isna can return array-like values for non-scalar inputs
+        # (for example, lists). Only treat scalar truthy results as missing.
+        if isinstance(missing, bool):
+            if missing:
+                return None
+        elif getattr(missing, "ndim", None) == 0 and bool(missing):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    try:
+        if math.isinf(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    return value
+
+
 def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
     """Convert a DataFrame to an API response dict.
 
@@ -70,10 +101,8 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
         Dict with columns (list of str), rows (list of lists), row_count, and dtypes.
     """
     dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
-    df = df.fillna("")
-    df = df.replace([float("inf"), float("-inf")], "")
     columns = df.columns.tolist()
-    rows = df.values.tolist()
+    rows = [[_normalize_response_value(value) for value in row] for row in df.astype(object).values.tolist()]
     return {"columns": columns, "rows": rows, "row_count": len(rows), "dtypes": dtypes}
 
 
