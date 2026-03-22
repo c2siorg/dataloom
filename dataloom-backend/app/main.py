@@ -22,12 +22,6 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app):
     """Application startup/shutdown lifecycle."""
-    from alembic.config import Config
-
-    from alembic import command
-
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
 
     settings = get_settings()
     setup_logging(settings.debug)

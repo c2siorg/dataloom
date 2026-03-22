@@ -61,25 +61,44 @@ def validate_upload_file(file: UploadFile) -> None:
     """
     settings = get_settings()
 
+    ## step 1: validate filename
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    ext = Path(file.filename).suffix.lower()
+
     # Check file extension
     ext = Path(file.filename).suffix.lower()
+
     if ext not in settings.allowed_extensions:
         raise HTTPException(
             status_code=400, detail=f"File type '{ext}' not allowed. Allowed: {settings.allowed_extensions}"
         )
 
     # Check file size by reading content
-    contents = file.file.read()
-    size = len(contents)
-    file.file.seek(0)  # Reset so downstream can read the file
+    max_size = settings.max_upload_size_bytes
+    size = 0
+    chunk_size = 1024 * 1024  ## 1 MB
 
-    if size > settings.max_upload_size_bytes:
-        max_human = _format_size(settings.max_upload_size_bytes)
-        actual_human = _format_size(size)
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large: {actual_human}. Maximum allowed size is {max_human}.",
-        )
+    file.file.seek(0)
+
+    while True:
+        chunk = file.file.read(chunk_size)
+        if not chunk:
+            break
+
+        size += len(chunk)
+
+        if size > max_size:
+            file.file.seek(0)
+
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large: {size} bytes. Max allowed is {max_size} bytes ({_format_size(max_size)})",
+            )
+
+    file.file.seek(0)
 
 
 def resolve_upload_path(filename: str) -> Path:
