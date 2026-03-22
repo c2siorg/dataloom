@@ -3,13 +3,20 @@ services:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_DB: dataloom
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      # Host port changed from 5432 to 5433 to avoid conflict with local Postgres.
+      # Update your DB client connection profiles and any local .env files.
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build: dataloom-backend
@@ -17,9 +24,13 @@ services:
     ports:
       - "4200:4200"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/dataloom
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   frontend:
     build: dataloom-frontend
@@ -31,3 +42,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

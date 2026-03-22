@@ -26,14 +26,20 @@ async def lifespan(app):
 
     from alembic import command
 
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
 
-    settings = get_settings()
-    setup_logging(settings.debug)
-    Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+        settings = get_settings()
+        setup_logging(settings.debug)
+        Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 
-    logger.info("DataLoom backend starting (debug=%s)", settings.debug)
+        logger.info("DataLoom backend starting (debug=%s)", settings.debug)
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        raise e
     yield
     logger.info("DataLoom backend shutting down")
 

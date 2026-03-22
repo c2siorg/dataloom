@@ -16,7 +16,7 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 COPY --from=builder /app/.venv /app/.venv
 COPY . .
 
-RUN chown -R appuser:appuser /app
+RUN mkdir -p /app/uploads && chown -R appuser:appuser /app
 
 ENV PATH="/app/.venv/bin:$PATH"
 
@@ -24,4 +24,5 @@ EXPOSE 4200
 
 USER appuser
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4200"]
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4200"]
+
