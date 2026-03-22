@@ -19,6 +19,9 @@ class UserCreate(fapi_schemas.BaseUserCreate):
     """User registration schema."""
 
 
+# TODO: UserUpdate is defined but not wired into any router.
+# Add fastapi_users.get_users_router(UserRead, UserUpdate) to enable
+# email/password changes. Until then, users have no self-service update flow.
 class UserUpdate(fapi_schemas.BaseUserUpdate):
     """User update schema."""
 
@@ -198,7 +201,9 @@ class DropNaParams(BaseModel):
     @classmethod
     def columns_must_not_be_empty(cls, v):
         if v is not None and len(v) == 0:
-            raise ValueError("columns list must not be empty; omit the field to drop rows with any NaN")
+            raise ValueError(
+                "columns list must not be empty; omit the field to drop rows with any NaN"
+            )
         return v
 
 
