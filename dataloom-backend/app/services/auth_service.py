@@ -49,7 +49,7 @@ cookie_transport = CookieTransport(
     cookie_max_age=settings.auth_token_lifetime_seconds,
     cookie_secure=settings.auth_cookie_secure and not settings.testing,
     cookie_httponly=True,
-    cookie_samesite="lax",
+    cookie_samesite="strict",
 )
 
 
