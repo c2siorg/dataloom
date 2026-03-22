@@ -23,7 +23,8 @@ import {
   undoLastTransformation,
 } from "../api";
 import proptype from "prop-types";
-
+import SampleRowsForm from "./forms/SampleRowsForm";
+import { LuDice5 } from "react-icons/lu";
 import {
   LuFilter,
   LuArrowUpDown,
@@ -54,6 +55,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
   const [showMeltForm, setShowMeltForm] = useState(false);
+  const [showSampleRowsForm, setShowSampleRowsForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -175,9 +177,11 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       setShowLogs(false);
       setShowCheckpoints(false);
       setShowGroupByForm(false);
+      setShowSampleRowsForm(false);
       return;
     }
 
+    setShowSampleRowsForm(false);
     setShowFilterForm(false);
     setShowSortForm(false);
     setShowDropDuplicateForm(false);
@@ -226,6 +230,10 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       case "GroupByForm":
         setShowGroupByForm(true);
         break;
+      case "SampleRowsForm":
+        setShowSampleRowsForm(true);
+        break;
+
       default:
         break;
     }
@@ -270,6 +278,12 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             icon: LuFilter,
             formType: "FilterForm",
             onClick: () => handleMenuClick("FilterForm"),
+          },
+          {
+            label: "Sample",
+            icon: LuDice5,
+            formType: "SampleRowsForm",
+            onClick: () => handleMenuClick("SampleRowsForm"),
           },
           {
             label: "Sort",
@@ -471,6 +485,16 @@ const MenuNavbar = ({ projectId, onTransform }) => {
           projectId={projectId}
           onClose={() => {
             setShowGroupByForm(false);
+            setActiveForm(null);
+          }}
+          onTransform={onTransform}
+        />
+      )}
+      {showSampleRowsForm && (
+        <SampleRowsForm
+          projectId={projectId}
+          onClose={() => {
+            setShowSampleRowsForm(false);
             setActiveForm(null);
           }}
           onTransform={onTransform}
