@@ -88,6 +88,8 @@ user_db_dependency = Depends(get_user_db)
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     """User lifecycle hooks and password validation."""
 
+    # TODO: Wire up password reset and email verification flows end-to-end.
+
     reset_password_token_secret = settings.auth_secret.get_secret_value()
     verification_token_secret = settings.auth_secret.get_secret_value()
 
