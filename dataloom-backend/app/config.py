@@ -6,7 +6,7 @@ Provides a cached get_settings() function for efficient access throughout the ap
 
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3200"]
     debug: bool = False
     testing: bool = False
+
+    @field_validator("auth_secret")
+    @classmethod
+    def validate_secret_length(cls, v: SecretStr) -> SecretStr:
+        if len(v.get_secret_value()) < 32:
+            raise ValueError("AUTH_SECRET must be at least 32 characters")
+        return v
 
     model_config = {
         "env_file": ".env",
