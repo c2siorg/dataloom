@@ -23,8 +23,8 @@ class TestValidateUploadFile:
         # Should not raise
         validate_upload_file(file)
 
-    def test_non_csv_rejected(self):
-        file = MockUploadFile("data.xlsx")
+    def test_unsupported_extension_rejected(self):
+        file = MockUploadFile("data.xml")
         with pytest.raises(HTTPException, match="not allowed"):
             validate_upload_file(file)
 

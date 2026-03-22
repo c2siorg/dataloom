@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.endpoints import projects, transformations, user_logs
+from app.api.endpoints import projects, quality, transformations, user_logs
 from app.config import get_settings
 from app.exceptions import AppException, app_exception_handler
 from app.services.transformation_service import TransformationError
@@ -59,6 +59,7 @@ app.add_exception_handler(AppException, app_exception_handler)
 app.include_router(projects.router, prefix="/projects", tags=["projects"])
 app.include_router(transformations.router, prefix="/projects", tags=["transformations"])
 app.include_router(user_logs.router, prefix="/logs", tags=["user_logs"])
+app.include_router(quality.router, prefix="/projects", tags=["quality"])
 
 if __name__ == "__main__":
     import uvicorn
