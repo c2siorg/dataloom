@@ -20,7 +20,8 @@ def read_csv_safe(path: Path) -> pd.DataFrame:
         HTTPException: If the file cannot be read.
     """
     try:
-        return pd.read_csv(path)
+        return pd.read_csv(path,on_bad_lines="error",engine="python",quoting=3)
+    
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"CSV file not found: {path}") from None
     except Exception as e:
