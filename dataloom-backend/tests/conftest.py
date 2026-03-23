@@ -43,6 +43,7 @@ def db():
 @pytest.fixture
 def client(db):
     """Provide a FastAPI test client with SQLite and no Alembic migration."""
+
     def override_get_db():
         try:
             yield db
@@ -79,6 +80,7 @@ def upload_dir(tmp_path):
 
 # ── upload helpers ────────────────────────────────────────────────────────────
 
+
 def _upload_csv(client, rows: list[dict], name: str = "test") -> dict:
     """Helper: upload a CSV dataset and return the response JSON."""
     if not rows:
@@ -104,7 +106,7 @@ def uploaded_csv_project(client):
     """Upload a clean CSV dataset (no nulls, no duplicates)."""
     rows = [
         {"name": "Alice", "score": 90, "city": "Delhi"},
-        {"name": "Bob",   "score": 85, "city": "Mumbai"},
+        {"name": "Bob", "score": 85, "city": "Mumbai"},
         {"name": "Carol", "score": 92, "city": "Pune"},
     ]
     return _upload_csv(client, rows, name="clean_data")
@@ -128,7 +130,7 @@ def uploaded_duplicate_project(client):
     """Upload a CSV that contains duplicate rows."""
     rows = [
         {"name": "Alice", "score": 90},
-        {"name": "Bob",   "score": 85},
+        {"name": "Bob", "score": 85},
         {"name": "Alice", "score": 90},  # exact duplicate
         {"name": "Alice", "score": 90},  # exact duplicate again
     ]
@@ -152,11 +154,13 @@ def uploaded_nulls_project(client):
 def uploaded_xlsx_project(client):
     """Upload an Excel dataset."""
     buf = BytesIO()
-    pd.DataFrame({
-        "product": ["Widget", "Gadget", "Doohickey"],
-        "units":   [100, 200, 150],
-        "price":   [9.99, 19.99, 4.99],
-    }).to_excel(buf, index=False)
+    pd.DataFrame(
+        {
+            "product": ["Widget", "Gadget", "Doohickey"],
+            "units": [100, 200, 150],
+            "price": [9.99, 19.99, 4.99],
+        }
+    ).to_excel(buf, index=False)
     buf.seek(0)
 
     resp = client.post(

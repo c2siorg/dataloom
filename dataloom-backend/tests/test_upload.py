@@ -20,6 +20,7 @@ class MockUploadFile:
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+
 def _make_xlsx_bytes() -> bytes:
     """Create a minimal valid xlsx file in memory."""
     buf = BytesIO()
@@ -37,6 +38,7 @@ def _make_parquet_bytes() -> bytes:
 
 
 # ── extension validation ──────────────────────────────────────────────────────
+
 
 class TestValidateUploadFile:
     def test_csv_accepted(self):
@@ -103,9 +105,7 @@ class TestValidateUploadFile:
         content = b"x" * max_size
         file = MockUploadFile("data.csv", content=content)
         with patch("app.utils.security.get_settings") as mock_settings:
-            mock_settings.return_value.allowed_extensions = [
-                ".csv", ".tsv", ".xlsx", ".xls", ".json", ".parquet"
-            ]
+            mock_settings.return_value.allowed_extensions = [".csv", ".tsv", ".xlsx", ".xls", ".json", ".parquet"]
             mock_settings.return_value.max_upload_size_bytes = max_size
             validate_upload_file(file)  # should not raise
 
@@ -115,9 +115,7 @@ class TestValidateUploadFile:
         content = b"x" * (max_size + 1)
         file = MockUploadFile("data.csv", content=content)
         with patch("app.utils.security.get_settings") as mock_settings:
-            mock_settings.return_value.allowed_extensions = [
-                ".csv", ".tsv", ".xlsx", ".xls", ".json", ".parquet"
-            ]
+            mock_settings.return_value.allowed_extensions = [".csv", ".tsv", ".xlsx", ".xls", ".json", ".parquet"]
             mock_settings.return_value.max_upload_size_bytes = max_size
             with pytest.raises(HTTPException) as exc_info:
                 validate_upload_file(file)
@@ -143,9 +141,7 @@ class TestValidateUploadFile:
         content = b"x" * (max_size + 1_048_576)  # ~6 MB
         file = MockUploadFile("data.csv", content=content)
         with patch("app.utils.security.get_settings") as mock_settings:
-            mock_settings.return_value.allowed_extensions = [
-                ".csv", ".tsv", ".xlsx", ".xls", ".json", ".parquet"
-            ]
+            mock_settings.return_value.allowed_extensions = [".csv", ".tsv", ".xlsx", ".xls", ".json", ".parquet"]
             mock_settings.return_value.max_upload_size_bytes = max_size
             with pytest.raises(HTTPException) as exc_info:
                 validate_upload_file(file)
@@ -153,6 +149,7 @@ class TestValidateUploadFile:
 
 
 # ── profiling endpoint ────────────────────────────────────────────────────────
+
 
 class TestProfilingEndpoint:
     """Integration-style tests for GET /projects/{id}/profile."""
@@ -163,8 +160,7 @@ class TestProfilingEndpoint:
         resp = client.get(f"/projects/{pid}/profile")
         assert resp.status_code == 200
         data = resp.json()
-        for key in ("project_id", "total_rows", "total_columns",
-                    "duplicate_rows", "quality_score", "columns"):
+        for key in ("project_id", "total_rows", "total_columns", "duplicate_rows", "quality_score", "columns"):
             assert key in data, f"Missing key: {key}"
 
     def test_quality_score_range(self, client, uploaded_csv_project):
@@ -193,10 +189,7 @@ class TestProfilingEndpoint:
         """Numeric columns must include mean, std, min, max, and quartiles."""
         pid = uploaded_numeric_project["project_id"]
         resp = client.get(f"/projects/{pid}/profile")
-        numeric_cols = [
-            c for c in resp.json()["columns"]
-            if c["dtype"] in ("int", "float")
-        ]
+        numeric_cols = [c for c in resp.json()["columns"] if c["dtype"] in ("int", "float")]
         assert len(numeric_cols) > 0, "Expected at least one numeric column"
         for col in numeric_cols:
             for stat in ("mean", "std", "min", "p25", "p50", "p75", "max"):
@@ -205,6 +198,7 @@ class TestProfilingEndpoint:
     def test_profile_nonexistent_project_returns_404(self, client):
         """Profile of a nonexistent project must return 404."""
         import uuid
+
         fake_id = uuid.uuid4()
         resp = client.get(f"/projects/{fake_id}/profile")
         assert resp.status_code == 404
@@ -218,6 +212,7 @@ class TestProfilingEndpoint:
 
 
 # ── format size helper ────────────────────────────────────────────────────────
+
 
 class TestFormatSize:
     def test_bytes(self):
