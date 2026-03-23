@@ -60,18 +60,22 @@ def anonymous_client(db):
     app.dependency_overrides.clear()
 
 
-def _register_and_login(client: TestClient, email: str, password: str) -> None:
-    register_response = client.post("/auth/register", json={"email": email, "password": password})
+def register_and_login(client: TestClient, email: str, password: str) -> None:
+    register_response = client.post(
+        "/auth/register", json={"email": email, "password": password}
+    )
     assert register_response.status_code == 201, register_response.text
 
-    login_response = client.post("/auth/jwt/login", data={"username": email, "password": password})
+    login_response = client.post(
+        "/auth/jwt/login", data={"username": email, "password": password}
+    )
     assert login_response.status_code == 204, login_response.text
 
 
 @pytest.fixture
 def client(anonymous_client):
     """Provide an authenticated test client for project endpoints."""
-    _register_and_login(anonymous_client, "test@example.com", "StrongPass123!")
+    register_and_login(anonymous_client, "test@example.com", "StrongPass123!")
     return anonymous_client
 
 
