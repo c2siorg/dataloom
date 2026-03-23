@@ -34,8 +34,7 @@ def store_upload(file) -> tuple[Path, Path]:
 
     if suffix not in SUPPORTED_FORMATS:
         raise ValueError(
-            f"Unsupported file format '{suffix}'. "
-            f"Supported formats: {', '.join(sorted(SUPPORTED_FORMATS))}"
+            f"Unsupported file format '{suffix}'. Supported formats: {', '.join(sorted(SUPPORTED_FORMATS))}"
         )
 
     original_path = resolve_upload_path(safe_name)

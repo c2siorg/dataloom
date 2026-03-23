@@ -10,8 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-
-from app.api.endpoints import projects, transformations, user_logs,profiling
+from app.api.endpoints import profiling, projects, transformations, user_logs
 from app.config import get_settings
 from app.exceptions import AppException, app_exception_handler
 from app.services.transformation_service import TransformationError

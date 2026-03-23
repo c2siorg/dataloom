@@ -93,6 +93,7 @@ def save_file_safe(df: pd.DataFrame, path: Path | str) -> None:
 
 # ── backward-compatible aliases so existing callers don't break ──────────────
 
+
 def read_csv_safe(path: Path | str) -> pd.DataFrame:
     """Backward-compatible alias for read_file_safe. Prefer read_file_safe."""
     return read_file_safe(path)
@@ -104,6 +105,7 @@ def save_csv_safe(df: pd.DataFrame, path: Path | str) -> None:
 
 
 # ── dtype helpers ────────────────────────────────────────────────────────────
+
 
 def _map_dtype(dtype) -> str:
     """Map a pandas dtype to a short label string."""
@@ -195,15 +197,17 @@ def get_column_profile(df: pd.DataFrame) -> list[dict[str, Any]]:
 
         if pd.api.types.is_numeric_dtype(series):
             desc = series.describe()
-            profile.update({
-                "mean": round(float(desc["mean"]), 4),
-                "std": round(float(desc["std"]), 4),
-                "min": round(float(desc["min"]), 4),
-                "p25": round(float(desc["25%"]), 4),
-                "p50": round(float(desc["50%"]), 4),
-                "p75": round(float(desc["75%"]), 4),
-                "max": round(float(desc["max"]), 4),
-            })
+            profile.update(
+                {
+                    "mean": round(float(desc["mean"]), 4),
+                    "std": round(float(desc["std"]), 4),
+                    "min": round(float(desc["min"]), 4),
+                    "p25": round(float(desc["25%"]), 4),
+                    "p50": round(float(desc["50%"]), 4),
+                    "p75": round(float(desc["75%"]), 4),
+                    "max": round(float(desc["max"]), 4),
+                }
+            )
 
         profiles.append(profile)
 
