@@ -44,10 +44,7 @@ def anonymous_client(db):
     """Provide a test client without an authenticated session."""
 
     def override_get_db():
-        try:
-            yield db
-        finally:
-            pass
+        yield db
 
     async def override_get_async_session():
         async with async_session_maker() as session:
