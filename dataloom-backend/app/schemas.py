@@ -201,9 +201,7 @@ class DropNaParams(BaseModel):
     @classmethod
     def columns_must_not_be_empty(cls, v):
         if v is not None and len(v) == 0:
-            raise ValueError(
-                "columns list must not be empty; omit the field to drop rows with any NaN"
-            )
+            raise ValueError("columns list must not be empty; omit the field to drop rows with any NaN")
         return v
 
 

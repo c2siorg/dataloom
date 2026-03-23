@@ -24,7 +24,6 @@ from app.models import User
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
-settings = get_settings()
 
 # --- Hashing ---
 
@@ -44,13 +43,15 @@ def validate_password_rules(password: str, email: str = "") -> None:
 
 # --- JWT / transport ---
 
+_settings = get_settings()
 cookie_transport = CookieTransport(
     cookie_name="dataloomauth",
-    cookie_max_age=settings.auth_token_lifetime_seconds,
-    cookie_secure=settings.auth_cookie_secure and not settings.testing,
+    cookie_max_age=_settings.auth_token_lifetime_seconds,
+    cookie_secure=_settings.auth_cookie_secure and not _settings.testing,
     cookie_httponly=True,
     cookie_samesite="strict",
 )
+del _settings
 
 
 def get_jwt_strategy() -> JWTStrategy:
@@ -90,8 +91,13 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
     # TODO: Wire up password reset and email verification flows end-to-end.
 
-    reset_password_token_secret = settings.auth_secret.get_secret_value()
-    verification_token_secret = settings.auth_secret.get_secret_value()
+    @property
+    def reset_password_token_secret(self) -> str:
+        return get_settings().auth_secret.get_secret_value()
+
+    @property
+    def verification_token_secret(self) -> str:
+        return get_settings().auth_secret.get_secret_value()
 
     async def validate_password(self, password: str, user: Any) -> None:
         """Enforce the application password rules."""
