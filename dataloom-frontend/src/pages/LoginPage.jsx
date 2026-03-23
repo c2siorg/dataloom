@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import AuthCard from "../Components/auth/AuthCard";
 import Button from "../Components/common/Button";
 import FormErrorAlert from "../Components/common/FormErrorAlert";
@@ -58,14 +58,9 @@ export default function LoginPage() {
         </div>
 
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <label className="block text-sm font-medium text-gray-700" htmlFor="password">
-              Password
-            </label>
-            <Link className="text-xs text-gray-400" to={ROUTES.register}>
-              New here?
-            </Link>
-          </div>
+          <label className="mb-2 block text-sm font-medium text-gray-700" htmlFor="password">
+            Password
+          </label>
           <input
             id="password"
             type="password"
