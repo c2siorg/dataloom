@@ -50,9 +50,8 @@ def client(db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
-    with patch("alembic.command.upgrade"):
-        with TestClient(app) as c:
-            yield c
+    with patch("alembic.command.upgrade"), TestClient(app) as c:
+        yield c
     app.dependency_overrides.clear()
 
 
