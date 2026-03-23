@@ -13,6 +13,7 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -36,13 +37,15 @@ export function AuthProvider({ children }) {
         const currentUser = await getCurrentUser();
         if (isActive) {
           setUser(currentUser);
+          setError(null);
         }
       } catch (error) {
-        if (isActive && error.response?.status === 401) {
-          setUser(null);
-        }
-        if (error.response?.status !== 401) {
-          console.error("Failed to restore auth session:", error);
+        if (isActive) {
+          if (error.response?.status === 401) {
+            setUser(null);
+          } else {
+            setError("Something went wrong. Please try again later.");
+          }
         }
       } finally {
         if (isActive) {
@@ -98,12 +101,13 @@ export function AuthProvider({ children }) {
       user,
       isLoading,
       isAuthenticated: Boolean(user),
+      error,
       refreshUser,
       signIn,
       register,
       signOut,
     }),
-    [isLoading, refreshUser, register, signIn, signOut, user],
+    [isLoading, refreshUser, register, signIn, signOut, error, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

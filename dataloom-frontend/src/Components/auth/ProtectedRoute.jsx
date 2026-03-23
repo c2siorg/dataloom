@@ -4,11 +4,20 @@ import { useAuth } from "../../context/AuthContext";
 import FullPageSpinner from "../common/FullPageSpinner";
 
 export default function ProtectedRoute() {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, error } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
     return <FullPageSpinner />;
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center" }}>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()}>Retry</button>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
