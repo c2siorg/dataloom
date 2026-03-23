@@ -18,9 +18,7 @@ def test_register_login_me_and_logout(anonymous_client):
 
 
 def test_register_rejects_short_password(anonymous_client):
-    response = anonymous_client.post(
-        "/auth/register", json={"email": "short@example.com", "password": "short"}
-    )
+    response = anonymous_client.post("/auth/register", json={"email": "short@example.com", "password": "short"})
 
     assert response.status_code == 400
     payload = response.json()

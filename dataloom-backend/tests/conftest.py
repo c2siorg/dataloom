@@ -58,14 +58,10 @@ def anonymous_client(db):
 
 
 def register_and_login(client: TestClient, email: str, password: str) -> None:
-    register_response = client.post(
-        "/auth/register", json={"email": email, "password": password}
-    )
+    register_response = client.post("/auth/register", json={"email": email, "password": password})
     assert register_response.status_code == 201, register_response.text
 
-    login_response = client.post(
-        "/auth/jwt/login", data={"username": email, "password": password}
-    )
+    login_response = client.post("/auth/jwt/login", data={"username": email, "password": password})
     assert login_response.status_code == 204, login_response.text
 
 
