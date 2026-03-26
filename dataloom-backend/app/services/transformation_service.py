@@ -196,6 +196,21 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
 
     # col_index is 1-based from frontend (accounting for S.No. column)
     column_name = df.columns[col_index - 1]
+
+    # Coerce the incoming value (always a string from JSON) to match the
+    # column's actual dtype so pandas doesn't reject it.
+    if value is not None and value != "":
+        col_dtype = df[column_name].dtype
+        try:
+            if pd.api.types.is_integer_dtype(col_dtype):
+                value = int(float(value))
+            elif pd.api.types.is_float_dtype(col_dtype):
+                value = float(value)
+            elif pd.api.types.is_bool_dtype(col_dtype):
+                value = str(value).strip().lower() in {"true", "1", "yes"}
+        except (ValueError, TypeError):
+            pass  # leave as-is; pandas will raise a clear error if incompatible
+
     df.at[row_index, column_name] = value
     return df
 
