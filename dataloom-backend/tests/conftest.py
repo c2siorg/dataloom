@@ -1,6 +1,7 @@
 """Test configuration and fixtures for the DataLoom backend tests."""
 
 import csv
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -41,7 +42,8 @@ def client(db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
+    # Patch alembic so the app lifespan doesn't try to connect to PostgreSQL
+    with patch("alembic.command.upgrade"), TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
 
