@@ -6,7 +6,7 @@ import { ADV_QUERY_FILTER } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
-const AdvQueryFilterForm = ({ projectId, onClose }) => {
+const AdvQueryFilterForm = ({ projectId, onClose, onTransform }) => {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -14,7 +14,6 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Query:", query);
     setLoading(true);
     clearError();
     try {
@@ -23,7 +22,8 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
         adv_query: { query },
       });
       setResult(response);
-      console.log("Query API response:", response);
+      onTransform(response);
+      onClose();
     } catch (err) {
       console.error("Error applying query:", err.message);
       handleError(err);
@@ -73,6 +73,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
 AdvQueryFilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default AdvQueryFilterForm;

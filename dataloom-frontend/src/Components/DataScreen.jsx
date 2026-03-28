@@ -6,7 +6,7 @@ import Table from "./Table";
 
 export default function DataScreen() {
   const { projectId } = useParams();
-  const { setProjectInfo, refreshProject } = useProjectContext();
+  const { setProjectInfo, refreshProject, updateData } = useProjectContext();
   const [tableData, setTableData] = useState(null);
 
   useEffect(() => {
@@ -18,6 +18,9 @@ export default function DataScreen() {
 
   const handleTransform = (data) => {
     setTableData(data);
+    if (data?.columns != null && data?.rows != null) {
+      updateData(data.columns, data.rows, data.dtypes);
+    }
   };
 
   return (

@@ -9,6 +9,7 @@ from app.services.transformation_service import (
     add_row,
     advanced_query,
     apply_filter,
+    apply_logged_transformation,
     apply_sort,
     change_cell_value,
     delete_column,
@@ -103,6 +104,46 @@ class TestDeleteRow:
     def test_delete_row_out_of_range(self, sample_df):
         with pytest.raises(TransformationError):
             delete_row(sample_df, 10)
+
+
+class TestApplyLoggedViewTransforms:
+    """Log replay for filter/sort/adv query/pivot (persisted view operations)."""
+
+    def test_replay_filter(self, sample_df):
+        details = {"parameters": {"column": "name", "condition": "=", "value": "Alice"}}
+        result = apply_logged_transformation(sample_df, "filter", details)
+        assert len(result) == 1
+        assert result.iloc[0]["name"] == "Alice"
+
+    def test_replay_sort(self, sample_df):
+        details = {"sort_params": {"column": "age", "ascending": True}}
+        result = apply_logged_transformation(sample_df, "sort", details)
+        assert result.iloc[0]["name"] == "Bob"
+
+    def test_replay_adv_query(self, sample_df):
+        details = {"adv_query": {"query": "age > 28"}}
+        result = apply_logged_transformation(sample_df, "advQueryFilter", details)
+        assert len(result) == 2
+
+    def test_replay_pivot(self):
+        df = pd.DataFrame(
+            {
+                "city": ["NY", "NY", "LA"],
+                "product": ["A", "B", "A"],
+                "sales": [1, 2, 3],
+            }
+        )
+        details = {
+            "pivot_query": {
+                "index": "city",
+                "column": "product",
+                "value": "sales",
+                "aggfun": "sum",
+            }
+        }
+        result = apply_logged_transformation(df, "pivotTables", details)
+        assert "city" in result.columns
+        assert len(result) >= 1
 
 
 class TestAddColumn:

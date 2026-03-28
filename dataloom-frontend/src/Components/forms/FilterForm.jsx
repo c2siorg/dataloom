@@ -6,7 +6,7 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
-const FilterForm = ({ projectId, onClose }) => {
+const FilterForm = ({ projectId, onClose, onTransform }) => {
   const [filterParams, setFilterParams] = useState({
     column: "",
     condition: "=",
@@ -34,7 +34,8 @@ const FilterForm = ({ projectId, onClose }) => {
         parameters: filterParams,
       });
       setResult(response);
-      console.log("Filter API response:", response);
+      onTransform(response);
+      onClose();
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);
@@ -115,6 +116,7 @@ const FilterForm = ({ projectId, onClose }) => {
 FilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default FilterForm;

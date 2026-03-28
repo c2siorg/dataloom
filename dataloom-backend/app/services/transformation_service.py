@@ -564,6 +564,29 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         params = action_details["melt_params"]
         return melt_dataframe(df, params)
 
+    elif action_type == "filter":
+        params = action_details["parameters"]
+        condition = params["condition"]
+        return apply_filter(df, params["column"], condition, params["value"])
+
+    elif action_type == "sort":
+        p = action_details["sort_params"]
+        return apply_sort(df, p["column"], p["ascending"])
+
+    elif action_type == "advQueryFilter":
+        query = action_details["adv_query"]["query"]
+        return advanced_query(df, query)
+
+    elif action_type == "pivotTables":
+        p = action_details["pivot_query"]
+        column = p.get("column") or None
+        if column == "":
+            column = None
+        agg = p.get("aggfun", "sum")
+        if hasattr(agg, "value"):
+            agg = agg.value
+        return pivot_table(df, p["index"], p["value"], column, str(agg))
+
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
         return df

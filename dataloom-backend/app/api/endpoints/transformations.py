@@ -25,9 +25,8 @@ COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables", "dropNa"
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
     """Apply a basic transformation and optionally persist changes.
 
-    For operations that modify data (addRow, delRow, addCol, delCol, changeCellValue, fillEmpty),
-    saves to disk and logs the transformation. For read-only operations (filter, sort),
-    only returns the result.
+    Filter and sort are persisted to the working copy so GET reload and export match
+    the last applied view (see apply_logged_transformation for checkpoint replay).
 
     Returns:
         Tuple of (result_df, should_save).
@@ -38,13 +37,13 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.parameters:
             raise HTTPException(status_code=400, detail="Filter parameters required")
         p = transformation_input.parameters
-        return ts.apply_filter(df, p.column, p.condition, p.value), False
+        return ts.apply_filter(df, p.column, p.condition, p.value), True
 
     elif op == "sort":
         if not transformation_input.sort_params:
             raise HTTPException(status_code=400, detail="Sort parameters required")
         p = transformation_input.sort_params
-        return ts.apply_sort(df, p.column, p.ascending), False
+        return ts.apply_sort(df, p.column, p.ascending), True
 
     elif op == "addRow":
         if not transformation_input.row_params:
@@ -118,13 +117,13 @@ def _handle_complex_transform(df, transformation_input, project, db, project_id)
     elif op == "advQueryFilter":
         if not transformation_input.adv_query:
             raise HTTPException(status_code=400, detail="Query parameter required")
-        return ts.advanced_query(df, transformation_input.adv_query.query), False
+        return ts.advanced_query(df, transformation_input.adv_query.query), True
 
     elif op == "pivotTables":
         if not transformation_input.pivot_query:
             raise HTTPException(status_code=400, detail="Pivot parameters required")
         p = transformation_input.pivot_query
-        return ts.pivot_table(df, p.index, p.value, p.column, p.aggfun), False
+        return ts.pivot_table(df, p.index, p.value, p.column, p.aggfun), True
 
     elif op == "dropNa":
         columns = None

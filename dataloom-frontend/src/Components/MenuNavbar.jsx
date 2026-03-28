@@ -319,6 +319,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
+          onTransform={onTransform}
         />
       )}
       {showSortForm && (
@@ -328,6 +329,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
+          onTransform={onTransform}
         />
       )}
       {showDropDuplicateForm && (
@@ -347,6 +349,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
+          onTransform={onTransform}
         />
       )}
       {showPivotTableForm && (
@@ -356,6 +359,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
+          onTransform={onTransform}
         />
       )}
       {showMeltForm && <MeltForm onClose={() => setShowMeltForm(false)} projectId={projectId} />}
