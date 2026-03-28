@@ -9,6 +9,7 @@ from app.services.transformation_service import (
     add_row,
     advanced_query,
     apply_filter,
+    apply_logged_transformation,
     apply_sort,
     change_cell_value,
     delete_column,
@@ -103,6 +104,28 @@ class TestDeleteRow:
     def test_delete_row_out_of_range(self, sample_df):
         with pytest.raises(TransformationError):
             delete_row(sample_df, 10)
+
+
+class TestApplyLoggedTransformationDelRow:
+    """Replay must match live delete_row (RangeIndex) for save/checkpoint consistency."""
+
+    def test_del_row_replay_matches_delete_row(self, sample_df):
+        details = {"row_params": {"index": 1}}
+        replayed = apply_logged_transformation(sample_df, "delRow", details)
+        direct = delete_row(sample_df, 1)
+        pd.testing.assert_frame_equal(replayed, direct)
+        assert replayed.index.equals(pd.RangeIndex(len(replayed)))
+
+    def test_del_row_replay_out_of_range(self, sample_df):
+        with pytest.raises(TransformationError):
+            apply_logged_transformation(sample_df, "delRow", {"row_params": {"index": 99}})
+
+    def test_chained_del_row_replay_keeps_range_index(self, sample_df):
+        df = apply_logged_transformation(sample_df, "delRow", {"row_params": {"index": 2}})
+        df = apply_logged_transformation(df, "delRow", {"row_params": {"index": 0}})
+        assert len(df) == 1
+        assert df.index.equals(pd.RangeIndex(1))
+        assert df.iloc[0]["name"] == "Bob"
 
 
 class TestAddColumn:
