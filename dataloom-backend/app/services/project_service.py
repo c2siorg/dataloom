@@ -6,6 +6,7 @@ from sqlmodel import Session
 
 from app import models
 from app.utils.logging import get_logger
+from datetime import datetime, timezone
 
 logger = get_logger(__name__)
 
@@ -85,6 +86,10 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
         action_details=details,
     )
     db.add(log)
+    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
+    if project:
+        project.last_modified = datetime.now(timezone.utc)
+        db.add(project)
     db.commit()
     logger.debug("Logged transformation: project_id=%s, type=%s", project_id, operation_type)
 
