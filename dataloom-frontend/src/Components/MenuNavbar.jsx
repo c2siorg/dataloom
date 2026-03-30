@@ -4,6 +4,7 @@ import SortForm from "./forms/SortForm";
 import DropDuplicateForm from "./forms/DropDuplicateForm";
 import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
 import PivotTableForm from "./forms/PivotTableForm";
+import MeltForm from "./forms/MeltForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
 import LogsPanel from "./history/LogsPanel";
@@ -25,6 +26,7 @@ import {
   LuDownload,
   LuRefreshCw,
   LuScissors,
+  LuLayoutList,
 } from "react-icons/lu";
 
 const MenuNavbar = ({ projectId, onTransform }) => {
@@ -37,6 +39,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [showCheckpoints, setShowCheckpoints] = useState(false);
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
+  const [showMeltForm, setShowMeltForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -125,6 +128,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
     setShowPivotTableForm(false);
     setShowCastDataTypeForm(false);
     setShowTrimWhitespaceForm(false);
+    setShowMeltForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
 
@@ -151,6 +155,9 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         break;
       case "TrimWhitespaceForm":
         setShowTrimWhitespaceForm(true);
+        break;
+      case "MeltForm":
+        setShowMeltForm(true);
         break;
       case "Logs":
         setShowLogs(true);
@@ -242,6 +249,11 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             icon: LuTable2,
             formType: "PivotTableForm",
             onClick: () => handleMenuClick("PivotTableForm"),
+          },
+          {
+            label: "Melt (Unpivot)",
+            icon: LuLayoutList,
+            onClick: () => handleMenuClick("MeltForm"),
           },
         ],
       },
@@ -346,6 +358,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
           projectId={projectId}
         />
       )}
+      {showMeltForm && <MeltForm onClose={() => setShowMeltForm(false)} projectId={projectId} />}
       {showCastDataTypeForm && (
         <CastDataTypeForm
           projectId={projectId}
