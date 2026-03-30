@@ -12,6 +12,7 @@ from sqlmodel import Session
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
 from app.services.file_service import delete_project_files, get_original_path, store_upload
+from app.services.profiling_service import profile_dataframe
 from app.services.project_service import (
     create_checkpoint,
     create_project,
@@ -53,6 +54,7 @@ async def upload_project(
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
+        "profile": profile_dataframe(df),
         **resp,
     }
 
@@ -68,6 +70,7 @@ async def get_project_details(project_id: uuid.UUID, db: Session = Depends(datab
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
+        "profile": profile_dataframe(df),
         **resp,
     }
 
