@@ -1,12 +1,12 @@
 """Database operations for projects, logs, and checkpoints."""
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlmodel import Session
 
 from app import models
 from app.utils.logging import get_logger
-from datetime import datetime, timezone
 
 logger = get_logger(__name__)
 
@@ -88,7 +88,7 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
     db.add(log)
     project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
     if project:
-        project.last_modified = datetime.now(timezone.utc)
+        project.last_modified = datetime.now(UTC)
         db.add(project)
     db.commit()
     logger.debug("Logged transformation: project_id=%s, type=%s", project_id, operation_type)
