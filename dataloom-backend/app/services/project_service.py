@@ -1,6 +1,7 @@
 """Database operations for projects, logs, and checkpoints."""
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlmodel import Session
 
@@ -54,6 +55,17 @@ def get_recent_projects(db: Session, limit: int = 3) -> list[models.Project]:
         List of Project model instances ordered by last_modified desc.
     """
     return db.query(models.Project).order_by(models.Project.last_modified.desc()).limit(limit).all()
+
+
+def update_project_name(db: Session, project: models.Project, name: str) -> models.Project:
+    """Update a project's display name and bump last_modified."""
+    project.name = name.strip()
+    project.last_modified = datetime.now(UTC).replace(tzinfo=None)
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    logger.info("Renamed project: id=%s, name=%s", project.project_id, project.name)
+    return project
 
 
 def delete_project(db: Session, project: models.Project) -> None:

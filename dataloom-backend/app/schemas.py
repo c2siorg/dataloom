@@ -321,6 +321,31 @@ class LastResponse(BaseModel):
     name: str
     description: str | None
     last_modified: datetime.datetime
+    upload_date: datetime.datetime | None = None
+    file_size_bytes: int = 0
+    row_count: int = 0
+    column_count: int = 0
 
     class Config:
         from_attributes = True
+
+
+class ProjectRenameRequest(BaseModel):
+    """Request body for renaming a project."""
+
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("name must not be empty")
+        return s
+
+
+class ProjectRenameResponse(BaseModel):
+    """Response after renaming a project."""
+
+    project_id: uuid.UUID
+    name: str
