@@ -5,6 +5,7 @@ import { transformProject } from "../../api";
 import { PIVOT_TABLES } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import ColumnSelect from "../common/ColumnSelect";
 
 const PivotTableForm = ({ projectId, onClose }) => {
   const [index, setIndex] = useState("");
@@ -52,24 +53,20 @@ const PivotTableForm = ({ projectId, onClose }) => {
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Column:</label>
-            <input
-              type="text"
+            <ColumnSelect
               value={column}
               onChange={(e) => setColumn(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              required
+              placeholder="Select column..."
             />
           </div>
         </div>
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Value:</label>
-            <input
-              type="text"
+            <ColumnSelect
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              required
+              placeholder="Select column..."
             />
           </div>
           <div className="flex-1">
