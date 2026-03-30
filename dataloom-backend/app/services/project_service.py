@@ -105,11 +105,9 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     db.flush()  # Assigns ID before updating logs
 
     # Mark all unapplied logs as applied under this checkpoint
-    statement = (
-        select(models.ProjectChangeLog).where(
-            models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.applied == False,  # noqa: E712
-        )
+    statement = select(models.ProjectChangeLog).where(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.applied == False,  # noqa: E712
     )
     logs = db.exec(statement).all()
 

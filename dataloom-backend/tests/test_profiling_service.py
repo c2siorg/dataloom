@@ -18,7 +18,7 @@ from app.services.profiling_service import profile_dataframe
 def numeric_df():
     return pd.DataFrame(
         {
-            "age":    [25, 30, 35, 40, 25],
+            "age": [25, 30, 35, 40, 25],
             "salary": [50000.0, 60000.0, 70000.0, 80000.0, 55000.0],
         }
     )
@@ -28,7 +28,7 @@ def numeric_df():
 def categorical_df():
     return pd.DataFrame(
         {
-            "city":    ["New York", "London", "New York", "Paris", "London"],
+            "city": ["New York", "London", "New York", "Paris", "London"],
             "country": ["USA", "UK", "USA", "France", "UK"],
         }
     )
@@ -38,8 +38,8 @@ def categorical_df():
 def mixed_df():
     return pd.DataFrame(
         {
-            "name":   ["Alice", "Bob", "Charlie", "Alice"],
-            "score":  [85, 92, 78, 91],
+            "name": ["Alice", "Bob", "Charlie", "Alice"],
+            "score": [85, 92, 78, 91],
             "passed": [True, True, False, True],
         }
     )

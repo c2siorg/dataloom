@@ -10,16 +10,14 @@ POST /projects/upload and GET /projects/get/{id} over HTTP. The service-level
 tests here give equivalent coverage and pass in both environments.
 """
 
-import csv
-
 import pandas as pd
 import pytest
 
 from app.services.profiling_service import profile_dataframe
 from app.utils.pandas_helpers import dataframe_to_response
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _make_upload_response(df: pd.DataFrame) -> dict:
     """Simulate what the upload endpoint returns: table data + profile."""
@@ -30,13 +28,14 @@ def _make_upload_response(df: pd.DataFrame) -> dict:
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def sample_df():
     """Mirrors conftest.py sample_csv: name (str), age (int), city (str)."""
     return pd.DataFrame(
         {
             "name": ["Alice", "Bob", "Charlie", "Alice"],
-            "age":  [30, 25, 35, 30],
+            "age": [30, 25, 35, 30],
             "city": ["New York", "Los Angeles", "Chicago", "New York"],
         }
     )
@@ -47,7 +46,7 @@ def mixed_df():
     return pd.DataFrame(
         {
             "product": ["apple", "banana", "apple", "cherry"],
-            "price":   [1.50, 0.75, 1.50, 3.00],
+            "price": [1.50, 0.75, 1.50, 3.00],
         }
     )
 
@@ -58,6 +57,7 @@ def nulls_df():
 
 
 # ── profile key present in upload-like response ───────────────────────────────
+
 
 class TestUploadResponseContainsProfile:
     def test_profile_key_present(self, sample_df):
@@ -79,6 +79,7 @@ class TestUploadResponseContainsProfile:
 
 
 # ── Numeric column stats ──────────────────────────────────────────────────────
+
 
 class TestNumericColumnProfile:
     def _age(self, sample_df):
@@ -117,6 +118,7 @@ class TestNumericColumnProfile:
 
 # ── Categorical column stats ──────────────────────────────────────────────────
 
+
 class TestCategoricalColumnProfile:
     def _name(self, sample_df):
         profiles = {p["column"]: p for p in profile_dataframe(sample_df)}
@@ -147,6 +149,7 @@ class TestCategoricalColumnProfile:
 
 # ── Null handling ─────────────────────────────────────────────────────────────
 
+
 class TestNullHandlingInProfile:
     def test_null_count_zero_for_clean_data(self, sample_df):
         for col in profile_dataframe(sample_df):
@@ -167,6 +170,7 @@ class TestNullHandlingInProfile:
 
 # ── Upload + GET consistency ──────────────────────────────────────────────────
 
+
 class TestProfileConsistency:
     def test_same_df_produces_same_profile(self, sample_df):
         """Calling profile_dataframe twice on the same data gives identical results."""
@@ -176,6 +180,6 @@ class TestProfileConsistency:
 
     def test_upload_and_get_produce_same_profile(self, sample_df):
         """Simulates the upload response and a subsequent GET returning the same profile."""
-        upload_resp  = _make_upload_response(sample_df)
-        get_resp     = _make_upload_response(sample_df)   # same underlying file
+        upload_resp = _make_upload_response(sample_df)
+        get_resp = _make_upload_response(sample_df)  # same underlying file
         assert upload_resp["profile"] == get_resp["profile"]

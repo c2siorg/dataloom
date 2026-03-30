@@ -16,8 +16,7 @@ import PropTypes from "prop-types";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Format a float for display, falling back to "—" for null / undefined. */
-const fmt = (v, decimals = 2) =>
-  v == null ? "—" : Number(v).toFixed(decimals);
+const fmt = (v, decimals = 2) => (v == null ? "—" : Number(v).toFixed(decimals));
 
 /** Tailwind colour class for the dtype badge. */
 const dtypeColor = (dtype) => {
@@ -61,10 +60,7 @@ const QuartileBar = ({ min, p25, p50, p75, max }) => {
           style={{ left: pct(p25), width: `${(((p75 - p25) / range) * 100).toFixed(1)}%` }}
         />
         {/* Median marker */}
-        <div
-          className="absolute h-full w-0.5 bg-blue-600"
-          style={{ left: pct(p50) }}
-        />
+        <div className="absolute h-full w-0.5 bg-blue-600" style={{ left: pct(p50) }} />
       </div>
       <div className="flex justify-between mt-0.5">
         <span className="text-xs text-gray-400">{fmt(min)}</span>
@@ -100,13 +96,7 @@ const NumericCard = ({ col }) => (
     <StatRow label="Std" value={fmt(col.std)} />
     <StatRow label="Min / Max" value={`${fmt(col.min)} / ${fmt(col.max)}`} />
 
-    <QuartileBar
-      min={col.min}
-      p25={col.p25}
-      p50={col.p50}
-      p75={col.p75}
-      max={col.max}
-    />
+    <QuartileBar min={col.min} p25={col.p25} p50={col.p50} p75={col.p75} max={col.max} />
   </div>
 );
 NumericCard.propTypes = { col: PropTypes.object.isRequired };
@@ -170,12 +160,8 @@ const ProfilingPanel = ({ profile }) => {
 
   if (!profile || profile.length === 0) return null;
 
-  const numericCols = profile.filter(
-    (c) => c.dtype === "int" || c.dtype === "float"
-  );
-  const categoricalCols = profile.filter(
-    (c) => c.dtype !== "int" && c.dtype !== "float"
-  );
+  const numericCols = profile.filter((c) => c.dtype === "int" || c.dtype === "float");
+  const categoricalCols = profile.filter((c) => c.dtype !== "int" && c.dtype !== "float");
 
   return (
     <div className="mx-4 mb-4 border border-gray-200 rounded-lg bg-gray-50">
@@ -217,7 +203,7 @@ const ProfilingPanel = ({ profile }) => {
                   <NumericCard key={col.column} col={col} />
                 ) : (
                   <CategoricalCard key={col.column} col={col} />
-                )
+                ),
               )}
             </div>
           )}

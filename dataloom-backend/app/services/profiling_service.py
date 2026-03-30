@@ -74,13 +74,7 @@ def profile_dataframe(df: pd.DataFrame) -> list[dict]:
                 }
             )
         else:
-            top = (
-                series.dropna()
-                .astype(str)
-                .value_counts()
-                .head(5)
-                .to_dict()
-            )
+            top = series.dropna().astype(str).value_counts().head(5).to_dict()
             profile["top_values"] = {str(k): int(v) for k, v in top.items()}
 
         profiles.append(profile)
