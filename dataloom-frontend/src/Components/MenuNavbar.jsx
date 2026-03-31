@@ -7,6 +7,7 @@ import PivotTableForm from "./forms/PivotTableForm";
 import MeltForm from "./forms/MeltForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
+import DropNaForm from "./forms/DropNaForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
@@ -40,6 +41,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
   const [showMeltForm, setShowMeltForm] = useState(false);
+  const [showDropNaForm, setShowDropNaForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -129,6 +131,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
     setShowCastDataTypeForm(false);
     setShowTrimWhitespaceForm(false);
     setShowMeltForm(false);
+    setShowDropNaForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
 
@@ -158,6 +161,9 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         break;
       case "MeltForm":
         setShowMeltForm(true);
+        break;
+      case "DropNaForm":
+        setShowDropNaForm(true);
         break;
       case "Logs":
         setShowLogs(true);
@@ -220,6 +226,12 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             icon: LuCopyMinus,
             formType: "DropDuplicateForm",
             onClick: () => handleMenuClick("DropDuplicateForm"),
+          },
+          {
+            label: "Drop NA",
+            icon: LuCopyMinus,
+            formType: "DropNaForm",
+            onClick: () => handleMenuClick("DropNaForm"),
           },
           {
             label: "Cast Type",
@@ -335,6 +347,16 @@ const MenuNavbar = ({ projectId, onTransform }) => {
           projectId={projectId}
           onClose={() => {
             setShowDropDuplicateForm(false);
+            setActiveForm(null);
+          }}
+          onTransform={onTransform}
+        />
+      )}
+      {showDropNaForm && (
+        <DropNaForm
+          projectId={projectId}
+          onClose={() => {
+            setShowDropNaForm(false);
             setActiveForm(null);
           }}
           onTransform={onTransform}
