@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Backend — Python 3.12 / uv / pytest
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dataloom-backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Cache uv virtualenv
+        uses: actions/cache@v4
+        with:
+          path: dataloom-backend/.venv
+          key: uv-${{ runner.os }}-py3.12-${{ hashFiles('dataloom-backend/uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-py3.12-
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Run tests
+        run: uv run pytest
+        env:
+          DATABASE_URL: sqlite:///./test.db
+
+  # ---------------------------------------------------------------------------
+  # Frontend — Node 18 / npm / vite build + vitest
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dataloom-frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: dataloom-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test
