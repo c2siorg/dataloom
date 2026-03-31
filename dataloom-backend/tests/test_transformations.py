@@ -11,13 +11,16 @@ from app.services.transformation_service import (
     apply_filter,
     apply_logged_transformation,
     apply_sort,
+    cast_data_type,
     change_cell_value,
     delete_column,
     delete_row,
     drop_duplicates,
+    drop_na,
     fill_empty,
     pivot_table,
     rename_column,
+    trim_whitespace,
 )
 
 
@@ -232,3 +235,111 @@ class TestRenameColumn:
         df = pd.DataFrame([[1, 2, 3]], columns=["name", "name", "age"])
         with pytest.raises(TransformationError, match="already exists"):
             rename_column(df, 2, "name")
+
+
+class TestCastDataType:
+    def test_cast_to_string(self, sample_df):
+        result = cast_data_type(sample_df, "age", "string")
+        # Values should be string representations regardless of exact dtype
+        assert result["age"].iloc[0] == "30"
+        assert result["age"].iloc[1] == "25"
+
+    def test_cast_to_integer(self):
+        df = pd.DataFrame({"val": ["1", "2", "bad", None]})
+        result = cast_data_type(df, "val", "integer")
+        assert result["val"].iloc[0] == 1
+        assert pd.isna(result["val"].iloc[2])  # coerced NaN
+        assert pd.isna(result["val"].iloc[3])  # coerced NaN
+
+    def test_cast_to_float(self):
+        df = pd.DataFrame({"val": ["1.5", "2.7", "bad"]})
+        result = cast_data_type(df, "val", "float")
+        assert pd.api.types.is_float_dtype(result["val"])
+        assert result["val"].iloc[0] == 1.5
+
+    def test_cast_to_boolean_truthy_falsy(self):
+        df = pd.DataFrame({"flag": ["true", "false", "yes", "no", "1", "0"]})
+        result = cast_data_type(df, "flag", "boolean")
+        assert result["flag"].iloc[0] is True or result["flag"].iloc[0] == True
+        assert result["flag"].iloc[1] is False or result["flag"].iloc[1] == False
+        assert result["flag"].iloc[2] is True or result["flag"].iloc[2] == True
+        assert result["flag"].iloc[3] is False or result["flag"].iloc[3] == False
+        assert result["flag"].iloc[4] is True or result["flag"].iloc[4] == True
+        assert result["flag"].iloc[5] is False or result["flag"].iloc[5] == False
+
+    def test_cast_to_datetime(self):
+        df = pd.DataFrame({"date": ["2024-01-01", "2024-06-15"]})
+        result = cast_data_type(df, "date", "datetime")
+        assert pd.api.types.is_datetime64_any_dtype(result["date"])
+        assert result["date"].iloc[0] == pd.Timestamp("2024-01-01")
+
+    def test_cast_invalid_column(self, sample_df):
+        with pytest.raises(TransformationError, match="not found"):
+            cast_data_type(sample_df, "nonexistent", "integer")
+
+    def test_cast_unsupported_type(self, sample_df):
+        with pytest.raises(TransformationError, match="Unsupported target type"):
+            cast_data_type(sample_df, "age", "complex")
+
+
+class TestTrimWhitespace:
+    def test_trim_specific_column(self):
+        df = pd.DataFrame({"name": ["  Alice  ", " Bob", "Charlie "], "age": [30, 25, 35]})
+        result = trim_whitespace(df, "name")
+        assert result["name"].tolist() == ["Alice", "Bob", "Charlie"]
+        # Non-target column should be unchanged
+        assert result["age"].tolist() == [30, 25, 35]
+
+    def test_trim_all_string_columns(self):
+        df = pd.DataFrame(
+            {
+                "name": ["  Alice  ", " Bob"],
+                "city": [" NYC ", "LA "],
+                "age": [30, 25],
+            }
+        )
+        result = trim_whitespace(df, "All string columns")
+        assert result["name"].tolist() == ["Alice", "Bob"]
+        assert result["city"].tolist() == ["NYC", "LA"]
+        # Numeric column should be untouched
+        assert result["age"].tolist() == [30, 25]
+
+    def test_trim_column_not_found(self, sample_df):
+        with pytest.raises(TransformationError, match="not found"):
+            trim_whitespace(sample_df, "nonexistent")
+
+
+class TestDropNa:
+    def test_drop_na_all_columns(self):
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", None, "Charlie"],
+                "age": [30, 25, None],
+            }
+        )
+        result = drop_na(df, columns=None)
+        assert len(result) == 1
+        assert result.iloc[0]["name"] == "Alice"
+
+    def test_drop_na_specific_columns(self):
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", None, "Charlie"],
+                "age": [30, 25, None],
+            }
+        )
+        # Only drop rows where 'age' is NaN; 'name' NaN row (index 1) has age=25 so it survives
+        result = drop_na(df, columns=["age"])
+        assert len(result) == 2
+        assert result.iloc[0]["name"] == "Alice"
+        assert result.iloc[1]["name"] is None or pd.isna(result.iloc[1]["name"])
+
+    def test_drop_na_empty_columns_list_raises(self):
+        df = pd.DataFrame({"name": ["Alice", None]})
+        with pytest.raises(TransformationError, match="must not be empty"):
+            drop_na(df, columns=[])
+
+    def test_drop_na_nonexistent_column_raises(self):
+        df = pd.DataFrame({"name": ["Alice", None]})
+        with pytest.raises(TransformationError, match="not found"):
+            drop_na(df, columns=["nonexistent"])
