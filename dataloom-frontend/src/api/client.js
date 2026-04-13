@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * Configured Axios HTTP client for DataLoom API communication.
  * @module api/client
@@ -15,6 +17,7 @@ const client = axios.create({
 
 client.interceptors.response.use(
   (response) => response,
+  /** @param {import("axios").AxiosError<{ detail?: string }>} error */
   (error) => {
     const { config, response } = error;
     console.error("[API Error]", {

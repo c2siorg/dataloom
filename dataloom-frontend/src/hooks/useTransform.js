@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * Hook providing project transformation operations with toast feedback.
  * @module hooks/useTransform
@@ -8,9 +10,9 @@ import { useToast } from "../context/ToastContext";
 
 /**
  * Provides transformation operations for a project.
- * @param {number} projectId - The project ID.
- * @param {Function} onDataUpdate - Callback with (columns, rows) after a successful transform.
- * @returns {{ applyTransform: Function, loading: boolean, error: string|null }}
+ * @param {string|null|undefined} projectId - The project ID.
+ * @param {((columns: string[], rows: unknown[][]) => void) | undefined} onDataUpdate - Callback with (columns, rows) after a successful transform.
+ * @returns {{ applyTransform: (transformInput: import("../api/types").TransformationInput) => Promise<import("../api/types").BasicQueryResponse | undefined>, loading: boolean, error: string|null }}
  */
 export function useTransform(projectId, onDataUpdate) {
   const [loading, setLoading] = useState(false);

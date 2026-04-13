@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * Hook to fetch and manage project data by ID.
  * @module hooks/useProject
@@ -7,8 +9,8 @@ import { getProjectDetails } from "../api";
 
 /**
  * Fetch project data by ID.
- * @param {number|string} projectId - The project ID.
- * @returns {{ columns: string[], rows: Array[], loading: boolean, error: string|null, refresh: Function }}
+ * @param {string|null|undefined} projectId - The project ID.
+ * @returns {{ columns: string[], rows: unknown[][], loading: boolean, error: string|null, refresh: () => Promise<void> }}
  */
 export function useProject(projectId) {
   const [columns, setColumns] = useState([]);
