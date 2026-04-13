@@ -1,17 +1,15 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import TransformResultPreview from "./TransformResultPreview";
 import { transformProject } from "../../api";
 import { PIVOT_TABLES } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
-const PivotTableForm = ({ projectId, onClose }) => {
+const PivotTableForm = ({ projectId, onClose, onTransform }) => {
   const [index, setIndex] = useState("");
   const [column, setColumn] = useState("");
   const [value, setValue] = useState("");
   const [aggfun, setAggfun] = useState("sum");
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
 
@@ -24,10 +22,9 @@ const PivotTableForm = ({ projectId, onClose }) => {
         operation_type: PIVOT_TABLES,
         pivot_query: { index, column, value, aggfun },
       });
-      setResult(response);
-      console.log("Pivot API response:", response);
+      onTransform(response);
+      onClose();
     } catch (err) {
-      console.error("Error applying pivot table:", err.message);
       handleError(err);
     } finally {
       setLoading(false);
@@ -90,10 +87,10 @@ const PivotTableForm = ({ projectId, onClose }) => {
         <div className="flex justify-between">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
           >
-            {loading ? "Loading..." : "Submit"}
+            {loading ? "Applying..." : "Apply Pivot"}
           </button>
           <button
             type="button"
@@ -105,7 +102,6 @@ const PivotTableForm = ({ projectId, onClose }) => {
         </div>
       </form>
       <FormErrorAlert message={error} />
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };
@@ -113,6 +109,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
 PivotTableForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default PivotTableForm;

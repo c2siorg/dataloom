@@ -60,6 +60,8 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.add_col_params:
             raise HTTPException(status_code=400, detail="Column parameters required")
         p = transformation_input.add_col_params
+        if not p.name:
+            raise HTTPException(status_code=422, detail="Column name is required")
         return ts.add_column(df, p.index, p.name), True
 
     elif op == "delCol":
@@ -163,6 +165,8 @@ async def transform_project(
             result_df, should_save = _handle_basic_transform(df, transformation_input, project, db, project_id)
     except ts.TransformationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except HTTPException:
+        raise  # Re-raise HTTPException as-is
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

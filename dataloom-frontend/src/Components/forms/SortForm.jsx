@@ -6,16 +6,14 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 
-const SortForm = ({ projectId, onClose }) => {
+const SortForm = ({ projectId, onClose, onTransform }) => {
   const [column, setColumn] = useState("");
   const [ascending, setAscending] = useState(true);
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting sort with parameters:", { column, ascending });
     setLoading(true);
     clearError();
     try {
@@ -26,10 +24,9 @@ const SortForm = ({ projectId, onClose }) => {
           ascending,
         },
       });
-      setResult(response);
-      console.log("Sort API response:", response);
+      onTransform(response);
+      onClose();
     } catch (err) {
-      console.error("Error applying sort:", err.response?.data || err.message);
       handleError(err);
     } finally {
       setLoading(false);
@@ -66,10 +63,10 @@ const SortForm = ({ projectId, onClose }) => {
         <div className="flex justify-between">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
           >
-            Submit
+            {loading ? "Applying..." : "Apply Sort"}
           </button>
           <button
             type="button"
@@ -81,7 +78,6 @@ const SortForm = ({ projectId, onClose }) => {
         </div>
       </form>
       <FormErrorAlert message={error} />
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };
@@ -89,6 +85,7 @@ const SortForm = ({ projectId, onClose }) => {
 SortForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func.isRequired,
 };
 
 export default SortForm;

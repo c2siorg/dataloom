@@ -347,6 +347,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
+          onTransform={onTransform}
         />
       )}
       {showPivotTableForm && (
