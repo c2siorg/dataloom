@@ -40,6 +40,7 @@ class OperationType(StrEnum):
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
     dropNa = "dropNa"
+    melt = "melt"
 
 
 class DropDup(StrEnum):
@@ -78,6 +79,7 @@ class ActionTypes(StrEnum):
     castDataType = "castDataType"
     trimWhitespace = "trimWhitespace"
     dropNa = "dropNa"
+    melt = "melt"
 
 
 # --- Basic transformation parameter schemas ---
@@ -231,6 +233,18 @@ class UserLogsInput(BaseModel):
     user_actions: UserLogsAction | None = None
 
 
+# --- Melt transformation parameter schema ---
+
+
+class MeltParams(BaseModel):
+    """Parameters for the Melt (Unpivot) transformation."""
+
+    id_vars: list[str]
+    value_vars: list[str] | None = None
+    var_name: str = "variable"
+    value_name: str = "value"
+
+
 # --- Transformation input/output schemas ---
 
 
@@ -252,6 +266,7 @@ class TransformationInput(BaseModel):
     cast_data_type_params: CastDataTypeParams | None = None
     trim_whitespace_params: TrimWhitespaceParams | None = None
     drop_na_params: DropNaParams | None = None
+    melt_params: MeltParams | None = None
 
 
 class BasicQueryResponse(BaseModel):

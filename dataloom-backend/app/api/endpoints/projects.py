@@ -7,6 +7,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app import database, models, schemas
@@ -196,8 +197,20 @@ async def revert_to_checkpoint(
         for log in logs:
             df = apply_logged_transformation(df, log.action_type, log.action_details)
 
+    # Write file first — if this fails, DB is unchanged and state remains consistent.
     save_csv_safe(df, project.file_path)
-    db.commit()
+    # Clear unapplied logs so a subsequent save cannot re-apply stale
+    # transformations on top of the reverted file state.
+    # Applies to all reverts (full and partial) to prevent stale log replay.
+    db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.applied.is_(False),
+    ).delete(synchronize_session="evaluate")
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
 
     resp = dataframe_to_response(df)
     logger.info("Project reverted: id=%s, checkpoint_id=%s", project_id, checkpoint_id)
