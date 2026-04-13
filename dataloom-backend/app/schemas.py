@@ -280,6 +280,37 @@ class BasicQueryResponse(BaseModel):
     dtypes: dict[str, str] = {}
 
 
+class ColumnProfile(BaseModel):
+    """Per-column statistics returned as part of the upload/profile response.
+
+    All columns include: column name, dtype label, total row count, null
+    count, null percentage, and unique value count.
+
+    Numeric columns additionally include: min, max, mean, std, and the
+    25th / 50th / 75th percentiles (p25, p50, p75).
+
+    Non-numeric columns additionally include: top_values, a dict mapping
+    the five most frequent values to their occurrence counts.
+    """
+
+    column: str
+    dtype: str
+    count: int
+    null_count: int
+    null_pct: float
+    unique_count: int
+    # Numeric extras (None for non-numeric columns)
+    min: float | None = None
+    max: float | None = None
+    mean: float | None = None
+    std: float | None = None
+    p25: float | None = None
+    p50: float | None = None
+    p75: float | None = None
+    # Categorical extras (None for numeric columns)
+    top_values: dict[str, int] | None = None
+
+
 class ProjectResponse(BaseModel):
     """Response for project CRUD operations."""
 
@@ -290,6 +321,7 @@ class ProjectResponse(BaseModel):
     row_count: int
     rows: list[list]
     dtypes: dict[str, str] = {}
+    profile: list[ColumnProfile] = []
 
 
 # --- Other response schemas ---
