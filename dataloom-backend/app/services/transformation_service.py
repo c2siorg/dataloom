@@ -328,6 +328,32 @@ def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
     return df
 
 
+def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
+    """Replace occurrences of a substring in a column.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to perform replacement on.
+        find_value: The substring to find.
+        replace_value: The string to replace it with.
+
+    Returns:
+        DataFrame with replacements applied.
+    """
+    if column not in df.columns:
+        raise TransformationError(f"Column '{column}' not found")
+
+    if not (pd.api.types.is_string_dtype(df[column]) or pd.api.types.is_object_dtype(df[column])):
+        raise TransformationError(
+            f"Column '{column}' is not a string column (dtype: {df[column].dtype}). "
+            "Cast it to string first before using string replace."
+        )
+
+    df = df.copy()
+    df[column] = df[column].astype(str).str.replace(find_value, replace_value, regex=False)
+    return df
+
+
 def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
     """Remove duplicate rows based on specified columns.
 
@@ -563,6 +589,16 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == "melt":
         params = action_details["melt_params"]
         return melt_dataframe(df, params)
+
+    elif action_type == "stringReplace":
+        params = action_details.get("string_replace_params", {})
+        column = params.get("column")
+        find_value = params.get("find_value")
+        replace_value = params.get("replace_value")
+        if not column or find_value is None or replace_value is None:
+            logger.warning("Missing params for stringReplace replay: %s", action_details)
+            return df
+        return string_replace(df, column, find_value, replace_value)
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
