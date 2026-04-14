@@ -1,6 +1,7 @@
 """Database operations for projects, logs, and checkpoints."""
 
 import uuid
+from datetime import datetime
 
 from sqlmodel import Session
 
@@ -85,6 +86,9 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
         action_details=details,
     )
     db.add(log)
+    project = get_project_by_id(db, project_id)
+    if project:
+        project.last_modified = datetime.now()
     db.commit()
     logger.debug("Logged transformation: project_id=%s, type=%s", project_id, operation_type)
 
@@ -118,6 +122,9 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
         log.applied = True
         log.checkpoint_id = checkpoint.id
 
+    project = get_project_by_id(db, project_id)
+    if project:
+        project.last_modified = datetime.now()
     db.commit()
     logger.info("Checkpoint created: id=%s, project_id=%s, logs_applied=%d", checkpoint.id, project_id, len(logs))
     return checkpoint
