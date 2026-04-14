@@ -28,8 +28,12 @@ async def lifespan(app):
 
     from alembic import command
 
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+    except Exception as e:
+        logger.error("Alembic migration failed: %s", e)
+        raise
 
     settings = get_settings()
     setup_logging(settings.debug)
