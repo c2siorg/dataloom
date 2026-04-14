@@ -549,7 +549,7 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         return trim_whitespace(df, column)
 
     elif action_type == "dropNa":
-        columns = action_details.get("drop_na_params", {}).get("columns")
+        columns = (action_details.get("drop_na_params") or {}).get("columns")
         return drop_na(df, columns)
 
     elif action_type == "melt":
