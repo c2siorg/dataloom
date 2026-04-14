@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback,useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { LuPlus, LuTable2, LuUpload } from "react-icons/lu";
 import { uploadProject, getRecentProjects, deleteProject, renameProject } from "../api";

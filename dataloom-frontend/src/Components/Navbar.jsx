@@ -36,8 +36,7 @@ const Navbar = () => {
         )}
         <div className="ml-auto text-gray-500 items-end">
           <button
-          onClick={() => alert("Button Clicked")}
-
+            onClick={() => alert("Button Clicked")}
             className={`bg-white font-semibold cursor-pointer rounded-xl border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-150 ${
               isSmall ? "py-1 px-3 text-sm" : "py-2 px-4"
             }`}
