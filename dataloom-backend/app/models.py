@@ -27,9 +27,13 @@ class Project(SQLModel, table=True):
         default=None,
         sa_column=Column(DateTime, server_default=func.now()),
     )
+    # Managed explicitly via project_service._touch_project for activity events.
     last_modified: datetime | None = Field(
         default=None,
-        sa_column=Column(DateTime, server_default=func.now()),
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+        ),
     )
     file_path: str
 

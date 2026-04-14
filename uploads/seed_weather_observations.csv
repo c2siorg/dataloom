@@ -1,0 +1,11 @@
+City,Temperature_C,Humidity_Pct,Wind_Speed_Kmh,Date
+New York,22,65,18,2024-06-01
+London,15,78,22,2024-06-01
+Tokyo,28,70,12,2024-06-01
+Sydney,14,55,25,2024-06-01
+New York,25,60,15,2024-06-02
+London,17,72,20,2024-06-02
+Tokyo,30,75,10,2024-06-02
+Sydney,12,50,28,2024-06-02
+New York,20,68,22,2024-06-03
+London,14,80,18,2024-06-03

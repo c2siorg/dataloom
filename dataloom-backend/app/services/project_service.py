@@ -1,6 +1,7 @@
 """Database operations for projects, logs, and checkpoints."""
 
 import uuid
+from datetime import datetime, timezone
 
 from sqlmodel import Session
 
@@ -70,6 +71,28 @@ def delete_project(db: Session, project: models.Project) -> None:
     logger.info("Deleted project: id=%s, name=%s", project.project_id, project.name)
 
 
+def _touch_project(db: Session, project_id: uuid.UUID) -> None:
+    """Update last_modified on the project to record recent activity.
+
+    last_modified is intentionally managed explicitly through this helper for
+    transformation/checkpoint writes.
+    Uses the application UTC clock (`datetime.now(timezone.utc)`). If migrating
+    from embedded SQLite to a networked database, consider standardizing on a
+    single clock source to avoid app/DB clock skew.
+
+    Raises:
+        ValueError: If the project_id does not match any existing project.
+    """
+    # Use the application UTC clock explicitly for write-time consistency.
+    rows_updated = (
+        db.query(models.Project)
+        .filter(models.Project.project_id == project_id)
+        .update({"last_modified": datetime.now(timezone.utc)})  # noqa: UP017
+    )
+    if rows_updated == 0:
+        raise ValueError(f"Project {project_id} not found")
+
+
 def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, details: dict) -> None:
     """Record a transformation action in the change log.
 
@@ -78,15 +101,26 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
         project_id: The project that was transformed.
         operation_type: The type of operation performed.
         details: Full transformation parameters as a dict.
+
+    Raises:
+        ValueError: If the project_id does not match any existing project.
     """
-    log = models.ProjectChangeLog(
-        project_id=project_id,
-        action_type=operation_type,
-        action_details=details,
-    )
-    db.add(log)
-    db.commit()
-    logger.debug("Logged transformation: project_id=%s, type=%s", project_id, operation_type)
+    try:
+        # Validate project existence before creating session-pending objects.
+        _touch_project(db, project_id)
+
+        log = models.ProjectChangeLog(
+            project_id=project_id,
+            action_type=operation_type,
+            action_details=details,
+        )
+        db.add(log)
+
+        db.commit()
+        logger.debug("Logged transformation: project_id=%s, type=%s", project_id, operation_type)
+    except Exception:
+        db.rollback()
+        raise
 
 
 def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> models.Checkpoint:
@@ -99,25 +133,40 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
 
     Returns:
         The created Checkpoint model instance.
+
+    Raises:
+        ValueError: If the project_id does not match any existing project.
     """
-    checkpoint = models.Checkpoint(project_id=project_id, message=message)
-    db.add(checkpoint)
-    db.flush()  # Assigns ID before updating logs
+    try:
+        # Validate project existence before creating session-pending objects.
+        _touch_project(db, project_id)
 
-    # Mark all unapplied logs as applied under this checkpoint
-    logs = (
-        db.query(models.ProjectChangeLog)
-        .filter(
-            models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.applied == False,  # noqa: E712
+        checkpoint = models.Checkpoint(project_id=project_id, message=message)
+        db.add(checkpoint)
+        db.flush()  # Assigns ID before updating logs
+
+        # Mark all unapplied logs as applied under this checkpoint
+        logs = (
+            db.query(models.ProjectChangeLog)
+            .filter(
+                models.ProjectChangeLog.project_id == project_id,
+                models.ProjectChangeLog.applied == False,  # noqa: E712
+            )
+            .all()
         )
-        .all()
-    )
 
-    for log in logs:
-        log.applied = True
-        log.checkpoint_id = checkpoint.id
+        for log in logs:
+            log.applied = True
+            log.checkpoint_id = checkpoint.id
 
-    db.commit()
-    logger.info("Checkpoint created: id=%s, project_id=%s, logs_applied=%d", checkpoint.id, project_id, len(logs))
-    return checkpoint
+        db.commit()
+        logger.info(
+            "Checkpoint created: id=%s, project_id=%s, logs_applied=%d",
+            checkpoint.id,
+            project_id,
+            len(logs),
+        )
+        return checkpoint
+    except Exception:
+        db.rollback()
+        raise

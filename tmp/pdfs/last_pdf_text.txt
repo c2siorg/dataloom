@@ -1,0 +1,411 @@
+DataLoom GSoC Proposal Page 1
+GSoC 2026 Proposal
+Expanding DataLoom into a Multi-Source Data Preparation Platform
+1. Project Snapshot
+Organization: C2SI / DataLoom
+Applicant: Nodesagar (nodesagar)
+Repository: c2siorg/dataloom (https://github.com/c2siorg/dataloom)
+Primary project
+anchor:
+Issue #76 (https://github.com/c2siorg/dataloom/issues/76) - Multi-Source
+Data Profiling, Transformation Pipeline, Visualization Engine, Data Quality
+Analysis, and Multi-Format Export
+Supporting tracker
+anchors:
+#65 (https://github.com/c2siorg/dataloom/issues/65) - in-workspace column
+statistics and searchable profiling UI, #91
+(https://github.com/c2siorg/dataloom/issues/91) - integration tests for the
+full transform endpoint request-response pipeline
+Proposed project size: 350 hours
+Timezone: Asia/Kolkata (UTC+05:30)
+Workstream
+breakdown:
+ingestion and profiling foundation (80h), profiling UI and selector refactor
+(55h), merge/join operations (50h), formula columns (45h), visualization
+plus quality engine (80h), multi-format export and quality reports (40h)
+2. Abstract
+DataLoom already has a compelling core: a web-based pandas wrangling interface with a git-like
+checkpoint and revert system. What it does not yet have is the broader data preparation platform
+described in the organization's GSoC project. The current application is still centered on single-CSV
+workflows, limited transformation forms, and CSV-only export. There is no profiling panel, no
+visualization layer, no multi-project join workflow, no reusable transformation pipelines, and no
+automated quality analysis or quality reports.
+My proposal is to turn DataLoom from a CSV transformation tool into a multi-source data preparation
+workspace while keeping its strongest architectural differentiator intact: replayable, checkpointed
+transformations. The project will add multi-format upload for CSV, XLSX, JSON, Parquet, and TSV;
+automatic data profiling on upload; a profiling and insight panel in the workspace; merge/join and concat
+operations across projects; formula columns through a safe expression engine; in-app visualizations; an
+automated quality engine for duplicates, outliers, and pattern validation; and multi-format export plus
+downloadable HTML/PDF quality reports. I will keep the serialization model compatible with future
+reusable pipelines, but I am intentionally treating named pipeline persistence as stretch scope rather
+than a core promise.
+DataLoom GSoC Proposal Page 2
+The key to making this scope realistic is to treat it as a staged platform extension, not as a monolithic
+feature dump. Each milestone in this proposal is tied to concrete files in the current repository, a clear
+storage or API change, and a reviewable test plan. My existing DataLoom contributions across
+ingestion, transform UX, validation, and end-to-end testing put me in a strong position to deliver that
+staged roadmap without spending the first half of the program just learning the codebase.
+3. Motivation, Background, and Fit
+What makes this project especially compelling to me is that it sits exactly at the boundary between
+product usability and data engineering correctness. A lot of tools can expose a few pandas actions in a
+GUI. Much fewer tools can let users ingest different file formats, understand the shape and quality of
+their data immediately, derive new columns safely, combine sources, visualize results, and still keep a
+coherent save/revert story. DataLoom is already closer to that than most projects because the
+checkpoint system exists today; the opportunity is to grow that core into the complete workflow the
+organization has described.
+I am already contributing in the parts of DataLoom that matter for this proposal. My prior work includes:
+- PR #175 (https://github.com/c2siorg/dataloom/pull/175): multi-format import support exploration
+- PR #154 (https://github.com/c2siorg/dataloom/pull/154): Playwright end-to-end coverage for core
+workflows
+- PR #192 (https://github.com/c2siorg/dataloom/pull/192): transform validation and HTTP status fixes
+- PR #163 (https://github.com/c2siorg/dataloom/pull/163): upload size validation
+- PR #140 (https://github.com/c2siorg/dataloom/pull/140) and PR #137
+(https://github.com/c2siorg/dataloom/pull/137): frontend UX improvements
+That existing contribution history matters because this proposal depends on understanding how the
+current application is actually wired, not just what the issue title says. I have already worked in both the
+React frontend and FastAPI backend, and I am comfortable moving between UI polish, endpoint design,
+validation, and testing. I would be entering the coding period prepared to implement incremental
+milestones rather than spending the first several weeks only learning the codebase.
+4. Technical Understanding of the Current Gap
+The current repository is still fundamentally a CSV-first application. In dataloom-backend/app/config.py,
+allowed_extensions is set to [".csv"]. validate_upload_file() in dataloom-backend/app/utils/security.py
+rejects non-CSV uploads, store_upload() in dataloom-backend/app/services/file_service.py writes an
+original file and a _copy.csv, and read_csv_safe() / save_csv_safe() in
+dataloom-backend/app/utils/pandas_helpers.py only know how to read and write CSV files. That means
+the official GSoC requirement for XLSX, JSON, Parquet, and TSV upload cannot be satisfied by the
+current file layer without a real storage abstraction change.
+The workspace UI is also narrow today. dataloom-frontend/src/Components/DataScreen.jsx renders
+only MenuNavbar and Table; there is no panel for data profiling, no chart surface, and no
+quality-reporting sidebar. The current ProjectContext tracks columns, rows, dtypes, and loading state,
+but not any profiling or quality metadata. To reach the target project scope, the workspace needs to
+evolve from a table view into a richer project dashboard.
+DataLoom GSoC Proposal Page 3
+The form layer is only partially aligned with the organization's stated UX goals. CastDataTypeForm.jsx
+and TrimWhitespaceForm.jsx already use context-based column dropdowns, but FilterForm.jsx,
+SortForm.jsx, DropDuplicateForm.jsx, and PivotTableForm.jsx still rely on free-text inputs for columns or
+comma-separated column lists. So the "replace manual column-name typing" goal is still real, but it now
+means completing and standardizing an in-progress refactor rather than starting from zero.
+The current data model is intentionally simple: Project, ProjectChangeLog, and Checkpoint in
+dataloom-backend/app/models.py. There is no model yet for saved transformation pipelines, no
+persisted profile snapshot, no quality artifact or generated report metadata, and no endpoint surface for
+cross-project merge/join operations. Likewise, the current frontend dependency set in
+dataloom-frontend/package.json has no charting library, and the backend dependency set in
+dataloom-backend/pyproject.toml does not yet include scikit-learn or matplotlib, even though those are
+part of the organization's target stack for the GSoC project.
+This is exactly why I think the project is strong GSoC material: the current system has a clean
+transformation pipeline and a unique checkpoint/revert concept, but it still needs structured work to grow
+into the full data preparation platform described in issue #76.
+One roadmap item I need to acknowledge explicitly is PR #184
+(https://github.com/c2siorg/dataloom/pull/184). It represents real community momentum on this scope.
+It is currently open, not merged, and not marked draft, and it already implements a broad slice of the
+target scope: profiling and profiling tests, chart endpoints and a chart builder, merge/join services and
+UI, formula endpoints and UI, quality analysis with one-click fixes, export endpoints, a pipelines table
+and replay flow, and large backend/frontend test additions. If PR #184 remains active during the GSoC
+period, I would coordinate with mentors around which pieces are merged or review-ready, extend tests
+and integration where useful, and focus my unique contribution on the staged Parquet-backed storage
+migration, profiling UX integration, scoped quality-engine delivery, and milestone sequencing that turns
+the broader roadmap into smaller reviewable steps.
+5. Proposed Architecture and Workstreams
+Workstream 1: Multi-Format Ingestion and Profiling Foundation (80 hours)
+The first technical foundation is replacing the current CSV-only storage assumptions with a generalized
+tabular I/O layer. Right now, the upload flow is constrained by allowed_extensions = [".csv"],
+store_upload() naming conventions, and CSV-only read/write helpers. My plan is to introduce a
+format-aware ingestion layer that validates file types, selects the correct pandas reader (read_csv,
+read_excel, read_json, read_parquet), and then materializes a canonical internal working dataset for
+the rest of the application. I want to preserve the raw uploaded file, but I do not want the internal project
+workflow to depend on CSV-only round-trips, because that causes type loss and makes later profiling,
+formula evaluation, and export harder than necessary.
+I am committing to Parquet as the canonical internal working format. New uploads will preserve the raw
+source file in its original format, then generate a typed internal working.parquet artifact that the rest of
+the application reads, transforms, profiles, joins, and exports from. That choice reduces dtype loss,
+keeps joins and formulas more stable, and gives the quality engine a better substrate than repeated
+CSV round-trips. I will add a source_file_path column to the Project model and write an Alembic
+migration for it, so the raw uploaded file path is stored separately from the working Parquet artifact path.
+Existing _copy.csv projects will remain readable through a dual-read compatibility layer and will be lazily
+migrated to the Parquet-backed format the first time they are opened or saved under the new system,
+DataLoom GSoC Proposal Page 4
+so current projects continue to work instead of breaking on rollout. Parquet does introduce a heavier
+dependency surface through pyarrow or fastparquet and requires more careful schema handling than
+plain CSV, but I still prefer it over CSV, pickle, or HDF-style storage because it preserves types,
+improves profiling/export fidelity, and gives the application one internal dataset contract to reason about.
+On top of that storage layer, I will add a profiling service that computes per-column dtype inference, null
+counts, null percentages, unique counts, numeric summaries, and top categorical values, with a
+response shape that can be reused by both the UI panel and generated quality reports. The profiling
+payload will include a project-level summary plus a per-column list containing dtype, null counts, unique
+counts, summary statistics, and top-value samples so both the profile panel and quality report
+generation can consume the same structure.
+Planned outputs:
+- upload support for CSV, XLSX, JSON, Parquet, and TSV
+- generalized tabular read/write helpers instead of CSV-only helpers
+- canonical internal Parquet-backed project dataset representation with preserved raw upload
+- automatic profiling endpoint or upload response payload with per-column statistics
+Success criteria:
+- users can upload all five target formats from issue #76
+- upload immediately returns both data preview and profile metadata
+- profiling handles numeric, categorical, boolean, and datetime-like columns without crashing on mixed
+data
+- legacy _copy.csv projects remain usable through compatibility reads and lazy migration
+Workstream 2: Profiling Workspace and Column-Selector Refactor (55 hours)
+Once the backend can profile uploaded data, the next step is to make that insight visible in the UI. I am
+budgeting this workstream as roughly 30 hours for the profile panel and data presentation layer, and 25
+hours for the selector refactor and shared form wiring. Today, DataScreen.jsx only mounts the menu
+and the table. I will extend the workspace with a DataProfilePanel that can display column cards or rows
+with dtype, missing-value counts, unique counts, summary statistics, and top values. I want this panel to
+be searchable and type-filterable so it remains usable on wider datasets, which directly follows the
+feature request in #65 (https://github.com/c2siorg/dataloom/issues/65).
+In parallel, I will finish the form refactor that issue #76 still calls out. The repo is already in a mixed state:
+some forms use dropdowns, while others still ask the user to type column names manually. I will
+standardize this by moving remaining forms such as FilterForm.jsx, SortForm.jsx,
+DropDuplicateForm.jsx, and PivotTableForm.jsx to context-based selectors, and I will make sure the
+new join, formula, quality, and visualization forms reuse the same project-column metadata instead of
+introducing more free-text fields. This matters not only for usability but also for correctness, because
+eliminating manual column-name typing removes a class of user errors before they reach the backend.
+A rough target layout for the profile workspace is:
+DataLoom GSoC Proposal Page 5
+[Refresh Profile] [Open Transform]
+Left rail: dataset summary, row/column counts, quality badges
+Center: searchable/type-filterable column table or cards
+ Column | Dtype | Null % | Unique | Min/Max | Sample values
+Right/top actions: jump to filter/fillna/dtype transforms for the selected column
+Planned outputs:
+- a profile panel integrated into the main workspace
+- reusable column selector controls backed by ProjectContext
+- refactor of remaining text-based transform forms to structured selectors
+- contributor-facing documentation for the profile payload and shared selector usage pattern
+- tests for profile rendering, filtering, and selector-driven form submission
+Success criteria:
+- users can inspect profile stats without leaving the workspace
+- remaining transform forms no longer depend on manual free-text column entry
+- profile and selector state stay synchronized after transformations
+Workstream 3: Cross-Project Merge and Join Operations (50 hours)
+This workstream is the heart of turning DataLoom into a full preparation platform instead of a
+single-dataset editor. There is currently no cross-project combine operation in the backend schema or
+endpoint layer. I will add explicit merge and concat operations that let one project consume another
+project's dataset by project ID, with support for inner, left, right, outer, and cross joins, plus row-wise
+concatenation. The backend implementation will live as a dedicated service instead of being embedded
+directly into the existing transformation endpoint logic, because joins need to fetch and validate a
+second dataset, compare schema compatibility, and serialize project references safely into the change
+log. The join result will replace the current project's working dataset and be logged as a mergeProjects
+action in ProjectChangeLog. If the source project is later deleted, replay will fail with a clear error
+message rather than silently corrupting data.
+Planned outputs:
+- merge, join, and concat operations across projects
+- UI panel or modal for selecting source projects, join keys, and join type
+- backend validation for schema compatibility, missing keys, and join cardinality errors
+Success criteria:
+- users can combine two projects through at least inner, left, right, outer, and cross joins plus concat
+- join errors fail clearly when keys or project selections are invalid
+Workstream 4: Formula Columns with a Safe Expression Engine (45 hours)
+Formula columns deserve their own milestone because they are more than a small transform. They
+need a safe evaluation model, strong validation, and replay compatibility. I am committing to a custom
+DataLoom GSoC Proposal Page 6
+AST validator for formula parsing. Concretely, I will parse expressions with Python's ast module, permit
+only column references, literals, arithmetic operators, comparisons, boolean logic, and a small approved
+helper set, and block attribute access plus arbitrary function calls. The initial approved helpers will
+include abs, round, len, upper, lower, to_datetime, and fillna. Validated formulas will then be compiled
+into DataFrame-safe execution against the project's current typed dataset. This gives me tighter control
+than free-form eval, while still allowing realistic derived-column use cases such as arithmetic
+combinations, conditional bucketing, string concatenation through approved helpers, and
+datetime-based derivations.
+For replay safety, if a formula references a column that was later renamed or removed by another
+transformation in the replay chain, replay or revert should stop with a clear user-facing validation error
+that names the missing column and the blocked formula step instead of silently recomputing against the
+wrong schema.
+I am intentionally treating reusable named pipelines as a stretch or post-GSoC continuation item, not as
+a core deliverable inside this milestone. Pipelines are still architecturally related to the
+ProjectChangeLog, and I will preserve that path by keeping formula and merge operations replay-safe.
+But I would rather ship merge/join and formula columns strongly than under-scope both of them by
+forcing pipeline persistence into the same 90-hour bucket.
+Planned outputs:
+- formula-column support with a validated expression grammar
+- backend validation and error messages for invalid formula syntax or unsupported operations
+- UI form for building and previewing formula columns
+- replay-safe serialization for accepted formula transformations
+Success criteria:
+- formula columns support common numeric, conditional, and approved string/date derivations
+- formulas cannot access arbitrary Python attributes or call unapproved functions
+- valid formulas replay correctly through checkpoints and save/revert
+Workstream 5: Visualization Panel and Automated Data Quality Engine (80 hours)
+The current frontend dependency graph has no charting library, and the workspace has nowhere to
+show statistical or quality insights visually. I am budgeting this workstream as roughly 35 hours for the
+visualization layer and 45 hours for the quality engine and one-click fixes. I will introduce a visualization
+panel using recharts for the in-app chart layer, starting with the four chart types explicitly named in issue
+#76: histogram, bar, scatter, and time series. My plan is to compute lightweight chart-ready series on
+the backend or in a thin data-prep layer so the frontend chart components stay focused on rendering
+rather than raw aggregation logic. This panel will be driven by the same profile metadata and column
+selectors introduced earlier.
+The quality engine will build on top of profiling and transformation primitives. I plan to implement three
+core quality areas: duplicate detection, outlier detection, and pattern validation. Duplicate detection will
+start with exact duplicates and can then extend to fuzzy duplicate suggestions for selected text columns.
+Outlier detection will use deterministic methods such as IQR and z-score first, with IsolationForest from
+scikit-learn added as the more advanced mode only after the deterministic path is solid. Pattern
+DataLoom GSoC Proposal Page 7
+validation will cover expected formats such as email-like, phone-like, or user-defined regex rules. I am
+not promising equal depth across every analysis variant on day one; the first goal is a reliable baseline
+of exact duplicates, deterministic outlier checks, and pattern validation that can ship cleanly and be
+extended. The quality engine will produce a column-level and dataset-level summary plus a composite
+score, and the "one-click fix" actions will map back onto existing or newly added transformations rather
+than inventing a separate mutation model.
+Planned outputs:
+- in-app visualization panel with histogram, bar, scatter, and time-series charts
+- quality analysis service for duplicates, outliers, and pattern validation
+- composite quality score and issue summary per project
+- one-click fixes wired to DataLoom transformations where appropriate
+- documentation for chart configuration defaults, quality checks, and fix semantics
+Success criteria:
+- charts render for supported column-type combinations with useful defaults
+- exact duplicates, outliers, and pattern violations can be detected and summarized reliably
+- one-click fixes update the dataset and remain compatible with checkpoints and replay
+Workstream 6: Multi-Format Export and HTML/PDF Quality Reports (40 hours)
+The current export flow is a single CSV download. The target GSoC project needs something much
+richer: export in multiple formats plus downloadable quality reports that combine profiling, quality
+metrics, and generated charts. I will extend the export service to support XLSX, Parquet, JSON, and
+TSV in addition to CSV, with format-aware options and validation. The backend should own the actual
+file generation so the frontend only needs to submit a clear export request and download the returned
+artifact.
+For reports, I plan to generate a structured project quality summary on the backend and render it into
+both HTML and PDF outputs. The same profile and quality payload can drive both formats. I will use
+WeasyPrint for the PDF variant because it lets the same HTML/CSS report template power both the
+browser-viewable HTML report and the downloadable PDF, avoiding a second rendering stack just for
+PDF generation. I will update the backend Dockerfile to install the Cairo and Pango system
+dependencies required by WeasyPrint. If complex report styling proves unreliable in the first
+implementation pass, I will simplify the HTML structure and CSS while keeping WeasyPrint as the
+rendering engine rather than switching stacks mid-project. I still expect to use matplotlib for static report
+chart assets on the backend, while recharts remains the interactive in-app visualization layer.
+Planned outputs:
+- export support for CSV, TSV, JSON, XLSX, and Parquet
+- export dialog or modal in the frontend
+- HTML and PDF quality reports with profile summaries, quality scores, and generated charts
+- backend tests covering valid and invalid export/report combinations
+DataLoom GSoC Proposal Page 8
+Success criteria:
+- users can export transformed data in all target formats from issue #76
+- HTML and PDF quality reports can be downloaded for a project
+- report contents match the profile and quality state visible in the application
+6. Review Strategy, Testing, and Delivery
+One thing I want to avoid is producing a single giant feature PR that is hard to review. There is already
+community evidence that this direction is possible, including the very broad PR #184
+(https://github.com/c2siorg/dataloom/pull/184). I view that as useful confirmation that the seven-pillar
+scope is technically real. My contribution strategy would still be different: I want to decompose the same
+roadmap into smaller, mentor-friendly milestones that can be reviewed, tested, and merged
+incrementally, and if PR #184 remains active I would coordinate with mentors on whether to build on top
+of its merged pieces, extract reusable tests, or focus on the missing storage and rollout foundations
+rather than duplicating work. In practice, each PR should target one logical unit of behavior, such as one
+endpoint/service pair, one UI panel, or one migration-backed storage change, and should aim to stay
+under roughly 400 lines of production code change excluding tests and generated migration boilerplate.
+Each milestone PR will ship with matching tests and any user or contributor documentation needed for
+that slice.
+Testing is a first-class part of that plan. On the backend, I will extend the existing pytest suite to cover:
+- upload and normalization for CSV, XLSX, JSON, Parquet, and TSV
+- Parquet internal storage plus lazy migration of legacy _copy.csv projects
+- profiling payload correctness for representative datasets
+- merge/join and concat operations across projects
+- formula-column validation and replay
+- quality detection outputs and one-click fixes
+- multi-format export and report generation
+Issue #91 (https://github.com/c2siorg/dataloom/issues/91) on transform endpoint integration testing
+remains especially important here. As the transformation vocabulary expands, it becomes even more
+important to validate full request-response flows rather than only unit-testing helper functions.
+On the frontend, I will add component tests for:
+- profile panel rendering and filtering
+- selector-based transform forms
+- join and formula forms
+- visualization panel behavior
+- export and report dialogs
+For end-to-end validation, I will build on the Playwright setup I have already worked on and cover
+journeys such as:
+DataLoom GSoC Proposal Page 9
+- upload multi-format dataset -> inspect profile -> apply transform -> save checkpoint
+- join two projects -> add formula column -> save and reopen project
+- run quality analysis -> apply one-click fix -> view updated score
+- generate visualization -> export data -> download HTML/PDF quality report
+7. Timeline
+Community Bonding Period
+- review issue #76 with mentors and agree on milestone ordering
+- finalize the internal storage approach for multi-format upload and typed working datasets
+- write a short design note for profiling payloads, quality output, and report generation
+Week 1
+- extend upload validation for target file formats
+- implement generalized tabular readers and create representative test fixtures for CSV, XLSX, JSON,
+Parquet, and TSV
+Week 2
+- normalize uploaded datasets into the internal project representation
+- implement backend profile generation for dtype, null, unique, numeric summary, and top-value
+statistics
+- define the profile payload contract early enough for ProjectContext and UI integration to begin in
+parallel
+Week 3
+- expose profile data through the API and wire it into ProjectContext
+- build the initial DataProfilePanel
+Week 4
+- refactor remaining free-text forms to use structured column selectors
+- add reusable selector components that new forms can share
+Week 5
+- implement merge, join, and concat backend services across projects
+- add project-picker and join-configuration UI
+Week 6
+- implement formula-column support with the custom AST validator and approved helper set
+- add formula form validation, preview, and replay coverage
+Week 7 (Buffer / Integration / Midterm Stabilization)
+DataLoom GSoC Proposal Page 10
+- stabilize join and formula behavior and prepare midterm deliverables
+- finalize selector refactors and profile/workspace polish where needed
+By the midterm evaluation, multi-format upload, internal Parquet-backed storage, profiling backend,
+DataProfilePanel, selector refactors, and merge/join should be complete, reviewable, and testable in the
+running application.
+Week 8
+- add recharts-based visualization panel for histogram, bar, scatter, and time-series charts
+- connect chart configuration to profile-aware selectors
+Week 9
+- implement quality analysis services for duplicates, outliers, and pattern validation
+- add dataset-level quality summary and one-click fix actions
+Week 10
+- add advanced quality options such as fuzzy duplicate suggestions and IsolationForest where
+appropriate
+- extend automated coverage for quality workflows
+Week 11
+- implement multi-format export for CSV, TSV, JSON, XLSX, and Parquet
+- build HTML/PDF quality report generation with WeasyPrint and frontend download flow
+Week 12
+- final integration testing, Playwright coverage, mentor feedback, bug fixes, and documentation polish
+- reserve the last stretch for report formatting fixes, UX refinement, and any milestone adjustments
+needed before final evaluation
+- if the core milestones land early, use the buffer to prototype reusable named pipelines as a follow-on
+to the checkpoint log model
+8. Scope Control and Risks
+Issue #76 intentionally spans seven pillars, so the main challenge in this project is managing delivery
+risk without losing technical depth. My plan is to stage the roadmap around foundations first -
+generalized ingestion, typed internal storage, profile generation, and selector refactors - because those
+pieces make every later milestone easier to implement and review.
+The main risks I see are:
+- Integration risk: PR #184 or related upstream work may merge or shift scope during the coding period.
+My mitigation is to align with mentors early, build on top of merged or review-ready pieces where
+appropriate, and avoid parallel rewrites.
+- Dependency risk: WeasyPrint plus Cairo/Pango can be awkward in containerized deployment. My
+mitigation is to validate the Docker setup early and keep the first report layouts structurally simple.
+DataLoom GSoC Proposal Page 11
+- Performance risk: migrating large legacy CSV projects into Parquet-backed working datasets may be
+slow or memory-heavy. My mitigation is lazy migration, one-time conversion, and testing against larger
+fixture datasets before treating the path as stable.
+- Formula usability and safety risk: a safe AST-based expression engine may be stricter than users
+expect. My mitigation is a constrained helper set, explicit validation errors, and phased scope rather
+than overpromising advanced expression syntax immediately.
+If schedule pressure appears, I would protect the following in this order:
+1. multi-format upload and profiling
+2. merge/join plus formula columns
+3. basic visualization and deterministic quality checks
+4. advanced quality heuristics and report polish
+5. reusable named pipelines as stretch work after the core platform lands
+In practical terms, that means exact duplicate detection, IQR/z-score outliers, and HTML report output
+would take priority over fuzzier or more expensive additions such as fuzzy duplicate scoring,
+IsolationForest tuning, or highly polished PDF layout work. I would rather ship a strong, well-tested
+platform core than promise every advanced variant equally deeply.
+9. Availability and Post-GSoC Plan
+I am in the Asia/Kolkata timezone (UTC+05:30) and expect to dedicate roughly 30 to 35 hours per week
+during the coding period. I will keep a consistent written update cadence, use small reviewable pull
+requests, and make sure I maintain enough overlap for mentor communication and review follow-up.
+My semester schedule during the coding period does not include final exams or other major academic
+deadlines that would materially reduce that 30 to 35 hour weekly commitment.
+Because I already have active contributions in DataLoom, I see this proposal as a continuation of work I
+am already invested in. My goal is not only to complete the GSoC project but also to keep contributing
+to the ingestion, transformation, testing, and usability layers after the program ends.

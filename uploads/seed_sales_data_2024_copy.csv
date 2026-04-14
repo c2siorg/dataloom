@@ -1,0 +1,11 @@
+Product,Region,Amount,Units,Date
+Laptop,North,1200.00,5,2024-01-15
+Keyboard,South,75.00,20,2024-01-18
+Monitor,East,450.00,8,2024-02-03
+Mouse,West,25.00,50,2024-02-10
+Laptop,South,1150.00,3,2024-03-01
+Headset,North,85.00,15,2024-03-12
+Webcam,East,60.00,12,2024-04-05
+Monitor,West,430.00,6,2024-04-20
+Keyboard,North,80.00,25,2024-05-08
+Laptop,East,1250.00,4,2024-05-22

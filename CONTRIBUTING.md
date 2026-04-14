@@ -72,6 +72,15 @@ The frontend development server will start at `http://localhost:3200`.
 - Keep API endpoints in `app/api/endpoints/` and data models in `app/models.py`.
 - Use Pydantic schemas in `app/schemas.py` for request/response validation.
 
+## Regression Test Pattern (Backend)
+
+When fixing a production bug, prefer deterministic regression tests that mirror the original user journey.
+
+1. Reproduce the reported scenario in the test docstring and assertions (before/after behavior).
+2. Use explicit timestamps (for example `datetime.now(UTC) - timedelta(...)`) instead of `time.sleep(...)` to avoid flaky timing-based tests.
+3. Add missing-resource edge-case tests (for example non-existent `project_id`) and assert session/database state stays clean after expected errors.
+4. Validate externally visible behavior, not implementation details (ordering, returned values, persisted rows).
+
 ## Reporting Bugs
 
 Use the [Bug Report](https://github.com/c2siorg/dataloom/issues/new?template=bug_report.md) issue template. Include steps to reproduce, expected behavior, and your environment details.
