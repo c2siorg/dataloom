@@ -37,3 +37,5 @@ uploads/
 
 # SQLite (local dev)
 *.sqlite3
+
+test.db
