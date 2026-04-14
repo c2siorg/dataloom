@@ -18,10 +18,11 @@ from app.services.project_service import (
     create_project,
     delete_project,
     get_recent_projects,
+    update_project_name,
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import csv_file_stats, dataframe_to_response, read_csv_safe, save_csv_safe
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -77,15 +78,22 @@ async def get_project_details(project_id: uuid.UUID, db: Session = Depends(datab
 def recent_projects(db: Session = Depends(database.get_db)):
     """Get the most recently modified projects."""
     projects = get_recent_projects(db, limit=10)
-    return [
-        schemas.LastResponse(
-            project_id=p.project_id,
-            name=p.name,
-            description=p.description,
-            last_modified=p.last_modified,
+    out: list[schemas.LastResponse] = []
+    for p in projects:
+        stats = csv_file_stats(p.file_path)
+        out.append(
+            schemas.LastResponse(
+                project_id=p.project_id,
+                name=p.name,
+                description=p.description,
+                last_modified=p.last_modified,
+                upload_date=p.upload_date,
+                file_size_bytes=stats["file_size_bytes"],
+                row_count=stats["row_count"],
+                column_count=stats["column_count"],
+            )
         )
-        for p in projects
-    ]
+    return out
 
 
 @router.post("/{project_id}/save", response_model=schemas.ProjectResponse)
@@ -217,6 +225,18 @@ async def revert_to_checkpoint(
         "project_id": project.project_id,
         **resp,
     }
+
+
+@router.patch("/{project_id}", response_model=schemas.ProjectRenameResponse)
+def rename_project(
+    project_id: uuid.UUID,
+    body: schemas.ProjectRenameRequest,
+    db: Session = Depends(database.get_db),
+):
+    """Rename a project's display name."""
+    project = get_project_or_404(project_id, db)
+    update_project_name(db, project, body.name)
+    return schemas.ProjectRenameResponse(project_id=project.project_id, name=project.name)
 
 
 @router.get("/{project_id}/export")

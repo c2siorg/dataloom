@@ -11,6 +11,7 @@ from app.services.transformation_service import (
     cast_data_type,
     rename_column,
 )
+from app.utils.pandas_helpers import csv_file_stats
 
 
 @pytest.fixture
@@ -311,3 +312,61 @@ class TestTransformEndpoint:
             },
         )
         assert response.status_code == expected_status
+
+
+class TestCsvFileStats:
+    def test_stats_match_csv(self, tmp_path):
+        p = tmp_path / "t.csv"
+        p.write_text("a,b\n1,2\n3,4\n", encoding="utf-8")
+        stats = csv_file_stats(p)
+        assert stats["row_count"] == 2
+        assert stats["column_count"] == 2
+        assert stats["file_size_bytes"] == p.stat().st_size
+
+    def test_missing_file_returns_zeros(self):
+        stats = csv_file_stats("/nonexistent/path/file.csv")
+        assert stats["row_count"] == 0
+        assert stats["column_count"] == 0
+        assert stats["file_size_bytes"] == 0
+
+
+class TestRenameAndRecentSummary:
+    def test_rename_project(self, client, sample_csv, db):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Rename Me", "projectDescription": "rename test"},
+            )
+        assert response.status_code == 200
+        project_id = response.json()["project_id"]
+
+        patch = client.patch(f"/projects/{project_id}", json={"name": "Renamed Project"})
+        assert patch.status_code == 200
+        assert patch.json()["name"] == "Renamed Project"
+
+        recent = client.get("/projects/recent")
+        assert recent.status_code == 200
+        names = [p["name"] for p in recent.json()]
+        assert "Renamed Project" in names
+
+    def test_recent_includes_summary_fields(self, client, sample_csv, db):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Summary Test", "projectDescription": "summary"},
+            )
+        assert response.status_code == 200
+
+        recent = client.get("/projects/recent")
+        assert recent.status_code == 200
+        items = recent.json()
+        assert len(items) >= 1
+        p = next(x for x in items if x["name"] == "Summary Test")
+        assert "file_size_bytes" in p
+        assert "row_count" in p
+        assert "column_count" in p
+        assert "upload_date" in p
+        assert p["row_count"] >= 1
+        assert p["column_count"] >= 1

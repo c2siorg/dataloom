@@ -84,3 +84,14 @@ export const deleteProject = async (projectId) => {
   const response = await client.delete(`/projects/${projectId}`);
   return response.data;
 };
+
+/**
+ * Rename a project's display name.
+ * @param {string} projectId - The project ID.
+ * @param {string} name - New project name.
+ * @returns {Promise<Object>} Updated project_id and name.
+ */
+export const renameProject = async (projectId, name) => {
+  const response = await client.patch(`/projects/${projectId}`, { name });
+  return response.data;
+};

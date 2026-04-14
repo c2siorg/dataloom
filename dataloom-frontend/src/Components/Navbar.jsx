@@ -11,8 +11,8 @@ const Navbar = () => {
     <header role="banner">
       <nav
         aria-label="Main navigation"
-        className={`bg-white border-b border-gray-200 flex p-4 transition-all duration-300 ${
-          isSmall ? "h-12" : "h-16"
+        className={`bg-white border-b border-gray-200 flex px-4 py-4 transition-all duration-300 ${
+          isSmall ? "h-12" : "h-15"
         }`}
       >
         <div
@@ -36,7 +36,8 @@ const Navbar = () => {
         )}
         <div className="ml-auto text-gray-500 items-end">
           <button
-            className={`bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-150 ${
+            onClick={() => alert("Button Clicked")}
+            className={`bg-white font-semibold cursor-pointer rounded-xl border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors duration-150 ${
               isSmall ? "py-1 px-3 text-sm" : "py-2 px-4"
             }`}
           >

@@ -1,58 +1,152 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadProject, getRecentProjects, deleteProject } from "../api";
+import { LuPlus, LuTable2, LuUpload } from "react-icons/lu";
+import { uploadProject, getRecentProjects, deleteProject, renameProject } from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
+import InputDialog from "./common/InputDialog";
 
-const ProjectCard = ({ project, onClick, onDelete }) => {
-  const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
+function formatFileSize(bytes) {
+  if (bytes == null || bytes === 0) return "—";
+  const units = ["B", "KB", "MB", "GB"];
+  let n = bytes;
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i += 1;
+  }
+  return `${n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)} ${units[i]}`;
+}
+
+function formatShortDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+}
+
+const ProjectCard = ({
+  project,
+  isMenuOpen,
+  onToggleMenu,
+  onOpenProject,
+  onRename,
+  onDeleteRequest,
+}) => {
+  const created = project.upload_date || project.last_modified;
+  const rows = project.row_count ?? 0;
+  const cols = project.column_count ?? 0;
+  const sizeBytes = project.file_size_bytes ?? 0;
+
+  const handleKeyCard = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onOpenProject();
+    }
+  };
 
   return (
-    <button
-      onClick={onClick}
-      className="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpenProject}
+      onKeyDown={handleKeyCard}
+      className="group relative flex flex-col items-stretch gap-3 rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 cursor-pointer"
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(project.project_id);
-        }}
-        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors duration-150 p-1 rounded-md hover:bg-red-50"
-        aria-label="Delete project"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4"
-          viewBox="0 0 20 20"
-          fill="currentColor"
+      <div className="absolute top-2 right-2 z-10">
+        <button
+          type="button"
+          className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          aria-label="Project actions"
+          aria-expanded={isMenuOpen}
+          aria-haspopup="true"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMenu();
+          }}
         >
-          <path
-            fillRule="evenodd"
-            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </button>
-      <h3 className="text-lg font-semibold text-gray-900 truncate w-full pr-6">{project.name}</h3>
-      {project.description && (
-        <p className="text-sm text-gray-500 line-clamp-2">{project.description}</p>
-      )}
-      <span className="mt-auto text-xs text-gray-400">{modified}</span>
-    </button>
+          <span className="block text-lg leading-none font-bold tracking-tight">⋮</span>
+        </button>
+        {isMenuOpen && (
+          <ul
+            className="absolute right-0 mt-1 min-w-[9rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+            role="menu"
+          >
+            <li>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRename();
+                }}
+              >
+                Rename
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteRequest();
+                }}
+              >
+                Delete
+              </button>
+            </li>
+          </ul>
+        )}
+      </div>
+
+      <div className="pr-8">
+        <h3 className="text-lg font-semibold text-gray-900 truncate">{project.name}</h3>
+        {project.description ? (
+          <p className="mt-1 text-sm text-gray-500 line-clamp-2">{project.description}</p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+          {rows} rows
+        </span>
+        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+          {cols} cols
+        </span>
+        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
+          {formatFileSize(sizeBytes)}
+        </span>
+        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">
+          Created {formatShortDate(created)}
+        </span>
+      </div>
+
+      <span className="mt-auto text-xs text-gray-400 border-t border-gray-100 pt-2">
+        Modified {formatShortDate(project.last_modified)}
+      </span>
+    </div>
   );
 };
 
 const NewProjectCard = ({ onClick }) => (
   <button
+    type="button"
     onClick={onClick}
-    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100"
+    className="group flex min-h-[11rem] flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-blue-300 bg-gradient-to-b from-blue-50/80 to-white p-5 text-center transition-all duration-200 hover:border-blue-500 hover:from-blue-100/90 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
   >
-    <span className="text-3xl leading-none text-blue-500">+</span>
-    <span className="text-sm font-medium text-blue-600">New Project</span>
+    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600 transition-colors group-hover:bg-blue-200">
+      <LuPlus className="h-7 w-7" aria-hidden />
+    </span>
+    <span className="text-sm font-semibold text-blue-700">New Project</span>
+    <span className="flex items-center gap-1.5 text-xs text-gray-500">
+      <LuUpload className="h-3.5 w-3.5" aria-hidden />
+      Upload a CSV
+    </span>
   </button>
 );
 
@@ -66,21 +160,33 @@ const HomeScreen = () => {
   const [projectDescription, setProjectDescription] = useState("");
   const [recentProjects, setRecentProjects] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, projectId: null });
+  const [menuOpenFor, setMenuOpenFor] = useState(null);
+  const [renameTarget, setRenameTarget] = useState(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchRecentProjects();
-  }, []);
-
-  const fetchRecentProjects = async () => {
+  const fetchRecentProjects = useCallback(async () => {
     try {
       const response = await getRecentProjects();
       setRecentProjects(response);
     } catch (error) {
-      console.error("Error fetching recent projects:", error);
+      showToast(error?.response?.data?.detail || "Could not load projects", "error");
     }
-  };
+  }, [showToast]);
+
+  useEffect(() => {
+    fetchRecentProjects();
+  }, [fetchRecentProjects]);
+
+  useEffect(() => {
+    if (menuOpenFor == null) return;
+    const close = () => setMenuOpenFor(null);
+    const t = setTimeout(() => document.addEventListener("click", close), 0);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("click", close);
+    };
+  }, [menuOpenFor]);
 
   const handleNewProjectClick = () => {
     setShowModal(true);
@@ -122,11 +228,9 @@ const HomeScreen = () => {
       if (projectId) {
         navigate(`/workspace/${projectId}`);
       } else {
-        console.error("Project ID is undefined.");
         showToast("Error: Project ID is undefined.", "error");
       }
     } catch (error) {
-      console.error("Error uploading file:", error);
       const message = error?.response?.data?.detail || "Error uploading file. Please try again.";
       showToast(message, "error");
     }
@@ -147,9 +251,9 @@ const HomeScreen = () => {
     setFileUpload(file);
   };
 
-  const handleDeleteClick = (projectId) => {
+  const handleDeleteRequest = useCallback((projectId) => {
     setDeleteConfirm({ open: true, projectId });
-  };
+  }, []);
 
   const handleDeleteConfirm = async () => {
     try {
@@ -157,7 +261,6 @@ const HomeScreen = () => {
       showToast("Project deleted successfully", "success");
       fetchRecentProjects();
     } catch (error) {
-      console.error("Error deleting project:", error);
       showToast("Failed to delete project", "error");
     }
     setDeleteConfirm({ open: false, projectId: null });
@@ -172,9 +275,25 @@ const HomeScreen = () => {
     navigate(`/workspace/${projectId}`);
   };
 
+  const handleRenameSubmit = async (newName) => {
+    if (!renameTarget || !newName?.trim()) {
+      setRenameTarget(null);
+      return;
+    }
+    try {
+      await renameProject(renameTarget.project_id, newName.trim());
+      showToast("Project renamed", "success");
+      fetchRecentProjects();
+    } catch (error) {
+      const message = error?.response?.data?.detail || "Failed to rename project";
+      showToast(typeof message === "string" ? message : "Failed to rename project", "error");
+    }
+    setRenameTarget(null);
+  };
+
   return (
-    <div className="flex flex-col items-center min-h-screen bg-white px-6 pt-24">
-      <div className="w-full max-w-4xl">
+    <div className="flex flex-col items-center min-h-screen bg-white px-6 py-24 ">
+      <div className="w-full max-w-5xl">
         <h1 className="text-5xl text-gray-900">
           Welcome to <span className="text-blue-500 font-bold">DataLoom</span>,
         </h1>
@@ -183,18 +302,56 @@ const HomeScreen = () => {
           <span className="text-gray-900 font-semibold">Dataset Transformations</span>.
         </h1>
 
-        <h2 className="mt-12 mb-4 text-lg font-medium text-gray-700">Projects</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <h2 className="mt-12 mb-4 flex items-center gap-2 text-lg font-medium text-gray-700">
+          <LuTable2 className="h-5 w-5 text-gray-500" aria-hidden />
+          Projects
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <NewProjectCard onClick={handleNewProjectClick} />
           {recentProjects.map((project) => (
             <ProjectCard
               key={project.project_id}
               project={project}
-              onClick={() => handleRecentProjectClick(project.project_id)}
-              onDelete={handleDeleteClick}
+              isMenuOpen={menuOpenFor === project.project_id}
+              onToggleMenu={() =>
+                setMenuOpenFor((prev) => (prev === project.project_id ? null : project.project_id))
+              }
+              onOpenProject={() => {
+                setMenuOpenFor(null);
+                handleRecentProjectClick(project.project_id);
+              }}
+              onRename={() => {
+                setMenuOpenFor(null);
+                setRenameTarget({ project_id: project.project_id, name: project.name });
+              }}
+              onDeleteRequest={() => handleDeleteRequest(project.project_id)}
             />
           ))}
         </div>
+
+        {recentProjects.length === 0 && (
+          <div className="flex flex-col items-center justify-center mt-16 text-center text-gray-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-14 w-14 mb-4 text-gray-300"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 10h18M3 6h18M3 14h18M3 18h18"
+              />
+            </svg>
+            <p className="text-xl font-medium text-gray-500">No projects yet!</p>
+            <p className="text-md text-gray-400 mt-1">
+              Click <span className="text-blue-500 font-medium">+ New Project</span> to upload a CSV
+              and get started.
+            </p>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
@@ -202,6 +359,14 @@ const HomeScreen = () => {
         message="Are you sure you want to delete this project? This action cannot be undone."
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
+      />
+
+      <InputDialog
+        isOpen={!!renameTarget}
+        message="Enter a new name for this project:"
+        defaultValue={renameTarget?.name ?? ""}
+        onSubmit={handleRenameSubmit}
+        onCancel={() => setRenameTarget(null)}
       />
 
       {showModal && (

@@ -7,6 +7,29 @@ import pandas as pd
 from fastapi import HTTPException
 
 
+def csv_file_stats(path: str | Path) -> dict[str, int]:
+    """Return row count, column count, and file size for a CSV path.
+
+    Used for lightweight project summaries (e.g. recent projects list).
+    On read errors, row/column counts default to 0; file size is still returned if the path exists.
+
+    Args:
+        path: Path to the CSV file (typically the project working copy).
+
+    Returns:
+        Dict with keys ``row_count``, ``column_count``, ``file_size_bytes``.
+    """
+    p = Path(path)
+    if not p.exists():
+        return {"row_count": 0, "column_count": 0, "file_size_bytes": 0}
+    size = int(p.stat().st_size)
+    try:
+        df = pd.read_csv(p)
+        return {"row_count": len(df), "column_count": len(df.columns), "file_size_bytes": size}
+    except Exception:
+        return {"row_count": 0, "column_count": 0, "file_size_bytes": size}
+
+
 def read_csv_safe(path: Path) -> pd.DataFrame:
     """Read a CSV file safely with error handling.
 
