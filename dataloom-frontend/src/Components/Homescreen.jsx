@@ -292,7 +292,7 @@ const HomeScreen = () => {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-white px-6 pt-24">
+    <div className="flex flex-col items-center min-h-screen bg-white px-6 py-24 ">
       <div className="w-full max-w-5xl">
         <h1 className="text-5xl text-gray-900">
           Welcome to <span className="text-blue-500 font-bold">DataLoom</span>,
