@@ -509,10 +509,7 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
 
     elif action_type == "sort":
         sort_params = action_details.get("sort_params", {})
-        criteria = [
-            {"column": c["column"], "ascending": c["ascending"]}
-            for c in sort_params.get("sort_criteria", [])
-        ]
+        criteria = [{"column": c["column"], "ascending": c["ascending"]} for c in sort_params.get("sort_criteria", [])]
         return apply_sort(df, criteria)
 
     elif action_type == "dropNa":

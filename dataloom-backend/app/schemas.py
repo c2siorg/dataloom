@@ -126,7 +126,7 @@ class AddColumn(BaseModel):
     """
 
     index: int
-    name: str | None = None
+    name: str
 
 
 class DeleteColumn(BaseModel):
