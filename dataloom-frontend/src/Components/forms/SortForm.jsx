@@ -18,15 +18,12 @@ const SortForm = ({ projectId, onClose }) => {
   const { error, clearError, handleError } = useError();
 
   const updateCriterion = (index, field, value) => {
-    setCriteria((prev) =>
-      prev.map((c, i) => (i === index ? { ...c, [field]: value } : c))
-    );
+    setCriteria((prev) => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
   };
 
   const addCriterion = () => setCriteria((prev) => [...prev, emptyRow()]);
 
-  const removeCriterion = (index) =>
-    setCriteria((prev) => prev.filter((_, i) => i !== index));
+  const removeCriterion = (index) => setCriteria((prev) => prev.filter((_, i) => i !== index));
 
   const moveCriterion = (index, direction) => {
     const next = index + direction;
@@ -97,9 +94,7 @@ const SortForm = ({ projectId, onClose }) => {
               {/* Direction select */}
               <select
                 value={criterion.ascending}
-                onChange={(e) =>
-                  updateCriterion(index, "ascending", e.target.value === "true")
-                }
+                onChange={(e) => updateCriterion(index, "ascending", e.target.value === "true")}
                 className="border border-gray-300 rounded-md px-3 py-1.5 bg-white text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
               >
                 <option value="true">Ascending</option>
@@ -169,9 +164,7 @@ const SortForm = ({ projectId, onClose }) => {
       </form>
 
       <FormErrorAlert message={error} />
-      {result && (
-        <TransformResultPreview columns={result.columns} rows={result.rows} />
-      )}
+      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };
@@ -182,4 +175,3 @@ SortForm.propTypes = {
 };
 
 export default SortForm;
-
