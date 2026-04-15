@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
-COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables", "dropNa"}
+COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables", "dropNa", "melt"}
 
 
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
@@ -131,6 +131,11 @@ def _handle_complex_transform(df, transformation_input, project, db, project_id)
         if transformation_input.drop_na_params:
             columns = transformation_input.drop_na_params.columns
         return ts.drop_na(df, columns), True
+
+    elif op == "melt":
+        if not transformation_input.melt_params:
+            raise HTTPException(status_code=400, detail="Melt parameters required")
+        return ts.melt_dataframe(df, transformation_input.melt_params), False
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")

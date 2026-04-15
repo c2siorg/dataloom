@@ -6,6 +6,7 @@ No side effects -- saving to disk is handled by the caller.
 
 import pandas as pd
 
+from app.schemas import MeltParams
 from app.utils.logging import get_logger
 from app.utils.security import validate_query_string
 
@@ -438,6 +439,64 @@ def drop_na(df: pd.DataFrame, columns: list[str] | None = None) -> pd.DataFrame:
     return df.dropna().reset_index(drop=True)
 
 
+def melt_dataframe(df: pd.DataFrame, params: MeltParams | dict) -> pd.DataFrame:
+    """Unpivot a DataFrame from wide to long format.
+
+    Args:
+        df: Source DataFrame.
+        params: MeltParams object or dictionary with id_vars, value_vars, var_name, value_name.
+
+    Returns:
+        Melted DataFrame.
+
+    Raises:
+        TransformationError: If columns are missing or overlap.
+    """
+    if isinstance(params, dict):
+        id_vars = params.get("id_vars", [])
+        value_vars = params.get("value_vars")
+        var_name = params.get("var_name", "variable")
+        value_name = params.get("value_name", "value")
+    else:
+        id_vars = params.id_vars
+        value_vars = params.value_vars
+        var_name = params.var_name
+        value_name = params.value_name
+
+    # Validate id_vars
+    missing_id = [c for c in id_vars if c not in df.columns]
+    if missing_id:
+        raise TransformationError(f"ID variables {missing_id} not found in dataset")
+
+    # Validate value_vars
+    if value_vars:
+        missing_val = [c for c in value_vars if c not in df.columns]
+        if missing_val:
+            raise TransformationError(f"Value variables {missing_val} not found in dataset")
+
+        # Check for overlap
+        overlap = set(id_vars).intersection(set(value_vars))
+        if overlap:
+            raise TransformationError(f"Columns cannot be both in id_vars and value_vars: {list(overlap)}")
+
+    # Conflict: var_name/value_name must not match any id_vars (would duplicate columns in output)
+    for name in [var_name, value_name]:
+        if name in id_vars:
+            raise TransformationError(
+                f"Target column name '{name}' conflicts with an id_var column. "
+                "Rename it with var_name/value_name parameters."
+            )
+
+    # Conflict: var_name and value_name are the same
+    if var_name == value_name:
+        raise TransformationError(f"var_name and value_name must be different (both set to '{var_name}').")
+
+    try:
+        return df.melt(id_vars=id_vars, value_vars=value_vars, var_name=var_name, value_name=value_name)
+    except Exception as e:
+        raise TransformationError(f"Melt operation failed: {str(e)}") from e
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
@@ -515,6 +574,10 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == "dropNa":
         columns = action_details.get("drop_na_params", {}).get("columns")
         return drop_na(df, columns)
+
+    elif action_type == "melt":
+        params = action_details["melt_params"]
+        return melt_dataframe(df, params)
 
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
