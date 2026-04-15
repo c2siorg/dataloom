@@ -169,7 +169,9 @@ const SortForm = ({ projectId, onClose }) => {
       </form>
 
       <FormErrorAlert message={error} />
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
+      {result && (
+        <TransformResultPreview columns={result.columns} rows={result.rows} />
+      )}
     </div>
   );
 };
