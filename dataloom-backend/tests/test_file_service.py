@@ -2,7 +2,7 @@
 
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -21,6 +21,7 @@ class MockUploadFile:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_mock_paths(tmp_path: Path):
     """Return patch targets that redirect disk writes to tmp_path."""
     original = tmp_path / "test.csv"
@@ -32,12 +33,12 @@ def _make_mock_paths(tmp_path: Path):
 # TestStoreUploadExtension
 # ---------------------------------------------------------------------------
 
+
 class TestStoreUploadExtension:
     def test_csv_file_is_accepted(self, tmp_path):
         """A .csv file should pass extension validation and be stored."""
         file = MockUploadFile("data.csv", b"name,age\nAlice,30\n")
         original = tmp_path / "data.csv"
-        copy = tmp_path / "data_copy.csv"
 
         with (
             patch("app.services.file_service.sanitize_filename", return_value="data.csv"),
@@ -93,6 +94,7 @@ class TestStoreUploadExtension:
 # TestStoreUploadSize
 # ---------------------------------------------------------------------------
 
+
 class TestStoreUploadSize:
     def test_file_within_size_limit_is_accepted(self, tmp_path):
         """A file well under 50 MB must be stored without raising."""
@@ -139,6 +141,7 @@ class TestStoreUploadSize:
 # ---------------------------------------------------------------------------
 # TestStoreUploadPointerReset
 # ---------------------------------------------------------------------------
+
 
 class TestStoreUploadPointerReset:
     def test_file_pointer_is_reset_before_write(self, tmp_path):
