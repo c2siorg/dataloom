@@ -36,24 +36,26 @@ const DropNaForm = ({ projectId, onClose, onTransform }) => {
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <h3 className="font-semibold text-gray-900 mb-1">Drop Missing Values</h3>
-          <p className="text-sm text-gray-500 mb-4">Remove rows that contain empty or NaN values.</p>
-          
+          <p className="text-sm text-gray-500 mb-4">
+            Remove rows that contain empty or NaN values.
+          </p>
+
           <div className="flex space-x-4 mb-3">
             <label className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
-              <input 
-                type="radio" 
-                checked={mode === "all"} 
-                onChange={() => setMode("all")} 
-                className="text-blue-500 focus:ring-blue-500 w-4 h-4 cursor-pointer" 
+              <input
+                type="radio"
+                checked={mode === "all"}
+                onChange={() => setMode("all")}
+                className="text-blue-500 focus:ring-blue-500 w-4 h-4 cursor-pointer"
               />
               <span>All columns</span>
             </label>
             <label className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
-              <input 
-                type="radio" 
-                checked={mode === "specific"} 
-                onChange={() => setMode("specific")} 
-                className="text-blue-500 focus:ring-blue-500 w-4 h-4 cursor-pointer" 
+              <input
+                type="radio"
+                checked={mode === "specific"}
+                onChange={() => setMode("specific")}
+                className="text-blue-500 focus:ring-blue-500 w-4 h-4 cursor-pointer"
               />
               <span>Specific columns</span>
             </label>
@@ -73,7 +75,7 @@ const DropNaForm = ({ projectId, onClose, onTransform }) => {
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-between mt-4">
           <button
             type="submit"
