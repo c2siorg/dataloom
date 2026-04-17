@@ -238,12 +238,12 @@ class TestCastDataType:
     def test_cast_to_boolean_truthy_falsy(self):
         df = pd.DataFrame({"flag": ["true", "false", "yes", "no", "1", "0"]})
         result = cast_data_type(df, "flag", "boolean")
-        assert result["flag"].iloc[0] is True or result["flag"].iloc[0] == True
-        assert result["flag"].iloc[1] is False or result["flag"].iloc[1] == False
-        assert result["flag"].iloc[2] is True or result["flag"].iloc[2] == True
-        assert result["flag"].iloc[3] is False or result["flag"].iloc[3] == False
-        assert result["flag"].iloc[4] is True or result["flag"].iloc[4] == True
-        assert result["flag"].iloc[5] is False or result["flag"].iloc[5] == False
+        assert result["flag"].iloc[0]
+        assert not result["flag"].iloc[1]
+        assert result["flag"].iloc[2]
+        assert not result["flag"].iloc[3]
+        assert result["flag"].iloc[4]
+        assert not result["flag"].iloc[5]
 
     def test_cast_to_datetime(self):
         df = pd.DataFrame({"date": ["2024-01-01", "2024-06-15"]})
