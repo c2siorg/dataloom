@@ -115,7 +115,7 @@ class AddColumn(BaseModel):
     """
 
     index: int
-    name: str | None = None
+    name: str
 
 
 class DeleteColumn(BaseModel):
@@ -286,6 +286,10 @@ class ProjectResponse(BaseModel):
     filename: str
     file_path: str
     project_id: uuid.UUID
+    page: int
+    total_rows: int
+    total_pages: int
+    page_size: int
     columns: list[str]
     row_count: int
     rows: list[list]

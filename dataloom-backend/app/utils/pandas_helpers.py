@@ -69,12 +69,18 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
     Returns:
         Dict with columns (list of str), rows (list of lists), row_count, and dtypes.
     """
+
     dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
     df = df.fillna("")
     df = df.replace([float("inf"), float("-inf")], "")
     columns = df.columns.tolist()
     rows = df.values.tolist()
-    return {"columns": columns, "rows": rows, "row_count": len(rows), "dtypes": dtypes}
+    return {
+        "columns": columns,
+        "rows": rows,
+        "row_count": len(rows),
+        "dtypes": dtypes,
+    }
 
 
 def validate_row_index(df: pd.DataFrame, index: int) -> None:
