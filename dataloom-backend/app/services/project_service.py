@@ -123,6 +123,11 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
         log.applied = True
         log.checkpoint_id = checkpoint.id
 
+    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
+    if project:
+        project.last_modified = datetime.now(UTC)
+        db.add(project)
+
     db.commit()
     logger.info("Checkpoint created: id=%s, project_id=%s, logs_applied=%d", checkpoint.id, project_id, len(logs))
     return checkpoint
