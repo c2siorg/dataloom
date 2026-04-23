@@ -510,6 +510,33 @@ def group_by(df: pd.DataFrame, columns: list[str], agg_column: str, agg_function
     return result
 
 
+def sample_rows(df: pd.DataFrame, sample_size: int, random_seed: int | None = None) -> pd.DataFrame:
+    """Return a random sample of rows from the DataFrame.
+
+    Args:
+        df: Source DataFrame.
+        sample_size: Number of rows to sample. Must be positive.
+        random_seed: Optional seed for reproducibility (0 to 2^32-1).
+
+    Returns:
+        DataFrame with sampled rows and clean sequential indices.
+
+    Raises:
+        TransformationError: If sample_size is not positive.
+    """
+    if sample_size <= 0:
+        raise TransformationError(f"Sample size must be positive, got {sample_size}")
+    n_rows = len(df)
+    actual_sample_size = min(sample_size, n_rows)
+    if sample_size > n_rows:
+        logger.warning("sample_size %d exceeds dataset length %d; clamping.", sample_size, n_rows)
+    kwargs = {"n": actual_sample_size}
+    if random_seed is not None:
+        kwargs["random_state"] = random_seed
+    sampled = df.sample(**kwargs)
+    return sampled.reset_index(drop=True)
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
@@ -584,11 +611,13 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     elif action_type == "melt":
         params = action_details["melt_params"]
         return melt_dataframe(df, params)
-
     elif action_type == "groupby":
         params = action_details["groupby_params"]
         return group_by(df, params["columns"], params["agg_column"], params["agg_function"])
 
+    elif action_type == "sample":
+        params = action_details["sample_params"]
+        return sample_rows(df, params["sample_size"], params.get("random_seed"))
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
         raise TransformationError(f"Unknown action type in log replay: {action_type}")
