@@ -18,6 +18,8 @@ services:
       - "4200:4200"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/dataloom
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       - db
 
@@ -31,3 +33,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

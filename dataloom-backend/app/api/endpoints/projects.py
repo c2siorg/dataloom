@@ -42,33 +42,51 @@ async def upload_project(
     and returns the initial project data.
     """
     logger.info("Upload request: project=%s, file=%s", projectName, file.filename)
-    validate_upload_file(file)
+    await validate_upload_file(file)
 
     original_path, copy_path = store_upload(file)
     df = read_csv_safe(original_path)
 
     project = create_project(db, projectName, str(copy_path), projectDescription)
 
+    total_rows = len(df)
     resp = dataframe_to_response(df)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
+        "page": 1,
+        "page_size": total_rows,
+        "total_rows": total_rows,
+        "total_pages": 1,
         **resp,
     }
 
 
 @router.get("/get/{project_id}", response_model=schemas.ProjectResponse)
-async def get_project_details(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
+async def get_project_details(
+    project_id: uuid.UUID, page: int = 1, pageSize: int = 50, db: Session = Depends(database.get_db)
+):
     """Fetch full project details including all rows and columns."""
     project = get_project_or_404(project_id, db)
     df = read_csv_safe(project.file_path)
 
-    resp = dataframe_to_response(df)
+    total_rows = len(df)
+    total_pages = (total_rows + pageSize - 1) // pageSize
+
+    start = (page - 1) * pageSize
+    end = start + pageSize
+    paginated_df = df.iloc[start:end]
+
+    resp = dataframe_to_response(paginated_df)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
+        "page": page,
+        "page_size": pageSize,
+        "total_rows": total_rows,
+        "total_pages": total_pages,
         **resp,
     }
 
@@ -105,12 +123,11 @@ async def save_project(
     original_path = get_original_path(project.file_path)
     df = read_csv_safe(original_path)
 
-    # Get all unapplied logs for this project
+    # Get all logs for this project to replay full cumulative history
     logs = (
         db.query(models.ProjectChangeLog)
         .filter(
             models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.applied == False,  # noqa: E712
         )
         .order_by(models.ProjectChangeLog.timestamp)
         .all()
@@ -130,12 +147,17 @@ async def save_project(
     # Create checkpoint (marks logs as applied)
     checkpoint = create_checkpoint(db, project_id, commit_message)
 
+    total_rows = len(df)
     resp = dataframe_to_response(df)
     logger.info("Project saved: id=%s, checkpoint=%s", project_id, checkpoint.id)
     return {
         "filename": project.name,
         "file_path": str(project.file_path),
         "project_id": project.project_id,
+        "page": 1,
+        "page_size": total_rows,
+        "total_rows": total_rows,
+        "total_pages": 1,
         **resp,
     }
 
@@ -209,12 +231,17 @@ async def revert_to_checkpoint(
         db.rollback()
         raise
 
+    total_rows = len(df)
     resp = dataframe_to_response(df)
     logger.info("Project reverted: id=%s, checkpoint_id=%s", project_id, checkpoint_id)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
+        "page": 1,
+        "page_size": total_rows,
+        "total_rows": total_rows,
+        "total_pages": 1,
         **resp,
     }
 

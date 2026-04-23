@@ -7,6 +7,7 @@ import PivotTableForm from "./forms/PivotTableForm";
 import MeltForm from "./forms/MeltForm";
 import CastDataTypeForm from "./forms/CastDataTypeForm";
 import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
+import GroupByForm from "./forms/GroupByForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
@@ -14,6 +15,7 @@ import ConfirmDialog from "./common/ConfirmDialog";
 import Toast from "./common/Toast";
 import { saveProject, exportProject, getLogs, getCheckpoints, revertToCheckpoint } from "../api";
 import proptype from "prop-types";
+
 import {
   LuFilter,
   LuArrowUpDown,
@@ -27,9 +29,11 @@ import {
   LuRefreshCw,
   LuScissors,
   LuLayoutList,
+  LuGroup,
 } from "react-icons/lu";
 
 const MenuNavbar = ({ projectId, onTransform }) => {
+  const [showGroupByForm, setShowGroupByForm] = useState(false);
   const [showFilterForm, setShowFilterForm] = useState(false);
   const [showSortForm, setShowSortForm] = useState(false);
   const [showDropDuplicateForm, setShowDropDuplicateForm] = useState(false);
@@ -131,6 +135,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
     setShowMeltForm(false);
     setShowLogs(false);
     setShowCheckpoints(false);
+    setShowGroupByForm(false);
 
     setActiveForm(formType);
 
@@ -164,6 +169,9 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         break;
       case "Checkpoints":
         setShowCheckpoints(true);
+        break;
+      case "GroupByForm":
+        setShowGroupByForm(true);
         break;
       default:
         break;
@@ -220,6 +228,12 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             icon: LuCopyMinus,
             formType: "DropDuplicateForm",
             onClick: () => handleMenuClick("DropDuplicateForm"),
+          },
+          {
+            label: "GroupBy",
+            icon: LuGroup,
+            formType: "GroupByForm",
+            onClick: () => handleMenuClick("GroupByForm"),
           },
           {
             label: "Cast Type",
@@ -396,6 +410,16 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           onRevert={handleRevert}
+        />
+      )}
+      {showGroupByForm && (
+        <GroupByForm
+          projectId={projectId}
+          onClose={() => {
+            setShowGroupByForm(false);
+            setActiveForm(null);
+          }}
+          onTransform={onTransform}
         />
       )}
 

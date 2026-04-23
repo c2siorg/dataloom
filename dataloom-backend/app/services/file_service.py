@@ -8,19 +8,42 @@ from app.utils.security import resolve_upload_path, sanitize_filename
 
 logger = get_logger(__name__)
 
+# Maximum allowed upload size: 50 MB
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
 
 def store_upload(file) -> tuple[Path, Path]:
     """Store an uploaded file and create a working copy.
 
-    Saves the file with a sanitized name and creates a _copy.csv for
-    transformation operations, keeping the original pristine.
+    Validates the file extension (must be .csv) and size (max 50 MB)
+    before writing anything to disk. Saves the file with a sanitized name
+    and creates a _copy.csv for transformation operations, keeping the
+    original pristine.
 
     Args:
         file: The FastAPI UploadFile object.
 
     Returns:
         Tuple of (original_path, copy_path).
+
+    Raises:
+        ValueError: If the file is not a CSV or exceeds MAX_FILE_SIZE.
     """
+    # 1. Validate file extension
+    ext = Path(file.filename).suffix.lower()
+    if ext != ".csv":
+        raise ValueError(f"Only CSV files are supported. Got: {ext}")
+
+    # 2. Validate file size
+    contents = file.file.read()
+    size = len(contents)
+    if size > MAX_FILE_SIZE:
+        size_mb = size / (1024 * 1024)
+        raise ValueError(f"File size {size_mb:.1f}MB exceeds maximum allowed size of 50MB")
+
+    # 3. Reset pointer so shutil.copyfileobj can read from the beginning
+    file.file.seek(0)
+
     safe_name = sanitize_filename(file.filename)
     original_path = resolve_upload_path(safe_name)
 

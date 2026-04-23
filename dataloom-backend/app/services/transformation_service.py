@@ -274,23 +274,15 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
     try:
         if target_type == "string":
             df[column] = df[column].astype(str)
-        elif target_type == "integer":
-            df[column] = pd.to_numeric(df[column], errors="coerce").astype("Int64")
-        elif target_type == "float":
+        elif target_type in ("integer", "float"):
             df[column] = pd.to_numeric(df[column], errors="coerce")
         elif target_type == "boolean":
             truthy = {"true", "1", "yes", "y", "on"}
             falsy = {"false", "0", "no", "n", "off"}
-            df[column] = (
-                df[column]
-                .apply(
-                    lambda v: (
-                        True
-                        if str(v).strip().lower() in truthy
-                        else (False if str(v).strip().lower() in falsy else None)
-                    )
+            df[column] = df[column].apply(
+                lambda v: (
+                    True if str(v).strip().lower() in truthy else (False if str(v).strip().lower() in falsy else None)
                 )
-                .astype("boolean")
             )
         elif target_type == "datetime":
             df[column] = pd.to_datetime(df[column], errors="coerce")
@@ -487,6 +479,37 @@ def melt_dataframe(df: pd.DataFrame, params: MeltParams | dict) -> pd.DataFrame:
         raise TransformationError(f"Melt operation failed: {str(e)}") from e
 
 
+def group_by(df: pd.DataFrame, columns: list[str], agg_column: str, agg_function: str) -> pd.DataFrame:
+    """Group DataFrame by columns and apply aggregation.
+
+    Args:
+        df: Source DataFrame.
+        columns: List of column names to group by.
+        agg_column: Column to aggregate.
+        agg_function: One of sum, mean, count, min, max, median.
+
+    Returns:
+        Aggregated DataFrame with flat structure.
+
+    Raises:
+        TransformationError: If columns not found or invalid function.
+    """
+    all_cols = columns + [agg_column]
+    missing = [c for c in all_cols if c not in df.columns]
+    if missing:
+        raise TransformationError(f"Columns {missing} not found in dataset")
+
+    valid_functions = {"sum", "mean", "count", "min", "max", "median"}
+    if agg_function not in valid_functions:
+        raise TransformationError(f"Unsupported aggregation function: {agg_function}. Use: {valid_functions}")
+
+    result = df.groupby(columns, as_index=False)[agg_column].agg(agg_function)
+    result.columns = [str(c) for c in result.columns]
+    for col in result.select_dtypes(include=["float"]).columns:
+        result[col] = result[col].round(2)
+    return result
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
@@ -511,9 +534,7 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
 
     elif action_type == "delRow":
         index = action_details["row_params"]["index"]
-        if index < 0 or index >= len(df):
-            raise TransformationError(f"Row index {index} out of range")
-        return df.drop(index)
+        return delete_row(df, index)
 
     elif action_type == "addCol":
         params = action_details.get("add_col_params") or action_details.get("col_params")
@@ -557,13 +578,17 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         return trim_whitespace(df, column)
 
     elif action_type == "dropNa":
-        columns = action_details.get("drop_na_params", {}).get("columns")
+        columns = (action_details.get("drop_na_params") or {}).get("columns")
         return drop_na(df, columns)
 
     elif action_type == "melt":
         params = action_details["melt_params"]
         return melt_dataframe(df, params)
 
+    elif action_type == "groupby":
+        params = action_details["groupby_params"]
+        return group_by(df, params["columns"], params["agg_column"], params["agg_function"])
+
     else:
         logger.warning("Unknown action type in log replay: %s", action_type)
-        return df
+        raise TransformationError(f"Unknown action type in log replay: {action_type}")
