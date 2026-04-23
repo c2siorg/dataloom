@@ -3,6 +3,7 @@
 Configures middleware, exception handlers, and mounts all API routers.
 """
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -24,16 +25,22 @@ logger = get_logger(__name__)
 async def lifespan(app):
     """Application startup/shutdown lifecycle."""
     verify_database_connection()
-    from alembic.config import Config
 
-    from alembic import command
+    # Tests set up the schema directly via SQLModel.metadata.create_all()
+    # (see tests/conftest.py). Running Alembic migrations on top is both
+    # redundant and incompatible with SQLite (ALTER CONSTRAINT not supported),
+    # so skip the upgrade when pytest is driving the app.
+    if "PYTEST_CURRENT_TEST" not in os.environ:
+        from alembic.config import Config
 
-    try:
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-    except Exception as e:
-        logger.error("Alembic migration failed: %s", e)
-        raise
+        from alembic import command
+
+        try:
+            alembic_cfg = Config("alembic.ini")
+            command.upgrade(alembic_cfg, "head")
+        except Exception as e:
+            logger.error("Alembic migration failed: %s", e)
+            raise
 
     settings = get_settings()
     setup_logging(settings.debug)
