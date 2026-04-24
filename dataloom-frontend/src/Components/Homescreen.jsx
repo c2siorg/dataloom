@@ -107,6 +107,25 @@ const HomeScreen = () => {
   const isFormValid =
     projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
 
+  const fetchRecentProjects = async () => {
+    try {
+      const response = await getRecentProjects();
+      setRecentProjects(response);
+    } catch (error) {
+      console.error("Error fetching recent projects:", error);
+    }
+  };
+
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false);
+    setProjectName("");
+    setProjectDescription("");
+    setFileUpload(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
   useEffect(() => {
     fetchRecentProjects();
   }, []);
@@ -120,28 +139,9 @@ const HomeScreen = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showModal, isSubmitting, handleCloseModal]);
 
-  const fetchRecentProjects = async () => {
-    try {
-      const response = await getRecentProjects();
-      setRecentProjects(response);
-    } catch (error) {
-      console.error("Error fetching recent projects:", error);
-    }
-  };
-
   const handleNewProjectClick = () => {
     setShowModal(true);
   };
-
-  const handleCloseModal = useCallback(() => {
-    setShowModal(false);
-    setProjectName("");
-    setProjectDescription("");
-    setFileUpload(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }, []);
 
   const handleSubmitModal = async (event) => {
     event.preventDefault();
