@@ -242,11 +242,17 @@ const HomeScreen = () => {
           Welcome to <span className="text-blue-500 font-bold">DataLoom</span>,
         </h1>
         <p className="text-xl mt-2 text-gray-600 dark:text-dark-muted">
-          your one-stop for <span className="font-semibold text-gray-900 dark:text-dark-text">Dataset Transformations</span>.
+          your one-stop for{" "}
+          <span className="font-semibold text-gray-900 dark:text-dark-text">
+            Dataset Transformations
+          </span>
+          .
         </p>
 
         <div className="flex items-center justify-between mt-12 mb-4">
-          <h2 className="text-lg font-medium text-gray-700 dark:text-dark-muted">Recent Projects</h2>
+          <h2 className="text-lg font-medium text-gray-700 dark:text-dark-muted">
+            Recent Projects
+          </h2>
           {recentProjects.length > 0 && (
             <button
               type="button"
@@ -306,7 +312,10 @@ const HomeScreen = () => {
             aria-hidden="true"
           ></div>
           <div className="bg-white dark:bg-dark-surface rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4 border border-gray-100 dark:border-dark-border">
-            <h2 id="modal-title" className="text-xl font-semibold text-gray-900 dark:text-dark-text mb-6">
+            <h2
+              id="modal-title"
+              className="text-xl font-semibold text-gray-900 dark:text-dark-text mb-6"
+            >
               New Project
             </h2>
             <div className="flex flex-col gap-4">
@@ -349,7 +358,8 @@ const HomeScreen = () => {
                   htmlFor="project-file"
                   className="block text-sm font-medium text-gray-700 dark:text-dark-muted mb-1"
                 >
-                  Upload Dataset <span className="text-gray-400 dark:text-dark-muted font-normal">(CSV)</span>
+                  Upload Dataset{" "}
+                  <span className="text-gray-400 dark:text-dark-muted font-normal">(CSV)</span>
                 </label>
                 <input
                   id="project-file"
