@@ -3,6 +3,7 @@
 Configures middleware, exception handlers, and mounts all API routers.
 """
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -20,20 +21,32 @@ from app.utils.logging import get_logger, setup_logging
 logger = get_logger(__name__)
 
 
+def _skip_migrations_enabled() -> bool:
+    """Return True when migrations are explicitly disabled."""
+    return os.getenv("SKIP_MIGRATIONS", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 @asynccontextmanager
 async def lifespan(app):
     """Application startup/shutdown lifecycle."""
     verify_database_connection()
-    from alembic.config import Config
 
-    from alembic import command
+    # Tests or other startup paths can disable migrations explicitly by
+    # setting SKIP_MIGRATIONS=1. This is more reliable than inspecting
+    # pytest's per-test environment variables during application startup.
+    if not _skip_migrations_enabled():
+        from alembic.config import Config
 
-    try:
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-    except Exception as e:
-        logger.error("Alembic migration failed: %s", e)
-        raise
+        from alembic import command
+
+        try:
+            alembic_cfg = Config("alembic.ini")
+            command.upgrade(alembic_cfg, "head")
+        except Exception as e:
+            logger.error("Alembic migration failed: %s", e)
+            raise
+    else:
+        logger.info("Skipping Alembic migrations because SKIP_MIGRATIONS is enabled")
 
     settings = get_settings()
     setup_logging(settings.debug)

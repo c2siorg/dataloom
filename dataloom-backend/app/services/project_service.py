@@ -44,6 +44,14 @@ def get_project_by_id(db: Session, project_id: uuid.UUID) -> models.Project | No
     return db.query(models.Project).filter(models.Project.project_id == project_id).first()
 
 
+def _touch_project_last_modified(db: Session, project_id: uuid.UUID) -> None:
+    """Update last_modified for a project if it exists."""
+    project = get_project_by_id(db, project_id)
+    if project:
+        project.last_modified = datetime.now(UTC)
+        db.add(project)
+
+
 def get_recent_projects(db: Session, limit: int = 3) -> list[models.Project]:
     """Fetch the most recently modified projects.
 
@@ -86,10 +94,7 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
         action_details=details,
     )
     db.add(log)
-    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
-    if project:
-        project.last_modified = datetime.now(UTC)
-        db.add(project)
+    _touch_project_last_modified(db, project_id)
     db.commit()
     logger.debug("Logged transformation: project_id=%s, type=%s", project_id, operation_type)
 
@@ -122,6 +127,8 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     for log in logs:
         log.applied = True
         log.checkpoint_id = checkpoint.id
+
+    _touch_project_last_modified(db, project_id)
 
     db.commit()
     logger.info("Checkpoint created: id=%s, project_id=%s, logs_applied=%d", checkpoint.id, project_id, len(logs))
