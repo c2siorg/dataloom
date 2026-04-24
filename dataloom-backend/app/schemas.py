@@ -5,7 +5,7 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 # --- Enums ---
 
@@ -117,6 +117,13 @@ class AddColumn(BaseModel):
 
     index: int
     name: str
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_blank(cls, v):
+        if not v or not v.strip():
+            raise ValueError("name must not be empty or whitespace")
+        return v
 
 
 class DeleteColumn(BaseModel):
@@ -336,5 +343,4 @@ class LastResponse(BaseModel):
     description: str | None
     last_modified: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
