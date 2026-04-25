@@ -3,6 +3,7 @@
 All transformations are handled through a single unified /transform endpoint.
 """
 
+import re
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,6 +21,61 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables", "dropNa", "melt", "groupby"}
+SAFE_TRANSFORMATION_ERROR_DETAIL = "Invalid transformation request"
+
+_SENSITIVE_TOKEN_MARKERS = (
+    "traceback",
+    "sqlalchemy",
+    "psycopg",
+    "sqlite",
+    "postgres",
+    "password",
+    "secret",
+    "token",
+)
+_SQL_MARKERS = ("select ", "insert ", "update ", "delete ", "drop ", "alter ", "create table", " from ", " where ")
+
+
+def _safe_transformation_error_detail(error: Exception) -> str:
+    """Return a client-safe 400 detail for domain transformation failures."""
+    detail = str(error).strip()
+    if not detail:
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+
+    lowered = detail.lower()
+
+    if "\n" in detail or "\r" in detail:
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+
+    if any(token in lowered for token in _SENSITIVE_TOKEN_MARKERS):
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+
+    # Redact SQL-like payloads only when multiple SQL markers co-occur.
+    if sum(marker in lowered for marker in _SQL_MARKERS) >= 2:
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+
+    # Redact likely filesystem paths that should not be exposed to clients.
+    if re.search(r"[A-Za-z]:\\[^\\\n]+", detail) or re.search(r"/(?:[^/\n]+/)+[^/\n]+", detail):
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+    return detail
+
+
+def _safe_http_exception_detail(error: HTTPException) -> str | None:
+    """Return a redacted detail for sensitive HTTPException payloads."""
+    detail = error.detail if isinstance(error.detail, str) else ""
+    lowered = detail.lower()
+
+    if error.status_code >= 500:
+        return "Internal server error"
+
+    # Utility-layer CSV 404s may embed absolute paths.
+    if error.status_code == 404 and "csv file not found" in lowered:
+        return "CSV file not found"
+
+    if detail and (re.search(r"[A-Za-z]:\\[^\\\n]+", detail) or re.search(r"/(?:[^/\n]+/)+[^/\n]+", detail)):
+        return "Resource not found" if error.status_code == 404 else "Internal server error"
+
+    return None
 
 
 def _handle_basic_transform(df, transformation_input, project, db, project_id):
@@ -158,27 +214,58 @@ async def transform_project(
     Routes to the appropriate internal handler based on operation_type.
     """
     project = get_project_or_404(project_id, db)
-    df = read_csv_safe(project.file_path)
 
-    op = transformation_input.operation_type
+    # Keep an explicit local for consistency across dispatch, persistence and
+    # logging paths. Use a defensive fallback so exception logging never
+    # introduces a secondary NameError.
+    operation_type = getattr(transformation_input, "operation_type", "<unknown>")
 
     try:
-        if op in COMPLEX_OPERATIONS:
+        df = read_csv_safe(project.file_path)
+
+        if operation_type in COMPLEX_OPERATIONS:
             result_df, should_save = _handle_complex_transform(df, transformation_input, project, db, project_id)
         else:
             result_df, should_save = _handle_basic_transform(df, transformation_input, project, db, project_id)
+
+        if should_save:
+            save_csv_safe(result_df, project.file_path)
+            try:
+                log_transformation(db, project_id, operation_type, transformation_input.dict())
+            except Exception:
+                # Compensate disk mutation if audit logging fails to avoid a
+                # partially persisted state (file changed without log entry).
+                try:
+                    save_csv_safe(df, project.file_path)
+                except Exception:
+                    logger.exception(
+                        "Failed to restore project file after log_transformation failure for project_id=%s op=%s",
+                        project_id,
+                        operation_type,
+                    )
+                raise
+
+        resp = dataframe_to_response(result_df)
+        return {
+            "project_id": project_id,
+            "operation_type": operation_type,
+            **resp,
+        }
+    except HTTPException as e:
+        safe_detail = _safe_http_exception_detail(e)
+        if safe_detail is None:
+            # Preserve explicit HTTP errors (e.g., missing parameters) and their status codes.
+            raise
+
+        logger.warning(
+            "Redacted HTTPException detail during transform for project_id=%s op=%s status=%s",
+            project_id,
+            operation_type,
+            e.status_code,
+        )
+        raise HTTPException(status_code=e.status_code, detail=safe_detail) from e
     except ts.TransformationError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise HTTPException(status_code=400, detail=_safe_transformation_error_detail(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    if should_save:
-        save_csv_safe(result_df, project.file_path)
-        log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
-
-    resp = dataframe_to_response(result_df)
-    return {
-        "project_id": project_id,
-        "operation_type": transformation_input.operation_type,
-        **resp,
-    }
+        logger.exception("Unexpected error during transform for project_id=%s op=%s", project_id, operation_type)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
