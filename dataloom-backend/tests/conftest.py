@@ -16,6 +16,20 @@ engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": Fal
 
 
 @pytest.fixture(autouse=True)
+def _bypass_app_lifespan(monkeypatch):
+    """Neutralize app lifespan hooks that require a real Postgres + Alembic setup.
+
+    The conftest drives schema setup via SQLModel.metadata.create_all on SQLite,
+    so the production startup steps (verify_database_connection + alembic upgrade)
+    must not run when TestClient(app) enters the lifespan.
+    """
+    from alembic import command
+
+    monkeypatch.setattr("app.main.verify_database_connection", lambda: None)
+    monkeypatch.setattr(command, "upgrade", lambda *args, **kwargs: None)
+
+
+@pytest.fixture(autouse=True)
 def setup_database():
     """Create all tables before each test and drop them after."""
     SQLModel.metadata.create_all(bind=engine)

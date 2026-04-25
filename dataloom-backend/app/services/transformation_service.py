@@ -276,6 +276,9 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
             df[column] = df[column].astype(str)
         elif target_type in ("integer", "float"):
             df[column] = pd.to_numeric(df[column], errors="coerce")
+            if target_type == "integer":
+                # Use pandas' nullable Int64 so NaNs from coerced values coexist with ints.
+                df[column] = df[column].astype("Int64")
         elif target_type == "boolean":
             truthy = {"true", "1", "yes", "y", "on"}
             falsy = {"false", "0", "no", "n", "off"}

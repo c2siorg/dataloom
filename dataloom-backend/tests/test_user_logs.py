@@ -1,5 +1,7 @@
 import uuid
 
+from app import models
+
 
 class TestLogsEndpoint:
     def test_get_logs_nonexistent_project_returns_404(self, client):
@@ -18,27 +20,24 @@ class TestLogsEndpoint:
         assert isinstance(detail, str)
         assert "not found" in detail.lower()
 
-    def test_get_logs_existing_project_returns_200(self, client):
-        # Create a project first
-        create_response = client.post(
-            "/projects/",
-            json={"name": "logs-test-project"},
-        )
-        assert create_response.status_code == 200
-        project_id = create_response.json()["id"]
+    def test_get_logs_existing_project_returns_200(self, client, db):
+        # Projects are created by CSV upload in production; inserting the row
+        # directly is enough to exercise the /logs endpoint.
+        project = models.Project(name="logs-test-project", file_path="/tmp/test.csv", description="")
+        db.add(project)
+        db.commit()
+        db.refresh(project)
 
-        response = client.get(f"/logs/{project_id}")
+        response = client.get(f"/logs/{project.project_id}")
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 
-    def test_get_logs_existing_project_no_logs_returns_empty_list(self, client):
-        create_response = client.post(
-            "/projects/",
-            json={"name": "logs-empty-project"},
-        )
-        assert create_response.status_code == 200
-        project_id = create_response.json()["id"]
+    def test_get_logs_existing_project_no_logs_returns_empty_list(self, client, db):
+        project = models.Project(name="logs-empty-project", file_path="/tmp/test.csv", description="")
+        db.add(project)
+        db.commit()
+        db.refresh(project)
 
-        response = client.get(f"/logs/{project_id}")
+        response = client.get(f"/logs/{project.project_id}")
         assert response.status_code == 200
         assert response.json() == []
