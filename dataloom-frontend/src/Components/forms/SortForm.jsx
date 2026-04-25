@@ -38,13 +38,14 @@ const SortForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div data-testid="sort-form" className="p-4 border border-gray-200 rounded-lg bg-white">
       <form onSubmit={handleSubmit}>
         <h3 className="font-semibold text-gray-900 mb-2">Sort Dataset</h3>
         <div className="flex flex-wrap mb-4">
           <div className="w-full sm:w-1/2 mb-2">
             <label className="block mb-1 text-sm font-medium text-gray-700">Column:</label>
             <ColumnSelect
+              data-testid="sort-column"
               value={column}
               onChange={(e) => setColumn(e.target.value)}
               placeholder="Select column to sort by..."

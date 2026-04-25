@@ -13,6 +13,8 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
 
   return (
     <button
+      data-testid="project-card"
+      data-project-id={project.project_id}
       onClick={onClick}
       className="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md"
     >
@@ -48,6 +50,7 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
 
 const NewProjectCard = ({ onClick }) => (
   <button
+    data-testid="new-project-card"
     onClick={onClick}
     className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100"
   >
@@ -107,6 +110,16 @@ const HomeScreen = () => {
   const isFormValid =
     projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
 
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false);
+    setProjectName("");
+    setProjectDescription("");
+    setFileUpload(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
   useEffect(() => {
     fetchRecentProjects();
   }, []);
@@ -132,16 +145,6 @@ const HomeScreen = () => {
   const handleNewProjectClick = () => {
     setShowModal(true);
   };
-
-  const handleCloseModal = useCallback(() => {
-    setShowModal(false);
-    setProjectName("");
-    setProjectDescription("");
-    setFileUpload(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }, []);
 
   const handleSubmitModal = async (event) => {
     event.preventDefault();
@@ -289,6 +292,7 @@ const HomeScreen = () => {
 
       {showModal && (
         <div
+          data-testid="project-modal"
           className="fixed inset-0 flex items-center justify-center z-50"
           role="dialog"
           aria-modal="true"
@@ -313,6 +317,7 @@ const HomeScreen = () => {
                 </label>
                 <input
                   id="project-name"
+                  data-testid="project-name-input"
                   type="text"
                   placeholder="e.g. Sales Analysis Q1"
                   className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -331,6 +336,7 @@ const HomeScreen = () => {
                 </label>
                 <textarea
                   id="project-description"
+                  data-testid="project-description-input"
                   rows={3}
                   placeholder="Brief description of this dataset"
                   className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
@@ -347,6 +353,7 @@ const HomeScreen = () => {
                 </label>
                 <input
                   id="project-file"
+                  data-testid="file-input"
                   type="file"
                   ref={fileInputRef}
                   accept=".csv"
@@ -366,6 +373,7 @@ const HomeScreen = () => {
                 Cancel
               </button>
               <button
+                data-testid="submit-project"
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSubmitModal}
                 disabled={!isFormValid || isSubmitting}

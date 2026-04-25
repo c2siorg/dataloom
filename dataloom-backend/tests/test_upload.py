@@ -1,5 +1,6 @@
 """Tests for dataset upload functionality."""
 
+import asyncio
 from io import BytesIO
 
 import pytest
@@ -25,46 +26,39 @@ class MockUploadFile:
 
 
 class TestValidateUploadFile:
-    @pytest.mark.asyncio
-    async def test_csv_accepted(self):
+    def test_csv_accepted(self):
         file = MockUploadFile("data.csv")
-        await validate_upload_file(file)
+        asyncio.run(validate_upload_file(file))
 
-    @pytest.mark.asyncio
-    async def test_non_csv_rejected(self):
+    def test_non_csv_rejected(self):
         file = MockUploadFile("data.xlsx")
         with pytest.raises(HTTPException, match="not allowed"):
-            await validate_upload_file(file)
+            asyncio.run(validate_upload_file(file))
 
-    @pytest.mark.asyncio
-    async def test_exe_rejected(self):
+    def test_exe_rejected(self):
         file = MockUploadFile("malware.exe")
         with pytest.raises(HTTPException, match="not allowed"):
-            await validate_upload_file(file)
+            asyncio.run(validate_upload_file(file))
 
-    @pytest.mark.asyncio
-    async def test_no_extension_rejected(self):
+    def test_no_extension_rejected(self):
         file = MockUploadFile("noextension")
         with pytest.raises(HTTPException, match="not allowed"):
-            await validate_upload_file(file)
+            asyncio.run(validate_upload_file(file))
 
-    @pytest.mark.asyncio
-    async def test_file_under_size_limit(self):
+    def test_file_under_size_limit(self):
         content = b"col1,col2\n" + b"1,2\n" * 100
         file = MockUploadFile("small.csv", content)
-        await validate_upload_file(file)
+        asyncio.run(validate_upload_file(file))
 
-    @pytest.mark.asyncio
-    async def test_file_at_size_limit(self):
+    def test_file_at_size_limit(self):
         settings = get_settings()
         content = b"a" * settings.max_upload_size_bytes
         file = MockUploadFile("exact_limit.csv", content)
-        await validate_upload_file(file)
+        asyncio.run(validate_upload_file(file))
 
-    @pytest.mark.asyncio
-    async def test_file_over_size_limit(self):
+    def test_file_over_size_limit(self):
         settings = get_settings()
         content = b"a" * (settings.max_upload_size_bytes + 1)
         file = MockUploadFile("oversized.csv", content)
         with pytest.raises(HTTPException, match="File size exceeds"):
-            await validate_upload_file(file)
+            asyncio.run(validate_upload_file(file))
