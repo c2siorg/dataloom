@@ -16,7 +16,7 @@ const VARIANT_CLASSES = {
 export default function Button({ variant = "primary", children, className = "", ...rest }) {
   return (
     <button
-      className={`px-4 py-2 rounded-md font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 ${VARIANT_CLASSES[variant] || VARIANT_CLASSES.primary} ${className}`}
+      className={`px-4 py-2 rounded-lg font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 ${VARIANT_CLASSES[variant] || VARIANT_CLASSES.primary} ${className}`}
       {...rest}
     >
       {children}

@@ -48,3 +48,36 @@ class TestSaveNeverModifiesOriginal:
         # Original file must be byte-identical
         hash_after = _file_sha256(original_path)
         assert hash_before == hash_after, "original_path was modified by a save operation"
+
+
+class TestSaveWithFilterReplay:
+    """Save should successfully replay and persist logged filter transformations."""
+
+    def test_save_after_filter_keeps_filtered_rows(self, client, sample_csv):
+        with open(sample_csv, "rb") as f:
+            upload_resp = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": "Filter Save Test", "projectDescription": "filter replay"},
+            )
+        assert upload_resp.status_code == 200
+        project_id = upload_resp.json()["project_id"]
+
+        filter_resp = client.post(
+            f"/projects/{project_id}/transform",
+            json={
+                "operation_type": "filter",
+                "parameters": {"column": "name", "condition": "=", "value": "Alice"},
+            },
+        )
+        assert filter_resp.status_code == 200
+        assert len(filter_resp.json()["rows"]) == 2
+
+        save_resp = client.post(f"/projects/{project_id}/save?commit_message=save-filter")
+        assert save_resp.status_code == 200
+
+        details_resp = client.get(f"/projects/get/{project_id}")
+        assert details_resp.status_code == 200
+        details = details_resp.json()
+        assert details["total_rows"] == 2
+        assert all(row[0] == "Alice" for row in details["rows"])

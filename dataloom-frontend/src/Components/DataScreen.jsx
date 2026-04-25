@@ -18,6 +18,9 @@ export default function DataScreen() {
 
   const handleTransform = (data) => {
     setTableData(data);
+    if (projectId) {
+      refreshProject(projectId);
+    }
   };
 
   return (
