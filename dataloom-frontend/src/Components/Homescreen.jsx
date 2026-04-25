@@ -21,7 +21,7 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
           e.stopPropagation();
           onDelete(project.project_id);
         }}
-        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors duration-150 p-1 rounded-md hover:bg-red-50"
+        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors duration-150 p-1 rounded-lg hover:bg-red-50"
         aria-label="Delete project"
       >
         <svg
@@ -59,7 +59,7 @@ const NewProjectCard = ({ onClick }) => (
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 const EmptyState = ({ onClick }) => (
-  <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
+  <div className="flex flex-col items-center justify-center py-16 px-6 rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 text-center">
     <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-50">
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -107,6 +107,16 @@ const HomeScreen = () => {
   const isFormValid =
     projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
 
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false);
+    setProjectName("");
+    setProjectDescription("");
+    setFileUpload(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
   useEffect(() => {
     fetchRecentProjects();
   }, []);
@@ -132,16 +142,6 @@ const HomeScreen = () => {
   const handleNewProjectClick = () => {
     setShowModal(true);
   };
-
-  const handleCloseModal = useCallback(() => {
-    setShowModal(false);
-    setProjectName("");
-    setProjectDescription("");
-    setFileUpload(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }, []);
 
   const handleSubmitModal = async (event) => {
     event.preventDefault();
@@ -299,7 +299,7 @@ const HomeScreen = () => {
             onClick={isSubmitting ? undefined : handleCloseModal}
             aria-hidden="true"
           ></div>
-          <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
+          <div className="bg-white rounded-lg shadow-xl p-8 z-50 max-w-lg w-full mx-4">
             <h2 id="modal-title" className="text-xl font-semibold text-gray-900 mb-6">
               New Project
             </h2>
@@ -359,14 +359,14 @@ const HomeScreen = () => {
             </div>
             <div className="flex flex-row justify-end gap-3 mt-6">
               <button
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleCloseModal}
                 disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSubmitModal}
                 disabled={!isFormValid || isSubmitting}
               >

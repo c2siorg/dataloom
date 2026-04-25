@@ -38,7 +38,7 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.parameters:
             raise HTTPException(status_code=400, detail="Filter parameters required")
         p = transformation_input.parameters
-        return ts.apply_filter(df, p.column, p.condition, p.value), False
+        return ts.apply_filter(df, p.column, p.condition, p.value), transformation_input.persist
 
     elif op == "sort":
         if not transformation_input.sort_params:
