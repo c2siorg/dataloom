@@ -71,10 +71,13 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
     """
 
     dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
-    df = df.fillna("")
-    df = df.replace([float("inf"), float("-inf")], "")
     columns = df.columns.tolist()
-    rows = df.values.tolist()
+
+    normalized_df = df.astype(object)
+    normalized_df = normalized_df.where(pd.notna(normalized_df), None)
+    normalized_df = normalized_df.replace([float("inf"), float("-inf")], None)
+
+    rows = normalized_df.values.tolist()
     return {
         "columns": columns,
         "rows": rows,
