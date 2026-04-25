@@ -56,8 +56,6 @@ const NewProjectCard = ({ onClick }) => (
   </button>
 );
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-
 const EmptyState = ({ onClick }) => (
   <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
     <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-50">
@@ -80,7 +78,7 @@ const EmptyState = ({ onClick }) => (
     </div>
     <h3 className="text-lg font-semibold text-gray-800 mb-1">No projects yet</h3>
     <p className="text-sm text-gray-500 mb-6 max-w-xs">
-      Upload a CSV file to get started. Your recent projects will appear here.
+      Upload a dataset file to get started. Your recent projects will appear here.
     </p>
     <button
       type="button"
@@ -92,6 +90,32 @@ const EmptyState = ({ onClick }) => (
   </div>
 );
 
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".json", ".parquet", ".tsv"];
+
+function validateFile(file) {
+  if (!file) {
+    return { valid: false, error: "Please select a file to upload." };
+  }
+  if (file.size === 0) {
+    return { valid: false, error: "File is empty (0 bytes). Please choose a valid dataset file." };
+  }
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    return { valid: false, error: `File too large (${sizeMB} MB). Maximum allowed size is 5 MB.` };
+  }
+  const dotIndex = file.name.lastIndexOf(".");
+  const ext = dotIndex > 0 ? file.name.slice(dotIndex).toLowerCase() : "";
+  if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
+    return {
+      valid: false,
+      error: `Unsupported file type "${ext || "none"}". Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`,
+    };
+  }
+  return { valid: true };
+}
+
 const HomeScreen = () => {
   const fileInputRef = useRef(null);
   const [showModal, setShowModal] = useState(false);
@@ -99,26 +123,13 @@ const HomeScreen = () => {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [recentProjects, setRecentProjects] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, projectId: null });
   const navigate = useNavigate();
   const { showToast } = useToast();
 
   const isFormValid =
     projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
-
-  useEffect(() => {
-    fetchRecentProjects();
-  }, []);
-
-  useEffect(() => {
-    if (!showModal) return;
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape" && !isSubmitting) handleCloseModal();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showModal, isSubmitting, handleCloseModal]);
 
   const fetchRecentProjects = async () => {
     try {
@@ -129,10 +140,7 @@ const HomeScreen = () => {
     }
   };
 
-  const handleNewProjectClick = () => {
-    setShowModal(true);
-  };
-
+  // Defined before the Escape key useEffect so the dependency reference is stable
   const handleCloseModal = useCallback(() => {
     setShowModal(false);
     setProjectName("");
@@ -143,11 +151,29 @@ const HomeScreen = () => {
     }
   }, []);
 
+  useEffect(() => {
+    fetchRecentProjects();
+  }, []);
+
+  useEffect(() => {
+    if (!showModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isUploading) handleCloseModal();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showModal, isUploading, handleCloseModal]);
+
+  const handleNewProjectClick = () => {
+    setShowModal(true);
+  };
+
   const handleSubmitModal = async (event) => {
     event.preventDefault();
 
-    if (!fileUpload) {
-      showToast("Please select a file to upload", "warning");
+    const validation = validateFile(fileUpload);
+    if (!validation.valid) {
+      showToast(validation.error, "error");
       return;
     }
 
@@ -161,12 +187,10 @@ const HomeScreen = () => {
       return;
     }
 
+    setIsUploading(true);
     try {
-      setIsSubmitting(true);
       const data = await uploadProject(fileUpload, projectName, projectDescription);
-
       const projectId = data.project_id;
-
       if (projectId) {
         navigate(`/workspace/${projectId}`);
       } else {
@@ -177,7 +201,7 @@ const HomeScreen = () => {
       const message = error?.response?.data?.detail || "Error uploading file. Please try again.";
       showToast(message, "error");
     } finally {
-      setIsSubmitting(false);
+      setIsUploading(false);
     }
 
     handleCloseModal();
@@ -186,19 +210,13 @@ const HomeScreen = () => {
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
-    if (!file) return;
-
-    const isCSV = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
-    if (!isCSV) {
-      showToast("Please upload a CSV file.", "error");
-      event.target.value = "";
+    if (!file) {
       setFileUpload(null);
       return;
     }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      showToast(`File too large (${sizeMB} MB). Maximum allowed size is 10 MB.`, "warning");
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, "error");
       event.target.value = "";
       setFileUpload(null);
       return;
@@ -296,9 +314,9 @@ const HomeScreen = () => {
         >
           <div
             className="fixed inset-0 bg-black/50"
-            onClick={isSubmitting ? undefined : handleCloseModal}
+            onClick={isUploading ? undefined : handleCloseModal}
             aria-hidden="true"
-          ></div>
+          />
           <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
             <h2 id="modal-title" className="text-xl font-semibold text-gray-900 mb-6">
               New Project
@@ -343,13 +361,16 @@ const HomeScreen = () => {
                   htmlFor="project-file"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Upload Dataset <span className="text-gray-400 font-normal">(CSV)</span>
+                  Upload Dataset{" "}
+                  <span className="text-gray-400 font-normal">
+                    ({ALLOWED_EXTENSIONS.join(", ")})
+                  </span>
                 </label>
                 <input
                   id="project-file"
                   type="file"
                   ref={fileInputRef}
-                  accept=".csv"
+                  accept={ALLOWED_EXTENSIONS.join(",")}
                   className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none"
                   onChange={handleFileUpload}
                   required
@@ -359,18 +380,20 @@ const HomeScreen = () => {
             </div>
             <div className="flex flex-row justify-end gap-3 mt-6">
               <button
+                type="button"
                 className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleCloseModal}
-                disabled={isSubmitting}
+                disabled={isUploading}
               >
                 Cancel
               </button>
               <button
+                type="submit"
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSubmitModal}
-                disabled={!isFormValid || isSubmitting}
+                disabled={!isFormValid || isUploading}
               >
-                {isSubmitting ? "Creating..." : "Create Project"}
+                {isUploading ? "Uploading..." : "Create Project"}
               </button>
             </div>
           </div>
