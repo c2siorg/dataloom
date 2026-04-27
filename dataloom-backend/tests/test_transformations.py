@@ -157,6 +157,83 @@ class TestChangeCellValue:
         result = change_cell_value(sample_df, 0, 1, "Alice Updated")
         assert result.iloc[0]["name"] == "Alice Updated"
 
+    # int column — frontend always sends strings
+    def test_int_cell_with_numeric_string_preserves_dtype(self, sample_df):
+        result = change_cell_value(sample_df, 0, 2, "31")
+        assert result.iloc[0]["age"] == 31
+        assert pd.api.types.is_integer_dtype(result["age"].dtype)
+
+    def test_int_cell_with_fractional_string_truncates(self, sample_df):
+        # Documented behavior: int columns silently truncate fractional input.
+        result = change_cell_value(sample_df, 0, 2, "31.7")
+        assert result.iloc[0]["age"] == 31
+        assert pd.api.types.is_integer_dtype(result["age"].dtype)
+
+    def test_int_cell_preserves_precision_for_large_integer_string(self, sample_df):
+        # 2^53 + 1 cannot be represented exactly as a float64, so a naive
+        # int(float(...)) would lose the trailing bit. int() handles it.
+        result = change_cell_value(sample_df, 0, 2, "9007199254740993")
+        assert result.iloc[0]["age"] == 9007199254740993
+        assert pd.api.types.is_integer_dtype(result["age"].dtype)
+
+    def test_int_cell_with_overflowing_exponent_upcasts_column(self, sample_df):
+        # int(float("1e500")) raises OverflowError (float is inf); should
+        # upcast to object instead of bubbling up as a 500.
+        result = change_cell_value(sample_df, 0, 2, "1e500")
+        assert result["age"].dtype == object
+        assert result.iloc[0]["age"] == "1e500"
+
+    def test_int_cell_with_non_numeric_string_upcasts_column(self, sample_df):
+        result = change_cell_value(sample_df, 0, 2, "hello")
+        assert result.iloc[0]["age"] == "hello"
+        assert result["age"].dtype == object
+
+    # float column
+    def test_float_cell_with_decimal_string(self):
+        df = pd.DataFrame({"name": ["A", "B"], "score": [1.0, 2.0]})
+        result = change_cell_value(df, 0, 2, "3.14")
+        assert result.iloc[0]["score"] == pytest.approx(3.14)
+        assert pd.api.types.is_float_dtype(result["score"].dtype)
+
+    # bool column — explicit truthy/falsy matrix, raise on unknown
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("true", True),
+            ("True", True),
+            ("1", True),
+            ("yes", True),
+            ("t", True),
+            ("y", True),
+            ("on", True),
+            ("false", False),
+            ("False", False),
+            ("0", False),
+            ("no", False),
+            ("f", False),
+            ("n", False),
+            ("off", False),
+        ],
+    )
+    def test_bool_cell_truthy_falsy_matrix(self, raw, expected):
+        df = pd.DataFrame({"name": ["A"], "active": [True]})
+        result = change_cell_value(df, 0, 2, raw)
+        # pandas stores booleans as np.bool_; compare by value, not identity.
+        assert bool(result.iloc[0]["active"]) == expected
+        assert pd.api.types.is_bool_dtype(result["active"].dtype)
+
+    def test_bool_cell_rejects_unknown_token(self):
+        df = pd.DataFrame({"name": ["A"], "active": [True]})
+        with pytest.raises(TransformationError, match="as boolean"):
+            change_cell_value(df, 0, 2, "foo")
+
+    # empty-string clears numeric cell and upcasts the column
+    def test_clear_numeric_cell_stores_none(self, sample_df):
+        result = change_cell_value(sample_df, 0, 2, "")
+        assert result.iloc[0]["age"] is None
+        # column was upcast to object so None can coexist with remaining ints
+        assert result["age"].dtype == object
+
 
 class TestFillEmpty:
     def test_fill_all_columns(self):
