@@ -197,6 +197,27 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
 
     # col_index is 1-based from frontend (accounting for S.No. column)
     column_name = df.columns[col_index - 1]
+
+    # Cast value to match the column's existing dtype so pandas doesn't reject
+    # string values for numeric columns (the frontend always sends strings).
+    col_dtype = df[column_name].dtype
+    if value == "" or value is None:
+        # Allow clearing a cell — upcast to object if needed so NaN can coexist
+        if pd.api.types.is_integer_dtype(col_dtype) or pd.api.types.is_float_dtype(col_dtype):
+            df[column_name] = df[column_name].astype(object)
+        value = None
+    else:
+        try:
+            if pd.api.types.is_integer_dtype(col_dtype):
+                value = int(float(value))
+            elif pd.api.types.is_float_dtype(col_dtype):
+                value = float(value)
+            elif pd.api.types.is_bool_dtype(col_dtype):
+                value = str(value).strip().lower() in ("true", "1", "yes")
+        except (ValueError, TypeError):
+            # If casting fails, fall back to storing as-is with object dtype
+            df[column_name] = df[column_name].astype(object)
+
     df.at[row_index, column_name] = value
     return df
 
