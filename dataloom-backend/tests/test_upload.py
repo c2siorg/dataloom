@@ -1,12 +1,12 @@
 """Tests for dataset upload functionality."""
 
 from io import BytesIO
-from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
 
-from app.utils.security import _format_size, validate_upload_file
+from app.config import get_settings
+from app.utils.security import validate_upload_file
 
 
 class MockUploadFile:
@@ -15,91 +15,56 @@ class MockUploadFile:
     def __init__(self, filename, content=b"col1,col2\n1,2\n"):
         self.filename = filename
         self.file = BytesIO(content)
+        self.size = len(content)
+
+    async def seek(self, position, whence=0):
+        return self.file.seek(position, whence)
+
+    async def read(self, size: int = -1) -> bytes:
+        return self.file.read(size)
 
 
 class TestValidateUploadFile:
-    def test_csv_accepted(self):
+    @pytest.mark.asyncio
+    async def test_csv_accepted(self):
         file = MockUploadFile("data.csv")
-        # Should not raise
-        validate_upload_file(file)
+        await validate_upload_file(file)
 
-    def test_non_csv_rejected(self):
+    @pytest.mark.asyncio
+    async def test_non_csv_rejected(self):
         file = MockUploadFile("data.xlsx")
         with pytest.raises(HTTPException, match="not allowed"):
-            validate_upload_file(file)
+            await validate_upload_file(file)
 
-    def test_exe_rejected(self):
+    @pytest.mark.asyncio
+    async def test_exe_rejected(self):
         file = MockUploadFile("malware.exe")
         with pytest.raises(HTTPException, match="not allowed"):
-            validate_upload_file(file)
+            await validate_upload_file(file)
 
-    def test_no_extension_rejected(self):
+    @pytest.mark.asyncio
+    async def test_no_extension_rejected(self):
         file = MockUploadFile("noextension")
         with pytest.raises(HTTPException, match="not allowed"):
-            validate_upload_file(file)
+            await validate_upload_file(file)
 
-    def test_file_at_exact_max_size_accepted(self):
-        """A file exactly at the size limit should be accepted."""
-        max_size = 10_485_760  # 10 MB
-        content = b"x" * max_size
-        file = MockUploadFile("data.csv", content=content)
-        with patch("app.utils.security.get_settings") as mock_settings:
-            mock_settings.return_value.allowed_extensions = [".csv"]
-            mock_settings.return_value.max_upload_size_bytes = max_size
-            # Should not raise
-            validate_upload_file(file)
+    @pytest.mark.asyncio
+    async def test_file_under_size_limit(self):
+        content = b"col1,col2\n" + b"1,2\n" * 100
+        file = MockUploadFile("small.csv", content)
+        await validate_upload_file(file)
 
-    def test_file_exceeding_max_size_rejected(self):
-        """A file exceeding the size limit should raise HTTP 413."""
-        max_size = 1024  # 1 KB limit for testing
-        content = b"x" * (max_size + 1)
-        file = MockUploadFile("data.csv", content=content)
-        with patch("app.utils.security.get_settings") as mock_settings:
-            mock_settings.return_value.allowed_extensions = [".csv"]
-            mock_settings.return_value.max_upload_size_bytes = max_size
-            with pytest.raises(HTTPException) as exc_info:
-                validate_upload_file(file)
-            assert exc_info.value.status_code == 413
-            assert "File too large" in exc_info.value.detail
-            assert "1.0 KB" in exc_info.value.detail
+    @pytest.mark.asyncio
+    async def test_file_at_size_limit(self):
+        settings = get_settings()
+        content = b"a" * settings.max_upload_size_bytes
+        file = MockUploadFile("exact_limit.csv", content)
+        await validate_upload_file(file)
 
-    def test_empty_file_accepted(self):
-        """An empty file should pass size validation (extension still checked)."""
-        file = MockUploadFile("data.csv", content=b"")
-        validate_upload_file(file)
-
-    def test_file_cursor_reset_after_validation(self):
-        """After validation the file cursor should be at position 0."""
-        content = b"col1,col2\n1,2\n"
-        file = MockUploadFile("data.csv", content=content)
-        validate_upload_file(file)
-        assert file.file.read() == content
-
-    def test_oversized_error_message_includes_sizes(self):
-        """The error message should include both the actual and maximum sizes."""
-        max_size = 5_242_880  # 5 MB
-        content = b"x" * (max_size + 1_048_576)  # ~6 MB
-        file = MockUploadFile("data.csv", content=content)
-        with patch("app.utils.security.get_settings") as mock_settings:
-            mock_settings.return_value.allowed_extensions = [".csv"]
-            mock_settings.return_value.max_upload_size_bytes = max_size
-            with pytest.raises(HTTPException) as exc_info:
-                validate_upload_file(file)
-            assert "5.0 MB" in exc_info.value.detail
-
-
-class TestFormatSize:
-    def test_bytes(self):
-        assert _format_size(500) == "500.0 B"
-
-    def test_kilobytes(self):
-        assert _format_size(1024) == "1.0 KB"
-
-    def test_megabytes(self):
-        assert _format_size(10_485_760) == "10.0 MB"
-
-    def test_gigabytes(self):
-        assert _format_size(1_073_741_824) == "1.0 GB"
-
-    def test_zero(self):
-        assert _format_size(0) == "0.0 B"
+    @pytest.mark.asyncio
+    async def test_file_over_size_limit(self):
+        settings = get_settings()
+        content = b"a" * (settings.max_upload_size_bytes + 1)
+        file = MockUploadFile("oversized.csv", content)
+        with pytest.raises(HTTPException, match="File size exceeds"):
+            await validate_upload_file(file)

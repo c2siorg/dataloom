@@ -2,13 +2,12 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { CAST_DATA_TYPE } from "../../constants/operationTypes";
-import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import ColumnSelect from "../common/ColumnSelect";
 
 const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
-  const { columns } = useProjectContext();
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -45,19 +44,11 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Column:</label>
-            <select
+            <ColumnSelect
               value={column}
               onChange={(e) => setColumn(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              required
-            >
-              <option value="">Select column...</option>
-              {columns.map((col) => (
-                <option key={col} value={col}>
-                  {col}
-                </option>
-              ))}
-            </select>
+              placeholder="Select column..."
+            />
           </div>
 
           <div className="flex-1">

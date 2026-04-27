@@ -26,6 +26,7 @@ class OperationType(StrEnum):
     """All supported transformation operation types."""
 
     filter = "filter"
+    groupby = "groupby"
     sort = "sort"
     addRow = "addRow"
     delRow = "delRow"
@@ -115,7 +116,7 @@ class AddColumn(BaseModel):
     """
 
     index: int
-    name: str | None = None
+    name: str
 
 
 class DeleteColumn(BaseModel):
@@ -202,6 +203,14 @@ class AdvQuery(BaseModel):
     query: str
 
 
+class GroupByParams(BaseModel):
+    """Parameters for groupby aggregation."""
+
+    columns: list[str]
+    agg_column: str
+    agg_function: AggFunc
+
+
 class Pivot(BaseModel):
     """Parameters for creating a pivot table."""
 
@@ -251,6 +260,7 @@ class MeltParams(BaseModel):
 class TransformationInput(BaseModel):
     """Unified input for all transformation operations."""
 
+    groupby_params: GroupByParams | None = None
     operation_type: OperationType
     parameters: FilterParameters | None = None
     sort_params: SortParameters | None = None
@@ -286,6 +296,10 @@ class ProjectResponse(BaseModel):
     filename: str
     file_path: str
     project_id: uuid.UUID
+    page: int
+    total_rows: int
+    total_pages: int
+    page_size: int
     columns: list[str]
     row_count: int
     rows: list[list]

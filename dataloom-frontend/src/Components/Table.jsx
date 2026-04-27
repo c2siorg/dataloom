@@ -1,6 +1,7 @@
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
 import { useState, useEffect } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import {
@@ -31,7 +32,18 @@ MenuButton.propTypes = {
 };
 
 const Table = ({ projectId, data: externalData }) => {
-  const { columns: ctxColumns, rows: ctxRows, dtypes, updateData } = useProjectContext();
+  const {
+    columns: ctxColumns,
+    rows: ctxRows,
+    dtypes,
+    updateData,
+    totalRows,
+    totalPages,
+    page,
+    pageSize,
+    setPaginationData,
+    refreshProject,
+  } = useProjectContext();
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
   const [editingCell, setEditingCell] = useState(null);
@@ -44,9 +56,9 @@ const Table = ({ projectId, data: externalData }) => {
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
       setColumns(["S.No.", ...ctxColumns]);
-      setData(ctxRows.map((row, index) => [index + 1, ...row]));
+      setData(ctxRows.map((row, index) => [(page - 1) * pageSize + index + 1, ...row]));
     }
-  }, [ctxColumns, ctxRows]);
+  }, [ctxColumns, ctxRows, page, pageSize]);
 
   useEffect(() => {
     if (externalData) {
@@ -70,6 +82,7 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
+      refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
         message: "Failed to add row. Please try again.",
@@ -94,6 +107,7 @@ const Table = ({ projectId, data: externalData }) => {
             col_params: { index, name: newColumnName },
           });
           updateTableData(response);
+          refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
             message: "Failed to add column. Please try again.",
@@ -113,6 +127,7 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
+      refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
         message: "Failed to delete row. Please try again.",
@@ -145,6 +160,7 @@ const Table = ({ projectId, data: externalData }) => {
             rename_col_params: { col_index: index - 1, new_name: newName },
           });
           updateTableData(response);
+          refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
             message: "Failed to rename column. Please try again.",
@@ -172,6 +188,7 @@ const Table = ({ projectId, data: externalData }) => {
         col_params: { index: index - 1 },
       });
       updateTableData(response);
+      refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
         message: "Failed to delete column. Please try again.",
@@ -191,6 +208,7 @@ const Table = ({ projectId, data: externalData }) => {
         },
       });
       updateTableData(response);
+      refreshProject(projectId, 1, pageSize);
       setEditingCell(null);
       setEditValue("");
     } catch {
@@ -214,6 +232,16 @@ const Table = ({ projectId, data: externalData }) => {
       setEditingCell({ rowIndex, cellIndex });
       setEditValue(cellValue);
     }
+  };
+
+  const handlePageChange = (newPage) => {
+    setPaginationData({ page: newPage });
+    refreshProject(projectId, newPage, pageSize);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPaginationData({ page: 1, pageSize: newSize });
+    refreshProject(projectId, 1, newSize);
   };
 
   return (
@@ -281,6 +309,17 @@ const Table = ({ projectId, data: externalData }) => {
         </table>
       </div>
 
+      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-10">
+        <TablePagination
+          totalRows={totalRows}
+          totalPages={totalPages}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      </div>
+
       <ContextMenu
         isOpen={isOpen}
         position={position}
@@ -288,8 +327,7 @@ const Table = ({ projectId, data: externalData }) => {
         onClose={close}
         actions={(data) => {
           if (!data) return null;
-
-          if (data.type === "column") {
+          if (data.type === "column")
             return (
               <>
                 <MenuButton onClick={() => handleAddColumn(data.columnIndex)}>
@@ -303,16 +341,13 @@ const Table = ({ projectId, data: externalData }) => {
                 </MenuButton>
               </>
             );
-          }
-
-          if (data.type === "row") {
+          if (data.type === "row")
             return (
               <>
                 <MenuButton onClick={() => handleAddRow(data.rowIndex)}>Add Row</MenuButton>
                 <MenuButton onClick={() => handleDeleteRow(data.rowIndex)}>Delete Row</MenuButton>
               </>
             );
-          }
           return null;
         }}
       />
@@ -347,3 +382,100 @@ Table.propTypes = {
 };
 
 export default Table;
+
+// TablePagination Component
+export function TablePagination({
+  totalRows,
+  totalPages,
+  page,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+}) {
+  const [pageSizeOpen, setPageSizeOpen] = useState(false);
+  const pageSizeOptions = [10, 25, 50, 100];
+
+  const handlePrevious = () => {
+    if (page > 1) {
+      onPageChange(page - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (page < totalPages) {
+      onPageChange(page + 1);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between px-8 py-3 bg-white">
+      <div className="flex items-center gap-6 text-sm text-gray-600">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500">Total Rows:</span>
+          <span className="text-gray-900">{totalRows}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500">Page:</span>
+          <span className="text-gray-900">
+            {page} of {totalPages}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 relative">
+          <span className="text-gray-500">Page Size:</span>
+          <div className="relative inline-block">
+            <button
+              onClick={() => setPageSizeOpen(!pageSizeOpen)}
+              className="border-2 border-gray-300 rounded-md px-4 py-1 text-sm min-w-[40px] text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {pageSize}
+            </button>
+
+            {pageSizeOpen && (
+              <div className="absolute bottom-full mb-1 min-w-[60px] bg-white border-2 border-gray-300 rounded-lg shadow-lg z-10">
+                {pageSizeOptions.map((size) => (
+                  <div
+                    key={size}
+                    onClick={() => {
+                      onPageSizeChange(size);
+                      setPageSizeOpen(false);
+                    }}
+                    className="px-4 py-2 text-sm hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-md"
+                  >
+                    {size}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handlePrevious}
+          disabled={page === 1}
+          className="p-1.5 border-2 border-gray-300 rounded-md hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <button
+          onClick={handleNext}
+          disabled={page === totalPages}
+          className="p-1.5 border-2 border-gray-300 rounded-md hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-label="Next page"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-700" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+TablePagination.propTypes = {
+  totalRows: PropTypes.number.isRequired,
+  totalPages: PropTypes.number.isRequired,
+  page: PropTypes.number.isRequired,
+  pageSize: PropTypes.number.isRequired,
+  onPageChange: PropTypes.func.isRequired,
+};

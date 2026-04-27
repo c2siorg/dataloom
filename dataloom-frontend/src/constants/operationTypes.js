@@ -37,3 +37,4 @@ export const RENAME_COLUMN = "renameCol";
 export const CAST_DATA_TYPE = "castDataType";
 /** @type {string} Trim whitespace from columns */
 export const TRIM_WHITESPACE = "trimWhitespace";
+export const GROUPBY = "groupby";

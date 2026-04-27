@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.endpoints import projects, transformations, user_logs
 from app.config import get_settings
+from app.database import verify_database_connection
 from app.exceptions import AppException, app_exception_handler
 from app.services.transformation_service import TransformationError
 from app.utils.logging import get_logger, setup_logging
@@ -22,12 +23,17 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app):
     """Application startup/shutdown lifecycle."""
+    verify_database_connection()
     from alembic.config import Config
 
     from alembic import command
 
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+    except Exception as e:
+        logger.error("Alembic migration failed: %s", e)
+        raise
 
     settings = get_settings()
     setup_logging(settings.debug)

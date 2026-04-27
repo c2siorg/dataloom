@@ -9,14 +9,18 @@ from app.services.transformation_service import (
     add_row,
     advanced_query,
     apply_filter,
+    apply_logged_transformation,
     apply_sort,
+    cast_data_type,
     change_cell_value,
     delete_column,
     delete_row,
     drop_duplicates,
+    drop_na,
     fill_empty,
     pivot_table,
     rename_column,
+    trim_whitespace,
 )
 
 
@@ -103,6 +107,28 @@ class TestDeleteRow:
     def test_delete_row_out_of_range(self, sample_df):
         with pytest.raises(TransformationError):
             delete_row(sample_df, 10)
+
+
+class TestApplyLoggedTransformationDelRow:
+    """Replay must match live delete_row (RangeIndex) for save/checkpoint consistency."""
+
+    def test_del_row_replay_matches_delete_row(self, sample_df):
+        details = {"row_params": {"index": 1}}
+        replayed = apply_logged_transformation(sample_df, "delRow", details)
+        direct = delete_row(sample_df, 1)
+        pd.testing.assert_frame_equal(replayed, direct)
+        assert replayed.index.equals(pd.RangeIndex(len(replayed)))
+
+    def test_del_row_replay_out_of_range(self, sample_df):
+        with pytest.raises(TransformationError):
+            apply_logged_transformation(sample_df, "delRow", {"row_params": {"index": 99}})
+
+    def test_chained_del_row_replay_keeps_range_index(self, sample_df):
+        df = apply_logged_transformation(sample_df, "delRow", {"row_params": {"index": 2}})
+        df = apply_logged_transformation(df, "delRow", {"row_params": {"index": 0}})
+        assert len(df) == 1
+        assert df.index.equals(pd.RangeIndex(1))
+        assert df.iloc[0]["name"] == "Bob"
 
 
 class TestAddColumn:
@@ -209,3 +235,280 @@ class TestRenameColumn:
         df = pd.DataFrame([[1, 2, 3]], columns=["name", "name", "age"])
         with pytest.raises(TransformationError, match="already exists"):
             rename_column(df, 2, "name")
+
+
+class TestCastDataType:
+    def test_cast_to_string(self, sample_df):
+        result = cast_data_type(sample_df, "age", "string")
+        # Values should be string representations regardless of exact dtype
+        assert result["age"].iloc[0] == "30"
+        assert result["age"].iloc[1] == "25"
+
+    def test_cast_to_integer(self):
+        df = pd.DataFrame({"val": ["1", "2", "bad", None]})
+        result = cast_data_type(df, "val", "integer")
+        assert result["val"].iloc[0] == 1
+        assert pd.isna(result["val"].iloc[2])  # coerced NaN
+        assert pd.isna(result["val"].iloc[3])  # coerced NaN
+
+    def test_cast_to_float(self):
+        df = pd.DataFrame({"val": ["1.5", "2.7", "bad"]})
+        result = cast_data_type(df, "val", "float")
+        assert pd.api.types.is_float_dtype(result["val"])
+        assert result["val"].iloc[0] == 1.5
+
+    def test_cast_to_boolean_truthy_falsy(self):
+        df = pd.DataFrame({"flag": ["true", "false", "yes", "no", "1", "0"]})
+        result = cast_data_type(df, "flag", "boolean")
+        assert result["flag"].iloc[0]
+        assert not result["flag"].iloc[1]
+        assert result["flag"].iloc[2]
+        assert not result["flag"].iloc[3]
+        assert result["flag"].iloc[4]
+        assert not result["flag"].iloc[5]
+
+    def test_cast_to_datetime(self):
+        df = pd.DataFrame({"date": ["2024-01-01", "2024-06-15"]})
+        result = cast_data_type(df, "date", "datetime")
+        assert pd.api.types.is_datetime64_any_dtype(result["date"])
+        assert result["date"].iloc[0] == pd.Timestamp("2024-01-01")
+
+    def test_cast_invalid_column(self, sample_df):
+        with pytest.raises(TransformationError, match="not found"):
+            cast_data_type(sample_df, "nonexistent", "integer")
+
+    def test_cast_unsupported_type(self, sample_df):
+        with pytest.raises(TransformationError, match="Unsupported target type"):
+            cast_data_type(sample_df, "age", "complex")
+
+
+class TestTrimWhitespace:
+    def test_trim_specific_column(self):
+        df = pd.DataFrame({"name": ["  Alice  ", " Bob", "Charlie "], "age": [30, 25, 35]})
+        result = trim_whitespace(df, "name")
+        assert result["name"].tolist() == ["Alice", "Bob", "Charlie"]
+        # Non-target column should be unchanged
+        assert result["age"].tolist() == [30, 25, 35]
+
+    def test_trim_all_string_columns(self):
+        df = pd.DataFrame(
+            {
+                "name": ["  Alice  ", " Bob"],
+                "city": [" NYC ", "LA "],
+                "age": [30, 25],
+            }
+        )
+        result = trim_whitespace(df, "All string columns")
+        assert result["name"].tolist() == ["Alice", "Bob"]
+        assert result["city"].tolist() == ["NYC", "LA"]
+        # Numeric column should be untouched
+        assert result["age"].tolist() == [30, 25]
+
+    def test_trim_column_not_found(self, sample_df):
+        with pytest.raises(TransformationError, match="not found"):
+            trim_whitespace(sample_df, "nonexistent")
+
+
+class TestDropNa:
+    def test_drop_na_all_columns(self):
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", None, "Charlie"],
+                "age": [30, 25, None],
+            }
+        )
+        result = drop_na(df, columns=None)
+        assert len(result) == 1
+        assert result.iloc[0]["name"] == "Alice"
+
+    def test_drop_na_specific_columns(self):
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", None, "Charlie"],
+                "age": [30, 25, None],
+            }
+        )
+        # Only drop rows where 'age' is NaN; 'name' NaN row (index 1) has age=25 so it survives
+        result = drop_na(df, columns=["age"])
+        assert len(result) == 2
+        assert result.iloc[0]["name"] == "Alice"
+        assert result.iloc[1]["name"] is None or pd.isna(result.iloc[1]["name"])
+
+    def test_drop_na_empty_columns_list_raises(self):
+        df = pd.DataFrame({"name": ["Alice", None]})
+        with pytest.raises(TransformationError, match="must not be empty"):
+            drop_na(df, columns=[])
+
+    def test_drop_na_nonexistent_column_raises(self):
+        df = pd.DataFrame({"name": ["Alice", None]})
+        with pytest.raises(TransformationError, match="not found"):
+            drop_na(df, columns=["nonexistent"])
+
+
+class TestApplyLoggedTransformation:
+    # ------------------------------------------------------------------ addRow
+    def test_add_row(self, sample_df):
+        result = apply_logged_transformation(
+            sample_df,
+            "addRow",
+            {"row_params": {"index": 1}},
+        )
+        assert len(result) == 4
+        assert result.iloc[1]["name"] == " "
+
+    # ------------------------------------------------------------------ delRow
+    def test_del_row(self, sample_df):
+        result = apply_logged_transformation(
+            sample_df,
+            "delRow",
+            {"row_params": {"index": 1}},
+        )
+        # df.drop(1) keeps the original index labels; Bob is gone
+        assert 1 not in result.index
+        assert "Bob" not in result["name"].values
+
+    def test_del_row_out_of_range(self, sample_df):
+        with pytest.raises(TransformationError, match="out of range"):
+            apply_logged_transformation(
+                sample_df,
+                "delRow",
+                {"row_params": {"index": 99}},
+            )
+
+    # ------------------------------------------------------------------ addCol
+    def test_add_col_via_add_col_params(self, sample_df):
+        result = apply_logged_transformation(
+            sample_df,
+            "addCol",
+            {"add_col_params": {"index": 1, "name": "email"}},
+        )
+        assert "email" in result.columns
+        assert list(result.columns).index("email") == 1
+
+    def test_add_col_via_col_params_fallback(self, sample_df):
+        # col_params is the fallback key path
+        result = apply_logged_transformation(
+            sample_df,
+            "addCol",
+            {"col_params": {"index": 2, "name": "score"}},
+        )
+        assert "score" in result.columns
+        assert list(result.columns).index("score") == 2
+
+    # ------------------------------------------------------------------ delCol
+    def test_del_col_via_del_col_params(self, sample_df):
+        result = apply_logged_transformation(
+            sample_df,
+            "delCol",
+            {"del_col_params": {"index": 1}},
+        )
+        assert "age" not in result.columns
+
+    def test_del_col_via_col_params_fallback(self, sample_df):
+        result = apply_logged_transformation(
+            sample_df,
+            "delCol",
+            {"col_params": {"index": 2}},
+        )
+        assert "city" not in result.columns
+
+    # -------------------------------------------------------- changeCellValue
+    def test_change_cell_value(self, sample_df):
+        result = apply_logged_transformation(
+            sample_df,
+            "changeCellValue",
+            {"change_cell_value": {"row_index": 0, "col_index": 1, "fill_value": "Alicia"}},
+        )
+        assert result.iloc[0]["name"] == "Alicia"
+
+    # ---------------------------------------------------------------- fillEmpty
+    def test_fill_empty_all_columns(self):
+        df = pd.DataFrame({"a": [1, None], "b": [None, 2]})
+        result = apply_logged_transformation(
+            df,
+            "fillEmpty",
+            {"fill_empty_params": {"fill_value": 0}},
+        )
+        assert result["a"].tolist() == [1.0, 0]
+        assert result["b"].tolist() == [0, 2.0]
+
+    def test_fill_empty_specific_column(self):
+        df = pd.DataFrame({"a": [1, None], "b": [None, 2]})
+        result = apply_logged_transformation(
+            df,
+            "fillEmpty",
+            {"fill_empty_params": {"fill_value": 99, "index": 0}},
+        )
+        assert result["a"].tolist() == [1.0, 99]
+        assert pd.isna(result["b"].iloc[0])  # column b untouched
+
+    # -------------------------------------------------------------- dropDuplicate
+    def test_drop_duplicate(self):
+        df = pd.DataFrame({"name": ["Alice", "Bob", "Alice"], "age": [30, 25, 30]})
+        result = apply_logged_transformation(
+            df,
+            "dropDuplicate",
+            {"drop_duplicate": {"columns": "name", "keep": "first"}},
+        )
+        assert len(result) == 2
+        assert result["name"].tolist().count("Alice") == 1
+
+    # --------------------------------------------------------------- renameCol
+    def test_rename_col(self, sample_df):
+        result = apply_logged_transformation(
+            sample_df,
+            "renameCol",
+            {"rename_col_params": {"col_index": 1, "new_name": "years"}},
+        )
+        assert "years" in result.columns
+        assert "age" not in result.columns
+
+    # ------------------------------------------------------------ castDataType
+    def test_cast_data_type(self, sample_df):
+        result = apply_logged_transformation(
+            sample_df,
+            "castDataType",
+            {"cast_data_type_params": {"column": "age", "target_type": "string"}},
+        )
+        assert result["age"].iloc[0] == "30"
+
+    # ---------------------------------------------------------- trimWhitespace
+    def test_trim_whitespace(self):
+        df = pd.DataFrame({"name": ["  Alice  ", " Bob"], "age": [30, 25]})
+        result = apply_logged_transformation(
+            df,
+            "trimWhitespace",
+            {"trim_whitespace_params": {"column": "name"}},
+        )
+        assert result["name"].tolist() == ["Alice", "Bob"]
+
+    # ------------------------------------------------------------------ dropNa
+    def test_drop_na_all_columns(self):
+        df = pd.DataFrame({"name": ["Alice", None], "age": [30, None]})
+        result = apply_logged_transformation(
+            df,
+            "dropNa",
+            {"drop_na_params": {"columns": None}},
+        )
+        assert len(result) == 1
+        assert result.iloc[0]["name"] == "Alice"
+
+    def test_drop_na_specific_columns(self):
+        df = pd.DataFrame({"name": ["Alice", None, "Charlie"], "age": [30, 25, None]})
+        result = apply_logged_transformation(
+            df,
+            "dropNa",
+            {"drop_na_params": {"columns": ["age"]}},
+        )
+        assert len(result) == 2
+
+    def test_drop_na_missing_drop_na_params_key(self, sample_df):
+        # When drop_na_params key is absent entirely, columns defaults to None
+        # (no NaN in sample_df, so all rows survive)
+        result = apply_logged_transformation(sample_df, "dropNa", {})
+        assert len(result) == len(sample_df)
+
+    # --------------------------------------------------------- unknown action
+    def test_unknown_action_type_returns_df_unchanged(self, sample_df):
+        result = apply_logged_transformation(sample_df, "nonExistentAction", {})
+        pd.testing.assert_frame_equal(result, sample_df)

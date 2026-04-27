@@ -1,6 +1,8 @@
 """Tests for new features: rename column, cast data type, export, and delete project."""
 
 import csv
+import io
+import uuid
 
 import pandas as pd
 import pytest
@@ -311,3 +313,60 @@ class TestTransformEndpoint:
             },
         )
         assert response.status_code == expected_status
+
+
+# --- Project Endpoint Integration Tests ---
+
+
+class TestProjectEndpoints:
+    def _upload_project(self, client, sample_csv, name="Test Project"):
+        with open(sample_csv, "rb") as f:
+            response = client.post(
+                "/projects/upload",
+                files={"file": ("test.csv", f, "text/csv")},
+                data={"projectName": name, "projectDescription": "Test"},
+            )
+        assert response.status_code == 200
+        return response.json()["project_id"]
+
+    def test_recent_projects_returns_list(self, client, sample_csv, db):
+        project_id = self._upload_project(client, sample_csv, name="Recent Test")
+        response = client.get("/projects/recent")
+        assert response.status_code == 200
+        projects = response.json()
+        assert isinstance(projects, list)
+        assert len(projects) >= 1
+        project_ids = [p["project_id"] for p in projects]
+        assert project_id in project_ids
+        client.delete(f"/projects/{project_id}")
+
+    def test_export_project_returns_csv(self, client, sample_csv, db):
+        import csv
+
+        project_id = self._upload_project(client, sample_csv, name="Export Test")
+        response = client.get(f"/projects/{project_id}/export")
+        assert response.status_code == 200
+        assert "text/csv" in response.headers["content-type"]
+        assert "attachment" in response.headers.get("content-disposition", "")
+        reader = csv.reader(io.StringIO(response.text))
+        rows = list(reader)
+        assert len(rows) >= 2
+        client.delete(f"/projects/{project_id}")
+
+    def test_export_nonexistent_project_returns_404(self, client, db):
+        fake_id = str(uuid.uuid4())
+        response = client.get(f"/projects/{fake_id}/export")
+        assert response.status_code == 404
+
+    def test_delete_project_returns_200(self, client, sample_csv, db):
+        project_id = self._upload_project(client, sample_csv, name="Delete Test")
+        response = client.delete(f"/projects/{project_id}")
+        assert response.status_code == 200
+        assert response.json() is not None
+        get_response = client.get(f"/projects/get/{project_id}")
+        assert get_response.status_code == 404
+
+    def test_delete_nonexistent_project_returns_404(self, client, db):
+        fake_id = str(uuid.uuid4())
+        response = client.delete(f"/projects/{fake_id}")
+        assert response.status_code == 404
