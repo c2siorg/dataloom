@@ -24,6 +24,25 @@ class MockUploadFile:
         return self.file.read(size)
 
 
+class MockUploadFileNoSize:
+    """Mock for FastAPI UploadFile where Content-Length is absent (size=None).
+
+    Forces validate_upload_file() to exercise the async chunk-reading branch
+    rather than the fast-path that trusts file.size.
+    """
+
+    def __init__(self, filename, content=b"col1,col2\n1,2\n"):
+        self.filename = filename
+        self.file = BytesIO(content)
+        self.size = None  # simulates missing Content-Length
+
+    async def seek(self, position, whence=0):
+        return self.file.seek(position, whence)
+
+    async def read(self, size: int = -1) -> bytes:
+        return self.file.read(size)
+
+
 class TestValidateUploadFile:
     @pytest.mark.asyncio
     async def test_csv_accepted(self):
@@ -68,3 +87,20 @@ class TestValidateUploadFile:
         file = MockUploadFile("oversized.csv", content)
         with pytest.raises(HTTPException, match="File size exceeds"):
             await validate_upload_file(file)
+
+    @pytest.mark.asyncio
+    async def test_chunked_path_over_size_limit(self):
+        """When file.size is None the chunk loop must reject an oversized file."""
+        settings = get_settings()
+        content = b"a" * (settings.max_upload_size_bytes + 1)
+        file = MockUploadFileNoSize("oversized_no_size.csv", content)
+        with pytest.raises(HTTPException, match="File size exceeds"):
+            await validate_upload_file(file)
+
+    @pytest.mark.asyncio
+    async def test_chunked_path_exact_limit_accepted(self):
+        """When file.size is None a file at exactly the limit must be accepted."""
+        settings = get_settings()
+        content = b"a" * settings.max_upload_size_bytes
+        file = MockUploadFileNoSize("exact_no_size.csv", content)
+        await validate_upload_file(file)  # must not raise
