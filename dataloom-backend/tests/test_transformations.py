@@ -157,6 +157,19 @@ class TestChangeCellValue:
         result = change_cell_value(sample_df, 0, 1, "Alice Updated")
         assert result.iloc[0]["name"] == "Alice Updated"
 
+    def test_col_index_zero_raises(self, sample_df):
+        with pytest.raises(TransformationError, match="out of bounds"):
+            change_cell_value(sample_df, 0, 0, "should fail")
+
+    def test_col_index_zero_does_not_edit_last_column(self, sample_df):
+        with pytest.raises(TransformationError):
+            change_cell_value(sample_df, 0, 0, "silent corruption")
+        assert sample_df.iloc[0]["city"] == "New York"
+
+    def test_col_index_negative_raises(self, sample_df):
+        with pytest.raises(TransformationError, match="out of bounds"):
+            change_cell_value(sample_df, 0, -1, "should fail")
+
 
 class TestFillEmpty:
     def test_fill_all_columns(self):
