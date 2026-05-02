@@ -107,15 +107,13 @@ const HomeScreen = () => {
 
   const isFormValid =
     projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
-    const filteredProjects = recentProjects.filter((project) =>
-  project.name.toLowerCase().includes(searchQuery.toLowerCase())
-);
+  const filteredProjects = recentProjects.filter((project) =>
+    project.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   useEffect(() => {
     fetchRecentProjects();
   }, []);
-
-  
 
   const fetchRecentProjects = async () => {
     try {
@@ -269,16 +267,16 @@ const HomeScreen = () => {
         </div>
 
         <div className="mb-4">
-  <input
-    type="text"
-    placeholder="Search projects..."
-    value={searchQuery}
-    onChange={(e) => setSearchQuery(e.target.value)}
-    className="w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-    aria-label="Search projects"
-  />
-</div>
-{recentProjects.length === 0 ? (
+          <input
+            type="text"
+            placeholder="Search projects..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            aria-label="Search projects"
+          />
+        </div>
+        {recentProjects.length === 0 ? (
           <EmptyState onClick={handleNewProjectClick} />
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
