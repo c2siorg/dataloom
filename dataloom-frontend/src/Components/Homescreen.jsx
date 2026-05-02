@@ -95,6 +95,7 @@ const EmptyState = ({ onClick }) => (
 const HomeScreen = () => {
   const fileInputRef = useRef(null);
   const [showModal, setShowModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [fileUpload, setFileUpload] = useState(null);
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
@@ -106,19 +107,15 @@ const HomeScreen = () => {
 
   const isFormValid =
     projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
+    const filteredProjects = recentProjects.filter((project) =>
+  project.name.toLowerCase().includes(searchQuery.toLowerCase())
+);
 
   useEffect(() => {
     fetchRecentProjects();
   }, []);
 
-  useEffect(() => {
-    if (!showModal) return;
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape" && !isSubmitting) handleCloseModal();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showModal, isSubmitting, handleCloseModal]);
+  
 
   const fetchRecentProjects = async () => {
     try {
@@ -142,6 +139,14 @@ const HomeScreen = () => {
       fileInputRef.current.value = "";
     }
   }, []);
+  useEffect(() => {
+    if (!showModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isSubmitting) handleCloseModal();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showModal, isSubmitting, handleCloseModal]);
 
   const handleSubmitModal = async (event) => {
     event.preventDefault();
@@ -263,12 +268,22 @@ const HomeScreen = () => {
           )}
         </div>
 
-        {recentProjects.length === 0 ? (
+        <div className="mb-4">
+  <input
+    type="text"
+    placeholder="Search projects..."
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    className="w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+    aria-label="Search projects"
+  />
+</div>
+{recentProjects.length === 0 ? (
           <EmptyState onClick={handleNewProjectClick} />
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <NewProjectCard onClick={handleNewProjectClick} />
-            {recentProjects.map((project) => (
+            {filteredProjects.map((project) => (
               <ProjectCard
                 key={project.project_id}
                 project={project}
