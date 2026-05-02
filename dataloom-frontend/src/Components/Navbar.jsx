@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useProjectContext } from "../context/ProjectContext";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../context/useTheme";
 import DataLoomLogo from "./common/DataLoomLogo";
 
 const Navbar = () => {
