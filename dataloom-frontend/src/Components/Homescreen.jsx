@@ -111,15 +111,6 @@ const HomeScreen = () => {
     fetchRecentProjects();
   }, []);
 
-  useEffect(() => {
-    if (!showModal) return;
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape" && !isSubmitting) handleCloseModal();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showModal, isSubmitting, handleCloseModal]);
-
   const fetchRecentProjects = async () => {
     try {
       const response = await getRecentProjects();
@@ -142,6 +133,15 @@ const HomeScreen = () => {
       fileInputRef.current.value = "";
     }
   }, []);
+
+  useEffect(() => {
+    if (!showModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isSubmitting) handleCloseModal();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showModal, isSubmitting, handleCloseModal]);
 
   const handleSubmitModal = async (event) => {
     event.preventDefault();
