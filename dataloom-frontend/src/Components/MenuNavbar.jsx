@@ -79,8 +79,12 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   };
 
   const handleSubmitCommit = async (message) => {
+    if (!message || !message.trim()) {
+      setToast({ message: "Commit message is required.", type: "error" });
+      return;
+    }
+
     setIsInputOpen(false);
-    if (!message) return;
 
     try {
       await saveProject(projectId, message);
@@ -426,6 +430,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       <InputDialog
         isOpen={isInputOpen}
         message="Enter a commit message for this save:"
+        required={true}
         onSubmit={handleSubmitCommit}
         onCancel={() => setIsInputOpen(false)}
       />
