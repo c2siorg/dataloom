@@ -107,6 +107,16 @@ const HomeScreen = () => {
   const isFormValid =
     projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
 
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false);
+    setProjectName("");
+    setProjectDescription("");
+    setFileUpload(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
   useEffect(() => {
     fetchRecentProjects();
   }, []);
@@ -132,16 +142,6 @@ const HomeScreen = () => {
   const handleNewProjectClick = () => {
     setShowModal(true);
   };
-
-  const handleCloseModal = useCallback(() => {
-    setShowModal(false);
-    setProjectName("");
-    setProjectDescription("");
-    setFileUpload(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  }, []);
 
   const handleSubmitModal = async (event) => {
     event.preventDefault();
