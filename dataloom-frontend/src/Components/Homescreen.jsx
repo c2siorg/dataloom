@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { uploadProject, getRecentProjects, deleteProject } from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
+import { UploadCloud, FileText, X, Pencil } from "lucide-react";
+import { formatFileSize } from "../utils/fileUtils";
 
 const ProjectCard = ({ project, onClick, onDelete }) => {
   const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
@@ -184,26 +186,61 @@ const HomeScreen = () => {
     fetchRecentProjects();
   };
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
+  const handleFileUpload = (fileOrEvent) => {
+    const file = fileOrEvent instanceof File ? fileOrEvent : fileOrEvent.target.files?.[0];
+
     if (!file) return;
 
     const isCSV = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
+
     if (!isCSV) {
       showToast("Please upload a CSV file.", "error");
-      event.target.value = "";
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
       setFileUpload(null);
       return;
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+
       showToast(`File too large (${sizeMB} MB). Maximum allowed size is 10 MB.`, "warning");
-      event.target.value = "";
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
       setFileUpload(null);
       return;
     }
+
     setFileUpload(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const removeFile = () => {
+    setFileUpload(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleDeleteClick = (projectId) => {
@@ -309,7 +346,7 @@ const HomeScreen = () => {
                   htmlFor="project-name"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Project Name
+                  Project Name<span className="text-red-500">*</span>
                 </label>
                 <input
                   id="project-name"
@@ -327,7 +364,7 @@ const HomeScreen = () => {
                   htmlFor="project-description"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
-                  Description
+                  Description<span className="text-red-500">*</span>
                 </label>
                 <textarea
                   id="project-description"
@@ -339,22 +376,95 @@ const HomeScreen = () => {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="project-file"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Upload Dataset <span className="text-gray-400 font-normal">(CSV)</span>
+                  <span className="text-red-500">*</span>
                 </label>
-                <input
-                  id="project-file"
-                  type="file"
-                  ref={fileInputRef}
-                  accept=".csv"
-                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none"
-                  onChange={handleFileUpload}
-                  required
-                  aria-required="true"
-                />
+
+                {!fileUpload ? (
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="group border-2 border-dashed border-gray-300 hover:border-blue-500 transition-all rounded-2xl p-8 bg-gray-50 hover:bg-blue-50 cursor-pointer text-center"
+                  >
+                    <input
+                      id="project-file"
+                      type="file"
+                      ref={fileInputRef}
+                      accept=".csv"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      required
+                      aria-required="true"
+                    />
+
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="p-4 rounded-full bg-white shadow-sm border border-gray-200 group-hover:border-blue-200">
+                        <UploadCloud className="w-8 h-8 text-gray-500 group-hover:text-blue-600" />
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">
+                          Drag & drop your CSV file here
+                        </p>
+
+                        <p className="text-sm text-gray-500 mt-1">
+                          or <span className="text-blue-600 font-medium">browse files</span>
+                        </p>
+                      </div>
+
+                      <p className="text-xs text-gray-400">Maximum file size: 10 MB</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border border-gray-300 bg-white hover:bg-slate-50 transition-all duration-150 rounded-2xl p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-3 rounded-xl bg-white border border-green-100 shadow-sm">
+                          <FileText className="w-6 h-6 text-green-600" />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">
+                            {fileUpload.name}
+                          </p>
+
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatFileSize(fileUpload.size)} • CSV File
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-100 rounded-lg transition"
+                        >
+                          <Pencil className="w-4 h-4" />
+                          Change
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={removeFile}
+                          className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept=".csv"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex flex-row justify-end gap-3 mt-6">
