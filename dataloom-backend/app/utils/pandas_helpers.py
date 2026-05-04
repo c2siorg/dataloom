@@ -100,4 +100,4 @@ def validate_column_index(df: pd.DataFrame, index: int) -> None:
         raise HTTPException(
             status_code=400,
             detail=f"Column index {index} out of range (0-{len(df.columns) - 1})",
-        ) 
+        )
