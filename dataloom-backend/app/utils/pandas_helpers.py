@@ -8,39 +8,26 @@ from fastapi import HTTPException
 
 
 def read_csv_safe(path: Path) -> pd.DataFrame:
-    """Read a CSV file safely with error handling.
+    """Read a CSV or Excel file safely with error handling.
 
     Args:
-        path: Path to the CSV file.
+        path: Path to the file.
 
     Returns:
-        DataFrame with the CSV contents.
+        DataFrame with the file contents.
 
     Raises:
         HTTPException: If the file cannot be read.
     """
+    ext = Path(path).suffix.lower()
     try:
+        if ext in {".xlsx", ".xls"}:
+            return pd.read_excel(path, engine="openpyxl")
         return pd.read_csv(path)
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"CSV file not found: {path}") from None
+        raise HTTPException(status_code=404, detail=f"File not found: {path}") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}") from e
-
-
-def save_csv_safe(df: pd.DataFrame, path: Path) -> None:
-    """Save a DataFrame to CSV safely.
-
-    Args:
-        df: DataFrame to save.
-        path: Destination file path.
-
-    Raises:
-        HTTPException: If the file cannot be saved.
-    """
-    try:
-        df.to_csv(path, index=False)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error saving CSV: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}") from e
 
 
 def _map_dtype(dtype) -> str:
@@ -69,7 +56,6 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
     Returns:
         Dict with columns (list of str), rows (list of lists), row_count, and dtypes.
     """
-
     dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
     df = df.fillna("")
     df = df.replace([float("inf"), float("-inf")], "")
