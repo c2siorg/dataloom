@@ -41,6 +41,10 @@ class Project(SQLModel, table=True):
         back_populates="project",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+    column_metadata: list["ProjectColumnMetadata"] = Relationship(
+        back_populates="project",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
 
 
 class ProjectChangeLog(SQLModel, table=True):
@@ -89,3 +93,18 @@ class Checkpoint(SQLModel, table=True):
     )
 
     project: Project | None = Relationship(back_populates="checkpoints")
+
+
+class ProjectColumnMetadata(SQLModel, table=True):
+    """Stores detected column type metadata for a project."""
+
+    __tablename__ = "project_column_metadata"
+
+    id: int | None = Field(default=None, primary_key=True)
+    project_id: uuid_mod.UUID = Field(
+        sa_column=Column(sa.Uuid, sa.ForeignKey("projects.project_id"), nullable=False),
+    )
+    column_name: str
+    column_dtype: str  # "date", "integer", "float", "boolean", "string"
+
+    project: Project | None = Relationship(back_populates="column_metadata")

@@ -47,30 +47,37 @@ def _map_dtype(dtype) -> str:
     """Map a pandas dtype to a short label string."""
     kind = dtype.kind
     if kind == "i" or kind == "u":
-        return "int"
+        return "integer"
     elif kind == "f":
         return "float"
     elif kind == "b":
-        return "bool"
+        return "boolean"
     elif kind == "M":
-        return "datetime"
+        return "date"
     elif kind == "O" or kind == "U" or kind == "S":
-        return "str"
+        return "string"
     else:
         return "unknown"
 
 
-def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
+def dataframe_to_response(df: pd.DataFrame, column_metadata: dict[str, str] | None = None) -> dict[str, Any]:
     """Convert a DataFrame to an API response dict.
 
     Args:
         df: Source DataFrame.
+        column_metadata: Optional dict mapping column name to semantic type.
+                        When provided, overrides pandas dtype inference.
 
     Returns:
         Dict with columns (list of str), rows (list of lists), row_count, and dtypes.
     """
 
-    dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
+    if column_metadata:
+        dtypes = {col: column_metadata.get(col, _map_dtype(dtype)) for col, dtype in df.dtypes.items()}
+
+    else:
+        dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
+
     df = df.fillna("")
     df = df.replace([float("inf"), float("-inf")], "")
     columns = df.columns.tolist()

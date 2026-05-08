@@ -19,31 +19,31 @@ def sample_df():
 
 class TestMapDtype:
     def test_int_column(self, sample_df):
-        assert _map_dtype(sample_df["age"].dtype) == "int"
+        assert _map_dtype(sample_df["age"].dtype) == "integer"
 
     def test_float_column(self):
         df = pd.DataFrame({"val": [1.5, 2.7]})
         assert _map_dtype(df["val"].dtype) == "float"
 
     def test_str_column(self, sample_df):
-        assert _map_dtype(sample_df["name"].dtype) == "str"
+        assert _map_dtype(sample_df["name"].dtype) == "string"
 
     def test_bool_column(self):
         df = pd.DataFrame({"val": [True, False]})
-        assert _map_dtype(df["val"].dtype) == "bool"
+        assert _map_dtype(df["val"].dtype) == "boolean"
 
     def test_datetime_column(self):
         df = pd.DataFrame({"val": pd.to_datetime(["2024-01-01", "2024-06-15"])})
-        assert _map_dtype(df["val"].dtype) == "datetime"
+        assert _map_dtype(df["val"].dtype) == "date"
 
 
 class TestDataframeToResponse:
     def test_includes_dtypes(self, sample_df):
         response = dataframe_to_response(sample_df)
         assert "dtypes" in response
-        assert response["dtypes"]["name"] == "str"
-        assert response["dtypes"]["age"] == "int"
-        assert response["dtypes"]["city"] == "str"
+        assert response["dtypes"]["name"] == "string"
+        assert response["dtypes"]["age"] == "integer"
+        assert response["dtypes"]["city"] == "string"
 
     def test_dtypes_with_mixed_types(self):
         df = pd.DataFrame(
@@ -55,10 +55,10 @@ class TestDataframeToResponse:
             }
         )
         response = dataframe_to_response(df)
-        assert response["dtypes"]["id"] == "int"
+        assert response["dtypes"]["id"] == "integer"
         assert response["dtypes"]["score"] == "float"
-        assert response["dtypes"]["active"] == "bool"
-        assert response["dtypes"]["label"] == "str"
+        assert response["dtypes"]["active"] == "boolean"
+        assert response["dtypes"]["label"] == "string"
 
     def test_still_includes_columns_rows_row_count(self, sample_df):
         response = dataframe_to_response(sample_df)

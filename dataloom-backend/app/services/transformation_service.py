@@ -4,8 +4,11 @@ Each function takes a DataFrame and parameters, returns a new DataFrame.
 No side effects -- saving to disk is handled by the caller.
 """
 
+import re
+
 import pandas as pd
 
+from app import models
 from app.schemas import MeltParams
 from app.utils.logging import get_logger
 from app.utils.security import validate_query_string
@@ -176,7 +179,9 @@ def delete_column(df: pd.DataFrame, index: int) -> pd.DataFrame:
     return df.drop(column_name, axis=1)
 
 
-def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -> pd.DataFrame:
+def change_cell_value(
+    df: pd.DataFrame, row_index: int, col_index: int, value, db=None, project_id=None
+) -> pd.DataFrame:
     """Update a single cell value.
 
     Note: col_index is 1-based from the frontend (skipping S.No. column).
@@ -186,6 +191,8 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
         row_index: Row position (0-based).
         col_index: Column position (1-based from frontend).
         value: New cell value.
+        db: Optional database session for metadata lookup.
+        project_id: Optional project UUID for metadata lookup.
 
     Returns:
         DataFrame with updated cell.
@@ -197,7 +204,53 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
 
     # col_index is 1-based from frontend (accounting for S.No. column)
     column_name = df.columns[col_index - 1]
+
+    # Validate value against stored column metadata if available
+    if db is not None and project_id is not None:
+        metadata = (
+            db.query(models.ProjectColumnMetadata)
+            .filter(
+                models.ProjectColumnMetadata.project_id == project_id,
+                models.ProjectColumnMetadata.column_name == column_name,
+            )
+            .first()
+        )
+        if metadata:
+            col_dtype = metadata.column_dtype
+
+            if col_dtype == "integer":
+                try:
+                    value = int(value)
+                except (ValueError, TypeError) as err:
+                    raise TransformationError(f"Invalid value '{value}' for integer column '{column_name}'") from err
+
+            elif col_dtype == "float":
+                try:
+                    value = float(value)
+                except (ValueError, TypeError) as err:
+                    raise TransformationError(f"Invalid value '{value}' for float column '{column_name}'") from err
+
+            elif col_dtype == "boolean":
+                value = str(value).lower() in ("true", "1", "yes")
+
+            elif col_dtype == "date":
+                date_patterns = [
+                    r"^\d{4}-\d{2}-\d{2}$",
+                    r"^\d{2}/\d{2}/\d{4}$",
+                    r"^\d{2}-\d{2}-\d{4}$",
+                ]
+                if not any(re.match(pattern, str(value).strip()) for pattern in date_patterns):
+                    raise TransformationError(
+                        f"Invalid date value '{value}' for date column '{column_name}'. "
+                        f"Expected formats: YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY"
+                    )
+                try:
+                    pd.to_datetime(str(value).strip())
+                except (ValueError, TypeError) as err:
+                    raise TransformationError(f"Invalid date value '{value}' for date column '{column_name}'") from err
+
     df.at[row_index, column_name] = value
+
     return df
 
 

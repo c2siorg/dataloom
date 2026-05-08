@@ -1,11 +1,11 @@
 import PropTypes from "prop-types";
 
 const DTYPE_STYLES = {
-  int: "bg-blue-100 text-blue-700",
+  integer: "bg-blue-100 text-blue-700",
   float: "bg-teal-100 text-teal-700",
-  str: "bg-green-100 text-green-700",
-  datetime: "bg-purple-100 text-purple-700",
-  bool: "bg-orange-100 text-orange-700",
+  string: "bg-green-100 text-green-700",
+  date: "bg-purple-100 text-purple-700",
+  boolean: "bg-orange-100 text-orange-700",
 };
 
 const DtypeBadge = ({ dtype }) => {
