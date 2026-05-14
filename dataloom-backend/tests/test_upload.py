@@ -31,8 +31,18 @@ class TestValidateUploadFile:
         await validate_upload_file(file)
 
     @pytest.mark.asyncio
-    async def test_non_csv_rejected(self):
+    async def test_xlsx_accepted(self):
         file = MockUploadFile("data.xlsx")
+        await validate_upload_file(file)
+
+    @pytest.mark.asyncio
+    async def test_xls_accepted(self):
+        file = MockUploadFile("data.xls")
+        await validate_upload_file(file)
+
+    @pytest.mark.asyncio
+    async def test_non_csv_excel_rejected(self):
+        file = MockUploadFile("data.pdf")
         with pytest.raises(HTTPException, match="not allowed"):
             await validate_upload_file(file)
 
