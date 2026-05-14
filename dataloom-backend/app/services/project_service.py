@@ -126,3 +126,74 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     db.commit()
     logger.info("Checkpoint created: id=%s, project_id=%s, logs_applied=%d", checkpoint.id, project_id, len(logs))
     return checkpoint
+
+
+def store_column_metadata(db: Session, project_id: uuid.UUID, column_types: dict[str, str]) -> None:
+    """Store detected column type metadata for a project.
+
+    Args:
+        db: Database session.
+        project_id: The project UUID to associate metadata with.
+        column_types: Dict mapping column name to detected type string.
+    """
+    metadata_records = [
+        models.ProjectColumnMetadata(
+            project_id=project_id,
+            column_name=col_name,
+            column_dtype=col_type,
+        )
+        for col_name, col_type in column_types.items()
+    ]
+    db.add_all(metadata_records)
+    db.commit()
+    logger.info(
+        "Stored column metadata: project_id=%s, columns=%d",
+        project_id,
+        len(metadata_records),
+    )
+
+
+def get_column_metadata(db: Session, project_id: uuid.UUID) -> dict[str, str] | None:
+    """Fetch stored column type metadata for a project.
+
+    Args:
+        db: Database session.
+        project_id: The project UUID.
+
+    Returns:
+        Dict mapping column name to type string, or None if no metadata exists.
+    """
+    records = db.query(models.ProjectColumnMetadata).filter(models.ProjectColumnMetadata.project_id == project_id).all()
+    return {r.column_name: r.column_dtype for r in records} if records else None
+
+
+def update_column_metadata_type(db: Session, project_id: uuid.UUID, column_name: str, new_type: str) -> None:
+    """Update the stored type for a single column in project metadata.
+
+    Args:
+        db: Database session.
+        project_id: The project UUID.
+        column_name: The column whose type changed.
+        new_type: The new semantic type string.
+    """
+    # Normalize datetime to date to match internal metadata convention
+    if new_type == "datetime":
+        new_type = "date"
+
+    existing = (
+        db.query(models.ProjectColumnMetadata)
+        .filter(
+            models.ProjectColumnMetadata.project_id == project_id,
+            models.ProjectColumnMetadata.column_name == column_name,
+        )
+        .first()
+    )
+    if existing:
+        existing.column_dtype = new_type
+        db.commit()
+        logger.info(
+            "Updated column metadata: project_id=%s, column=%s, new_type=%s",
+            project_id,
+            column_name,
+            new_type,
+        )

@@ -13,13 +13,13 @@ describe("DtypeBadge", () => {
   });
 
   it("renders the dtype label", () => {
-    render(<DtypeBadge dtype="int" />);
-    expect(screen.getByText("int")).toBeInTheDocument();
+    render(<DtypeBadge dtype="integer" />);
+    expect(screen.getByText("integer")).toBeInTheDocument();
   });
 
-  it("applies blue classes for int", () => {
-    render(<DtypeBadge dtype="int" />);
-    expect(screen.getByText("int").className).toContain("bg-blue-100");
+  it("applies blue classes for integer", () => {
+    render(<DtypeBadge dtype="integer" />);
+    expect(screen.getByText("integer").className).toContain("bg-blue-100");
   });
 
   it("applies teal classes for float", () => {
@@ -27,19 +27,19 @@ describe("DtypeBadge", () => {
     expect(screen.getByText("float").className).toContain("bg-teal-100");
   });
 
-  it("applies green classes for str", () => {
-    render(<DtypeBadge dtype="str" />);
-    expect(screen.getByText("str").className).toContain("bg-green-100");
+  it("applies green classes for string", () => {
+    render(<DtypeBadge dtype="string" />);
+    expect(screen.getByText("string").className).toContain("bg-green-100");
   });
 
-  it("applies purple classes for datetime", () => {
-    render(<DtypeBadge dtype="datetime" />);
-    expect(screen.getByText("datetime").className).toContain("bg-purple-100");
+  it("applies purple classes for date", () => {
+    render(<DtypeBadge dtype="date" />);
+    expect(screen.getByText("date").className).toContain("bg-purple-100");
   });
 
-  it("applies orange classes for bool", () => {
-    render(<DtypeBadge dtype="bool" />);
-    expect(screen.getByText("bool").className).toContain("bg-orange-100");
+  it("applies orange classes for boolean", () => {
+    render(<DtypeBadge dtype="boolean" />);
+    expect(screen.getByText("boolean").className).toContain("bg-orange-100");
   });
 
   it("applies gray fallback for unknown dtype", () => {

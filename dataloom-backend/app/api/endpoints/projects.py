@@ -12,16 +12,27 @@ from sqlmodel import Session
 
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
-from app.services.file_service import delete_project_files, get_original_path, store_upload
+from app.services.file_service import (
+    delete_project_files,
+    get_original_path,
+    store_upload,
+)
 from app.services.project_service import (
     create_checkpoint,
     create_project,
     delete_project,
+    get_column_metadata,
     get_recent_projects,
+    store_column_metadata,
 )
 from app.services.transformation_service import apply_logged_transformation
+from app.utils.column_utils import detect_column_types
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import (
+    dataframe_to_response,
+    read_csv_safe,
+    save_csv_safe,
+)
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -49,6 +60,10 @@ async def upload_project(
 
     project = create_project(db, projectName, str(copy_path), projectDescription)
 
+    # Detect and store column type metadata
+    column_types = detect_column_types(df)
+    store_column_metadata(db, project.project_id, column_types)
+
     total_rows = len(df)
     resp = dataframe_to_response(df)
     return {
@@ -71,6 +86,9 @@ async def get_project_details(
     project = get_project_or_404(project_id, db)
     df = read_csv_safe(project.file_path)
 
+    # Fetch stored column metadata
+    column_metadata = get_column_metadata(db, project_id)
+
     total_rows = len(df)
     total_pages = (total_rows + pageSize - 1) // pageSize
 
@@ -78,7 +96,7 @@ async def get_project_details(
     end = start + pageSize
     paginated_df = df.iloc[start:end]
 
-    resp = dataframe_to_response(paginated_df)
+    resp = dataframe_to_response(paginated_df, column_metadata)
     return {
         "filename": project.name,
         "file_path": project.file_path,

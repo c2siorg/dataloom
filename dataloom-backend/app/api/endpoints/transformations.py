@@ -11,7 +11,7 @@ from sqlmodel import Session
 from app import database, schemas
 from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
-from app.services.project_service import log_transformation
+from app.services.project_service import log_transformation, update_column_metadata_type
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
 
@@ -71,7 +71,7 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.change_cell_value:
             raise HTTPException(status_code=400, detail="Cell value parameters required")
         p = transformation_input.change_cell_value
-        return ts.change_cell_value(df, p.row_index, p.col_index, p.fill_value), True
+        return ts.change_cell_value(df, p.row_index, p.col_index, p.fill_value, db, project_id), True
 
     elif op == "fillEmpty":
         if not transformation_input.fill_empty_params:
@@ -89,7 +89,9 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.cast_data_type_params:
             raise HTTPException(status_code=400, detail="Cast data type parameters required")
         p = transformation_input.cast_data_type_params
-        return ts.cast_data_type(df, p.column, p.target_type), True
+        result_df = ts.cast_data_type(df, p.column, p.target_type)
+        update_column_metadata_type(db, project_id, p.column, p.target_type)
+        return result_df, True
 
     elif op == "trimWhitespace":
         if not transformation_input.trim_whitespace_params:
