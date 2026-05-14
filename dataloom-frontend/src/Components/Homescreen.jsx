@@ -121,6 +121,16 @@ const HomeScreen = () => {
     fetchRecentProjects();
   }, []);
 
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false);
+    setProjectName("");
+    setProjectDescription("");
+    setFileUpload(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
   useEffect(() => {
     if (!showModal) return;
     const handleKeyDown = (e) => {
