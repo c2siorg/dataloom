@@ -250,7 +250,7 @@ const Table = ({ projectId, data: externalData }) => {
         className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
         style={{ maxHeight: "calc(100vh - 140px)" }}
       >
-        <table className="min-w-full bg-white">
+        <table data-testid="data-table" className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
             <tr>
               {columns.map((column, columnIndex) => (
@@ -325,6 +325,7 @@ const Table = ({ projectId, data: externalData }) => {
         position={position}
         contextData={contextData}
         onClose={close}
+        data-testid={contextData?.type ? `context-menu-${contextData.type}` : "context-menu"}
         actions={(data) => {
           if (!data) return null;
           if (data.type === "column")

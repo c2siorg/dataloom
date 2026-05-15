@@ -112,11 +112,18 @@ class AddColumn(BaseModel):
 
     Attributes:
         index: Zero-based column index where column will be inserted.
-        name: Column name; required for add operations.
+        name: Column name (required, non-blank).
     """
 
     index: int
     name: str
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Column name cannot be empty or whitespace")
+        return v
 
 
 class DeleteColumn(BaseModel):

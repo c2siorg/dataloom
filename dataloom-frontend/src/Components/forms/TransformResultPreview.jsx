@@ -13,9 +13,12 @@ const TransformResultPreview = ({ columns, rows }) => {
   const displayRows = rows.map((row, index) => [index + 1, ...row]);
 
   return (
-    <div className="mt-2 border border-gray-200 rounded-lg shadow-sm overflow-hidden bg-white">
+    <div
+      data-testid="transform-preview"
+      className="mt-2 border border-gray-200 rounded-lg shadow-sm overflow-hidden bg-white"
+    >
       <div className="overflow-x-auto overflow-y-auto max-h-72">
-        <table className="min-w-full bg-white border-collapse">
+        <table data-testid="preview-table" className="min-w-full bg-white border-collapse">
           <thead className="sticky top-0 bg-gray-50 z-10">
             <tr>
               {displayColumns.map((col, index) => (
@@ -23,7 +26,7 @@ const TransformResultPreview = ({ columns, rows }) => {
                   key={index}
                   className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  {/* 
+                  {/*
                     TODO: Button is kept for visual consistency with the main application DataFrame.
                     Wire up actual sort/filter handlers here in the future.
                   */}
