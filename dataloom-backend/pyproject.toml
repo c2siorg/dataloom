@@ -12,6 +12,8 @@ dependencies = [
     "pandas>=2.1",
     "python-dotenv>=1.0",
     "python-multipart>=0.0.6",
+    "bcrypt>=5.0.0",
+    "uuid6>=2025.0.1",
 ]
 
 [project.optional-dependencies]
