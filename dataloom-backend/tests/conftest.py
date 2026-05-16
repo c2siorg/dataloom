@@ -1,18 +1,31 @@
 """Test configuration and fixtures for the DataLoom backend tests."""
 
 import csv
+import os
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel, create_engine
+# Auth-related settings must exist before app modules load the cached Settings.
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-for-the-dataloom-suite")
+os.environ.setdefault("COOKIE_SECURE", "false")
 
-from app.database import get_db
-from app.main import app
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
+
+from app import models  # noqa: E402
+from app.database import get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.services.auth_service import create_access_token  # noqa: E402
 
 # Use SQLite for tests
 TEST_DATABASE_URL = "sqlite:///./test.db"
 
 engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+
+# Test user credentials. The hash is a precomputed bcrypt hash (cost 4, for
+# test speed) of TEST_USER_PASSWORD — avoids a slow cost-12 hash per test.
+TEST_USER_EMAIL = "fixture-user@test.com"
+TEST_USER_PASSWORD = "testpassword"
+TEST_USER_PASSWORD_HASH = "$2b$04$jYCMf0hes4R2ULgo.pKfOOGumgg6nJBsRgXVMohokYq4.kF0c50K2"
 
 
 @pytest.fixture(autouse=True)
@@ -45,17 +58,45 @@ def db():
 
 
 @pytest.fixture
-def client(db):
-    """Provide a FastAPI test client with overridden DB dependency."""
+def test_user(db):
+    """Create and return a persisted user that owns test projects."""
+    user = models.User(email=TEST_USER_EMAIL, password_hash=TEST_USER_PASSWORD_HASH)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture
+def anon_client(db):
+    """Provide an unauthenticated FastAPI test client."""
 
     def override_get_db():
-        try:
-            yield db
-        finally:
-            pass
+        yield db
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client(db, test_user):
+    """Provide a FastAPI test client authenticated as `test_user`.
+
+    The whole project API is auth-gated, so the default client carries a valid
+    auth cookie. Use `anon_client` for tests that exercise unauthenticated paths.
+    """
+
+    def override_get_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+    token = create_access_token(test_user.id)
+    with TestClient(app) as c:
+        # Set the auth cookie as a static header; httpx's cookie jar mangles
+        # dotless hosts ("testserver" -> "testserver.local"), dropping the cookie.
+        c.headers["Cookie"] = f"access_token={token}"
         yield c
     app.dependency_overrides.clear()
 
