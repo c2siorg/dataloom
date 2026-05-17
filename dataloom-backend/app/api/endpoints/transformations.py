@@ -97,6 +97,12 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         p = transformation_input.trim_whitespace_params
         return ts.trim_whitespace(df, p.column), True
 
+    elif op == "sample":
+        if not transformation_input.sample_params:
+            raise HTTPException(status_code=400, detail="Sample parameters required")
+        p = transformation_input.sample_params
+        return ts.sample_rows(df, p.sample_size, p.random_seed), True
+
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
 

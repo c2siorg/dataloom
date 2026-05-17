@@ -5,7 +5,7 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 # --- Enums ---
 
@@ -42,6 +42,7 @@ class OperationType(StrEnum):
     trimWhitespace = "trimWhitespace"
     dropNa = "dropNa"
     melt = "melt"
+    sample = "sample"
 
 
 class DropDup(StrEnum):
@@ -255,6 +256,11 @@ class MeltParams(BaseModel):
 
 
 # --- Transformation input/output schemas ---
+class SampleParams(BaseModel):
+    """Parameters for sampling rows from a dataset."""
+
+    sample_size: int = Field(gt=0, description="Number of rows to sample; must be positive")
+    random_seed: int | None = Field(default=None, ge=0, le=4294967295, description="Optional seed for reproducibility")
 
 
 class TransformationInput(BaseModel):
@@ -277,6 +283,7 @@ class TransformationInput(BaseModel):
     trim_whitespace_params: TrimWhitespaceParams | None = None
     drop_na_params: DropNaParams | None = None
     melt_params: MeltParams | None = None
+    sample_params: SampleParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
