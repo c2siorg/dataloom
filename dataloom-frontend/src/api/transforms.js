@@ -28,3 +28,14 @@ export const groupByTransform = async (projectId, params) => {
   });
   return response.data;
 };
+
+/**
+ * Undo the most recent transformation for a project.
+ * Removes the last log entry and rebuilds data from original + remaining logs.
+ * @param {string} projectId - The project ID.
+ * @returns {Promise<Object>} Updated project data with rows and columns.
+ */
+export const undoLastTransformation = async (projectId) => {
+  const response = await client.post(`/projects/${projectId}/undo`);
+  return response.data;
+};

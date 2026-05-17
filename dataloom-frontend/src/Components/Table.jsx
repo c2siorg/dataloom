@@ -185,7 +185,7 @@ const Table = ({ projectId, data: externalData }) => {
     try {
       const response = await transformProject(projectId, {
         operation_type: DELETE_COLUMN,
-        col_params: { index: index - 1 },
+        del_col_params: { index: index - 1 }, // was col_params
       });
       updateTableData(response);
       refreshProject(projectId, 1, pageSize);
