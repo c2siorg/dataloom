@@ -16,7 +16,9 @@ from app.services.file_service import delete_project_files, get_original_path, s
 from app.services.project_service import (
     create_checkpoint,
     create_project,
+    delete_change_log,
     delete_project,
+    get_last_change_log,
     get_recent_projects,
 )
 from app.services.transformation_service import apply_logged_transformation
@@ -260,3 +262,56 @@ async def delete_project_endpoint(project_id: uuid.UUID, db: Session = Depends(d
     delete_project_files(project.file_path)
     delete_project(db, project)
     return {"success": True, "message": "Project deleted"}
+
+
+@router.post("/{project_id}/undo", response_model=schemas.ProjectResponse)
+async def undo_last_transformation(
+    project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+):
+    """Undo the most recent transformation.
+
+    Removes the last change log entry and rebuilds the working copy
+    by replaying all remaining logs onto the original file.
+    """
+    project = get_project_or_404(project_id, db)
+
+    last_log = get_last_change_log(db, project_id)
+    if not last_log:
+        raise HTTPException(status_code=404, detail="No transformations to undo")
+
+    delete_change_log(db, last_log)
+
+    original_path = get_original_path(project.file_path)
+    df = read_csv_safe(original_path)
+
+    remaining_logs = (
+        db.query(models.ProjectChangeLog)
+        .filter(models.ProjectChangeLog.project_id == project_id)
+        .order_by(models.ProjectChangeLog.timestamp)
+        .all()
+    )
+
+    for log in remaining_logs:
+        df = apply_logged_transformation(df, log.action_type, log.action_details)
+
+    save_csv_safe(df, project.file_path)
+    db.commit()
+
+    resp = dataframe_to_response(df)
+    logger.info(
+        "Undo: project_id=%s, removed log_id=%s, remaining_logs=%d",
+        project_id,
+        last_log.change_log_id,
+        len(remaining_logs),
+    )
+    return {
+        "filename": project.name,
+        "file_path": project.file_path,
+        "project_id": project.project_id,
+        "page": 1,
+        "page_size": len(df),
+        "total_rows": len(df),
+        "total_pages": 1,
+        **resp,
+    }

@@ -6,6 +6,7 @@ import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
+import { useProjectContext } from "../../context/ProjectContext";
 
 const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
   const { showToast } = useToast();
@@ -13,6 +14,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
   const [column, setColumn] = useState("");
   const [targetType, setTargetType] = useState("string");
   const { error, clearError, handleError } = useError();
+  const { updateData } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,6 +30,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
       });
 
       onTransform(response);
+      updateData(response.columns, response.rows, response.dtypes);
       onClose();
     } catch (err) {
       console.error("Error casting data type:", err);
