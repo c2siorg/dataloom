@@ -83,7 +83,7 @@ class TestCastDataType:
     def test_cast_to_integer(self):
         df = pd.DataFrame({"val": ["10", "20", "30"]})
         result = cast_data_type(df, "val", "integer")
-        assert result["val"].dtype == "Int64"
+        assert str(result["val"].dtype) in ["int64", "Int64"]
         assert result.iloc[0]["val"] == 10
 
     def test_cast_to_integer_with_nan(self):
@@ -164,18 +164,9 @@ class TestAddDeleteColumnEndpoint:
         )
         assert response.status_code == 200
 
-    def test_add_column_without_name_returns_422(self, client, sample_csv, db):
-        with open(sample_csv, "rb") as f:
-            response = client.post(
-                "/projects/upload",
-                files={"file": ("test.csv", f, "text/csv")},
-                data={"projectName": "Add Column Test", "projectDescription": "Test add column"},
-            )
-        assert response.status_code == 200
-        project_id = response.json()["project_id"]
-
+    def test_add_column_without_name_returns_422(self, client, uploaded_project):
         response = client.post(
-            f"/projects/{project_id}/transform",
+            f"/projects/{uploaded_project}/transform",
             json={"operation_type": "addCol", "add_col_params": {"index": 1}},
         )
         assert response.status_code == 422

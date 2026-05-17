@@ -28,14 +28,16 @@ async def lifespan(app):
 
     from alembic import command
 
-    try:
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-    except Exception as e:
-        logger.error("Alembic migration failed: %s", e)
-        raise
-
     settings = get_settings()
+
+    if not settings.database_url.startswith("sqlite"):
+        try:
+            alembic_cfg = Config("alembic.ini")
+            command.upgrade(alembic_cfg, "head")
+        except Exception as e:
+            logger.error("Alembic migration failed: %s", e)
+            raise
+
     setup_logging(settings.debug)
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 
