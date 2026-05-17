@@ -38,13 +38,13 @@ def _handle_basic_transform(df, transformation_input, project, db, project_id):
         if not transformation_input.parameters:
             raise HTTPException(status_code=400, detail="Filter parameters required")
         p = transformation_input.parameters
-        return ts.apply_filter(df, p.column, p.condition, p.value), False
+        return ts.apply_filter(df, p.column, p.condition, p.value), True
 
     elif op == "sort":
         if not transformation_input.sort_params:
             raise HTTPException(status_code=400, detail="Sort parameters required")
         p = transformation_input.sort_params
-        return ts.apply_sort(df, p.column, p.ascending), False
+        return ts.apply_sort(df, p.column, p.ascending), True
 
     elif op == "addRow":
         if not transformation_input.row_params:

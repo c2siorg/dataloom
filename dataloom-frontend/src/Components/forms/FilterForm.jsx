@@ -6,8 +6,9 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
+import { useProjectContext } from "../../context/ProjectContext";
 
-const FilterForm = ({ projectId, onClose }) => {
+const FilterForm = ({ projectId, onClose, onTransform }) => {
   const [filterParams, setFilterParams] = useState({
     column: "",
     condition: "=",
@@ -16,6 +17,7 @@ const FilterForm = ({ projectId, onClose }) => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
+  const { updateData } = useProjectContext();
 
   const handleInputChange = (e) => {
     setFilterParams({
@@ -35,6 +37,8 @@ const FilterForm = ({ projectId, onClose }) => {
         parameters: filterParams,
       });
       setResult(response);
+      if (onTransform) onTransform(response);
+      updateData(response.columns, response.rows, response.dtypes);
       console.log("Filter API response:", response);
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);
@@ -114,6 +118,7 @@ const FilterForm = ({ projectId, onClose }) => {
 FilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func,
 };
 
 export default FilterForm;

@@ -12,4 +12,4 @@ export {
   deleteProject,
 } from "./projects";
 export { getLogs, getCheckpoints } from "./logs";
-export { transformProject, groupByTransform } from "./transforms";
+export { transformProject, groupByTransform, undoLastTransformation } from "./transforms";
