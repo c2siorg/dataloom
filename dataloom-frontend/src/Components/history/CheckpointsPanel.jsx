@@ -7,12 +7,12 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
       : checkpoints && checkpoints.id;
 
   return (
-    <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group">
+    <div className="p-4 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg shadow-sm mx-auto relative group">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Last Checkpoint</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text">Last Checkpoint</h3>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 font-medium transition-opacity opacity-0 group-hover:opacity-100"
+          className="text-gray-400 dark:text-dark-muted hover:text-gray-600 dark:hover:text-dark-text font-medium transition-opacity opacity-0 group-hover:opacity-100"
           style={{
             transition: "opacity 0.3s",
             background: "transparent",
@@ -25,25 +25,27 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white rounded-lg overflow-hidden">
-          <thead className="bg-gray-50">
+        <table className="min-w-full bg-white dark:bg-dark-surface rounded-lg overflow-hidden">
+          <thead className="bg-gray-50 dark:bg-dark-bg">
             <tr>
-              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-dark-muted uppercase tracking-wider">
                 Message
               </th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 dark:text-dark-muted uppercase tracking-wider">
                 Created At
               </th>
-              <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 dark:text-dark-muted uppercase tracking-wider">
                 Action
               </th>
             </tr>
           </thead>
           <tbody>
             {hasCheckpoints ? (
-              <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
-                <td className="py-3 px-4 text-sm text-gray-700">{checkpoints.message}</td>
-                <td className="py-3 px-4 text-sm text-gray-500">
+              <tr className="border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors duration-150">
+                <td className="py-3 px-4 text-sm text-gray-700 dark:text-dark-text">
+                  {checkpoints.message}
+                </td>
+                <td className="py-3 px-4 text-sm text-gray-500 dark:text-dark-muted">
                   {new Date(checkpoints.created_at).toLocaleString()}
                 </td>
                 <td className="py-3 px-4 text-center">
@@ -57,7 +59,10 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
               </tr>
             ) : (
               <tr>
-                <td colSpan="3" className="py-4 px-4 text-center text-sm text-gray-500">
+                <td
+                  colSpan="3"
+                  className="py-4 px-4 text-center text-sm text-gray-500 dark:text-dark-muted"
+                >
                   No checkpoint available
                 </td>
               </tr>

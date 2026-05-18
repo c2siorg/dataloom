@@ -19,12 +19,12 @@ export default function InputDialog({ isOpen, message, defaultValue = "", onSubm
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title="Input Required">
       <form onSubmit={handleSubmit}>
-        <p className="mb-3 text-gray-700">{message}</p>
+        <p className="mb-3 text-gray-700 dark:text-dark-muted">{message}</p>
         <input
           type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
           autoFocus
         />
         <div className="flex justify-end gap-3">

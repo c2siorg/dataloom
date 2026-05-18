@@ -37,13 +37,15 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div className="p-4 border border-gray-200 dark:border-dark-border rounded-lg bg-white dark:bg-dark-surface">
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">Cast Data Type</h3>
+        <h3 className="font-semibold text-gray-900 dark:text-dark-text mb-2">Cast Data Type</h3>
 
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Column:</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-dark-muted">
+              Column:
+            </label>
             <ColumnSelect
               value={column}
               onChange={(e) => setColumn(e.target.value)}
@@ -52,11 +54,13 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
           </div>
 
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Target Type:</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-dark-muted">
+              Target Type:
+            </label>
             <select
               value={targetType}
               onChange={(e) => setTargetType(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              className="border border-gray-300 dark:border-dark-border rounded-md w-full px-3 py-2 bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             >
               <option value="string">String</option>
               <option value="integer">Integer</option>
@@ -78,7 +82,7 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
           <button
             type="button"
             onClick={onClose}
-            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            className="bg-white dark:bg-dark-surface border border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-border px-4 py-2 rounded-md font-medium transition-colors duration-150"
           >
             Cancel
           </button>

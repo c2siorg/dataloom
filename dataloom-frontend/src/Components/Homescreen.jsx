@@ -14,14 +14,14 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
   return (
     <button
       onClick={onClick}
-      className="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md"
+      className="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md"
     >
       <button
         onClick={(e) => {
           e.stopPropagation();
           onDelete(project.project_id);
         }}
-        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors duration-150 p-1 rounded-md hover:bg-red-50"
+        className="absolute top-2 right-2 text-gray-400 dark:text-dark-muted hover:text-red-500 transition-colors duration-150 p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/30"
         aria-label="Delete project"
       >
         <svg
@@ -37,11 +37,15 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
           />
         </svg>
       </button>
-      <h3 className="text-lg font-semibold text-gray-900 truncate w-full pr-6">{project.name}</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text truncate w-full pr-6">
+        {project.name}
+      </h3>
       {project.description && (
-        <p className="text-sm text-gray-500 line-clamp-2">{project.description}</p>
+        <p className="text-sm text-gray-500 dark:text-dark-muted line-clamp-2">
+          {project.description}
+        </p>
       )}
-      <span className="mt-auto text-xs text-gray-400">{modified}</span>
+      <span className="mt-auto text-xs text-gray-400 dark:text-dark-muted">{modified}</span>
     </button>
   );
 };
@@ -49,10 +53,10 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
 const NewProjectCard = ({ onClick }) => (
   <button
     onClick={onClick}
-    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100"
+    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/40"
   >
     <span className="text-3xl leading-none text-blue-500">+</span>
-    <span className="text-sm font-medium text-blue-600">New Project</span>
+    <span className="text-sm font-medium text-blue-600 dark:text-blue-400">New Project</span>
   </button>
 );
 
@@ -232,15 +236,23 @@ const HomeScreen = () => {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-white px-6 pt-24">
+    <div className="flex flex-col items-center min-h-screen bg-white dark:bg-dark-bg px-6 pt-8">
       <div className="w-full max-w-4xl">
-        <h1 className="text-5xl text-gray-900">
+        <h1 className="text-5xl text-gray-900 dark:text-dark-text">
           Welcome to <span className="text-blue-500 font-bold">DataLoom</span>,
         </h1>
-        <p className="text-xl mt-2 text-gray-600">your one-stop for Dataset Transformations.</p>
+        <p className="text-xl mt-2 text-gray-600 dark:text-dark-muted">
+          your one-stop for{" "}
+          <span className="font-semibold text-gray-900 dark:text-dark-text">
+            Dataset Transformations
+          </span>
+          .
+        </p>
 
         <div className="flex items-center justify-between mt-12 mb-4">
-          <h2 className="text-lg font-medium text-gray-700">Recent Projects</h2>
+          <h2 className="text-lg font-medium text-gray-700 dark:text-dark-muted">
+            Recent Projects
+          </h2>
           {recentProjects.length > 0 && (
             <button
               type="button"
@@ -299,15 +311,18 @@ const HomeScreen = () => {
             onClick={isSubmitting ? undefined : handleCloseModal}
             aria-hidden="true"
           ></div>
-          <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
-            <h2 id="modal-title" className="text-xl font-semibold text-gray-900 mb-6">
+          <div className="bg-white dark:bg-dark-surface rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4 border border-gray-100 dark:border-dark-border">
+            <h2
+              id="modal-title"
+              className="text-xl font-semibold text-gray-900 dark:text-dark-text mb-6"
+            >
               New Project
             </h2>
             <div className="flex flex-col gap-4">
               <div>
                 <label
                   htmlFor="project-name"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 dark:text-dark-muted mb-1"
                 >
                   Project Name
                 </label>
@@ -315,7 +330,7 @@ const HomeScreen = () => {
                   id="project-name"
                   type="text"
                   placeholder="e.g. Sales Analysis Q1"
-                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full text-sm text-gray-900 dark:text-dark-text border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   required
@@ -325,7 +340,7 @@ const HomeScreen = () => {
               <div>
                 <label
                   htmlFor="project-description"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 dark:text-dark-muted mb-1"
                 >
                   Description
                 </label>
@@ -333,7 +348,7 @@ const HomeScreen = () => {
                   id="project-description"
                   rows={3}
                   placeholder="Brief description of this dataset"
-                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                  className="block w-full text-sm text-gray-900 dark:text-dark-text border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
                 />
@@ -341,16 +356,17 @@ const HomeScreen = () => {
               <div>
                 <label
                   htmlFor="project-file"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 dark:text-dark-muted mb-1"
                 >
-                  Upload Dataset <span className="text-gray-400 font-normal">(CSV)</span>
+                  Upload Dataset{" "}
+                  <span className="text-gray-400 dark:text-dark-muted font-normal">(CSV)</span>
                 </label>
                 <input
                   id="project-file"
                   type="file"
                   ref={fileInputRef}
                   accept=".csv"
-                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white cursor-pointer focus:outline-none"
+                  className="block w-full text-sm text-gray-900 dark:text-dark-text border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 bg-white dark:bg-dark-bg cursor-pointer focus:outline-none"
                   onChange={handleFileUpload}
                   required
                   aria-required="true"
@@ -359,7 +375,7 @@ const HomeScreen = () => {
             </div>
             <div className="flex flex-row justify-end gap-3 mt-6">
               <button
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-surface rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleCloseModal}
                 disabled={isSubmitting}
               >

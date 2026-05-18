@@ -67,7 +67,7 @@ const ContextMenu = ({ isOpen, position, contextData, onClose, actions }) => {
       ref={menuRef}
       role="menu"
       aria-label="Context menu"
-      className="fixed bg-white border border-gray-200 rounded-lg shadow-lg p-1 z-50"
+      className="fixed bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-lg shadow-lg p-1 z-50"
       style={{
         top: adjustedPosition.y,
         left: adjustedPosition.x,

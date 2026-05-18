@@ -20,7 +20,7 @@ import PropTypes from "prop-types";
 const MenuButton = ({ children, onClick }) => (
   <button
     role="menuitem"
-    className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150 whitespace-nowrap"
+    className="block w-full text-left text-sm text-gray-700 dark:text-dark-text px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-dark-border rounded-md transition-colors duration-150 whitespace-nowrap"
     onClick={onClick}
   >
     {children}
@@ -247,19 +247,19 @@ const Table = ({ projectId, data: externalData }) => {
   return (
     <div className="px-8 pt-3">
       <div
-        className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
+        className="overflow-x-scroll overflow-y-auto border border-gray-200 dark:border-dark-border rounded-lg shadow-sm"
         style={{ maxHeight: "calc(100vh - 140px)" }}
       >
-        <table className="min-w-full bg-white">
-          <thead className="sticky top-0 bg-gray-50">
+        <table className="min-w-full bg-white dark:bg-dark-surface">
+          <thead className="sticky top-0 bg-gray-50 dark:bg-dark-bg">
             <tr>
               {columns.map((column, columnIndex) => (
                 <th
                   key={columnIndex}
-                  className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  className="py-1.5 px-3 border-b border-gray-200 dark:border-dark-border text-left text-xs font-medium text-gray-500 dark:text-dark-muted uppercase tracking-wider"
                   onContextMenu={(e) => open(e, { type: "column", columnIndex })}
                 >
-                  <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
+                  <button className="w-full text-left text-gray-500 dark:text-dark-muted hover:text-gray-700 dark:hover:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-border py-0.5 px-1.5 rounded-md transition-colors duration-150">
                     {column}
                     {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
                   </button>
@@ -272,12 +272,12 @@ const Table = ({ projectId, data: externalData }) => {
             {data.map((row, rowIndex) => (
               <tr
                 key={rowIndex}
-                className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                className="border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors duration-150"
               >
                 {row.map((cell, cellIndex) => (
                   <td
                     key={cellIndex}
-                    className="py-1 px-3 text-xs text-gray-700"
+                    className="py-1 px-3 text-xs text-gray-700 dark:text-dark-muted"
                     onContextMenu={(e) => open(e, { type: "row", rowIndex })}
                   >
                     {editingCell &&
@@ -288,14 +288,16 @@ const Table = ({ projectId, data: externalData }) => {
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
-                        className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                        className="w-full p-1 border border-gray-300 dark:border-dark-border rounded-md bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                         onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
                       />
                     ) : (
                       <div
                         onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
                         className={
-                          cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""
+                          cellIndex !== 0
+                            ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-bg p-1 rounded"
+                            : ""
                         }
                       >
                         {cell}
