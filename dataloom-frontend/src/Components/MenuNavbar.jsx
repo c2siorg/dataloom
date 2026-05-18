@@ -47,6 +47,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
+  const [pendingSaveResolver, setPendingSaveResolver] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -76,10 +77,22 @@ const MenuNavbar = ({ projectId, onTransform }) => {
 
   const handleSave = () => {
     setIsInputOpen(true);
+    setPendingSaveResolver(null);
   };
+
+  const requestSaveMessage = () =>
+    new Promise((resolve) => {
+      setPendingSaveResolver(() => resolve);
+      setIsInputOpen(true);
+    });
 
   const handleSubmitCommit = async (message) => {
     setIsInputOpen(false);
+    if (pendingSaveResolver) {
+      pendingSaveResolver(message || null);
+      setPendingSaveResolver(null);
+      return;
+    }
     if (!message) return;
 
     try {
@@ -304,7 +317,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
                     <button
                       key={item.label}
                       onClick={item.onClick}
-                      className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md ${
+                      className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg ${
                         isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
                       }`}
                     >
@@ -333,6 +346,8 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
+          onTransform={onTransform}
+          onSave={requestSaveMessage}
         />
       )}
       {showSortForm && (
@@ -342,6 +357,8 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
+          onTransform={onTransform}
+          onSave={requestSaveMessage}
         />
       )}
       {showDropDuplicateForm && (
@@ -361,6 +378,8 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
+          onTransform={onTransform}
+          onSave={requestSaveMessage}
         />
       )}
       {showPivotTableForm && (
@@ -370,9 +389,21 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
+          onTransform={onTransform}
+          onSave={requestSaveMessage}
         />
       )}
-      {showMeltForm && <MeltForm onClose={() => setShowMeltForm(false)} projectId={projectId} />}
+      {showMeltForm && (
+        <MeltForm
+          projectId={projectId}
+          onClose={() => {
+            setShowMeltForm(false);
+            setActiveForm(null);
+          }}
+          onTransform={onTransform}
+          onSave={requestSaveMessage}
+        />
+      )}
       {showCastDataTypeForm && (
         <CastDataTypeForm
           projectId={projectId}
@@ -427,7 +458,13 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         isOpen={isInputOpen}
         message="Enter a commit message for this save:"
         onSubmit={handleSubmitCommit}
-        onCancel={() => setIsInputOpen(false)}
+        onCancel={() => {
+          setIsInputOpen(false);
+          if (pendingSaveResolver) {
+            pendingSaveResolver(null);
+            setPendingSaveResolver(null);
+          }
+        }}
       />
 
       <ConfirmDialog

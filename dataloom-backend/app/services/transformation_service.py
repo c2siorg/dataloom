@@ -566,6 +566,10 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
         keep = action_details["drop_duplicate"]["keep"]
         return drop_duplicates(df, columns, keep)
 
+    elif action_type == "filter":
+        params = action_details["parameters"]
+        return apply_filter(df, params["column"], params["condition"], params["value"])
+
     elif action_type == "renameCol":
         col_index = action_details["rename_col_params"]["col_index"]
         new_name = action_details["rename_col_params"]["new_name"]

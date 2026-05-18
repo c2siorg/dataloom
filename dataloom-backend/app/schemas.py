@@ -262,6 +262,7 @@ class TransformationInput(BaseModel):
 
     groupby_params: GroupByParams | None = None
     operation_type: OperationType
+    persist: bool = True
     parameters: FilterParameters | None = None
     sort_params: SortParameters | None = None
     row_params: AddOrDeleteRow | None = None

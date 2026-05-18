@@ -14,7 +14,7 @@ const DtypeBadge = ({ dtype }) => {
   const style = DTYPE_STYLES[dtype] || "bg-gray-100 text-gray-700";
 
   return (
-    <span className={`ml-1.5 inline-block px-1.5 py-0.5 text-[10px] font-medium rounded ${style}`}>
+    <span className={`ml-1.5 inline-block px-1.5 py-0.5 text-xs font-medium rounded ${style}`}>
       {dtype}
     </span>
   );
