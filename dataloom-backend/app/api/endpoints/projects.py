@@ -247,10 +247,53 @@ async def revert_to_checkpoint(
 
 
 @router.get("/{project_id}/export")
-async def export_project(project_id: uuid.UUID, db: Session = Depends(database.get_db)):
-    """Download the current working copy of a project as a CSV file."""
+async def export_project(
+    project_id: uuid.UUID,
+    format: str = "csv",
+    db: Session = Depends(database.get_db),
+):
+    """Download the current working copy of a project in the requested format.
+
+    Supported formats: csv, xlsx, json, parquet, tsv.
+    """
     project = get_project_or_404(project_id, db)
-    return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
+
+    import tempfile
+
+    import pandas as pd
+
+    EXPORT_MAP = {
+        "csv": {"ext": ".csv", "media": "text/csv"},
+        "xlsx": {"ext": ".xlsx", "media": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+        "json": {"ext": ".json", "media": "application/json"},
+        "parquet": {"ext": ".parquet", "media": "application/octet-stream"},
+        "tsv": {"ext": ".tsv", "media": "text/tab-separated-values"},
+    }
+
+    if format not in EXPORT_MAP:
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported export format: {format}. Use: {list(EXPORT_MAP.keys())}"
+        )
+
+    if format == "csv":
+        return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
+
+    df = pd.read_csv(project.file_path)
+    fmt = EXPORT_MAP[format]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=fmt["ext"]) as tmp:
+        tmp_path = tmp.name
+
+    if format == "xlsx":
+        df.to_excel(tmp_path, index=False, engine="openpyxl")
+    elif format == "json":
+        df.to_json(tmp_path, orient="records", indent=2)
+    elif format == "parquet":
+        df = df.astype({col: str for col in df.select_dtypes(include=["object", "string"]).columns})
+        df.to_parquet(tmp_path, index=False, engine="pyarrow")
+    elif format == "tsv":
+        df.to_csv(tmp_path, index=False, sep="\t")
+
+    return FileResponse(tmp_path, media_type=fmt["media"], filename=f"{project.name}{fmt['ext']}")
 
 
 @router.delete("/{project_id}")
