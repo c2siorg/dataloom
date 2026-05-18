@@ -19,6 +19,10 @@ class Settings(BaseSettings):
         allowed_extensions: List of permitted file extensions for upload.
         cors_origins: List of allowed CORS origin URLs.
         debug: Enable debug mode for verbose logging.
+        jwt_secret: Secret key used to sign JWT auth tokens.
+        jwt_algorithm: Algorithm used to sign JWT auth tokens.
+        jwt_expiry_hours: Lifetime of an issued auth token in hours.
+        cookie_secure: Whether the auth cookie is restricted to HTTPS.
     """
 
     database_url: str
@@ -27,6 +31,10 @@ class Settings(BaseSettings):
     allowed_extensions: list[str] = [".csv"]
     cors_origins: list[str] = ["http://localhost:3200"]
     debug: bool = False
+    jwt_secret: str
+    jwt_algorithm: str = "HS256"
+    jwt_expiry_hours: int = 24
+    cookie_secure: bool = True
 
     model_config = {
         "env_file": ".env",

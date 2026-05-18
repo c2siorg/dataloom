@@ -10,6 +10,29 @@ from datetime import datetime
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, func
 from sqlmodel import Field, Relationship, SQLModel
+from uuid6 import uuid7
+
+
+class User(SQLModel, table=True):
+    """Application user that owns uploaded projects."""
+
+    __tablename__ = "users"
+
+    id: uuid_mod.UUID = Field(
+        default_factory=uuid7,
+        sa_column=Column(sa.Uuid, primary_key=True, default=uuid7),
+    )
+    email: str = Field(sa_column=Column(sa.String(320), nullable=False, unique=True, index=True))
+    password_hash: str = Field(sa_column=Column(sa.String(1024), nullable=False))
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime, server_default=func.now(), nullable=False),
+    )
+
+    projects: list["Project"] = Relationship(
+        back_populates="owner",
+        sa_relationship_kwargs={"passive_deletes": True},
+    )
 
 
 class Project(SQLModel, table=True):
@@ -31,8 +54,12 @@ class Project(SQLModel, table=True):
         default=None,
         sa_column=Column(DateTime, server_default=func.now()),
     )
+    owner_id: uuid_mod.UUID = Field(
+        sa_column=Column(sa.Uuid, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+    )
     file_path: str
 
+    owner: User = Relationship(back_populates="projects")
     logs: list["ProjectChangeLog"] = Relationship(
         back_populates="project",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
