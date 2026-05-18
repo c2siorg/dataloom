@@ -29,7 +29,7 @@ class Project(SQLModel, table=True):
     )
     last_modified: datetime | None = Field(
         default=None,
-        sa_column=Column(DateTime, server_default=func.now()),
+        sa_column=Column(DateTime, server_default=func.now(), onupdate=func.now()),
     )
     file_path: str
 
