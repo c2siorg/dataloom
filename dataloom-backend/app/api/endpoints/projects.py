@@ -4,6 +4,7 @@ Handles upload, retrieval, save (checkpoint), and revert operations.
 """
 
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -112,37 +113,28 @@ async def save_project(
     commit_message: str,
     db: Session = Depends(database.get_db),
 ):
-    """Save project changes as a checkpoint.
+    """Save the current working dataset as a checkpoint.
 
-    Replays all pending transformations from the change log onto the original
-    file and creates a checkpoint record marking the save point.
+    The working copy already reflects the user's latest accepted transforms, so
+    checkpoint creation should preserve that current dataset and only update the
+    checkpoint/log metadata for pending actions.
     """
     project = get_project_or_404(project_id, db)
 
-    # Load original file for replaying transformations
     original_path = get_original_path(project.file_path)
-    df = read_csv_safe(original_path)
-
-    # Get all logs for this project to replay full cumulative history
-    logs = (
-        db.query(models.ProjectChangeLog)
-        .filter(
-            models.ProjectChangeLog.project_id == project_id,
+    if Path(project.file_path).resolve() == original_path.resolve():
+        logger.error(
+            "Project working copy unexpectedly points at original file: id=%s working_copy=%s original=%s",
+            project_id,
+            project.file_path,
+            original_path,
         )
-        .order_by(models.ProjectChangeLog.timestamp)
-        .all()
-    )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Project {project_id} working copy is misconfigured; please retry or contact support.",
+        )
 
-    # Replay each logged transformation on the original
-    for log in logs:
-        df = apply_logged_transformation(df, log.action_type, log.action_details)
-
-    # Write transformations to the working copy (.copy.csv), not the original dataset.
-    # original_path must remain immutable as the baseline used for transformation replay.
-    assert project.file_path != str(original_path), (
-        "Invariant violation: attempted to write transformed data to original_path."
-    )
-    save_csv_safe(df, project.file_path)
+    df = read_csv_safe(project.file_path)
 
     # Create checkpoint (marks logs as applied)
     checkpoint = create_checkpoint(db, project_id, commit_message)
