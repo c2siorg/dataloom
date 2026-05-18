@@ -1,12 +1,18 @@
 """Test configuration and fixtures for the DataLoom backend tests."""
 
 import csv
+import os
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.database import get_db
+
+# Tests manage schema via SQLModel.metadata.create_all/drop_all, so skip
+# Alembic during app startup unless explicitly overridden by the caller.
+os.environ.setdefault("SKIP_MIGRATIONS", "1")
+
 from app.main import app
 
 # Use SQLite for tests
@@ -45,14 +51,12 @@ def db():
 
 
 @pytest.fixture
-def client(db):
-    """Provide a FastAPI test client with overridden DB dependency."""
+def client():
+    """Provide a FastAPI test client with per-request DB sessions."""
 
     def override_get_db():
-        try:
-            yield db
-        finally:
-            pass
+        with Session(engine) as session:
+            yield session
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:

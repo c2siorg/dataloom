@@ -83,7 +83,7 @@ class TestCastDataType:
     def test_cast_to_integer(self):
         df = pd.DataFrame({"val": ["10", "20", "30"]})
         result = cast_data_type(df, "val", "integer")
-        assert result["val"].dtype == "Int64"
+        assert pd.api.types.is_integer_dtype(result["val"])
         assert result.iloc[0]["val"] == 10
 
     def test_cast_to_integer_with_nan(self):

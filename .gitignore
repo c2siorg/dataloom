@@ -25,3 +25,31 @@ Desktop.ini
 .env
 .env.local
 .env.*.local
+
+# Python bytecode (root-level scratch scripts, tools, etc.)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Binary artifacts and scratch output
+*.pdf
+*.pid
+tmp/
+output/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Node (root)
+node_modules/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# AI / Agents
+.claude/
