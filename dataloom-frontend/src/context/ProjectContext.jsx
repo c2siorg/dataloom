@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { getProjectDetails } from "../api";
 
 const ProjectContext = createContext(null);
@@ -31,6 +31,19 @@ export function ProjectProvider({ children }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
+  const [columnOrders, setColumnOrders] = useState({});
+
+  useEffect(() => {
+    if (!projectId || columns.length === 0) return;
+    const currentOrder = columnOrders[projectId];
+    if (!currentOrder || currentOrder.length === 0) {
+      setColumnOrders((prev) => ({
+        ...prev,
+        [projectId]: columns.map((_, index) => index),
+      }));
+    }
+  }, [projectId, columns, columnOrders]);
+
   const refreshProject = useCallback(
     async (id, targetPage, preferredSize) => {
       const targetId = id || projectId;
@@ -59,11 +72,26 @@ export function ProjectProvider({ children }) {
     [projectId, page, pageSize],
   );
 
-  const updateData = useCallback((newColumns, newRows, newDtypes) => {
-    setColumns(newColumns);
-    setRows(newRows);
-    if (newDtypes) setDtypes(newDtypes);
-  }, []);
+  const updateData = useCallback(
+    (newColumns, newRows, options = {}) => {
+      setColumns(newColumns);
+      setRows(newRows);
+      if (options && options.dtypes) setDtypes(options.dtypes);
+      if (!projectId) return;
+      setColumnOrders((prev) => {
+        const existingOrder = prev[projectId];
+        const shouldResetColumnOrder =
+          typeof options.resetColumnOrder === "boolean"
+            ? options.resetColumnOrder
+            : !existingOrder || existingOrder.length !== newColumns.length;
+        return {
+          ...prev,
+          [projectId]: shouldResetColumnOrder ? newColumns.map((_, index) => index) : existingOrder,
+        };
+      });
+    },
+    [projectId],
+  );
 
   const setProjectInfo = useCallback((id, name) => {
     setProjectId(id);
@@ -77,6 +105,19 @@ export function ProjectProvider({ children }) {
     setPageSize(paginationInfo.page_size);
   }, []);
 
+  const columnOrder = projectId ? columnOrders[projectId] || [] : [];
+
+  const setColumnOrder = useCallback(
+    (order) => {
+      if (!projectId) return;
+      setColumnOrders((prev) => ({
+        ...prev,
+        [projectId]: order,
+      }));
+    },
+    [projectId],
+  );
+
   return (
     <ProjectContext.Provider
       value={{
@@ -85,6 +126,7 @@ export function ProjectProvider({ children }) {
         columns,
         rows,
         dtypes,
+        columnOrder,
         loading,
         error,
         totalRows,
@@ -95,6 +137,7 @@ export function ProjectProvider({ children }) {
         updateData,
         setProjectInfo,
         setPaginationData,
+        setColumnOrder,
       }}
     >
       {children}
