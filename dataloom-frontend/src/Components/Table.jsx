@@ -104,7 +104,7 @@ const Table = ({ projectId, data: externalData }) => {
         try {
           const response = await transformProject(projectId, {
             operation_type: ADD_COLUMN,
-            col_params: { index, name: newColumnName },
+            add_col_params: { index, name: newColumnName },
           });
           updateTableData(response);
           refreshProject(projectId, 1, pageSize);
@@ -185,7 +185,7 @@ const Table = ({ projectId, data: externalData }) => {
     try {
       const response = await transformProject(projectId, {
         operation_type: DELETE_COLUMN,
-        col_params: { index: index - 1 },
+        del_col_params: { index: index - 1 },
       });
       updateTableData(response);
       refreshProject(projectId, 1, pageSize);
