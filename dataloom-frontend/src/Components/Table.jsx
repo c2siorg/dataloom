@@ -37,6 +37,8 @@ const Table = ({ projectId, data: externalData }) => {
     rows: ctxRows,
     dtypes,
     updateData,
+    columnOrder,
+    setColumnOrder,
     totalRows,
     totalPages,
     page,
@@ -53,12 +55,24 @@ const Table = ({ projectId, data: externalData }) => {
   const [inputConfig, setInputConfig] = useState(null);
   const [toast, setToast] = useState(null);
 
+  const [draggedColIndex, setDraggedColIndex] = useState(null);
+  const [hoveredTargetIndex, setHoveredTargetIndex] = useState(null);
+
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
-      setColumns(["S.No.", ...ctxColumns]);
-      setData(ctxRows.map((row, index) => [(page - 1) * pageSize + index + 1, ...row]));
+      const orderedColumns =
+        columnOrder.length === ctxColumns.length
+          ? columnOrder.map((i) => ctxColumns[i])
+          : ctxColumns;
+      setColumns(["S.No.", ...orderedColumns]);
+      setData(
+        ctxRows.map((row, index) => [
+          (page - 1) * pageSize + index + 1,
+          ...(columnOrder.length === ctxColumns.length ? columnOrder.map((i) => row[i]) : row),
+        ]),
+      );
     }
-  }, [ctxColumns, ctxRows, page, pageSize]);
+  }, [ctxColumns, ctxRows, page, pageSize, columnOrder]);
 
   useEffect(() => {
     if (externalData) {
@@ -82,6 +96,10 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
+      const normalizedRows = response.rows.map((row) =>
+        Array.isArray(row) ? row : Object.values(row),
+      );
+      updateData(response.columns, normalizedRows, { resetColumnOrder: false });
       refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
@@ -102,11 +120,23 @@ const Table = ({ projectId, data: externalData }) => {
         }
 
         try {
+          let backendIndex; // Normalized index
+          if (index === 0) {
+            backendIndex = 0;
+          } else {
+            const displayDataIndex = index - 1;
+            const baseIndex = columnOrder[displayDataIndex];
+            backendIndex = baseIndex + 1;
+          }
           const response = await transformProject(projectId, {
             operation_type: ADD_COLUMN,
-            add_col_params: { index, name: newColumnName },
+            add_col_params: { index: backendIndex, name: newColumnName },
           });
           updateTableData(response);
+          const normalizedRows = response.rows.map((row) =>
+            Array.isArray(row) ? row : Object.values(row),
+          );
+          updateData(response.columns, normalizedRows, { resetColumnOrder: true });
           refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
@@ -127,6 +157,10 @@ const Table = ({ projectId, data: externalData }) => {
         row_params: { index },
       });
       updateTableData(response);
+      const normalizedRows = response.rows.map((row) =>
+        Array.isArray(row) ? row : Object.values(row),
+      );
+      updateData(response.columns, normalizedRows, { resetColumnOrder: false });
       refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
@@ -155,11 +189,17 @@ const Table = ({ projectId, data: externalData }) => {
         }
 
         try {
+          const displayDataIndex = index - 1;
+          const backendIndex = columnOrder[displayDataIndex]; // Normalized index
           const response = await transformProject(projectId, {
             operation_type: RENAME_COLUMN,
-            rename_col_params: { col_index: index - 1, new_name: newName },
+            rename_col_params: { col_index: backendIndex, new_name: newName },
           });
           updateTableData(response);
+          const normalizedRows = response.rows.map((row) =>
+            Array.isArray(row) ? row : Object.values(row),
+          );
+          updateData(response.columns, normalizedRows, { resetColumnOrder: false });
           refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
@@ -183,11 +223,17 @@ const Table = ({ projectId, data: externalData }) => {
     }
 
     try {
+      const displayDataIndex = index - 1;
+      const backendIndex = columnOrder[displayDataIndex]; // Normalized index
       const response = await transformProject(projectId, {
         operation_type: DELETE_COLUMN,
-        del_col_params: { index: index - 1 },
+        del_col_params: { index: backendIndex },
       });
       updateTableData(response);
+      const normalizedRows = response.rows.map((row) =>
+        Array.isArray(row) ? row : Object.values(row),
+      );
+      updateData(response.columns, normalizedRows, { resetColumnOrder: true });
       refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
@@ -199,10 +245,13 @@ const Table = ({ projectId, data: externalData }) => {
 
   const handleEditCell = async (rowIndex, cellIndex, newValue) => {
     try {
+      const backendColIndex =
+        cellIndex === 0 ? 0 : columnOrder.length > 0 ? columnOrder[cellIndex - 1] + 1 : cellIndex;
+
       const response = await transformProject(projectId, {
         operation_type: CHANGE_CELL_VALUE,
         change_cell_value: {
-          col_index: cellIndex,
+          col_index: backendColIndex,
           row_index: rowIndex,
           fill_value: newValue,
         },
@@ -218,6 +267,7 @@ const Table = ({ projectId, data: externalData }) => {
       });
     }
   };
+
   const handleInputKeyDown = (e, rowIndex, cellIndex) => {
     if (e.key === "Enter") {
       handleEditCell(rowIndex, cellIndex, editValue);
@@ -253,18 +303,67 @@ const Table = ({ projectId, data: externalData }) => {
         <table className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
             <tr>
-              {columns.map((column, columnIndex) => (
-                <th
-                  key={columnIndex}
-                  className="py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  onContextMenu={(e) => open(e, { type: "column", columnIndex })}
-                >
-                  <button className="w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150">
-                    {column}
-                    {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
-                  </button>
-                </th>
-              ))}
+              {columns.map((column, columnIndex) => {
+                const isSNo = columnIndex === 0;
+                const isDragged = !isSNo && draggedColIndex === columnIndex - 1;
+                const isDropTarget = !isSNo && hoveredTargetIndex === columnIndex - 1;
+                return (
+                  <th
+                    key={columnIndex}
+                    className={`py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                      isDropTarget ? "ring-2 ring-blue-400" : ""
+                    }`}
+                    onContextMenu={(e) => open(e, { type: "column", columnIndex })}
+                  >
+                    <button
+                      type="button"
+                      className={`w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150 ${
+                        isSNo ? "" : "cursor-grab active:cursor-grabbing"
+                      } ${isDragged ? "opacity-50" : ""}`}
+                      draggable={!isSNo}
+                      onDragStart={(event) => {
+                        if (isSNo) return;
+                        setDraggedColIndex(columnIndex - 1);
+                        event.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragOver={(event) => {
+                        if (isSNo) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                        setHoveredTargetIndex(columnIndex - 1);
+                      }}
+                      onDrop={(event) => {
+                        if (isSNo) return;
+                        event.preventDefault();
+                        if (draggedColIndex === null) return;
+                        const source = draggedColIndex;
+                        const target = columnIndex - 1;
+                        if (source === target) {
+                          setHoveredTargetIndex(null);
+                          return;
+                        }
+                        const currentOrder =
+                          columnOrder.length === ctxColumns.length
+                            ? columnOrder
+                            : ctxColumns.map((_, index) => index);
+                        const newOrder = [...currentOrder];
+                        const [moved] = newOrder.splice(source, 1);
+                        newOrder.splice(target, 0, moved);
+                        setColumnOrder(newOrder);
+                        setDraggedColIndex(null);
+                        setHoveredTargetIndex(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedColIndex(null);
+                        setHoveredTargetIndex(null);
+                      }}
+                    >
+                      {column}
+                      {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
