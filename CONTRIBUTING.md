@@ -57,6 +57,14 @@ uv run uvicorn app.main:app --reload --port 4200
 
 The API will be available at `http://localhost:4200`.
 
+#### Migrations
+
+The backend automatically applies any pending Alembic migrations on startup, so you typically don't need to do anything. To apply them manually:
+
+```bash
+uv run alembic upgrade head
+```
+
 ### Frontend Setup
 
 ```bash
