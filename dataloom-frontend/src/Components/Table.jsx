@@ -240,7 +240,7 @@ const Table = ({ projectId, data: externalData }) => {
   };
 
   const handlePageSizeChange = (newSize) => {
-    setPaginationData({ page: 1, pageSize: newSize });
+    setPaginationData({ page: 1, page_size: newSize });
     refreshProject(projectId, 1, newSize);
   };
 
