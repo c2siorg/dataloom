@@ -363,9 +363,10 @@ class TestApplyLoggedTransformation:
             "delRow",
             {"row_params": {"index": 1}},
         )
-        # df.drop(1) keeps the original index labels; Bob is gone
-        assert 1 not in result.index
-        assert "Bob" not in result["name"].values
+
+        assert len(result) == 2
+        assert result["name"].tolist() == ["Alice", "Charlie"]
+        assert list(result.index) == [0, 1]
 
     def test_del_row_out_of_range(self, sample_df):
         with pytest.raises(TransformationError, match="out of range"):
@@ -510,5 +511,5 @@ class TestApplyLoggedTransformation:
 
     # --------------------------------------------------------- unknown action
     def test_unknown_action_type_returns_df_unchanged(self, sample_df):
-        result = apply_logged_transformation(sample_df, "nonExistentAction", {})
-        pd.testing.assert_frame_equal(result, sample_df)
+        with pytest.raises(TransformationError, match="Unknown action type"):
+            apply_logged_transformation(sample_df, "nonExistentAction", {})
