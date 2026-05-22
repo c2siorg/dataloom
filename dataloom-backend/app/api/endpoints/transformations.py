@@ -174,7 +174,7 @@ async def transform_project(
 
     if should_save:
         save_csv_safe(result_df, project.file_path)
-        log_transformation(db, project_id, transformation_input.operation_type, transformation_input.dict())
+        log_transformation(db, project_id, transformation_input.operation_type, transformation_input.model_dump())
 
     resp = dataframe_to_response(result_df)
     return {
