@@ -4,6 +4,7 @@ from collections.abc import Generator
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Session, create_engine, text
 
+import app.models  # noqa: F401 — ensures SQLModel.metadata is populated
 from app.config import get_settings
 
 settings = get_settings()
