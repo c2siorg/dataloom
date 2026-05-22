@@ -6,13 +6,15 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
+import { useProjectContext } from "../../context/ProjectContext";
 
-const SortForm = ({ projectId, onClose }) => {
+const SortForm = ({ projectId, onClose, onTransform }) => {
   const [column, setColumn] = useState("");
   const [ascending, setAscending] = useState(true);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
+  const { updateData } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,6 +30,8 @@ const SortForm = ({ projectId, onClose }) => {
         },
       });
       setResult(response);
+      if (onTransform) onTransform(response);
+      updateData(response.columns, response.rows, response.dtypes);
       console.log("Sort API response:", response);
     } catch (err) {
       console.error("Error applying sort:", err.response?.data || err.message);
@@ -88,6 +92,7 @@ const SortForm = ({ projectId, onClose }) => {
 SortForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
+  onTransform: PropTypes.func,
 };
 
 export default SortForm;

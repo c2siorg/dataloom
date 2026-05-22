@@ -13,7 +13,15 @@ import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
 import ConfirmDialog from "./common/ConfirmDialog";
 import Toast from "./common/Toast";
-import { saveProject, exportProject, getLogs, getCheckpoints, revertToCheckpoint } from "../api";
+import {
+  saveProject,
+  exportProject,
+  getLogs,
+  getCheckpoints,
+  revertToCheckpoint,
+  getProjectDetails,
+  undoLastTransformation,
+} from "../api";
 import proptype from "prop-types";
 
 import {
@@ -30,7 +38,9 @@ import {
   LuScissors,
   LuLayoutList,
   LuGroup,
+  LuUndo2,
 } from "react-icons/lu";
+import { useProjectContext } from "../context/ProjectContext";
 
 const MenuNavbar = ({ projectId, onTransform }) => {
   const [showGroupByForm, setShowGroupByForm] = useState(false);
@@ -49,6 +59,8 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [isInputOpen, setIsInputOpen] = useState(false);
   const [confirmData, setConfirmData] = useState(null);
   const [toast, setToast] = useState(null);
+
+  const { updateData } = useProjectContext();
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -91,6 +103,26 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       setToast({ message: "Project saved successfully!", type: "success" });
     } catch {
       setToast({ message: "Failed to save project.", type: "error" });
+    }
+  };
+
+  const handleUndo = async () => {
+    try {
+      await undoLastTransformation(projectId);
+      setShowFilterForm(false);
+      setShowSortForm(false);
+      setActiveForm(null);
+      updateData([], [], {});
+      const data = await getProjectDetails(projectId);
+      updateData(data.columns, data.rows, data.dtypes);
+      await fetchLogs();
+      setToast({ message: "Last transformation undone!", type: "success" });
+    } catch (error) {
+      if (error.response?.status === 404) {
+        setToast({ message: "No transformations to undo.", type: "error" });
+      } else {
+        setToast({ message: "Failed to undo transformation.", type: "error" });
+      }
     }
   };
 
@@ -208,6 +240,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         items: [
           { label: "Save", icon: LuSave, onClick: handleSave },
           { label: "Export", icon: LuDownload, onClick: handleExport },
+          { label: "Undo", icon: LuUndo2, onClick: handleUndo },
         ],
       },
       {
