@@ -18,7 +18,6 @@ const SortForm = ({ projectId, onClose, onTransform }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting sort with parameters:", { column, ascending });
     setLoading(true);
     clearError();
     try {
@@ -32,7 +31,6 @@ const SortForm = ({ projectId, onClose, onTransform }) => {
       setResult(response);
       if (onTransform) onTransform(response);
       updateData(response.columns, response.rows, response.dtypes);
-      console.log("Sort API response:", response);
     } catch (err) {
       console.error("Error applying sort:", err.response?.data || err.message);
       handleError(err);

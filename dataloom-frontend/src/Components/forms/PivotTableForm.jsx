@@ -26,7 +26,6 @@ const PivotTableForm = ({ projectId, onClose }) => {
         pivot_query: { index, column, value, aggfun },
       });
       setResult(response);
-      console.log("Pivot API response:", response);
     } catch (err) {
       console.error("Error applying pivot table:", err.message);
       handleError(err);

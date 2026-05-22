@@ -36,7 +36,10 @@ export default function SignInPage() {
       // `detail` is a string for most errors, but an array of objects for
       // FastAPI 422 validation failures — only a string is safe to render.
       const detail = err?.response?.data?.detail;
-      showToast(typeof detail === "string" ? detail : "Could not sign in. Please try again.", "error");
+      showToast(
+        typeof detail === "string" ? detail : "Could not sign in. Please try again.",
+        "error",
+      );
     } finally {
       setSubmitting(false);
     }

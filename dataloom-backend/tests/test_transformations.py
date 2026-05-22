@@ -109,6 +109,24 @@ class TestDeleteRow:
             delete_row(sample_df, 10)
 
 
+class TestApplyLoggedTransformationFilterSort:
+    """Replay must cover filter and sort — both are logged by the transform endpoint
+    and must replay cleanly during revert. Regression: revert previously raised
+    "Unknown action type in log replay: filter"."""
+
+    def test_filter_replay_matches_apply_filter(self, sample_df):
+        details = {"parameters": {"column": "age", "condition": ">=", "value": "28"}}
+        replayed = apply_logged_transformation(sample_df, "filter", details)
+        direct = apply_filter(sample_df, "age", ">=", "28")
+        pd.testing.assert_frame_equal(replayed, direct)
+
+    def test_sort_replay_matches_apply_sort(self, sample_df):
+        details = {"sort_params": {"column": "age", "ascending": False}}
+        replayed = apply_logged_transformation(sample_df, "sort", details)
+        direct = apply_sort(sample_df, "age", False)
+        pd.testing.assert_frame_equal(replayed, direct)
+
+
 class TestApplyLoggedTransformationDelRow:
     """Replay must match live delete_row (RangeIndex) for save/checkpoint consistency."""
 

@@ -14,7 +14,6 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Query:", query);
     setLoading(true);
     clearError();
     try {
@@ -23,7 +22,6 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
         adv_query: { query },
       });
       setResult(response);
-      console.log("Query API response:", response);
     } catch (err) {
       console.error("Error applying query:", err.message);
       handleError(err);

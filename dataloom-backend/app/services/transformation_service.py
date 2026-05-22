@@ -638,7 +638,15 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     Raises:
         TransformationError: If the transformation cannot be applied.
     """
-    if action_type == "addRow":
+    if action_type == "filter":
+        params = action_details["parameters"]
+        return apply_filter(df, params["column"], params["condition"], params["value"])
+
+    elif action_type == "sort":
+        params = action_details["sort_params"]
+        return apply_sort(df, params["column"], params["ascending"])
+
+    elif action_type == "addRow":
         index = action_details["row_params"]["index"]
         return add_row(df, index)
 

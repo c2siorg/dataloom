@@ -28,7 +28,6 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting filter with parameters:", filterParams);
     setLoading(true);
     clearError();
     try {
@@ -39,7 +38,6 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
       setResult(response);
       if (onTransform) onTransform(response);
       updateData(response.columns, response.rows, response.dtypes);
-      console.log("Filter API response:", response);
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);

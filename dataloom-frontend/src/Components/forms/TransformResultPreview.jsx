@@ -36,7 +36,6 @@ const TransformResultPreview = ({ columns, rows }) => {
                     title={`Sort by ${col}`}
                     onClick={() => {
                       // TODO: Implement column sort/filter behavior
-                      console.log(`Column header clicked: ${col}`);
                     }}
                   >
                     {col}

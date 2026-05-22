@@ -79,7 +79,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const fetchCheckpoints = useCallback(async () => {
     try {
       const checkpointsResponse = await getCheckpoints(projectId);
-      console.log("CHECKPOINT RESPONSE:", checkpointsResponse);
       setCheckpoints(checkpointsResponse);
     } catch (error) {
       console.error("Error fetching checkpoints:", error);
