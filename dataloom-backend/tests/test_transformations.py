@@ -510,6 +510,6 @@ class TestApplyLoggedTransformation:
         assert len(result) == len(sample_df)
 
     # --------------------------------------------------------- unknown action
-    def test_unknown_action_type_returns_df_unchanged(self, sample_df):
+    def test_unknown_action_type_raises_transformation_error(self, sample_df):
         with pytest.raises(TransformationError, match="Unknown action type"):
             apply_logged_transformation(sample_df, "nonExistentAction", {})
