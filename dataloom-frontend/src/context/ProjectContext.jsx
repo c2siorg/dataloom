@@ -71,10 +71,25 @@ export function ProjectProvider({ children }) {
   }, []);
 
   const setPaginationData = useCallback((paginationInfo) => {
-    setTotalRows(paginationInfo.total_rows);
-    setTotalPages(paginationInfo.total_pages);
-    setPage(paginationInfo.page);
-    setPageSize(paginationInfo.page_size);
+    if (paginationInfo.total_rows !== undefined) {
+      setTotalRows(paginationInfo.total_rows);
+    }
+
+    if (paginationInfo.total_pages !== undefined) {
+      setTotalPages(paginationInfo.total_pages);
+    }
+
+    if (paginationInfo.page !== undefined) {
+      setPage(paginationInfo.page);
+    }
+
+    if (paginationInfo.page_size !== undefined) {
+      setPageSize(paginationInfo.page_size);
+    }
+
+    if (paginationInfo.pageSize !== undefined) {
+      setPageSize(paginationInfo.pageSize);
+    }
   }, []);
 
   return (
