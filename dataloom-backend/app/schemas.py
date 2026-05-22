@@ -43,6 +43,7 @@ class OperationType(StrEnum):
     dropNa = "dropNa"
     melt = "melt"
     sample = "sample"
+    stringReplace = "stringReplace"
 
 
 class DropDup(StrEnum):
@@ -82,6 +83,7 @@ class ActionTypes(StrEnum):
     trimWhitespace = "trimWhitespace"
     dropNa = "dropNa"
     melt = "melt"
+    stringReplace = "stringReplace"
 
 
 # --- Basic transformation parameter schemas ---
@@ -188,6 +190,21 @@ class DropNaParams(BaseModel):
         return v
 
 
+class StringReplaceParams(BaseModel):
+    """Parameters for find-and-replace on a string column."""
+
+    column: str
+    find_value: str
+    replace_value: str
+
+    @field_validator("find_value")
+    @classmethod
+    def find_value_must_not_be_empty(cls, v: str) -> str:
+        if not v:
+            raise ValueError("find_value must not be empty")
+        return v
+
+
 # --- Complex transformation parameter schemas ---
 
 
@@ -284,6 +301,7 @@ class TransformationInput(BaseModel):
     drop_na_params: DropNaParams | None = None
     melt_params: MeltParams | None = None
     sample_params: SampleParams | None = None
+    string_replace_params: StringReplaceParams | None = None
 
 
 class BasicQueryResponse(BaseModel):

@@ -39,3 +39,5 @@ export const CAST_DATA_TYPE = "castDataType";
 export const TRIM_WHITESPACE = "trimWhitespace";
 export const GROUPBY = "groupby";
 export const SAMPLE_ROWS = "sample";
+/** @type {string} Find and replace string values in a column */
+export const STRING_REPLACE = "stringReplace";
