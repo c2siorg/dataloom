@@ -3,22 +3,20 @@
 import shutil
 from pathlib import Path
 
+from app.config import get_settings
 from app.utils.logging import get_logger
 from app.utils.security import resolve_upload_path, sanitize_filename
 
 logger = get_logger(__name__)
 
-# Maximum allowed upload size: 50 MB
-MAX_FILE_SIZE = 50 * 1024 * 1024
-
 
 def store_upload(file) -> tuple[Path, Path]:
     """Store an uploaded file and create a working copy.
 
-    Validates the file extension (must be .csv) and size (max 50 MB)
-    before writing anything to disk. Saves the file with a sanitized name
-    and creates a _copy.csv for transformation operations, keeping the
-    original pristine.
+    Validates the file extension (must be .csv) and enforces the configured
+    ``max_upload_size_bytes`` limit via chunked streaming before writing
+    anything to disk.  The file pointer is reset to 0 after validation so
+    ``shutil.copyfileobj`` writes a complete file.
 
     Args:
         file: The FastAPI UploadFile object.
@@ -27,19 +25,27 @@ def store_upload(file) -> tuple[Path, Path]:
         Tuple of (original_path, copy_path).
 
     Raises:
-        ValueError: If the file is not a CSV or exceeds MAX_FILE_SIZE.
+        ValueError: If the file is not a CSV or exceeds
+            ``settings.max_upload_size_bytes``.
     """
+    settings = get_settings()
+    max_bytes = settings.max_upload_size_bytes
+
     # 1. Validate file extension
     ext = Path(file.filename).suffix.lower()
     if ext != ".csv":
         raise ValueError(f"Only CSV files are supported. Got: {ext}")
 
-    # 2. Validate file size
-    contents = file.file.read()
-    size = len(contents)
-    if size > MAX_FILE_SIZE:
-        size_mb = size / (1024 * 1024)
-        raise ValueError(f"File size {size_mb:.1f}MB exceeds maximum allowed size of 50MB")
+    # 2. Validate file size via chunked streaming (avoids full memory read)
+    _CHUNK = 65_536  # 64 KB
+    cumulative = 0
+    while chunk := file.file.read(_CHUNK):
+        cumulative += len(chunk)
+        if cumulative > max_bytes:
+            size_mb = cumulative / (1024 * 1024)
+            limit_mb = max_bytes / (1024 * 1024)
+            limit_str = f"{int(limit_mb)}MB" if limit_mb == int(limit_mb) else f"{limit_mb:.1f}MB"
+            raise ValueError(f"File size {size_mb:.1f}MB exceeds maximum allowed size of {limit_str}")
 
     # 3. Reset pointer so shutil.copyfileobj can read from the beginning
     file.file.seek(0)

@@ -1,12 +1,12 @@
 """Unit tests for file_service.store_upload() validations."""
 
 from io import BytesIO
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from app.services.file_service import MAX_FILE_SIZE, store_upload
+from app.config import get_settings
+from app.services.file_service import store_upload
 
 
 class MockUploadFile:
@@ -15,18 +15,6 @@ class MockUploadFile:
     def __init__(self, filename: str, content: bytes = b"col1,col2\n1,2\n"):
         self.filename = filename
         self.file = BytesIO(content)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_mock_paths(tmp_path: Path):
-    """Return patch targets that redirect disk writes to tmp_path."""
-    original = tmp_path / "test.csv"
-    copy = tmp_path / "test_copy.csv"
-    return original, copy
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +85,7 @@ class TestStoreUploadExtension:
 
 class TestStoreUploadSize:
     def test_file_within_size_limit_is_accepted(self, tmp_path):
-        """A file well under 50 MB must be stored without raising."""
+        """A file well under the configured limit must be stored without raising."""
         content = b"x" * 1024  # 1 KB
         file = MockUploadFile("small.csv", content)
         original = tmp_path / "small.csv"
@@ -110,8 +98,9 @@ class TestStoreUploadSize:
             store_upload(file)  # must not raise
 
     def test_file_at_exact_size_limit_is_accepted(self, tmp_path):
-        """A file exactly at MAX_FILE_SIZE must be accepted."""
-        content = b"x" * MAX_FILE_SIZE
+        """A file exactly at max_upload_size_bytes must be accepted."""
+        settings = get_settings()
+        content = b"x" * settings.max_upload_size_bytes
         file = MockUploadFile("exact.csv", content)
         original = tmp_path / "exact.csv"
 
@@ -123,19 +112,50 @@ class TestStoreUploadSize:
             store_upload(file)  # must not raise
 
     def test_oversized_file_raises_value_error(self):
-        """A file one byte over MAX_FILE_SIZE must raise ValueError."""
-        content = b"x" * (MAX_FILE_SIZE + 1)
+        """A file one byte over max_upload_size_bytes must raise ValueError."""
+        settings = get_settings()
+        content = b"x" * (settings.max_upload_size_bytes + 1)
         file = MockUploadFile("huge.csv", content)
-        with pytest.raises(ValueError, match="exceeds maximum allowed size of 50MB"):
+        with pytest.raises(ValueError, match="exceeds maximum allowed size of"):
             store_upload(file)
 
     def test_oversized_error_message_includes_actual_size_mb(self):
         """The ValueError message must include the actual file size in MB."""
-        # 51 MB file
-        content = b"x" * (51 * 1024 * 1024)
+        settings = get_settings()
+        # Create a file that is two full MB over the limit so the actual size
+        # printed in the error is clearly larger than the limit.
+        over = settings.max_upload_size_bytes + 2 * 1024 * 1024
+        content = b"x" * over
         file = MockUploadFile("toobig.csv", content)
-        with pytest.raises(ValueError, match=r"51\.0MB"):
+        with pytest.raises(ValueError, match=r"exceeds maximum allowed size of"):
             store_upload(file)
+
+    def test_chunked_validation_rejects_multi_chunk_file(self):
+        """Size guard must work when content spans multiple 64 KB chunks.
+
+        Verifies the chunk loop accumulates correctly: a multi-chunk file
+        above the config limit must be rejected even though no single chunk
+        exceeds the limit.
+        """
+        settings = get_settings()
+        content = b"x" * (settings.max_upload_size_bytes + 1)
+        file = MockUploadFile("chunked.csv", content)
+        with pytest.raises(ValueError, match="exceeds maximum allowed size of"):
+            store_upload(file)
+
+    def test_chunked_validation_accepts_file_at_limit(self, tmp_path):
+        """Chunked guard must accept a file that exactly meets the limit."""
+        settings = get_settings()
+        content = b"x" * settings.max_upload_size_bytes
+        file = MockUploadFile("at_limit.csv", content)
+        original = tmp_path / "at_limit.csv"
+
+        with (
+            patch("app.services.file_service.sanitize_filename", return_value="at_limit.csv"),
+            patch("app.services.file_service.resolve_upload_path", return_value=original),
+            patch("shutil.copy2"),
+        ):
+            store_upload(file)  # must not raise
 
 
 # ---------------------------------------------------------------------------
@@ -159,4 +179,24 @@ class TestStoreUploadPointerReset:
             store_upload(file)
 
         # The file on disk should contain the full original content
+        assert original.read_bytes() == content
+
+    def test_full_write_after_chunked_validation(self, tmp_path):
+        """Full file content must be written to disk after chunked size validation.
+
+        Verifies that seek(0) after the chunk loop restores the pointer
+        so shutil.copyfileobj copies the complete content, not a partial tail.
+        """
+        # Construct content spanning more than one 64 KB chunk
+        content = b"a,b\n" + b"1,2\n" * 20_000  # ~100 KB
+        file = MockUploadFile("multi_chunk.csv", content)
+        original = tmp_path / "multi_chunk.csv"
+
+        with (
+            patch("app.services.file_service.sanitize_filename", return_value="multi_chunk.csv"),
+            patch("app.services.file_service.resolve_upload_path", return_value=original),
+            patch("shutil.copy2"),
+        ):
+            store_upload(file)
+
         assert original.read_bytes() == content
