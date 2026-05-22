@@ -129,6 +129,23 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [activeForm, setActiveForm] = useState(null);
 
   const handleMenuClick = (formType) => {
+    // If clicking the same form that's already open, close it
+    if (activeForm === formType) {
+      setActiveForm(null);
+      setShowFilterForm(false);
+      setShowSortForm(false);
+      setShowDropDuplicateForm(false);
+      setShowAdvQueryFilterForm(false);
+      setShowPivotTableForm(false);
+      setShowCastDataTypeForm(false);
+      setShowTrimWhitespaceForm(false);
+      setShowMeltForm(false);
+      setShowLogs(false);
+      setShowCheckpoints(false);
+      setShowGroupByForm(false);
+      return;
+    }
+
     setShowFilterForm(false);
     setShowSortForm(false);
     setShowDropDuplicateForm(false);
@@ -296,7 +313,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         ))}
       </div>
 
-      <div className="flex items-stretch gap-3 px-8 py-2 min-h-[64px]">
+      <div className="flex items-stretch gap-3 px-8 py-2 min-h-[64px] overflow-x-auto">
         {tabs[activeTab].map((section, sectionIdx) => (
           <div key={section.group} className="flex items-stretch gap-3">
             {sectionIdx > 0 && <div className="w-px bg-gray-200 self-stretch" />}
