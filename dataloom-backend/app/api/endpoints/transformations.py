@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
-from app import database, schemas
+from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
 from app.services.project_service import log_transformation
@@ -164,12 +164,12 @@ async def transform_project(
     project_id: uuid.UUID,
     transformation_input: schemas.TransformationInput,
     db: Session = Depends(database.get_db),
+    project: models.Project = Depends(get_project_or_404),
 ):
     """Apply a transformation to a project.
 
     Routes to the appropriate internal handler based on operation_type.
     """
-    project = get_project_or_404(project_id, db)
     df = read_csv_safe(project.file_path)
 
     op = transformation_input.operation_type

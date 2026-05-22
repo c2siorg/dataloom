@@ -9,9 +9,9 @@ from app.services.project_service import (
 
 
 class TestUndo:
-    def test_get_last_change_log_returns_most_recent(self, db):
+    def test_get_last_change_log_returns_most_recent(self, db, test_user):
         """get_last_change_log should return the most recently added log."""
-        project = models.Project(name="test", file_path="/tmp/test.csv", description="test")
+        project = models.Project(name="test", file_path="/tmp/test.csv", description="test", owner_id=test_user.id)
         db.add(project)
         db.commit()
         db.refresh(project)
@@ -23,9 +23,9 @@ class TestUndo:
         assert last_log is not None
         assert last_log.action_type == "sort"
 
-    def test_get_last_change_log_returns_none_when_empty(self, db):
+    def test_get_last_change_log_returns_none_when_empty(self, db, test_user):
         """get_last_change_log should return None when no logs exist."""
-        project = models.Project(name="test", file_path="/tmp/test.csv", description="test")
+        project = models.Project(name="test", file_path="/tmp/test.csv", description="test", owner_id=test_user.id)
         db.add(project)
         db.commit()
         db.refresh(project)
@@ -33,9 +33,9 @@ class TestUndo:
         last_log = get_last_change_log(db, project.project_id)
         assert last_log is None
 
-    def test_delete_change_log_removes_entry(self, db):
+    def test_delete_change_log_removes_entry(self, db, test_user):
         """delete_change_log should remove the log entry from the database."""
-        project = models.Project(name="test", file_path="/tmp/test.csv", description="test")
+        project = models.Project(name="test", file_path="/tmp/test.csv", description="test", owner_id=test_user.id)
         db.add(project)
         db.commit()
         db.refresh(project)

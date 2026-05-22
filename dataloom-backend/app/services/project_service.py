@@ -11,7 +11,13 @@ from app.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def create_project(db: Session, name: str, file_path: str, description: str) -> models.Project:
+def create_project(
+    db: Session,
+    name: str,
+    file_path: str,
+    description: str,
+    owner_id: uuid.UUID,
+) -> models.Project:
     """Create a new project record in the database.
 
     Args:
@@ -19,11 +25,12 @@ def create_project(db: Session, name: str, file_path: str, description: str) -> 
         name: Project name.
         file_path: Path to the working copy CSV.
         description: Project description.
+        owner_id: User that owns the project.
 
     Returns:
         The created Project model instance.
     """
-    project = models.Project(name=name, file_path=file_path, description=description)
+    project = models.Project(owner_id=owner_id, name=name, file_path=file_path, description=description)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -44,17 +51,24 @@ def get_project_by_id(db: Session, project_id: uuid.UUID) -> models.Project | No
     return db.query(models.Project).filter(models.Project.project_id == project_id).first()
 
 
-def get_recent_projects(db: Session, limit: int = 3) -> list[models.Project]:
-    """Fetch the most recently modified projects.
+def get_recent_projects(db: Session, owner_id: uuid.UUID, limit: int = 3) -> list[models.Project]:
+    """Fetch a user's most recently modified projects.
 
     Args:
         db: Database session.
+        owner_id: Restrict results to projects owned by this user.
         limit: Maximum number of projects to return.
 
     Returns:
         List of Project model instances ordered by last_modified desc.
     """
-    return db.query(models.Project).order_by(models.Project.last_modified.desc()).limit(limit).all()
+    return (
+        db.query(models.Project)
+        .filter(models.Project.owner_id == owner_id)
+        .order_by(models.Project.last_modified.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 def delete_project(db: Session, project: models.Project) -> None:
@@ -129,7 +143,12 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
         project.last_modified = datetime.now(UTC)
 
     db.commit()
-    logger.info("Checkpoint created: id=%s, project_id=%s, logs_applied=%d", checkpoint.id, project_id, len(logs))
+    logger.info(
+        "Checkpoint created: id=%s, project_id=%s, logs_applied=%d",
+        checkpoint.id,
+        project_id,
+        len(logs),
+    )
     return checkpoint
 
 

@@ -1,6 +1,6 @@
 import uuid
 
-from app import models
+from app.services.project_service import create_project
 
 
 class TestLogsEndpoint:
@@ -20,23 +20,21 @@ class TestLogsEndpoint:
         assert isinstance(detail, str)
         assert "not found" in detail.lower()
 
-    def test_get_logs_existing_project_returns_200(self, client, db):
+    def test_get_logs_existing_project_returns_200(self, client, db, test_user):
         # Projects are created by CSV upload in production; inserting the row
         # directly is enough to exercise the /logs endpoint.
-        project = models.Project(name="logs-test-project", file_path="/tmp/test.csv", description="")
-        db.add(project)
-        db.commit()
-        db.refresh(project)
+        project = create_project(
+            db, name="logs-test-project", file_path="/tmp/test.csv", description="", owner_id=test_user.id
+        )
 
         response = client.get(f"/logs/{project.project_id}")
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 
-    def test_get_logs_existing_project_no_logs_returns_empty_list(self, client, db):
-        project = models.Project(name="logs-empty-project", file_path="/tmp/test.csv", description="")
-        db.add(project)
-        db.commit()
-        db.refresh(project)
+    def test_get_logs_existing_project_no_logs_returns_empty_list(self, client, db, test_user):
+        project = create_project(
+            db, name="logs-empty-project", file_path="/tmp/test.csv", description="", owner_id=test_user.id
+        )
 
         response = client.get(f"/logs/{project.project_id}")
         assert response.status_code == 200
