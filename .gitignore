@@ -25,3 +25,21 @@ Desktop.ini
 .env
 .env.local
 .env.*.local
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+e2e/.auth/
+
+# Node (root)
+node_modules/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# AI / Agents
+.claude/

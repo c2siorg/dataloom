@@ -49,7 +49,7 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div data-testid="filter-form" className="p-4 border border-gray-200 rounded-lg bg-white">
       <form onSubmit={handleSubmit}>
         <h3 className="font-semibold text-gray-900 mb-2">Filter Dataset</h3>
         <div className="flex flex-wrap mb-4">
@@ -57,6 +57,7 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
             <label className="block mb-1 text-sm font-medium text-gray-700">Column:</label>
             <ColumnSelect
               name="column"
+              data-testid="filter-column"
               value={filterParams.column}
               onChange={handleInputChange}
               placeholder="Select column to filter..."
@@ -85,6 +86,7 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
             <input
               type="text"
               name="value"
+              data-testid="filter-value"
               value={filterParams.value}
               onChange={handleInputChange}
               className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
