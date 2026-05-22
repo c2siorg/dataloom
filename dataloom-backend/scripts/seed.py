@@ -1,27 +1,26 @@
-"""seed sample projects
+"""Standalone seed script for development environments.
 
-Revision ID: b2c3d4e5f6a7
-Revises: a1b2c3d4e5f6
-Create Date: 2026-02-22 14:00:00.000000
+Creates sample projects with demo CSV data for local development and testing.
+Run manually after setting up the database:
 
+    uv run python scripts/seed.py
+
+This script uses in-app service functions so it automatically stays in sync
+with the codebase.
 """
 
-from collections.abc import Sequence
+import csv
+import sys
 from pathlib import Path
 
-import sqlalchemy as sa
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from alembic import op
 from app.config import get_settings
-
-revision: str = "b2c3d4e5f6a7"
-down_revision: str | None = "a1b2c3d4e5f6"
-branch_labels: str | Sequence[str] | None = None
-depends_on: str | Sequence[str] | None = None
+from app.database import get_db
+from app.services.project_service import create_project
 
 SAMPLE_PROJECTS = [
     {
-        "project_id": "00000000-0000-0000-0000-000000000001",
         "name": "Sales Data 2024",
         "description": "Sales transactions across regions and product categories",
         "filename": "seed_sales_data_2024",
@@ -40,7 +39,6 @@ SAMPLE_PROJECTS = [
         ],
     },
     {
-        "project_id": "00000000-0000-0000-0000-000000000002",
         "name": "Employee Directory",
         "description": "Company employee records with department and role information",
         "filename": "seed_employee_directory",
@@ -59,7 +57,6 @@ SAMPLE_PROJECTS = [
         ],
     },
     {
-        "project_id": "00000000-0000-0000-0000-000000000003",
         "name": "Weather Observations",
         "description": "Daily weather measurements from various cities",
         "filename": "seed_weather_observations",
@@ -78,7 +75,6 @@ SAMPLE_PROJECTS = [
         ],
     },
     {
-        "project_id": "00000000-0000-0000-0000-000000000004",
         "name": "Student Grades",
         "description": "Academic performance records across subjects and semesters",
         "filename": "seed_student_grades",
@@ -98,29 +94,72 @@ SAMPLE_PROJECTS = [
     },
 ]
 
-
-def upgrade() -> None:
-    """Seeding has been moved to scripts/seed.py.
-
-    Run manually in development:
-        uv run python scripts/seed.py
-    """
-    pass
+SEPARATOR = "-" * 60
+INDENT = "  "
 
 
-def downgrade() -> None:
+def write_csv(path: Path, headers: list[str], rows: list[list[str]]) -> None:
+    """Write CSV file with headers and rows."""
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(rows)
+
+
+def print_header() -> None:
+    print(SEPARATOR)
+    print("  Database Seed")
+    print(SEPARATOR)
+
+
+def print_footer(count: int) -> None:
+    print(SEPARATOR)
+    print(f"  {count} project(s) seeded successfully.")
+    print(SEPARATOR)
+
+
+def seed() -> None:
+    """Create sample projects with demo data."""
     settings = get_settings()
     upload_dir = Path(settings.upload_dir).resolve()
+    upload_dir.mkdir(parents=True, exist_ok=True)
 
-    bind = op.get_bind()
+    db = next(get_db())
+    seeded = 0
 
-    for sample in SAMPLE_PROJECTS:
-        bind.execute(
-            sa.text("DELETE FROM projects WHERE project_id = :project_id"),
-            {"project_id": sample["project_id"]},
-        )
+    print_header()
 
-        original_path = upload_dir / f"{sample['filename']}.csv"
-        copy_path = upload_dir / f"{sample['filename']}_copy.csv"
-        original_path.unlink(missing_ok=True)
-        copy_path.unlink(missing_ok=True)
+    try:
+        for sample in SAMPLE_PROJECTS:
+            original_path = upload_dir / f"{sample['filename']}.csv"
+            copy_path = upload_dir / f"{sample['filename']}_copy.csv"
+
+            write_csv(original_path, sample["headers"], sample["rows"])
+            write_csv(copy_path, sample["headers"], sample["rows"])
+
+            create_project(
+                db=db,
+                name=sample["name"],
+                file_path=str(copy_path),
+                description=sample["description"],
+            )
+
+            seeded += 1
+            print(f"{INDENT}[ok]  {sample['name']}")
+
+        print()
+        print_footer(seeded)
+
+    except Exception as e:
+        print()
+        print(f"{INDENT}[error]  Seeding failed: {e}")
+        print(SEPARATOR)
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    seed()
