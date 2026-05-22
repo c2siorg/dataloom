@@ -6,6 +6,10 @@
 export const ROUTES = {
   /** Projects listing page path */
   home: "/projects",
+  /** Sign-in page path */
+  signin: "/signin",
+  /** Sign-up page path */
+  signup: "/signup",
   /** Workspace view path */
   workspace: "/workspace/:projectId",
   /**

@@ -37,9 +37,20 @@ def mem_db(mem_engine):
         yield session
 
 
+def _make_user(db):
+    """Get or create a single owner user for the given database."""
+    user = db.query(models.User).first()
+    if user is None:
+        user = models.User(email="lastmodified-user@test.com", password_hash="x")
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return user
+
+
 def _make_project(db, name="Test"):
-    """Create a minimal Project row with a fake file_path."""
-    return create_project(db, name=name, file_path=f"/tmp/{name}.csv", description="test")
+    """Create a minimal Project row with a fake file_path, owned by _make_user(db)."""
+    return create_project(db, name=name, file_path=f"/tmp/{name}.csv", description="test", owner_id=_make_user(db).id)
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
@@ -111,7 +122,7 @@ class TestLastModifiedUpdatesOnTransform:
             {"operation_type": "addRow", "row_params": {"index": 0}},
         )
 
-        recent = get_recent_projects(mem_db, limit=10)
+        recent = get_recent_projects(mem_db, owner_id=_make_user(mem_db).id, limit=10)
         ids = [str(p.project_id) for p in recent]
 
         idx_a = ids.index(str(project_a.project_id))

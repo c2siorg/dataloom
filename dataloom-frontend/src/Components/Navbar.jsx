@@ -1,12 +1,24 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProjectContext } from "../context/ProjectContext";
+import { useAuth } from "../context/AuthContext";
+import { ROUTES } from "../constants/routes";
 import DataLoomLogo from "./common/DataLoomLogo";
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { projectName } = useProjectContext();
+  const { user, logout } = useAuth();
   const isWorkspacePage = location.pathname.startsWith("/workspace/");
   const displayProjectName = projectName || "Untitled Project";
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate(ROUTES.signin);
+    }
+  };
 
   return (
     <header role="banner">
@@ -20,7 +32,7 @@ const Navbar = () => {
             <span className="text-base">DataLoom</span>
           </Link>
         </div>
-        <div className="ml-auto flex items-center gap-2 min-w-0">
+        <div className="ml-auto flex items-center gap-3 min-w-0">
           {isWorkspacePage && (
             <div
               className="text-gray-700 font-medium text-base min-w-0 max-w-[50vw] md:max-w-md mr-2 truncate"
@@ -29,11 +41,20 @@ const Navbar = () => {
               {displayProjectName}
             </div>
           )}
+          {user && (
+            <span
+              className="hidden sm:inline text-sm text-gray-500 truncate max-w-[180px]"
+              title={user.email}
+            >
+              {user.email}
+            </span>
+          )}
           <button
             type="button"
+            onClick={handleLogout}
             className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150"
           >
-            Profile
+            Sign out
           </button>
         </div>
       </nav>

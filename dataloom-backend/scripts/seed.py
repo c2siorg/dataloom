@@ -17,7 +17,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import get_settings
 from app.database import get_db
+from app.services import auth_service
 from app.services.project_service import create_project
+
+DEV_USER_EMAIL = "test@test.com"
+DEV_USER_PASSWORD = "testpassword"
 
 SAMPLE_PROJECTS = [
     {
@@ -118,8 +122,22 @@ def print_footer(count: int) -> None:
     print(SEPARATOR)
 
 
+def seed_dev_user(db) -> "auth_service.models.User":
+    """Get or create the development test user.
+
+    Idempotent so repeated `uv run python scripts/seed.py` runs do not error.
+    """
+    existing = auth_service.get_user_by_email(db, DEV_USER_EMAIL)
+    if existing is not None:
+        print(f"{INDENT}[ok]  dev user already exists: {DEV_USER_EMAIL}")
+        return existing
+    user = auth_service.create_user(db, DEV_USER_EMAIL, DEV_USER_PASSWORD)
+    print(f"{INDENT}[ok]  created dev user: {DEV_USER_EMAIL} / {DEV_USER_PASSWORD}")
+    return user
+
+
 def seed() -> None:
-    """Create sample projects with demo data."""
+    """Create the dev user and sample projects owned by them."""
     settings = get_settings()
     upload_dir = Path(settings.upload_dir).resolve()
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -130,6 +148,7 @@ def seed() -> None:
     print_header()
 
     try:
+        dev_user = seed_dev_user(db)
         for sample in SAMPLE_PROJECTS:
             original_path = upload_dir / f"{sample['filename']}.csv"
             copy_path = upload_dir / f"{sample['filename']}_copy.csv"
@@ -142,6 +161,7 @@ def seed() -> None:
                 name=sample["name"],
                 file_path=str(copy_path),
                 description=sample["description"],
+                owner_id=dev_user.id,
             )
 
             seeded += 1

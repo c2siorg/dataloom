@@ -5,7 +5,7 @@ import uuid
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 # --- Enums ---
 
@@ -360,5 +360,52 @@ class LastResponse(BaseModel):
     name: str
     description: str | None
     last_modified: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- Auth schemas ---
+
+
+class SignupRequest(BaseModel):
+    """Request body for user signup."""
+
+    email: EmailStr
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower()
+
+    @field_validator("password")
+    @classmethod
+    def password_length_ok(cls, v: str) -> str:
+        byte_len = len(v.encode("utf-8"))
+        if byte_len < 8:
+            raise ValueError("password must be at least 8 characters")
+        if byte_len > 72:
+            raise ValueError("password must be at most 72 bytes")
+        return v
+
+
+class SigninRequest(BaseModel):
+    """Request body for user signin."""
+
+    email: str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class UserResponse(BaseModel):
+    """Public representation of a user; never exposes the password hash."""
+
+    id: uuid.UUID
+    email: str
+    created_at: datetime.datetime
 
     model_config = ConfigDict(from_attributes=True)
