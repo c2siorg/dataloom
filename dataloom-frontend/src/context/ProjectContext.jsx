@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
 import { getProjectDetails } from "../api";
 
 const ProjectContext = createContext(null);
@@ -31,7 +31,15 @@ export function ProjectProvider({ children }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
-  const [columnOrders, setColumnOrders] = useState({});
+  // Initialize "columnOrders" from localStorage
+  const [columnOrders, setColumnOrders] = useState(() => {
+    try {
+      const stored = localStorage.getItem("columnOrders");
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     if (!projectId || columns.length === 0) return;
@@ -43,6 +51,14 @@ export function ProjectProvider({ children }) {
       }));
     }
   }, [projectId, columns, columnOrders]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("columnOrders", JSON.stringify(columnOrders));
+    } catch {
+      // localStorage unavailable — fail silently
+    }
+  }, [columnOrders]);
 
   const refreshProject = useCallback(
     async (id, targetPage, preferredSize) => {
@@ -120,7 +136,13 @@ export function ProjectProvider({ children }) {
     }
   }, []);
 
-  const columnOrder = projectId ? columnOrders[projectId] || [] : [];
+  const columnOrder = useMemo(() => {
+    if (!projectId || !columnOrders[projectId]) return [];
+    const stored = columnOrders[projectId];
+    if (stored.length !== columns.length) return [];
+    if (stored.some((idx) => idx >= columns.length || idx < 0)) return [];
+    return stored;
+  }, [projectId, columnOrders, columns]);
 
   const setColumnOrder = useCallback(
     (order) => {
@@ -133,6 +155,14 @@ export function ProjectProvider({ children }) {
     [projectId],
   );
 
+  const deleteProjectOrder = useCallback((projectId) => {
+    setColumnOrders((prev) => {
+      const updated = { ...prev };
+      delete updated[projectId];
+      return updated;
+    });
+  }, []);
+
   return (
     <ProjectContext.Provider
       value={{
@@ -142,6 +172,7 @@ export function ProjectProvider({ children }) {
         rows,
         dtypes,
         columnOrder,
+        deleteProjectOrder,
         loading,
         error,
         totalRows,
