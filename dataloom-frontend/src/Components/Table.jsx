@@ -1,6 +1,6 @@
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
@@ -58,21 +58,21 @@ const Table = ({ projectId, data: externalData }) => {
   const [draggedColIndex, setDraggedColIndex] = useState(null);
   const [hoveredTargetIndex, setHoveredTargetIndex] = useState(null);
 
+  const safeOrder = useMemo(() => {
+    return columnOrder.length === ctxColumns.length ? columnOrder : ctxColumns.map((_, i) => i);
+  }, [columnOrder, ctxColumns]);
+
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
-      const orderedColumns =
-        columnOrder.length === ctxColumns.length
-          ? columnOrder.map((i) => ctxColumns[i])
-          : ctxColumns;
-      setColumns(["S.No.", ...orderedColumns]);
+      setColumns(["S.No.", ...safeOrder.map((i) => ctxColumns[i])]);
       setData(
         ctxRows.map((row, index) => [
           (page - 1) * pageSize + index + 1,
-          ...(columnOrder.length === ctxColumns.length ? columnOrder.map((i) => row[i]) : row),
+          ...safeOrder.map((i) => row[i]),
         ]),
       );
     }
-  }, [ctxColumns, ctxRows, page, pageSize, columnOrder]);
+  }, [ctxColumns, ctxRows, page, pageSize, columnOrder, safeOrder]);
 
   useEffect(() => {
     if (externalData) {
@@ -342,11 +342,7 @@ const Table = ({ projectId, data: externalData }) => {
                           setHoveredTargetIndex(null);
                           return;
                         }
-                        const currentOrder =
-                          columnOrder.length === ctxColumns.length
-                            ? columnOrder
-                            : ctxColumns.map((_, index) => index);
-                        const newOrder = [...currentOrder];
+                        const newOrder = [...safeOrder];
                         const [moved] = newOrder.splice(source, 1);
                         newOrder.splice(target, 0, moved);
                         setColumnOrder(newOrder);
