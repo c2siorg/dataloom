@@ -5,6 +5,7 @@ import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
 import { UploadCloud, FileText, X, Pencil } from "lucide-react";
 import { ACCEPTED_EXTENSIONS, formatFileSize, validateFile } from "../utils/fileUtils";
+import { useProjectContext } from "../context/ProjectContext";
 
 const ProjectCard = ({ project, onClick, onDelete }) => {
   const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
@@ -109,6 +110,7 @@ const HomeScreen = () => {
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, projectId: null });
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { deleteProjectOrder } = useProjectContext();
 
   const isFormValid =
     projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
@@ -241,6 +243,7 @@ const HomeScreen = () => {
   const handleDeleteConfirm = async () => {
     try {
       await deleteProject(deleteConfirm.projectId);
+      deleteProjectOrder(deleteConfirm.projectId);
       showToast("Project deleted successfully", "success");
       fetchRecentProjects();
     } catch (error) {

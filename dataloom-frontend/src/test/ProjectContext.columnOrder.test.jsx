@@ -64,4 +64,57 @@ describe("ProjectContext — column order state", () => {
 
     expect(result.current.columnOrder).toEqual([]);
   });
+
+  it("hydrates column order from localStorage on mount", () => {
+    localStorage.setItem("columnOrders", JSON.stringify({ "project-1": [2, 0, 1] }));
+
+    const { result } = renderHook(() => useProjectContext(), {
+      wrapper: ProjectProvider,
+    });
+
+    act(() => {
+      result.current.setProjectInfo("project-1", "Project 1");
+    });
+
+    act(() => {
+      result.current.updateData(["City", "Amount", "Date"], [], {});
+    });
+
+    expect(result.current.columnOrder).toEqual([2, 0, 1]);
+
+    localStorage.removeItem("columnOrders");
+  });
+
+  it("discards stale order when column count changes", () => {
+    localStorage.setItem("columnOrders", JSON.stringify({ "project-1": [2, 0, 1] }));
+
+    const { result } = renderHook(() => useProjectContext(), {
+      wrapper: ProjectProvider,
+    });
+
+    act(() => {
+      result.current.setProjectInfo("project-1", "Project 1");
+    });
+
+    // Only 2 columns but stored order has 3 — should discard
+    act(() => {
+      result.current.updateData(["City", "Amount"], [], {});
+    });
+
+    expect(result.current.columnOrder).toEqual([0, 1]);
+
+    localStorage.removeItem("columnOrders");
+  });
+
+  it("handles corrupted localStorage gracefully", () => {
+    localStorage.setItem("columnOrders", "not-valid-json");
+
+    const { result } = renderHook(() => useProjectContext(), {
+      wrapper: ProjectProvider,
+    });
+
+    expect(result.current.columnOrder).toEqual([]);
+
+    localStorage.removeItem("columnOrders");
+  });
 });
