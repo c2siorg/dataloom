@@ -263,6 +263,7 @@ async def delete_project_endpoint(
 @router.post("/{project_id}/undo", response_model=schemas.ProjectResponse)
 async def undo_last_transformation(
     project_id: uuid.UUID,
+    project: models.Project = Depends(get_project_or_404),
     db: Session = Depends(database.get_db),
 ):
     """Undo the most recent transformation.
@@ -270,8 +271,6 @@ async def undo_last_transformation(
     Removes the last change log entry and rebuilds the working copy
     by replaying all remaining logs onto the original file.
     """
-    project = get_project_or_404(project_id, db)
-
     last_log = get_last_change_log(db, project_id)
     if not last_log:
         raise HTTPException(status_code=404, detail="No transformations to undo")
