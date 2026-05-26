@@ -295,11 +295,8 @@ const Table = ({ projectId, data: externalData }) => {
   };
 
   return (
-    <div className="px-8 pt-3">
-      <div
-        className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
-        style={{ maxHeight: "calc(100vh - 140px)" }}
-      >
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="min-h-0 m-4 overflow-auto border border-gray-200 rounded-lg shadow-sm">
         <table data-testid="data-table" className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
             <tr>
@@ -404,7 +401,7 @@ const Table = ({ projectId, data: externalData }) => {
         </table>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-10">
+      <div className="mt-auto bg-white shadow-lg border-t border-gray-200 z-10">
         <TablePagination
           totalRows={totalRows}
           totalPages={totalPages}
