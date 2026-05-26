@@ -298,7 +298,7 @@ const Table = ({ projectId, data: externalData }) => {
     <div className="px-8 pt-3">
       <div
         className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
-        style={{ maxHeight: "calc(100vh - 140px)" }}
+        style={{ maxHeight: "calc(100vh - 225px)" }}
       >
         <table data-testid="data-table" className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
