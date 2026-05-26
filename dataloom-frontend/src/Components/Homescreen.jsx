@@ -63,6 +63,28 @@ const NewProjectCard = ({ onClick }) => (
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
+const validateFile = (file) => {
+  if (!file) {
+    return { valid: false, error: "Please select a file to upload" };
+  }
+
+  const isCSV = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
+  if (!isCSV) {
+    return { valid: false, error: "Please upload a CSV file." };
+  }
+
+  if (file.size === 0) {
+    return { valid: false, error: "File is empty (0 bytes)." };
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    return { valid: false, error: `File too large (${sizeMB} MB). Maximum allowed size is 10 MB.` };
+  }
+
+  return { valid: true };
+};
+
 const EmptyState = ({ onClick }) => (
   <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
     <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-50">
@@ -152,8 +174,9 @@ const HomeScreen = () => {
   const handleSubmitModal = async (event) => {
     event.preventDefault();
 
-    if (!fileUpload) {
-      showToast("Please select a file to upload", "warning");
+    const validation = validateFile(fileUpload);
+    if (!validation.valid) {
+      showToast(validation.error, "warning");
       return;
     }
 
@@ -195,23 +218,9 @@ const HomeScreen = () => {
 
     if (!file) return;
 
-    const isCSV = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
-
-    if (!isCSV) {
-      showToast("Please upload a CSV file.", "error");
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      setFileUpload(null);
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-
-      showToast(`File too large (${sizeMB} MB). Maximum allowed size is 10 MB.`, "warning");
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, "error");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
