@@ -28,7 +28,7 @@ test.describe("Transformations", () => {
     const form = page.locator('[data-testid="sort-form"]');
     await form.waitFor({ state: "visible" });
     await form.locator('[data-testid="sort-column"]').selectOption("age");
-    await form.getByRole("button", { name: "Submit" }).click();
+    await form.getByRole("button", { name: /Apply Sort/i }).click();
 
     const preview = page.locator('[data-testid="transform-preview"]');
     await preview.waitFor({ state: "visible" });
