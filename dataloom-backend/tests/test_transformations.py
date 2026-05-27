@@ -82,6 +82,31 @@ class TestSort:
         with pytest.raises(TransformationError):
             apply_sort(sample_df, "nonexistent", True)
 
+    def test_multi_column_sort(self, sample_df):
+        """Multi-column sort should sort by multiple criteria in order."""
+        criteria = [
+            {"column": "age", "ascending": True},
+            {"column": "name", "ascending": False},
+        ]
+        result = apply_sort(sample_df, criteria=criteria)
+        assert list(result.columns) == list(sample_df.columns)
+        assert len(result) == len(sample_df)
+
+    def test_multi_column_sort_empty_criteria(self, sample_df):
+        """Empty criteria list should raise TransformationError."""
+        with pytest.raises(TransformationError, match="At least one sort criterion is required"):
+            apply_sort(sample_df, criteria=[])
+
+    def test_multi_column_sort_missing_column(self, sample_df):
+        """Missing column in criteria should raise TransformationError."""
+        with pytest.raises(TransformationError, match="Column name is required"):
+            apply_sort(sample_df, criteria=[{"column": "", "ascending": True}])
+
+    def test_multi_column_sort_invalid_column(self, sample_df):
+        """Invalid column name should raise TransformationError."""
+        with pytest.raises(TransformationError, match="not found"):
+            apply_sort(sample_df, criteria=[{"column": "nonexistent", "ascending": True}])
+
 
 class TestAddRow:
     def test_add_row_at_beginning(self, sample_df):
