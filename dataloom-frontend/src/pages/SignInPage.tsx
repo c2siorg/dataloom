@@ -60,10 +60,10 @@ export default function SignInPage() {
       </div>
 
       {resetSuccess && (
-  <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
-    Password reset successfully. Please sign in with your new password.
-  </div>
-)}
+        <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+          Password reset successfully. Please sign in with your new password.
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="mt-8">
         <div className="space-y-4">
@@ -127,7 +127,6 @@ export default function SignInPage() {
             </span>
           )}
         </button>
-
       </form>
 
       <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6 text-sm">
