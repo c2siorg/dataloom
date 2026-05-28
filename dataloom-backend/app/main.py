@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.endpoints import auth, auth_password, projects, transformations, user_logs
+from app.api.endpoints import auth, projects, transformations, user_logs
 from app.config import get_settings
 from app.database import verify_database_connection
 from app.exceptions import AppException, app_exception_handler
@@ -65,7 +65,6 @@ async def transformation_error_handler(request: Request, exc: TransformationErro
 app.add_exception_handler(AppException, app_exception_handler)
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(auth_password.router, prefix="/auth", tags=["auth"])
 app.include_router(projects.router, prefix="/projects", tags=["projects"])
 app.include_router(transformations.router, prefix="/projects", tags=["transformations"])
 app.include_router(user_logs.router, prefix="/logs", tags=["user_logs"])

@@ -1,4 +1,12 @@
-"""Tests for authentication: signup, signin, logout, and protected routes."""
+"""Tests for authentication: signup, signin, logout, protected routes, and password reset."""
+
+import hashlib
+import secrets
+from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
+
+from app import models
+from app.services.auth_service import create_user, verify_password
 
 
 def _signup(client, email, password="testpassword"):
@@ -110,3 +118,117 @@ class TestOwnership:
         assert len(client.get("/projects/recent").json()) >= 1
         _signup(anon_client, "freshuser@test.com")
         assert anon_client.get("/projects/recent").json() == []
+
+
+class TestPasswordReset:
+    def test_forgot_password_unknown_email_returns_success(self, anon_client):
+        """Should return success even for unknown emails to prevent enumeration."""
+        with patch("app.services.auth_service.send_reset_email"):
+            response = anon_client.post("/auth/forgot-password", json={"email": "unknown@example.com"})
+        assert response.status_code == 200
+        assert "reset link" in response.json()["message"]
+
+    def test_forgot_password_known_email_creates_token(self, anon_client, db):
+        """Should create a reset token for a known email."""
+        create_user(db, "test@example.com", "password123")
+
+        with patch("app.services.auth_service.send_reset_email") as mock_send:
+            response = anon_client.post("/auth/forgot-password", json={"email": "test@example.com"})
+
+        assert response.status_code == 200
+        mock_send.assert_called_once()
+        token = db.query(models.PasswordResetToken).first()
+        assert token is not None
+        assert token.used is False
+
+    def test_reset_password_valid_token(self, anon_client, db):
+        """Should reset password with a valid token."""
+        user = create_user(db, "reset@example.com", "oldpassword123")
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        reset_token = models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+        db.add(reset_token)
+        db.commit()
+
+        response = anon_client.post("/auth/reset-password", json={"token": raw_token, "new_password": "newpassword123"})
+        assert response.status_code == 200
+
+        db.refresh(user)
+        assert verify_password("newpassword123", user.password_hash)
+
+        db.refresh(reset_token)
+        assert reset_token.used is True
+
+    def test_reset_password_invalid_token(self, anon_client):
+        """Should reject invalid tokens."""
+        response = anon_client.post(
+            "/auth/reset-password",
+            json={"token": "invalidtoken", "new_password": "newpassword123"},
+        )
+        assert response.status_code == 400
+
+    def test_reset_password_expired_token(self, anon_client, db):
+        """Should reject expired tokens."""
+        user = create_user(db, "expired@example.com", "oldpassword123")
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        reset_token = models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(UTC) - timedelta(hours=1),
+        )
+        db.add(reset_token)
+        db.commit()
+
+        response = anon_client.post(
+            "/auth/reset-password",
+            json={"token": raw_token, "new_password": "newpassword123"},
+        )
+        assert response.status_code == 400
+
+    def test_reset_password_used_token(self, anon_client, db):
+        """Should reject already used tokens."""
+        user = create_user(db, "used@example.com", "oldpassword123")
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        reset_token = models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+            used=True,
+        )
+        db.add(reset_token)
+        db.commit()
+
+        response = anon_client.post(
+            "/auth/reset-password",
+            json={"token": raw_token, "new_password": "newpassword123"},
+        )
+        assert response.status_code == 400
+
+    def test_reset_password_too_short(self, anon_client, db):
+        """Should reject passwords shorter than 8 characters."""
+        user = create_user(db, "short@example.com", "oldpassword123")
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        reset_token = models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+        db.add(reset_token)
+        db.commit()
+
+        response = anon_client.post(
+            "/auth/reset-password",
+            json={"token": raw_token, "new_password": "short"},
+        )
+        assert response.status_code == 422

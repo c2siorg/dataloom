@@ -56,6 +56,9 @@ export default defineConfig({
           process.env.JWT_SECRET ??
           "e2e-local-jwt-secret-not-for-production-use-only",
         COOKIE_SECURE: process.env.COOKIE_SECURE ?? "false",
+        SMTP_USERNAME: process.env.SMTP_USERNAME ?? "",
+        SMTP_PASSWORD: process.env.SMTP_PASSWORD ?? "",
+        SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL ?? "",
       },
     },
     {

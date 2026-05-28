@@ -55,9 +55,9 @@ export const getCurrentUser = async (): Promise<User> => {
  * @param email - The account's email address.
  * @returns nothing.
  */
-export async function forgotPassword(email: string): Promise<void> {
-  await client.post("/auth/forgot-password", null, { params: { email } });
-}
+export const forgotPassword = async (email: string): Promise<void> => {
+  await client.post("/auth/forgot-password", { email });
+};
 
 /**
  * Reset the account password using a valid reset token.
@@ -65,8 +65,6 @@ export async function forgotPassword(email: string): Promise<void> {
  * @param newPassword - New password to set for the account.
  * @returns Promise that resolves when the password is successfully updated.
  */
-export async function resetPassword(token: string, newPassword: string): Promise<void> {
-  await client.post("/auth/reset-password", null, {
-    params: { token, new_password: newPassword },
-  });
-}
+export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
+  await client.post("/auth/reset-password", { token, new_password: newPassword });
+};

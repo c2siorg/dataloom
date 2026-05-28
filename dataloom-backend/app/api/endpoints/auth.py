@@ -68,3 +68,33 @@ def logout(response: Response):
 def me(current_user: models.User = Depends(get_current_user)):
     """Return the currently authenticated user."""
     return current_user
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: schemas.ForgotPasswordRequest,
+    db: Session = Depends(database.get_db),
+):
+    """Requests a password reset email."""
+    settings = get_settings()
+    user = auth_service.get_user_by_email(db, payload.email)
+    if user:
+        auth_service.create_reset_token(db, user, settings.frontend_url)
+    return {"message": "If that email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: schemas.ResetPasswordRequest,
+    db: Session = Depends(database.get_db),
+):
+    """Reset password using a valid reset token."""
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
+    try:
+        reset_token = auth_service.validate_reset_token(db, payload.token)
+        auth_service.reset_user_password(db, reset_token, payload.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return {"message": "Password reset successful"}

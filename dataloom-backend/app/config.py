@@ -42,9 +42,9 @@ class Settings(BaseSettings):
     cookie_secure: bool = True
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
-    smtp_username: str
-    smtp_password: str
-    smtp_from_email: str
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
     frontend_url: str = "http://localhost:3200"
 
     model_config = {

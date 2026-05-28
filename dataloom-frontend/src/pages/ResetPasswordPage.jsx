@@ -80,7 +80,6 @@ export default function ResetPasswordPage() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 required
-                minLength={8}
                 className={`${INPUT_CLASS} pr-16`}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
