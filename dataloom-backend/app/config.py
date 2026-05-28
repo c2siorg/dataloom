@@ -23,6 +23,11 @@ class Settings(BaseSettings):
         jwt_algorithm: Algorithm used to sign JWT auth tokens.
         jwt_expiry_hours: Lifetime of an issued auth token in hours.
         cookie_secure: Whether the auth cookie is restricted to HTTPS.
+        smtp_host: SMTP server hostname used for sending emails.
+        smtp_port: Port used to connect to the SMTP server.
+        smtp_username: Username/email used for SMTP authentication.
+        smtp_password: Password or app-specific password for SMTP authentication.
+        smtp_from_email: Default sender email address for outgoing emails.
     """
 
     database_url: str
@@ -35,6 +40,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
     cookie_secure: bool = True
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str
+    smtp_password: str
+    smtp_from_email: str
+    frontend_url: str = "http://localhost:3200"
 
     model_config = {
         "env_file": ".env",

@@ -10,6 +10,8 @@ import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
 import Homescreen from "./Components/Homescreen";
 import DataScreen from "./Components/DataScreen";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 /**
  * Root application component with routing, providers, and error boundary.
@@ -24,6 +26,8 @@ export default function App() {
               <Routes>
                 <Route path="/signin" element={<SignInPage />} />
                 <Route path="/signup" element={<SignUpPage />} />
+                <Route path={"/forgot-password"} element={<ForgotPasswordPage />} />
+                <Route path={"/reset-password"} element={<ResetPasswordPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route element={<AppLayout />}>
                     <Route path="/" element={<Navigate to="/projects" replace />} />

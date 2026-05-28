@@ -35,6 +35,21 @@ class User(SQLModel, table=True):
     )
 
 
+class PasswordResetToken(SQLModel, table=True):
+    """Time-limited token for password reset requests."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: uuid_mod.UUID = Field(sa_column=Column(sa.Uuid, sa.ForeignKey("users.id"), nullable=False))
+    token_hash: str = Field(sa_column=Column(sa.String(64), nullable=False, index=True))
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    used: bool = Field(
+        default=False,
+        sa_column=sa.Column(sa.Boolean, server_default="false", nullable=False),
+    )
+
+
 class Project(SQLModel, table=True):
     """A user-uploaded project with metadata and file reference."""
 

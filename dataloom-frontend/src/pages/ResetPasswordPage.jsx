@@ -1,52 +1,61 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { CornerDownLeft } from "lucide-react";
 import AuthLayout from "../Components/auth/AuthLayout";
 import DataLoomLogo from "../Components/common/DataLoomLogo";
-import { useAuth } from "../context/AuthContext";
-import { useToast } from "../context/ToastContext";
+import { resetPassword } from "../api/auth";
 import { ROUTES } from "../constants/routes";
+import { useAuth } from "../context/AuthContext";
 
 const INPUT_CLASS =
   "block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 " +
   "placeholder-gray-400 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
-export default function SignInPage() {
-  const { user, signin } = useAuth();
-  const { showToast } = useToast();
+export default function ResetPasswordPage() {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const next = params.get("next");
 
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const { user } = useAuth();
 
-  // Already signed in — no reason to show the form.
-  if (user) return <Navigate to={ROUTES.home} replace />;
+  if (user) {
+    return <Navigate to={ROUTES.home} replace />;
+  }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setError("");
+
+    if (password !== confirm) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
+    if (!token) {
+      setError("Invalid reset link — please request a new one");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await signin(email, password);
-      navigate(next || ROUTES.home, { replace: true });
-    } catch (err: any) {
-      // `detail` is a string for most errors, but an array of objects for
-      // FastAPI 422 validation failures — only a string is safe to render.
-      const detail = err?.response?.data?.detail;
-      showToast(
-        typeof detail === "string" ? detail : "Could not sign in. Please try again.",
-        "error",
-      );
+      await resetPassword(token, password);
+      navigate(`${ROUTES.signin}?reset=success`);
+    } catch {
+      setError("Invalid or expired reset link. Please request a new one.");
     } finally {
       setSubmitting(false);
     }
   };
-
-  const signupHref = next ? `${ROUTES.signup}?next=${encodeURIComponent(next)}` : ROUTES.signup;
-  const resetSuccess = params.get("reset") === "success";
 
   return (
     <AuthLayout>
@@ -55,88 +64,77 @@ export default function SignInPage() {
           <DataLoomLogo className="h-6 w-6" />
           <span className="text-xl font-semibold text-slate-900">DataLoom</span>
         </div>
-        <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">Welcome back</h2>
-        <p className="mt-1.5 text-sm text-gray-500">Continue to your workspace.</p>
+        <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">Reset password</h2>
+        <p className="mt-1.5 text-sm text-gray-500">Enter your new password below.</p>
       </div>
-
-      {resetSuccess && (
-  <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
-    Password reset successfully. Please sign in with your new password.
-  </div>
-)}
 
       <form onSubmit={handleSubmit} className="mt-8">
         <div className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              className={INPUT_CLASS}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
-          <div>
             <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
-              Password
+              New password
             </label>
             <div className="relative">
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
+                autoComplete="new-password"
                 required
+                minLength={8}
                 className={`${INPUT_CLASS} pr-16`}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                placeholder="Minimum 8 characters"
               />
               <button
                 type="button"
-                onClick={() => setShowPassword((visible) => !visible)}
+                onClick={() => setShowPassword((v) => !v)}
                 className="absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-medium tracking-wide text-gray-400 transition-colors hover:text-gray-600"
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-
-            <div className="flex justify-end mt-2">
-              <Link
-                to={ROUTES.forgotPassword}
-                className="text-xs text-gray-500 hover:text-accent hover:underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
+          </div>
+          <div>
+            <label htmlFor="confirm" className="mb-1.5 block text-sm font-medium text-gray-700">
+              Confirm password
+            </label>
+            <input
+              id="confirm"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              required
+              className={INPUT_CLASS}
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+              placeholder="Repeat your password"
+            />
           </div>
         </div>
+
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
         <button
           type="submit"
           disabled={submitting}
           className="mt-6 flex w-full items-center justify-between rounded-lg bg-accent px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <span>{submitting ? "Signing in…" : "Continue"}</span>
+          <span>{submitting ? "Resetting…" : "Reset password"}</span>
           {!submitting && (
             <span className="flex h-6 w-6 items-center justify-center">
               <CornerDownLeft className="h-3.5 w-3.5" />
             </span>
           )}
         </button>
-
       </form>
 
       <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6 text-sm">
-        <span className="text-gray-500">New to DataLoom?</span>
+        <span className="text-gray-500">Remember your password?</span>
         <Link
-          to={signupHref}
+          to={ROUTES.signin}
           className="flex items-center gap-1 font-semibold text-accent-hover hover:text-blue-700 hover:underline"
         >
-          Create account
+          Back to sign in
         </Link>
       </div>
     </AuthLayout>

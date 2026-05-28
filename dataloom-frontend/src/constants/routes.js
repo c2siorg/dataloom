@@ -10,6 +10,10 @@ export const ROUTES = {
   signin: "/signin",
   /** Sign-up page path */
   signup: "/signup",
+  /** Forgot-password page path */
+  forgotPassword: "/forgot-password",
+  /** Reset-password page path */
+  resetPassword: "/reset-password",
   /** Workspace view path */
   workspace: "/workspace/:projectId",
   /**
