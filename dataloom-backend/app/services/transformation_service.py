@@ -4,9 +4,12 @@ Each function takes a DataFrame and parameters, returns a new DataFrame.
 No side effects -- saving to disk is handled by the caller.
 """
 
+from collections.abc import Callable
+from dataclasses import dataclass
+
 import pandas as pd
 
-from app.schemas import MeltParams
+from app.schemas import MeltParams, OperationType
 from app.utils.logging import get_logger
 from app.utils.security import validate_query_string
 
@@ -620,12 +623,221 @@ def sample_rows(df: pd.DataFrame, sample_size: int, random_seed: int | None = No
     return sampled.reset_index(drop=True)
 
 
+@dataclass(frozen=True)
+class TransformationSpec:
+    """Describes how to validate, dispatch, and persist one transformation.
+
+    Attributes:
+        func: Name of the pure transformation function in this module, resolved at
+            dispatch time as ``func(df, *args)``. Stored as a name (not a direct
+            reference) so the function stays a patchable module-level seam.
+        params_field: Key of this transformation's parameters on the serialized
+            ``TransformationInput`` dict (and on a log entry's ``action_details``).
+            ``None`` means the transformation takes no parameter object.
+        missing_error: Client-facing 400 detail raised by the execution path when
+            ``params_field`` is absent. ``None`` skips the presence check (the
+            parameters are optional, e.g. dropNa).
+        persist: Whether a successful result is saved to disk and logged. Read-only
+            previews (advanced query, pivot, melt) set this to ``False``.
+        build_args: Maps the full serialized details dict to the positional args
+            passed to ``func`` after ``df``.
+        replay_tolerant: When ``True``, a replay whose parameters are missing/
+            incomplete is skipped (returns ``df`` unchanged) instead of raising.
+    """
+
+    func: str
+    params_field: str | None
+    missing_error: str | None
+    persist: bool
+    build_args: Callable[[dict], tuple]
+    replay_tolerant: bool = False
+
+
+def _col_params(details: dict, field: str) -> dict:
+    """Resolve column params, falling back to the legacy ``col_params`` log key."""
+    return details.get(field) or details.get("col_params")
+
+
+def resolve_transformation(name: str) -> Callable[..., pd.DataFrame]:
+    """Resolve a registry function name to the current module-level callable.
+
+    Looked up dynamically so tests (and any future wrapping) can patch the
+    function on this module and have both the execution and replay paths honor it.
+    """
+    return globals()[name]
+
+
+TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
+    OperationType.filter: TransformationSpec(
+        func="apply_filter",
+        params_field="parameters",
+        missing_error="Filter parameters required",
+        persist=True,
+        build_args=lambda d: (d["parameters"]["column"], d["parameters"]["condition"], d["parameters"]["value"]),
+    ),
+    OperationType.sort: TransformationSpec(
+        func="apply_sort",
+        params_field="sort_params",
+        missing_error="Sort parameters required",
+        persist=True,
+        build_args=lambda d: (d["sort_params"]["column"], d["sort_params"]["ascending"]),
+    ),
+    OperationType.addRow: TransformationSpec(
+        func="add_row",
+        params_field="row_params",
+        missing_error="Row parameters required",
+        persist=True,
+        build_args=lambda d: (d["row_params"]["index"],),
+    ),
+    OperationType.delRow: TransformationSpec(
+        func="delete_row",
+        params_field="row_params",
+        missing_error="Row parameters required",
+        persist=True,
+        build_args=lambda d: (d["row_params"]["index"],),
+    ),
+    OperationType.addCol: TransformationSpec(
+        func="add_column",
+        params_field="add_col_params",
+        missing_error="Column parameters required",
+        persist=True,
+        build_args=lambda d: (
+            _col_params(d, "add_col_params")["index"],
+            _col_params(d, "add_col_params")["name"],
+        ),
+    ),
+    OperationType.delCol: TransformationSpec(
+        func="delete_column",
+        params_field="del_col_params",
+        missing_error="Column index required",
+        persist=True,
+        build_args=lambda d: (_col_params(d, "del_col_params")["index"],),
+    ),
+    OperationType.changeCellValue: TransformationSpec(
+        func="change_cell_value",
+        params_field="change_cell_value",
+        missing_error="Cell value parameters required",
+        persist=True,
+        build_args=lambda d: (
+            d["change_cell_value"]["row_index"],
+            d["change_cell_value"]["col_index"],
+            d["change_cell_value"]["fill_value"],
+        ),
+    ),
+    OperationType.fillEmpty: TransformationSpec(
+        func="fill_empty",
+        params_field="fill_empty_params",
+        missing_error="Fill parameters required",
+        persist=True,
+        build_args=lambda d: (d["fill_empty_params"]["fill_value"], d["fill_empty_params"].get("index")),
+    ),
+    OperationType.renameCol: TransformationSpec(
+        func="rename_column",
+        params_field="rename_col_params",
+        missing_error="Rename column parameters required",
+        persist=True,
+        build_args=lambda d: (d["rename_col_params"]["col_index"], d["rename_col_params"]["new_name"]),
+    ),
+    OperationType.castDataType: TransformationSpec(
+        func="cast_data_type",
+        params_field="cast_data_type_params",
+        missing_error="Cast data type parameters required",
+        persist=True,
+        build_args=lambda d: (d["cast_data_type_params"]["column"], d["cast_data_type_params"]["target_type"]),
+    ),
+    OperationType.trimWhitespace: TransformationSpec(
+        func="trim_whitespace",
+        params_field="trim_whitespace_params",
+        missing_error="Trim whitespace parameters required",
+        persist=True,
+        build_args=lambda d: (d["trim_whitespace_params"]["column"],),
+    ),
+    OperationType.sample: TransformationSpec(
+        func="sample_rows",
+        params_field="sample_params",
+        missing_error="Sample parameters required",
+        persist=True,
+        build_args=lambda d: (d["sample_params"]["sample_size"], d["sample_params"].get("random_seed")),
+    ),
+    OperationType.stringReplace: TransformationSpec(
+        func="string_replace",
+        params_field="string_replace_params",
+        missing_error="String replace parameters required",
+        persist=True,
+        build_args=lambda d: (
+            d["string_replace_params"]["column"],
+            d["string_replace_params"]["find_value"],
+            d["string_replace_params"]["replace_value"],
+        ),
+        replay_tolerant=True,
+    ),
+    OperationType.dropDuplicate: TransformationSpec(
+        func="drop_duplicates",
+        params_field="drop_duplicate",
+        missing_error="Drop duplicate parameters required",
+        persist=True,
+        build_args=lambda d: (d["drop_duplicate"]["columns"], d["drop_duplicate"]["keep"]),
+    ),
+    OperationType.advQueryFilter: TransformationSpec(
+        func="advanced_query",
+        params_field="adv_query",
+        missing_error="Query parameter required",
+        persist=False,
+        build_args=lambda d: (d["adv_query"]["query"],),
+    ),
+    OperationType.pivotTables: TransformationSpec(
+        func="pivot_table",
+        params_field="pivot_query",
+        missing_error="Pivot parameters required",
+        persist=False,
+        build_args=lambda d: (
+            d["pivot_query"]["index"],
+            d["pivot_query"]["value"],
+            d["pivot_query"]["column"],
+            d["pivot_query"]["aggfun"],
+        ),
+    ),
+    OperationType.dropNa: TransformationSpec(
+        func="drop_na",
+        params_field="drop_na_params",
+        missing_error=None,
+        persist=True,
+        build_args=lambda d: ((d.get("drop_na_params") or {}).get("columns"),),
+    ),
+    OperationType.melt: TransformationSpec(
+        func="melt_dataframe",
+        params_field="melt_params",
+        missing_error="Melt parameters required",
+        persist=False,
+        build_args=lambda d: (d["melt_params"],),
+    ),
+    OperationType.groupby: TransformationSpec(
+        func="group_by",
+        params_field="groupby_params",
+        missing_error="GroupBy parameters required",
+        persist=True,
+        build_args=lambda d: (
+            d["groupby_params"]["columns"],
+            d["groupby_params"]["agg_column"],
+            d["groupby_params"]["agg_function"],
+        ),
+    ),
+}
+
+# Fail loudly at import if a new OperationType is added without a registry entry,
+# keeping the enum and the registry from drifting apart.
+_missing = set(OperationType) - set(TRANSFORMATION_REGISTRY)
+if _missing:
+    raise RuntimeError(f"OperationType members missing a TRANSFORMATION_REGISTRY entry: {sorted(_missing)}")
+
+
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.
 
     Used by the save endpoint to apply pending transformations to the original
     dataset file. Each action_details dict contains the serialized parameters
-    from the original TransformationInput.
+    from the original TransformationInput, so dispatch resolves through the same
+    TRANSFORMATION_REGISTRY the execution path uses.
 
     Args:
         df: Source DataFrame.
@@ -638,88 +850,17 @@ def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_detai
     Raises:
         TransformationError: If the transformation cannot be applied.
     """
-    if action_type == "filter":
-        params = action_details["parameters"]
-        return apply_filter(df, params["column"], params["condition"], params["value"])
-
-    elif action_type == "sort":
-        params = action_details["sort_params"]
-        return apply_sort(df, params["column"], params["ascending"])
-
-    elif action_type == "addRow":
-        index = action_details["row_params"]["index"]
-        return add_row(df, index)
-
-    elif action_type == "delRow":
-        index = action_details["row_params"]["index"]
-        return delete_row(df, index)
-
-    elif action_type == "addCol":
-        params = action_details.get("add_col_params") or action_details.get("col_params")
-        index = params["index"]
-        column_name = params["name"]
-        return add_column(df, index, column_name)
-
-    elif action_type == "delCol":
-        params = action_details.get("del_col_params") or action_details.get("col_params")
-        index = params["index"]
-        return delete_column(df, index)
-
-    elif action_type == "changeCellValue":
-        row_index = action_details["change_cell_value"]["row_index"]
-        col_index = action_details["change_cell_value"]["col_index"]
-        new_value = action_details["change_cell_value"]["fill_value"]
-        return change_cell_value(df, row_index, col_index, new_value)
-
-    elif action_type == "fillEmpty":
-        fill_value = action_details["fill_empty_params"]["fill_value"]
-        column_index = action_details["fill_empty_params"].get("index")
-        return fill_empty(df, fill_value, column_index)
-
-    elif action_type == "dropDuplicate":
-        columns = action_details["drop_duplicate"]["columns"]
-        keep = action_details["drop_duplicate"]["keep"]
-        return drop_duplicates(df, columns, keep)
-
-    elif action_type == "renameCol":
-        col_index = action_details["rename_col_params"]["col_index"]
-        new_name = action_details["rename_col_params"]["new_name"]
-        return rename_column(df, col_index, new_name)
-
-    elif action_type == "castDataType":
-        column = action_details["cast_data_type_params"]["column"]
-        target_type = action_details["cast_data_type_params"]["target_type"]
-        return cast_data_type(df, column, target_type)
-
-    elif action_type == "trimWhitespace":
-        column = action_details["trim_whitespace_params"]["column"]
-        return trim_whitespace(df, column)
-
-    elif action_type == "dropNa":
-        columns = (action_details.get("drop_na_params") or {}).get("columns")
-        return drop_na(df, columns)
-
-    elif action_type == "melt":
-        params = action_details["melt_params"]
-        return melt_dataframe(df, params)
-    elif action_type == "groupby":
-        params = action_details["groupby_params"]
-        return group_by(df, params["columns"], params["agg_column"], params["agg_function"])
-
-    elif action_type == "sample":
-        params = action_details["sample_params"]
-        return sample_rows(df, params["sample_size"], params.get("random_seed"))
-
-    elif action_type == "stringReplace":
-        params = action_details.get("string_replace_params", {})
-        column = params.get("column")
-        find_value = params.get("find_value")
-        replace_value = params.get("replace_value")
-        if not column or find_value is None or replace_value is None:
-            logger.warning("Missing params for stringReplace replay: %s", action_details)
-            return df
-        return string_replace(df, column, find_value, replace_value)
-
-    else:
+    spec = TRANSFORMATION_REGISTRY.get(action_type)
+    if spec is None:
         logger.warning("Unknown action type in log replay: %s", action_type)
         raise TransformationError(f"Unknown action type in log replay: {action_type}")
+
+    try:
+        args = spec.build_args(action_details)
+    except (KeyError, TypeError):
+        if spec.replay_tolerant:
+            logger.warning("Missing params for %s replay: %s", action_type, action_details)
+            return df
+        raise
+
+    return resolve_transformation(spec.func)(df, *args)
