@@ -20,7 +20,6 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
-COMPLEX_OPERATIONS = {"dropDuplicate", "advQueryFilter", "pivotTables", "dropNa", "melt", "groupby"}
 SAFE_TRANSFORMATION_ERROR_DETAIL = "Invalid transformation request"
 
 _SENSITIVE_TOKEN_MARKERS = (
@@ -78,141 +77,27 @@ def _safe_http_exception_detail(error: HTTPException) -> str | None:
     return None
 
 
-def _handle_basic_transform(df, transformation_input, project, db, project_id):
-    """Apply a basic transformation and optionally persist changes.
+def _dispatch_transform(df, transformation_input):
+    """Resolve and apply a transformation via the shared registry.
 
-    For operations that modify data (addRow, delRow, addCol, delCol, changeCellValue, fillEmpty),
-    saves to disk and logs the transformation. For read-only operations (filter, sort),
-    only returns the result.
-
-    Returns:
-        Tuple of (result_df, should_save).
-    """
-    op = transformation_input.operation_type
-
-    if op == "filter":
-        if not transformation_input.parameters:
-            raise HTTPException(status_code=400, detail="Filter parameters required")
-        p = transformation_input.parameters
-        return ts.apply_filter(df, p.column, p.condition, p.value), True
-
-    elif op == "sort":
-        if not transformation_input.sort_params:
-            raise HTTPException(status_code=400, detail="Sort parameters required")
-        p = transformation_input.sort_params
-        return ts.apply_sort(df, p.column, p.ascending), True
-
-    elif op == "addRow":
-        if not transformation_input.row_params:
-            raise HTTPException(status_code=400, detail="Row parameters required")
-        return ts.add_row(df, transformation_input.row_params.index), True
-
-    elif op == "delRow":
-        if not transformation_input.row_params:
-            raise HTTPException(status_code=400, detail="Row parameters required")
-        return ts.delete_row(df, transformation_input.row_params.index), True
-
-    elif op == "addCol":
-        if not transformation_input.add_col_params:
-            raise HTTPException(status_code=400, detail="Column parameters required")
-        p = transformation_input.add_col_params
-        return ts.add_column(df, p.index, p.name), True
-
-    elif op == "delCol":
-        if not transformation_input.del_col_params:
-            raise HTTPException(status_code=400, detail="Column index required")
-        return ts.delete_column(df, transformation_input.del_col_params.index), True
-
-    elif op == "changeCellValue":
-        if not transformation_input.change_cell_value:
-            raise HTTPException(status_code=400, detail="Cell value parameters required")
-        p = transformation_input.change_cell_value
-        return ts.change_cell_value(df, p.row_index, p.col_index, p.fill_value), True
-
-    elif op == "fillEmpty":
-        if not transformation_input.fill_empty_params:
-            raise HTTPException(status_code=400, detail="Fill parameters required")
-        p = transformation_input.fill_empty_params
-        return ts.fill_empty(df, p.fill_value, p.index), True
-
-    elif op == "renameCol":
-        if not transformation_input.rename_col_params:
-            raise HTTPException(status_code=400, detail="Rename column parameters required")
-        p = transformation_input.rename_col_params
-        return ts.rename_column(df, p.col_index, p.new_name), True
-
-    elif op == "castDataType":
-        if not transformation_input.cast_data_type_params:
-            raise HTTPException(status_code=400, detail="Cast data type parameters required")
-        p = transformation_input.cast_data_type_params
-        return ts.cast_data_type(df, p.column, p.target_type), True
-
-    elif op == "trimWhitespace":
-        if not transformation_input.trim_whitespace_params:
-            raise HTTPException(status_code=400, detail="Trim whitespace parameters required")
-        p = transformation_input.trim_whitespace_params
-        return ts.trim_whitespace(df, p.column), True
-
-    elif op == "sample":
-        if not transformation_input.sample_params:
-            raise HTTPException(status_code=400, detail="Sample parameters required")
-        p = transformation_input.sample_params
-        return ts.sample_rows(df, p.sample_size, p.random_seed), True
-
-    elif op == "stringReplace":
-        if not transformation_input.string_replace_params:
-            raise HTTPException(status_code=400, detail="String replace parameters required")
-        p = transformation_input.string_replace_params
-        return ts.string_replace(df, p.column, p.find_value, p.replace_value), True
-
-    else:
-        raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
-
-
-def _handle_complex_transform(df, transformation_input, project, db, project_id):
-    """Apply a complex transformation.
+    Validates that the required parameters are present, then calls the registered
+    transformation function. The same registry drives the replay path
+    (``apply_logged_transformation``), so the two cannot drift apart.
 
     Returns:
         Tuple of (result_df, should_save).
     """
     op = transformation_input.operation_type
-
-    if op == "dropDuplicate":
-        if not transformation_input.drop_duplicate:
-            raise HTTPException(status_code=400, detail="Drop duplicate parameters required")
-        p = transformation_input.drop_duplicate
-        return ts.drop_duplicates(df, p.columns, p.keep), True
-
-    elif op == "advQueryFilter":
-        if not transformation_input.adv_query:
-            raise HTTPException(status_code=400, detail="Query parameter required")
-        return ts.advanced_query(df, transformation_input.adv_query.query), False
-
-    elif op == "pivotTables":
-        if not transformation_input.pivot_query:
-            raise HTTPException(status_code=400, detail="Pivot parameters required")
-        p = transformation_input.pivot_query
-        return ts.pivot_table(df, p.index, p.value, p.column, p.aggfun), False
-
-    elif op == "dropNa":
-        columns = None
-        if transformation_input.drop_na_params:
-            columns = transformation_input.drop_na_params.columns
-        return ts.drop_na(df, columns), True
-
-    elif op == "melt":
-        if not transformation_input.melt_params:
-            raise HTTPException(status_code=400, detail="Melt parameters required")
-        return ts.melt_dataframe(df, transformation_input.melt_params), False
-
-    elif op == "groupby":
-        if not transformation_input.groupby_params:
-            raise HTTPException(status_code=400, detail="GroupBy parameters required")
-        p = transformation_input.groupby_params
-        return ts.group_by(df, p.columns, p.agg_column, p.agg_function), True
-
-    else:
+    spec = ts.TRANSFORMATION_REGISTRY.get(op)
+    if spec is None:
         raise HTTPException(status_code=400, detail=f"Unsupported operation: {op}")
+
+    details = transformation_input.dict()
+    if spec.params_field is not None and details.get(spec.params_field) is None:
+        raise HTTPException(status_code=400, detail=spec.missing_error)
+
+    func = ts.resolve_transformation(spec.func)
+    return func(df, *spec.build_args(details)), spec.persist
 
 
 @router.post("/{project_id}/transform", response_model=schemas.BasicQueryResponse)
@@ -234,10 +119,7 @@ async def transform_project(
     try:
         df = read_csv_safe(project.file_path)
 
-        if operation_type in COMPLEX_OPERATIONS:
-            result_df, should_save = _handle_complex_transform(df, transformation_input, project, db, project_id)
-        else:
-            result_df, should_save = _handle_basic_transform(df, transformation_input, project, db, project_id)
+        result_df, should_save = _dispatch_transform(df, transformation_input)
 
         if should_save:
             save_csv_safe(result_df, project.file_path)
