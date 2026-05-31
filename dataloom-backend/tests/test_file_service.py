@@ -1,12 +1,13 @@
 """Unit tests for file_service.store_upload() validations."""
 
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from app.config import get_settings
-from app.services.file_service import store_upload
+from app.services.file_service import _copy_path_for, get_original_path, store_upload
 
 
 class MockUploadFile:
@@ -52,23 +53,39 @@ class TestStoreUploadExtension:
             # Should not raise
             store_upload(file)
 
-    def test_non_csv_raises_value_error(self):
-        """A non-.csv file must raise ValueError before touching the disk."""
-        file = MockUploadFile("report.xlsx")
-        with pytest.raises(ValueError, match="Only CSV files are supported. Got: .xlsx"):
+    @pytest.mark.parametrize("filename", ["data.tsv", "data.json", "report.xlsx", "data.parquet"])
+    def test_supported_formats_are_accepted(self, filename, tmp_path):
+        """Every registered non-CSV format must pass extension validation."""
+        file = MockUploadFile(filename)
+        original = tmp_path / filename
+
+        with (
+            patch("app.services.file_service.sanitize_filename", return_value=filename),
+            patch("app.services.file_service.resolve_upload_path", return_value=original),
+            patch("shutil.copy2"),
+        ):
+            result_original, result_copy = store_upload(file)
+
+        ext = original.suffix
+        assert str(result_copy).endswith(f"_copy{ext}")
+
+    def test_unsupported_format_raises_value_error(self):
+        """A file in an unregistered format must raise ValueError before touching disk."""
+        file = MockUploadFile("notes.txt")
+        with pytest.raises(ValueError, match="Unsupported file format '.txt'"):
             store_upload(file)
 
     def test_exe_file_raises_value_error(self):
         """An .exe file must raise ValueError."""
         file = MockUploadFile("malware.exe")
-        with pytest.raises(ValueError, match="Only CSV files are supported. Got: .exe"):
+        with pytest.raises(ValueError, match="Unsupported file format '.exe'"):
             store_upload(file)
 
     def test_no_extension_raises_value_error(self):
         """A filename with no extension must raise ValueError."""
         file = MockUploadFile("nodotfile")
-        # Path("nodotfile").suffix == "" → treated as non-.csv
-        with pytest.raises(ValueError, match="Only CSV files are supported. Got:"):
+        # Path("nodotfile").suffix == "" → unsupported format
+        with pytest.raises(ValueError, match="Unsupported file format"):
             store_upload(file)
 
     def test_error_message_includes_actual_extension(self):
@@ -76,6 +93,32 @@ class TestStoreUploadExtension:
         file = MockUploadFile("archive.zip")
         with pytest.raises(ValueError, match=r"\.zip"):
             store_upload(file)
+
+
+# ---------------------------------------------------------------------------
+# TestCopyOriginalPaths — the naming logic the multi-format refactor depends on
+# ---------------------------------------------------------------------------
+
+
+class TestCopyOriginalPaths:
+    """Working copy must keep the native extension, and the original must be
+    recoverable from it for any supported format. This is the exact bug the
+    refactor fixed (the old code hardcoded .csv)."""
+
+    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xlsx", ".parquet"])
+    def test_copy_path_preserves_extension(self, ext):
+        original = Path(f"/uploads/abc123_data{ext}")
+        assert _copy_path_for(original) == Path(f"/uploads/abc123_data_copy{ext}")
+
+    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xlsx", ".parquet"])
+    def test_original_recovered_from_copy(self, ext):
+        copy = f"/uploads/abc123_data_copy{ext}"
+        assert get_original_path(copy) == Path(f"/uploads/abc123_data{ext}")
+
+    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xlsx", ".parquet"])
+    def test_round_trip_is_stable(self, ext):
+        original = Path(f"/uploads/x_report{ext}")
+        assert get_original_path(str(_copy_path_for(original))) == original
 
 
 # ---------------------------------------------------------------------------
