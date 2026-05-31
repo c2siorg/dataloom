@@ -1,4 +1,4 @@
-"""Pandas utility functions for safe CSV operations and response building."""
+"""Pandas utility functions for safe multi-format I/O and response building."""
 
 from pathlib import Path
 from typing import Any
@@ -6,41 +6,49 @@ from typing import Any
 import pandas as pd
 from fastapi import HTTPException
 
+from app.utils.file_formats import get_format
 
-def read_csv_safe(path: Path) -> pd.DataFrame:
-    """Read a CSV file safely with error handling.
+
+def read_table_safe(path: Path) -> pd.DataFrame:
+    """Read a dataset file safely, dispatching on its format, with error handling.
+
+    The format is resolved from the file extension via the format registry, so
+    CSV/TSV/JSON/XLSX/Parquet all flow through this single helper.
 
     Args:
-        path: Path to the CSV file.
+        path: Path to the dataset file.
 
     Returns:
-        DataFrame with the CSV contents.
+        DataFrame with the file contents.
 
     Raises:
-        HTTPException: If the file cannot be read.
+        HTTPException: 404 if the file is missing, 400 if the contents are
+            invalid for the format (e.g. JSON nested too deeply), 500 otherwise.
     """
     try:
-        return pd.read_csv(path)
+        return get_format(path).read(Path(path))
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"CSV file not found: {path}") from None
+        raise HTTPException(status_code=404, detail=f"File not found: {path}") from None
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading CSV: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}") from e
 
 
-def save_csv_safe(df: pd.DataFrame, path: Path) -> None:
-    """Save a DataFrame to CSV safely.
+def save_table_safe(df: pd.DataFrame, path: Path) -> None:
+    """Save a DataFrame safely, dispatching on the destination file's format.
 
     Args:
         df: DataFrame to save.
-        path: Destination file path.
+        path: Destination file path; its extension selects the writer.
 
     Raises:
         HTTPException: If the file cannot be saved.
     """
     try:
-        df.to_csv(path, index=False)
+        get_format(path).write(df, Path(path))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error saving CSV: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}") from e
 
 
 def _map_dtype(dtype) -> str:

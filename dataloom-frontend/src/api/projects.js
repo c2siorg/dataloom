@@ -68,15 +68,18 @@ export const revertToCheckpoint = async (projectId, checkpointId) => {
 };
 
 /**
- * Export the current working copy of a project as a CSV download.
+ * Export the current working copy of a project in its native format.
  * @param {string} projectId - The project ID.
- * @returns {Promise<Blob>} The CSV file as a Blob.
+ * @returns {Promise<{blob: Blob, filename: string|null}>} The file blob and the
+ *   server-provided download filename (parsed from Content-Disposition).
  */
 export const exportProject = async (projectId) => {
   const response = await client.get(`/projects/${projectId}/export`, {
     responseType: "blob",
   });
-  return response.data;
+  const disposition = response.headers["content-disposition"] || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  return { blob: response.data, filename: match ? match[1] : null };
 };
 
 /**

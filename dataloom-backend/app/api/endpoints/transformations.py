@@ -14,7 +14,7 @@ from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
 from app.services.project_service import log_transformation
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
 
 logger = get_logger(__name__)
 
@@ -67,9 +67,9 @@ def _safe_http_exception_detail(error: HTTPException) -> str | None:
     if error.status_code >= 500:
         return "Internal server error"
 
-    # Utility-layer CSV 404s may embed absolute paths.
-    if error.status_code == 404 and "csv file not found" in lowered:
-        return "CSV file not found"
+    # Utility-layer file 404s may embed absolute paths.
+    if error.status_code == 404 and "file not found" in lowered:
+        return "File not found"
 
     if detail and (re.search(r"[A-Za-z]:\\[^\\\n]+", detail) or re.search(r"/(?:[^/\n]+/)+[^/\n]+", detail)):
         return "Resource not found" if error.status_code == 404 else "Internal server error"
@@ -117,19 +117,19 @@ async def transform_project(
     operation_type = getattr(transformation_input, "operation_type", "<unknown>")
 
     try:
-        df = read_csv_safe(project.file_path)
+        df = read_table_safe(project.file_path)
 
         result_df, should_save = _dispatch_transform(df, transformation_input)
 
         if should_save:
-            save_csv_safe(result_df, project.file_path)
+            save_table_safe(result_df, project.file_path)
             try:
                 log_transformation(db, project_id, operation_type, transformation_input.dict())
             except Exception:
                 # Compensate disk mutation if audit logging fails to avoid a
                 # partially persisted state (file changed without log entry).
                 try:
-                    save_csv_safe(df, project.file_path)
+                    save_table_safe(df, project.file_path)
                 except Exception:
                     logger.exception(
                         "Failed to restore project file after log_transformation failure for project_id=%s op=%s",
