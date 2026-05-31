@@ -3,7 +3,7 @@
 import pytest
 from fastapi import HTTPException
 
-from app.utils.pandas_helpers import read_csv_safe
+from app.utils.pandas_helpers import read_table_safe
 
 
 @pytest.fixture
@@ -47,13 +47,13 @@ def test_transform_maps_transformation_error_to_400(client, project_id):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_transform_redacts_csv_not_found_path_detail(client, project_id, monkeypatch):
+def test_transform_redacts_file_not_found_path_detail(client, project_id, monkeypatch):
     from app.api.endpoints import transformations as transformations_endpoint
 
     def boom(*args, **kwargs):
-        raise HTTPException(status_code=404, detail="CSV file not found: /tmp/private/uploads/project.csv")
+        raise HTTPException(status_code=404, detail="File not found: /tmp/private/uploads/project.csv")
 
-    monkeypatch.setattr(transformations_endpoint, "read_csv_safe", boom)
+    monkeypatch.setattr(transformations_endpoint, "read_table_safe", boom)
 
     response = client.post(
         f"/projects/{project_id}/transform",
@@ -64,7 +64,7 @@ def test_transform_redacts_csv_not_found_path_detail(client, project_id, monkeyp
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "CSV file not found"
+    assert response.json()["detail"] == "File not found"
 
 
 def test_transform_redacts_internal_http_exception_detail(client, project_id, monkeypatch):
@@ -76,7 +76,7 @@ def test_transform_redacts_internal_http_exception_detail(client, project_id, mo
             detail="Error reading CSV: [Errno 13] Permission denied: /tmp/private/uploads/project.csv",
         )
 
-    monkeypatch.setattr(transformations_endpoint, "read_csv_safe", boom)
+    monkeypatch.setattr(transformations_endpoint, "read_table_safe", boom)
 
     response = client.post(
         f"/projects/{project_id}/transform",
@@ -160,7 +160,7 @@ def test_transform_returns_500_on_unexpected_exception_during_persistence(client
         raise RuntimeError("disk error")
 
     # This path runs only for mutating operations (should_save=True).
-    monkeypatch.setattr(transformations_endpoint, "save_csv_safe", boom)
+    monkeypatch.setattr(transformations_endpoint, "save_table_safe", boom)
 
     response = client.post(
         f"/projects/{project_id}/transform",
@@ -172,13 +172,13 @@ def test_transform_returns_500_on_unexpected_exception_during_persistence(client
 
     assert response.status_code == 500
     assert response.json()["detail"] == "Internal server error"
-    assert calls, "save_csv_safe was never called; persistence path may not have been exercised"
+    assert calls, "save_table_safe was never called; persistence path may not have been exercised"
 
 
 def test_transform_reverts_file_if_log_transformation_fails(client, project, monkeypatch):
     project_id = project["project_id"]
     file_path = project["file_path"]
-    original_df = read_csv_safe(file_path)
+    original_df = read_table_safe(file_path)
 
     from app.api.endpoints import transformations as transformations_endpoint
 
@@ -198,5 +198,5 @@ def test_transform_reverts_file_if_log_transformation_fails(client, project, mon
     assert response.status_code == 500
     assert response.json()["detail"] == "Internal server error"
 
-    restored_df = read_csv_safe(file_path)
+    restored_df = read_table_safe(file_path)
     assert restored_df.equals(original_df)

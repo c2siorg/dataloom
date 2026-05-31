@@ -11,7 +11,7 @@ from app.services.project_service import (
     log_transformation,
 )
 from app.services.transformation_service import add_column, rename_column
-from app.utils.pandas_helpers import read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import read_table_safe, save_table_safe
 
 
 class TestCheckpoint:
@@ -92,8 +92,8 @@ class TestSaveEndpointRegressions:
             db, "Cumulative Save", str(copy_path), "Regression for repeated saves", owner_id=test_user.id
         )
 
-        renamed_df = rename_column(read_csv_safe(project.file_path), 1, "years")
-        save_csv_safe(renamed_df, project.file_path)
+        renamed_df = rename_column(read_table_safe(project.file_path), 1, "years")
+        save_table_safe(renamed_df, project.file_path)
         log_transformation(
             db,
             project.project_id,
@@ -109,8 +109,8 @@ class TestSaveEndpointRegressions:
         first_save = first_save_response.json()
         assert first_save["columns"] == ["name", "years", "city"]
 
-        extended_df = add_column(read_csv_safe(project.file_path), 3, "country")
-        save_csv_safe(extended_df, project.file_path)
+        extended_df = add_column(read_table_safe(project.file_path), 3, "country")
+        save_table_safe(extended_df, project.file_path)
         log_transformation(
             db,
             project.project_id,
@@ -125,4 +125,4 @@ class TestSaveEndpointRegressions:
         assert second_save_response.status_code == 200
         second_save = second_save_response.json()
         assert second_save["columns"] == ["name", "years", "city", "country"]
-        assert read_csv_safe(project.file_path).columns.tolist() == ["name", "years", "city", "country"]
+        assert read_table_safe(project.file_path).columns.tolist() == ["name", "years", "city", "country"]
