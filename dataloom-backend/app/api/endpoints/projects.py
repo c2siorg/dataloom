@@ -23,8 +23,9 @@ from app.services.project_service import (
     get_recent_projects,
 )
 from app.services.transformation_service import apply_logged_transformation
+from app.utils.file_formats import get_format
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_csv_safe, save_csv_safe
+from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -40,16 +41,25 @@ async def upload_project(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Upload a new CSV file for a project.
+    """Upload a new dataset file (CSV, TSV, JSON, XLSX, or Parquet) for a project.
 
-    Validates the file, stores it with a sanitized name, creates a working copy,
-    and returns the initial project data.
+    Validates the file, stores it with a sanitized name, creates a working copy
+    in the same native format, and returns the initial project data.
     """
     logger.info("Upload request: project=%s, file=%s", projectName, file.filename)
     await validate_upload_file(file)
 
     original_path, copy_path = store_upload(file)
-    df = read_csv_safe(original_path)
+    try:
+        df = read_table_safe(original_path)
+    except HTTPException as e:
+        # The just-uploaded file could not be parsed — that's a bad client file,
+        # not a server fault. Discard the orphaned files and report a clean 400.
+        delete_project_files(str(copy_path))
+        if e.status_code >= 500:
+            ext = Path(file.filename).suffix.lower()
+            raise HTTPException(status_code=400, detail=f"Could not parse the uploaded {ext} file.") from e
+        raise
 
     project = create_project(db, projectName, str(copy_path), projectDescription, current_user.id)
 
@@ -74,7 +84,7 @@ async def get_project_details(
     project: models.Project = Depends(get_project_or_404),
 ):
     """Fetch full project details including all rows and columns."""
-    df = read_csv_safe(project.file_path)
+    df = read_table_safe(project.file_path)
 
     total_rows = len(df)
     total_pages = (total_rows + pageSize - 1) // pageSize
@@ -140,7 +150,7 @@ async def save_project(
             detail=f"Project {project_id} working copy is misconfigured; please retry or contact support.",
         )
 
-    df = read_csv_safe(project.file_path)
+    df = read_table_safe(project.file_path)
 
     # Create checkpoint (marks logs as applied)
     checkpoint = create_checkpoint(db, project_id, commit_message)
@@ -174,7 +184,7 @@ async def revert_to_checkpoint(
     uploaded state.
     """
     original_path = get_original_path(project.file_path)
-    df = read_csv_safe(original_path)
+    df = read_table_safe(original_path)
 
     if checkpoint_id is not None:
         checkpoint = (
@@ -214,7 +224,7 @@ async def revert_to_checkpoint(
             df = apply_logged_transformation(df, log.action_type, log.action_details)
 
     # Write file first — if this fails, DB is unchanged and state remains consistent.
-    save_csv_safe(df, project.file_path)
+    save_table_safe(df, project.file_path)
     # Clear unapplied logs so a subsequent save cannot re-apply stale
     # transformations on top of the reverted file state.
     # Applies to all reverts (full and partial) to prevent stale log replay.
@@ -245,8 +255,13 @@ async def revert_to_checkpoint(
 
 @router.get("/{project_id}/export")
 async def export_project(project: models.Project = Depends(get_project_or_404)):
-    """Download the current working copy of a project as a CSV file."""
-    return FileResponse(project.file_path, media_type="text/csv", filename=f"{project.name}.csv")
+    """Download the current working copy of a project in its native format."""
+    fmt = get_format(project.file_path)
+    return FileResponse(
+        project.file_path,
+        media_type=fmt.media_type,
+        filename=f"{project.name}{fmt.extension}",
+    )
 
 
 @router.delete("/{project_id}")
@@ -298,7 +313,7 @@ async def undo_last_transformation(
     delete_change_log(db, last_log)
 
     original_path = get_original_path(project.file_path)
-    df = read_csv_safe(original_path)
+    df = read_table_safe(original_path)
 
     remaining_logs = (
         db.query(models.ProjectChangeLog)
@@ -310,7 +325,7 @@ async def undo_last_transformation(
     for log in remaining_logs:
         df = apply_logged_transformation(df, log.action_type, log.action_details)
 
-    save_csv_safe(df, project.file_path)
+    save_table_safe(df, project.file_path)
     db.commit()
 
     resp = dataframe_to_response(df)
