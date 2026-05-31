@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app import models
@@ -74,15 +75,47 @@ def get_recent_projects(db: Session, owner_id: uuid.UUID, limit: int = 3) -> lis
 def delete_project(db: Session, project: models.Project) -> None:
     """Delete a project record from the database.
 
-    Cascade rules on the model handle deleting associated logs and checkpoints.
+    Associated logs are deleted before checkpoints because applied logs can
+    reference checkpoints directly.
 
     Args:
         db: Database session.
         project: The Project model instance to delete.
     """
-    db.delete(project)
-    db.commit()
-    logger.info("Deleted project: id=%s, name=%s", project.project_id, project.name)
+    project_id = project.project_id
+    project_name = project.name
+
+    try:
+        deleted_logs = (
+            db.query(models.ProjectChangeLog)
+            .filter(models.ProjectChangeLog.project_id == project_id)
+            .delete(synchronize_session=False)
+        )
+        deleted_checkpoints = (
+            db.query(models.Checkpoint)
+            .filter(models.Checkpoint.project_id == project_id)
+            .delete(synchronize_session=False)
+        )
+        deleted_projects = (
+            db.query(models.Project).filter(models.Project.project_id == project_id).delete(synchronize_session=False)
+        )
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Failed to delete project database records: id=%s, name=%s", project_id, project_name)
+        raise
+
+    if deleted_projects == 0:
+        logger.warning("Project delete matched no project row: id=%s, name=%s", project_id, project_name)
+
+    logger.info(
+        "Deleted project: id=%s, name=%s, projects=%d, logs=%d, checkpoints=%d",
+        project_id,
+        project_name,
+        deleted_projects,
+        deleted_logs,
+        deleted_checkpoints,
+    )
 
 
 def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, details: dict) -> None:
