@@ -50,6 +50,21 @@ class TestRoundTrip:
         assert df.columns.tolist() == ["name", "note"]
         assert df.iloc[0]["note"] == "lives in NYC, USA"
 
+    def test_parquet_write_survives_mixed_type_column(self, tmp_path):
+        """A mixed-type object column must not crash the parquet writer.
+
+        pyarrow rejects columns holding e.g. both ints and strings; the writer
+        falls back to stringifying object columns so export never 500s.
+        """
+        df = pd.DataFrame({"id": [1, 2, 3], "val": [10, "oops", 3.5]})
+        path = tmp_path / "mixed.parquet"
+
+        save_table_safe(df, path)  # must not raise
+        result = read_table_safe(path)
+
+        assert result["val"].tolist() == ["10", "oops", "3.5"]
+        assert result["id"].tolist() == [1, 2, 3]
+
     def test_parquet_preserves_dtypes(self, tmp_path):
         """Parquet is binary and should keep integer dtype (unlike CSV)."""
         df = pd.DataFrame({"age": [30, 25]})

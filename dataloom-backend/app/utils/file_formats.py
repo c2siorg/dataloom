@@ -131,7 +131,16 @@ def _read_parquet(path: Path) -> pd.DataFrame:
 
 
 def _write_parquet(df: pd.DataFrame, path: Path) -> None:
-    df.to_parquet(path, index=False)
+    try:
+        df.to_parquet(path, index=False)
+    except (ValueError, TypeError):
+        # pyarrow rejects mixed-type object columns (e.g. a column holding both
+        # ints and strings after cell edits). Stringify object columns and retry
+        # so a parquet write/export never crashes on messy data.
+        coerced = df.copy()
+        obj_cols = coerced.select_dtypes(include="object").columns
+        coerced[obj_cols] = coerced[obj_cols].astype(str)
+        coerced.to_parquet(path, index=False)
 
 
 _FORMATS: dict[str, FileFormat] = {
