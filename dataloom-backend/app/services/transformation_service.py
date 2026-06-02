@@ -75,13 +75,17 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
             raise TransformationError(f"Invalid numeric value: {value}") from None
 
     ops = {
-        "=": lambda: df[df[column].astype(str).str.lower() == str(value).lower()] if col_type == "string" else df[df[column] == value],
-        "!=": lambda: df[df[column].astype(str).str.lower() != str(value).lower()] if col_type == "string" else df[df[column] != value],
+        "=": lambda col, val: (
+            col.astype(str).str.lower() == val.lower() if col.dtype == object else col.astype(float) == float(val)
+        ),
+        "!=": lambda col, val: (
+            col.astype(str).str.lower() != val.lower() if col.dtype == object else col.astype(float) != float(val)
+        ),
         ">": lambda: df[df[column] > value],
         "<": lambda: df[df[column] < value],
         ">=": lambda: df[df[column] >= value],
         "<=": lambda: df[df[column] <= value],
-        "contains": lambda: df[df[column].astype(str).str.contains(value, na=False)],
+        "contains": lambda col, val: col.astype(str).str.contains(val, na=False, case=False),
     }
 
     condition_str = condition.value if hasattr(condition, "value") else str(condition)

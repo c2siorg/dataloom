@@ -37,6 +37,11 @@ def sample_df():
 
 
 class TestFilter:
+    def test_filter_equals_string_case_insensitive(self, sample_df):
+        df = pd.DataFrame({"Payment_Type": ["Cash", "CASH", "cash", "CARD"]})
+        result = apply_filter(df, "Payment_Type", "=", "cash")
+        assert len(result) == 3  # Should match Cash, CASH, cash
+
     def test_filter_equals_string(self, sample_df):
         result = apply_filter(sample_df, "name", "=", "Alice")
         assert len(result) == 1
