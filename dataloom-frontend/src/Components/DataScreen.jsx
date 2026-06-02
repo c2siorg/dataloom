@@ -21,7 +21,7 @@ export default function DataScreen() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full overflow-hidden">
       <MenuNavbar onTransform={handleTransform} projectId={projectId} />
       <Table projectId={projectId} data={tableData} />
     </div>

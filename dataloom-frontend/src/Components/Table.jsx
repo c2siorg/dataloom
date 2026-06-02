@@ -1,6 +1,6 @@
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
@@ -58,21 +58,21 @@ const Table = ({ projectId, data: externalData }) => {
   const [draggedColIndex, setDraggedColIndex] = useState(null);
   const [hoveredTargetIndex, setHoveredTargetIndex] = useState(null);
 
+  const safeOrder = useMemo(() => {
+    return columnOrder.length === ctxColumns.length ? columnOrder : ctxColumns.map((_, i) => i);
+  }, [columnOrder, ctxColumns]);
+
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
-      const orderedColumns =
-        columnOrder.length === ctxColumns.length
-          ? columnOrder.map((i) => ctxColumns[i])
-          : ctxColumns;
-      setColumns(["S.No.", ...orderedColumns]);
+      setColumns(["S.No.", ...safeOrder.map((i) => ctxColumns[i])]);
       setData(
         ctxRows.map((row, index) => [
           (page - 1) * pageSize + index + 1,
-          ...(columnOrder.length === ctxColumns.length ? columnOrder.map((i) => row[i]) : row),
+          ...safeOrder.map((i) => row[i]),
         ]),
       );
     }
-  }, [ctxColumns, ctxRows, page, pageSize, columnOrder]);
+  }, [ctxColumns, ctxRows, page, pageSize, columnOrder, safeOrder]);
 
   useEffect(() => {
     if (externalData) {
@@ -295,11 +295,8 @@ const Table = ({ projectId, data: externalData }) => {
   };
 
   return (
-    <div className="px-8 pt-3">
-      <div
-        className="overflow-x-scroll overflow-y-auto border border-gray-200 rounded-lg shadow-sm"
-        style={{ maxHeight: "calc(100vh - 140px)" }}
-      >
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="min-h-0 m-4 overflow-auto border border-gray-200 rounded-lg shadow-sm">
         <table data-testid="data-table" className="min-w-full bg-white">
           <thead className="sticky top-0 bg-gray-50">
             <tr>
@@ -342,11 +339,7 @@ const Table = ({ projectId, data: externalData }) => {
                           setHoveredTargetIndex(null);
                           return;
                         }
-                        const currentOrder =
-                          columnOrder.length === ctxColumns.length
-                            ? columnOrder
-                            : ctxColumns.map((_, index) => index);
-                        const newOrder = [...currentOrder];
+                        const newOrder = [...safeOrder];
                         const [moved] = newOrder.splice(source, 1);
                         newOrder.splice(target, 0, moved);
                         setColumnOrder(newOrder);
@@ -408,7 +401,7 @@ const Table = ({ projectId, data: externalData }) => {
         </table>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-10">
+      <div className="mt-auto bg-white shadow-lg border-t border-gray-200 z-10">
         <TablePagination
           totalRows={totalRows}
           totalPages={totalPages}
