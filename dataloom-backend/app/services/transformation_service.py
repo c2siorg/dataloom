@@ -75,8 +75,8 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
             raise TransformationError(f"Invalid numeric value: {value}") from None
 
     ops = {
-        "=": lambda: df[df[column] == value],
-        "!=": lambda: df[df[column] != value],
+        "=": lambda: df[df[column].astype(str).str.lower() == str(value).lower()] if col_type == "string" else df[df[column] == value],
+        "!=": lambda: df[df[column].astype(str).str.lower() != str(value).lower()] if col_type == "string" else df[df[column] != value],
         ">": lambda: df[df[column] > value],
         "<": lambda: df[df[column] < value],
         ">=": lambda: df[df[column] >= value],
