@@ -255,8 +255,28 @@ async def delete_project_endpoint(
     project: models.Project = Depends(get_project_or_404),
 ):
     """Delete a project and its associated files."""
-    delete_project_files(project.file_path)
-    delete_project(db, project)
+    project_id = project.project_id
+    project_name = project.name
+    file_path = project.file_path
+
+    logger.info("Delete project request: id=%s, name=%s, file_path=%s", project_id, project_name, file_path)
+
+    try:
+        delete_project(db, project)
+    except SQLAlchemyError as e:
+        logger.exception("Delete project database failure: id=%s, name=%s", project_id, project_name)
+        raise HTTPException(status_code=500, detail="Failed to delete project records.") from e
+
+    try:
+        delete_project_files(file_path)
+    except OSError:
+        logger.exception(
+            "Project database record deleted, but file cleanup failed: id=%s, name=%s, file_path=%s",
+            project_id,
+            project_name,
+            file_path,
+        )
+
     return {"success": True, "message": "Project deleted"}
 
 

@@ -44,6 +44,36 @@ class TestCheckpoint:
 
 
 class TestSaveEndpointRegressions:
+    def test_delete_checkpointed_project_removes_logs_and_checkpoints(self, client, db, test_user, tmp_path):
+        """Deleting a saved project should remove dependent logs before checkpoints."""
+        original_path = tmp_path / "checkpointed.csv"
+        copy_path = tmp_path / "checkpointed_copy.csv"
+        pd.DataFrame({"name": ["Alice"], "age": [30]}).to_csv(original_path, index=False)
+        shutil.copy2(original_path, copy_path)
+
+        project = create_project(
+            db,
+            name="Checkpointed Delete",
+            file_path=str(copy_path),
+            description="Delete regression",
+            owner_id=test_user.id,
+        )
+        log_transformation(
+            db,
+            project.project_id,
+            "renameCol",
+            {"rename_col_params": {"col_index": 1, "new_name": "years"}},
+        )
+        create_checkpoint(db, project.project_id, "saved")
+        project_id = project.project_id
+
+        response = client.delete(f"/projects/{project_id}")
+
+        assert response.status_code == 200
+        assert db.get(models.Project, project_id) is None
+        assert db.query(models.ProjectChangeLog).filter_by(project_id=project_id).count() == 0
+        assert db.query(models.Checkpoint).filter_by(project_id=project_id).count() == 0
+
     def test_second_save_preserves_previously_checkpointed_transforms(self, client, db, test_user, tmp_path):
         """A later save should keep earlier checkpointed transforms intact."""
         original_path = tmp_path / "sample.csv"
