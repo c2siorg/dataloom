@@ -4,7 +4,7 @@ import { uploadProject, getRecentProjects, deleteProject } from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
 import { UploadCloud, FileText, X, Pencil } from "lucide-react";
-import { formatFileSize } from "../utils/fileUtils";
+import { ACCEPTED_EXTENSIONS, formatFileSize, validateFile } from "../utils/fileUtils";
 
 const ProjectCard = ({ project, onClick, onDelete }) => {
   const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
@@ -61,8 +61,6 @@ const NewProjectCard = ({ onClick }) => (
   </button>
 );
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-const ACCEPTED_EXTENSIONS = [".csv", ".tsv", ".json", ".xlsx", ".parquet"];
 const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.join(",");
 
 const EmptyState = ({ onClick }) => (
@@ -198,23 +196,9 @@ const HomeScreen = () => {
 
     if (!file) return;
 
-    const isSupported = ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
-
-    if (!isSupported) {
-      showToast(`Unsupported file type. Allowed: ${ACCEPTED_EXTENSIONS.join(", ")}`, "error");
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      setFileUpload(null);
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-
-      showToast(`File too large (${sizeMB} MB). Maximum allowed size is 10 MB.`, "warning");
+    const validation = validateFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, "warning");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
