@@ -4,7 +4,7 @@ import { uploadProject, getRecentProjects, deleteProject } from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
 import { UploadCloud, FileText, X, Pencil } from "lucide-react";
-import { formatFileSize } from "../utils/fileUtils";
+import { ACCEPTED_EXTENSIONS, formatFileSize, validateFile } from "../utils/fileUtils";
 
 const ProjectCard = ({ project, onClick, onDelete }) => {
   const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
@@ -61,29 +61,7 @@ const NewProjectCard = ({ onClick }) => (
   </button>
 );
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-
-const validateFile = (file) => {
-  if (!file) {
-    return { valid: false, error: "Please select a file to upload" };
-  }
-
-  const isCSV = file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
-  if (!isCSV) {
-    return { valid: false, error: "Please upload a CSV file." };
-  }
-
-  if (file.size === 0) {
-    return { valid: false, error: "File is empty (0 bytes)." };
-  }
-
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-    return { valid: false, error: `File too large (${sizeMB} MB). Maximum allowed size is 10 MB.` };
-  }
-
-  return { valid: true };
-};
+const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.join(",");
 
 const EmptyState = ({ onClick }) => (
   <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
@@ -107,7 +85,7 @@ const EmptyState = ({ onClick }) => (
     </div>
     <h3 className="text-lg font-semibold text-gray-800 mb-1">No projects yet</h3>
     <p className="text-sm text-gray-500 mb-6 max-w-xs">
-      Upload a CSV file to get started. Your recent projects will appear here.
+      Upload a dataset to get started. Your recent projects will appear here.
     </p>
     <button
       type="button"
@@ -220,7 +198,7 @@ const HomeScreen = () => {
 
     const validation = validateFile(file);
     if (!validation.valid) {
-      showToast(validation.error, "error");
+      showToast(validation.error, "warning");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -393,7 +371,8 @@ const HomeScreen = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload Dataset <span className="text-gray-400 font-normal">(CSV)</span>
+                  Upload Dataset{" "}
+                  <span className="text-gray-400 font-normal">(CSV, TSV, JSON, XLSX, Parquet)</span>
                   <span className="text-red-500">*</span>
                 </label>
 
@@ -409,7 +388,7 @@ const HomeScreen = () => {
                       data-testid="file-input"
                       type="file"
                       ref={fileInputRef}
-                      accept=".csv"
+                      accept={ACCEPT_ATTR}
                       className="hidden"
                       onChange={handleFileUpload}
                       required
@@ -423,7 +402,7 @@ const HomeScreen = () => {
 
                       <div>
                         <p className="text-sm font-semibold text-gray-800">
-                          Drag & drop your CSV file here
+                          Drag & drop your dataset here
                         </p>
 
                         <p className="text-sm text-gray-500 mt-1">
@@ -448,7 +427,8 @@ const HomeScreen = () => {
                           </p>
 
                           <p className="text-xs text-gray-500 mt-1">
-                            {formatFileSize(fileUpload.size)} • CSV File
+                            {formatFileSize(fileUpload.size)} •{" "}
+                            {fileUpload.name.split(".").pop().toUpperCase()} File
                           </p>
                         </div>
                       </div>
@@ -477,7 +457,7 @@ const HomeScreen = () => {
                       type="file"
                       data-testid="file-input"
                       ref={fileInputRef}
-                      accept=".csv"
+                      accept={ACCEPT_ATTR}
                       className="hidden"
                       onChange={handleFileUpload}
                     />

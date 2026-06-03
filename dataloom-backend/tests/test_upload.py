@@ -45,13 +45,14 @@ class MockUploadFileNoSize:
 
 class TestValidateUploadFile:
     @pytest.mark.asyncio
-    async def test_csv_accepted(self):
-        file = MockUploadFile("data.csv")
+    @pytest.mark.parametrize("filename", ["data.csv", "data.tsv", "data.json", "data.xlsx", "data.parquet"])
+    async def test_supported_formats_accepted(self, filename):
+        file = MockUploadFile(filename)
         await validate_upload_file(file)
 
     @pytest.mark.asyncio
-    async def test_non_csv_rejected(self):
-        file = MockUploadFile("data.xlsx")
+    async def test_unsupported_format_rejected(self):
+        file = MockUploadFile("data.txt")
         with pytest.raises(HTTPException, match="not allowed"):
             await validate_upload_file(file)
 

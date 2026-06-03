@@ -64,28 +64,6 @@ class AggFunc(StrEnum):
     count = "count"
 
 
-class ActionTypes(StrEnum):
-    """Action types for user log entries."""
-
-    filter = "filter"
-    sort = "sort"
-    addRow = "addRow"
-    delRow = "delRow"
-    addCol = "addCol"
-    delCol = "delCol"
-    fillEmpty = "fillEmpty"
-    dropDuplicate = "dropDuplicate"
-    advQueryFilter = "advQueryFilter"
-    pivotTables = "pivotTables"
-    changeCellValue = "changeCellValue"
-    renameCol = "renameCol"
-    castDataType = "castDataType"
-    trimWhitespace = "trimWhitespace"
-    dropNa = "dropNa"
-    melt = "melt"
-    stringReplace = "stringReplace"
-
-
 # --- Basic transformation parameter schemas ---
 
 
@@ -258,7 +236,7 @@ class UserLogsAction(BaseModel):
     """A user action to log."""
 
     projectId: uuid.UUID
-    actionType: ActionTypes
+    actionType: OperationType
 
 
 class UserLogsInput(BaseModel):

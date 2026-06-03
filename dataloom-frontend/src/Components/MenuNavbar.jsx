@@ -132,11 +132,11 @@ const MenuNavbar = ({ projectId, onTransform }) => {
 
   const handleExport = async () => {
     try {
-      const blob = await exportProject(projectId);
+      const { blob, filename } = await exportProject(projectId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "export.csv";
+      a.download = filename || "export.csv";
       document.body.appendChild(a);
       a.click();
       a.remove();
