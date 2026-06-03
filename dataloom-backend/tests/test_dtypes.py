@@ -65,3 +65,34 @@ class TestDataframeToResponse:
         assert response["columns"] == ["name", "age", "city"]
         assert response["row_count"] == 3
         assert len(response["rows"]) == 3
+
+    def test_preserves_nulls_without_coercing_them_to_empty_strings(self):
+        df = pd.DataFrame(
+            {
+                "maybe_missing": [None, ""],
+                "score": [float("inf"), 5.5],
+                "when": pd.to_datetime(["2024-01-01", None]),
+            }
+        )
+
+        response = dataframe_to_response(df)
+
+        assert response["rows"][0][0] is None
+        assert response["rows"][1][0] == ""
+        assert response["rows"][0][1] is None
+        assert response["rows"][1][1] == 5.5
+        assert response["rows"][0][2] == pd.Timestamp("2024-01-01")
+        assert response["rows"][1][2] is None
+
+    def test_preserves_non_scalar_cells_without_isna_truthiness_errors(self):
+        df = pd.DataFrame(
+            {
+                "payload": [[1, 2], [None], {"ok": True}],
+            }
+        )
+
+        response = dataframe_to_response(df)
+
+        assert response["rows"][0][0] == [1, 2]
+        assert response["rows"][1][0] == [None]
+        assert response["rows"][2][0] == {"ok": True}

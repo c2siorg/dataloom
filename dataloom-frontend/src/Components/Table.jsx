@@ -280,7 +280,9 @@ const Table = ({ projectId, data: externalData }) => {
   const handleCellClick = (rowIndex, cellIndex, cellValue) => {
     if (cellIndex !== 0) {
       setEditingCell({ rowIndex, cellIndex });
-      setEditValue(cellValue);
+      // Coerce null/undefined (missing cells now serialize to null) to "" so the
+      // controlled input stays controlled and never renders the literal "null".
+      setEditValue(cellValue ?? "");
     }
   };
 
