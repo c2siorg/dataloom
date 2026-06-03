@@ -171,6 +171,13 @@ class TestAddDeleteColumnEndpoint:
         )
         assert response.status_code == 422
 
+    def test_add_column_with_blank_name_returns_422(self, client, uploaded_project):
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={"operation_type": "addCol", "add_col_params": {"index": 1, "name": "   "}},
+        )
+        assert response.status_code == 422
+
     def test_add_column_with_legacy_col_params_returns_400(self, client, sample_csv, db):
         with open(sample_csv, "rb") as f:
             response = client.post(
