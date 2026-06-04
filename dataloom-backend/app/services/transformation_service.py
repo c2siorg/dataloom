@@ -99,17 +99,46 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     return ops[condition_str]()
 
 
-def apply_sort(df: pd.DataFrame, column: str, ascending: bool) -> pd.DataFrame:
-    """Sort DataFrame by a column.
+def apply_sort(
+    df: pd.DataFrame,
+    column: str | None = None,
+    ascending: bool = True,
+    criteria: list[dict] | None = None,
+) -> pd.DataFrame:
+    """Sort a DataFrame by one or more columns.
+
+    Supports both single-column (backward compatible) and multi-column sorting.
 
     Args:
         df: Source DataFrame.
-        column: Column name to sort by.
-        ascending: Sort direction.
+        column: Single column name (backward compatible).
+        ascending: Sort direction for single-column sort.
+        criteria: List of dicts with 'column' and 'ascending' keys for multi-column sort.
 
     Returns:
         Sorted DataFrame.
     """
+    if criteria is not None:
+        if len(criteria) == 0:
+            raise TransformationError("At least one sort criterion is required")
+
+        columns = []
+        ascending_list = []
+
+        for criterion in criteria:
+            col_name = criterion.get("column")
+            if not col_name:
+                raise TransformationError("Column name is required for each sort criterion")
+            if col_name not in df.columns:
+                raise TransformationError(f"Column '{col_name}' not found")
+            columns.append(col_name)
+            ascending_list.append(criterion.get("ascending", True))
+
+        return df.sort_values(by=columns, ascending=ascending_list)
+
+    # Single-column mode (backward compatible)
+    if column is None:
+        raise TransformationError("Column name is required for sorting")
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
     return df.sort_values(by=column, ascending=ascending)
@@ -684,7 +713,11 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         params_field="sort_params",
         missing_error="Sort parameters required",
         persist=True,
-        build_args=lambda d: (d["sort_params"]["column"], d["sort_params"]["ascending"]),
+        build_args=lambda d: (
+            d["sort_params"].get("column"),
+            d["sort_params"].get("ascending", True),
+            d["sort_params"].get("criteria"),
+        ),
     ),
     OperationType.addRow: TransformationSpec(
         func="add_row",
