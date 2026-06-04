@@ -18,7 +18,7 @@ const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
 
     try {
       const response = await transformProject(projectId, {
-        transformation_type: STRING_REPLACE,
+        operation_type: STRING_REPLACE,
         string_replace_params: {
           column,
           find_value: findValue,
@@ -30,7 +30,15 @@ const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
       onClose();
     } catch (error) {
       console.error("Error replacing string:", error);
-      showToast(error.response?.data?.detail || "Failed to replace string.", "error");
+      const detail = error.response?.data?.detail;
+      const message =
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? detail.map((e) => e.msg ?? JSON.stringify(e)).join(", ")
+            : "Failed to replace string.";
+
+      showToast(message, "error");
     }
   };
 
