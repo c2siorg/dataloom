@@ -65,7 +65,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [confirmData, setConfirmData] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const { updateData, columns } = useProjectContext();
+  const { updateData } = useProjectContext();
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -424,7 +424,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
-          columns={columns}
+          onTransform={onTransform}
         />
       )}
       {showDropDuplicateForm && (

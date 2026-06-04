@@ -709,7 +709,11 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         params_field="sort_params",
         missing_error="Sort parameters required",
         persist=True,
-        build_args=lambda d: (d["sort_params"]["column"], d["sort_params"]["ascending"]),
+        build_args=lambda d: (
+            d["sort_params"].get("column"),
+            d["sort_params"].get("ascending", True),
+            d["sort_params"].get("criteria"),
+        ),
     ),
     OperationType.addRow: TransformationSpec(
         func="add_row",

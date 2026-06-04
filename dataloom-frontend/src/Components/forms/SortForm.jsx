@@ -5,13 +5,14 @@ import { SORT } from "../../constants/operationTypes";
 import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import ColumnSelect from "../common/ColumnSelect";
 import { useProjectContext } from "../../context/ProjectContext";
 
 /**
  * SortForm component for multi-column sorting.
  * Allows users to add, remove, and reorder multiple sort criteria.
  */
-const SortForm = ({ projectId, columns = [], onClose, onTransform }) => {
+const SortForm = ({ projectId, onClose, onTransform }) => {
   const { updateData } = useProjectContext();
   const [criteria, setCriteria] = useState([{ id: 1, column: "", ascending: true }]);
   const [nextId, setNextId] = useState(2);
@@ -69,7 +70,6 @@ const SortForm = ({ projectId, columns = [], onClose, onTransform }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
     const validationError = validateCriteria();
     if (validationError) {
       setError(validationError);
@@ -98,8 +98,6 @@ const SortForm = ({ projectId, columns = [], onClose, onTransform }) => {
     }
   };
 
-  const hasColumnList = Array.isArray(columns) && columns.length > 0;
-
   return (
     <div data-testid="sort-form" className="p-4 border border-gray-200 rounded-lg bg-white">
       <form onSubmit={handleSubmit}>
@@ -107,11 +105,6 @@ const SortForm = ({ projectId, columns = [], onClose, onTransform }) => {
         <p className="text-sm text-gray-600 mb-4">
           Add multiple sort criteria. Priority is determined by order (top = primary sort).
         </p>
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-            {error}
-          </div>
-        )}
         <div className="space-y-3 mb-4">
           {criteria.map((criterion, index) => (
             <div
@@ -120,31 +113,13 @@ const SortForm = ({ projectId, columns = [], onClose, onTransform }) => {
             >
               <span className="text-sm font-medium text-gray-500 w-6">{index + 1}.</span>
               <div className="flex-1">
-                {hasColumnList ? (
-                  <select
-                    data-testid="sort-column"
-                    value={criterion.column}
-                    onChange={(e) => updateCriterionColumn(criterion.id, e.target.value)}
-                    className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-sm"
-                    required
-                  >
-                    <option value="">Select column...</option>
-                    {columns.map((col) => (
-                      <option key={col} value={col}>
-                        {col}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={criterion.column}
-                    onChange={(e) => updateCriterionColumn(criterion.id, e.target.value)}
-                    placeholder="Column name"
-                    className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-sm"
-                    required
-                  />
-                )}
+                <ColumnSelect
+                  value={criterion.column}
+                  onChange={(e) => updateCriterionColumn(criterion.id, e.target.value)}
+                  placeholder="Select column..."
+                  required
+                  data-testid={index === 0 ? "sort-column" : undefined}
+                />
               </div>
               <select
                 value={criterion.ascending}
@@ -241,7 +216,6 @@ const SortForm = ({ projectId, columns = [], onClose, onTransform }) => {
 
 SortForm.propTypes = {
   projectId: PropTypes.string.isRequired,
-  columns: PropTypes.arrayOf(PropTypes.string),
   onClose: PropTypes.func.isRequired,
   onTransform: PropTypes.func,
 };

@@ -89,6 +89,9 @@ class TestSort:
             {"column": "name", "ascending": False},
         ]
         result = apply_sort(sample_df, criteria=criteria)
+        # Verify actual row order — age ascending: Bob(25), Alice(30), Charlie(35)
+        assert list(result["age"]) == [25, 30, 35]
+        assert list(result["name"]) == ["Bob", "Alice", "Charlie"]
         assert list(result.columns) == list(sample_df.columns)
         assert len(result) == len(sample_df)
 
