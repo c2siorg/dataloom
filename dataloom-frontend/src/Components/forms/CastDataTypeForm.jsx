@@ -8,7 +8,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import { useProjectContext } from "../../context/ProjectContext";
 
-const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
+const CastDataTypeForm = ({ projectId, onClose }) => {
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -29,8 +29,10 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
         },
       });
 
-      onTransform(response);
-      updateData(response.columns, response.rows, response.dtypes);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
       onClose();
     } catch (err) {
       console.error("Error casting data type:", err);
@@ -95,7 +97,6 @@ const CastDataTypeForm = ({ projectId, onClose, onTransform }) => {
 CastDataTypeForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
-  onTransform: PropTypes.func.isRequired,
 };
 
 export default CastDataTypeForm;
