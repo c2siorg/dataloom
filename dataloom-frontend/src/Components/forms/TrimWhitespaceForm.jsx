@@ -5,8 +5,8 @@ import { TRIM_WHITESPACE } from "../../constants/operationTypes";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
 
-const TrimWhitespaceForm = ({ projectId, onClose, onTransform }) => {
-  const { columns } = useProjectContext();
+const TrimWhitespaceForm = ({ projectId, onClose }) => {
+  const { columns, updateData } = useProjectContext();
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -24,7 +24,10 @@ const TrimWhitespaceForm = ({ projectId, onClose, onTransform }) => {
         },
       });
 
-      onTransform(response);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
       onClose();
     } catch (error) {
       console.error("Error trimming whitespace:", error);
@@ -83,7 +86,6 @@ const TrimWhitespaceForm = ({ projectId, onClose, onTransform }) => {
 TrimWhitespaceForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
-  onTransform: PropTypes.func.isRequired,
 };
 
 export default TrimWhitespaceForm;

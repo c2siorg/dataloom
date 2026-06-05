@@ -116,9 +116,9 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       setShowFilterForm(false);
       setShowSortForm(false);
       setActiveForm(null);
-      updateData([], [], {});
+      updateData([], [], { resetColumnOrder: false });
       const data = await getProjectDetails(projectId);
-      updateData(data.columns, data.rows, data.dtypes);
+      updateData(data.columns, data.rows, { dtypes: data.dtypes, resetColumnOrder: false });
       await fetchLogs();
       setToast({ message: "Last transformation undone!", type: "success" });
     } catch (error) {
@@ -424,7 +424,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
-          onTransform={onTransform}
         />
       )}
       {showDropDuplicateForm && (
@@ -434,7 +433,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowDropDuplicateForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showAdvQueryFilterForm && (
@@ -463,7 +461,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowCastDataTypeForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showTrimWhitespaceForm && (
@@ -473,7 +470,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowTrimWhitespaceForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showStringReplaceForm && (
@@ -483,7 +479,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowStringReplaceForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showLogs && (
@@ -512,7 +507,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowGroupByForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showSampleRowsForm && (
@@ -522,7 +516,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowSampleRowsForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
 
