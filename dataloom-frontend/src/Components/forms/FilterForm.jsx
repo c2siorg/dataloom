@@ -36,7 +36,10 @@ const FilterForm = ({ projectId, onClose }) => {
         parameters: filterParams,
       });
       setResult(response);
-      updateData(response.columns, response.rows, response.dtypes);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);
