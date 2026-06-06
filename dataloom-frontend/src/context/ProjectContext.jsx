@@ -107,7 +107,7 @@ export function ProjectProvider({ children }) {
     (newColumns, newRows, options = {}) => {
       setColumns(newColumns);
       setRows(newRows);
-      if (options && options.dtypes) setDtypes(options.dtypes);
+      if (options.dtypes) setDtypes(options.dtypes);
       if (!projectId) return;
       setColumnOrders((prev) => {
         const existingOrder = prev[projectId];
