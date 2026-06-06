@@ -65,6 +65,23 @@ describe("ProjectContext — column order state", () => {
     expect(result.current.columnOrder).toEqual([]);
   });
 
+  it("updates dtypes when options.dtypes is provided", () => {
+    const { result } = renderHook(() => useProjectContext(), {
+      wrapper: ProjectProvider,
+    });
+
+    act(() => {
+      result.current.updateData(["Name", "Score"], [["Ada", 42.5]], {
+        dtypes: { Name: "str", Score: "float" },
+      });
+    });
+
+    expect(result.current.dtypes).toEqual({
+      Name: "str",
+      Score: "float",
+    });
+  });
+
   it("hydrates column order from localStorage on mount", () => {
     localStorage.setItem("columnOrders", JSON.stringify({ "project-1": [2, 0, 1] }));
 

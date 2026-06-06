@@ -408,6 +408,12 @@ class TestCastDataType:
         assert pd.api.types.is_float_dtype(result["val"])
         assert result["val"].iloc[0] == 1.5
 
+    def test_cast_integer_like_values_to_float(self):
+        df = pd.DataFrame({"val": [1, 2, 3]})
+        result = cast_data_type(df, "val", "float")
+        assert pd.api.types.is_float_dtype(result["val"])
+        assert result["val"].tolist() == [1.0, 2.0, 3.0]
+
     def test_cast_to_boolean_truthy_falsy(self):
         df = pd.DataFrame({"flag": ["true", "false", "yes", "no", "1", "0"]})
         result = cast_data_type(df, "flag", "boolean")
