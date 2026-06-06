@@ -10,7 +10,7 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
   const [columns, setColumns] = useState("");
   const [keep, setKeep] = useState("first");
   const { error, clearError, handleError } = useError();
-  const { updateData } = useProjectContext();
+  const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,6 +29,7 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
         dtypes: response.dtypes,
         resetColumnOrder: false,
       });
+      await refreshProject(projectId, 1, pageSize);
       onClose(); // Close the form after submission
     } catch (err) {
       console.error("Error transforming project:", err);

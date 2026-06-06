@@ -29,7 +29,14 @@ export function ProjectProvider({ children }) {
   const [totalRows, setTotalRows] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const stored = localStorage.getItem("pageSize");
+      return stored ? parseInt(stored, 10) : 50;
+    } catch {
+      return 50;
+    }
+  });
 
   // Initialize "columnOrders" from localStorage
   const [columnOrders, setColumnOrders] = useState(() => {
@@ -59,6 +66,14 @@ export function ProjectProvider({ children }) {
       // localStorage unavailable — fail silently
     }
   }, [columnOrders]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("pageSize", String(pageSize));
+    } catch {
+      // localStorage unavailable — fail silently
+    }
+  }, [pageSize]);
 
   const refreshProject = useCallback(
     async (id, targetPage, preferredSize) => {

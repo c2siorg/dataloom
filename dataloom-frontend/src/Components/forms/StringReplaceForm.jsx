@@ -6,7 +6,7 @@ import { useToast } from "../../context/ToastContext";
 import { STRING_REPLACE } from "../../constants/operationTypes";
 
 const StringReplaceForm = ({ projectId, onClose }) => {
-  const { columns, updateData } = useProjectContext();
+  const { columns, updateData, refreshProject, pageSize } = useProjectContext();
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -30,6 +30,7 @@ const StringReplaceForm = ({ projectId, onClose }) => {
         dtypes: response.dtypes,
         resetColumnOrder: false,
       });
+      await refreshProject(projectId, 1, pageSize);
       onClose();
     } catch (error) {
       console.error("Error replacing string:", error);

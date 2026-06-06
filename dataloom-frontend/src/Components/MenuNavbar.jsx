@@ -20,7 +20,6 @@ import {
   getLogs,
   getCheckpoints,
   revertToCheckpoint,
-  getProjectDetails,
   undoLastTransformation,
 } from "../api";
 import proptype from "prop-types";
@@ -66,7 +65,7 @@ const MenuNavbar = ({ projectId }) => {
   const [confirmData, setConfirmData] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const { updateData, projectName } = useProjectContext();
+  const { updateData, refreshProject, pageSize, projectName } = useProjectContext();
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -118,8 +117,7 @@ const MenuNavbar = ({ projectId }) => {
       setShowSortForm(false);
       setActiveForm(null);
       updateData([], [], { resetColumnOrder: false });
-      const data = await getProjectDetails(projectId);
-      updateData(data.columns, data.rows, { dtypes: data.dtypes, resetColumnOrder: false });
+      await refreshProject(projectId, 1, pageSize);
       await fetchLogs();
       setToast({ message: "Last transformation undone!", type: "success" });
     } catch (error) {

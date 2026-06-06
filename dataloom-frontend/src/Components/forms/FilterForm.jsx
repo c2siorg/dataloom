@@ -17,7 +17,7 @@ const FilterForm = ({ projectId, onClose }) => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
-  const { updateData } = useProjectContext();
+  const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleInputChange = (e) => {
     setFilterParams({
@@ -40,6 +40,7 @@ const FilterForm = ({ projectId, onClose }) => {
         dtypes: response.dtypes,
         resetColumnOrder: false,
       });
+      await refreshProject(projectId, 1, pageSize);
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);

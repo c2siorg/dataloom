@@ -5,12 +5,14 @@ import { transformProject } from "../../api";
 import { ADV_QUERY_FILTER } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import { useProjectContext } from "../../context/ProjectContext";
 
 const AdvQueryFilterForm = ({ projectId, onClose }) => {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
+  const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,6 +24,11 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
         adv_query: { query },
       });
       setResult(response);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
+      await refreshProject(projectId, 1, pageSize);
     } catch (err) {
       console.error("Error applying query:", err.message);
       handleError(err);

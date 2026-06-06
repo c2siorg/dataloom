@@ -8,7 +8,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 
 const SampleRowsForm = ({ projectId, onClose }) => {
-  const { updateData } = useProjectContext();
+  const { updateData, refreshProject, pageSize } = useProjectContext();
   const [sampleSize, setSampleSize] = useState("");
   const [randomSeed, setRandomSeed] = useState("");
   const [result, setResult] = useState(null);
@@ -50,6 +50,7 @@ const SampleRowsForm = ({ projectId, onClose }) => {
         dtypes: response.dtypes,
         resetColumnOrder: false,
       });
+      await refreshProject(projectId, 1, pageSize);
     } catch (err) {
       handleError(err);
     } finally {

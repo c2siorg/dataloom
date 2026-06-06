@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
 import { transformProject, getProjectDetails } from "../../api";
+import { useProjectContext } from "../../context/ProjectContext";
 
 const MeltForm = ({ projectId, onClose }) => {
   const [columns, setColumns] = useState([]);
@@ -12,6 +13,7 @@ const MeltForm = ({ projectId, onClose }) => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { updateData, refreshProject, pageSize } = useProjectContext();
 
   useEffect(() => {
     const fetchProjectDetails = async () => {
@@ -62,6 +64,11 @@ const MeltForm = ({ projectId, onClose }) => {
         },
       });
       setResult(response);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
+      await refreshProject(projectId, 1, pageSize);
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
     } finally {
