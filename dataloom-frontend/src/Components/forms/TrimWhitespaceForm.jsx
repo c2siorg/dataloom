@@ -6,7 +6,7 @@ import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
 
 const TrimWhitespaceForm = ({ projectId, onClose }) => {
-  const { columns, updateData } = useProjectContext();
+  const { columns, updateData, refreshProject, pageSize } = useProjectContext();
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -28,6 +28,7 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
         dtypes: response.dtypes,
         resetColumnOrder: false,
       });
+      await refreshProject(projectId, 1, pageSize);
       onClose();
     } catch (error) {
       console.error("Error trimming whitespace:", error);

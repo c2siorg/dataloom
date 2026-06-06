@@ -14,7 +14,7 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
   const [column, setColumn] = useState("");
   const [targetType, setTargetType] = useState("string");
   const { error, clearError, handleError } = useError();
-  const { updateData } = useProjectContext();
+  const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,6 +33,7 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
         dtypes: response.dtypes,
         resetColumnOrder: false,
       });
+      await refreshProject(projectId, 1, pageSize);
       onClose();
     } catch (err) {
       console.error("Error casting data type:", err);

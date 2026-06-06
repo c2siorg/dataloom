@@ -13,7 +13,7 @@ import { useProjectContext } from "../../context/ProjectContext";
  * Allows users to add, remove, and reorder multiple sort criteria.
  */
 const SortForm = ({ projectId, onClose }) => {
-  const { updateData } = useProjectContext();
+  const { updateData, refreshProject, pageSize } = useProjectContext();
   const [criteria, setCriteria] = useState([{ id: 1, column: "", ascending: true }]);
   const [nextId, setNextId] = useState(2);
   const [result, setResult] = useState(null);
@@ -93,6 +93,7 @@ const SortForm = ({ projectId, onClose }) => {
         dtypes: response.dtypes,
         resetColumnOrder: false,
       });
+      await refreshProject(projectId, 1, pageSize);
     } catch (err) {
       handleError(err);
     } finally {

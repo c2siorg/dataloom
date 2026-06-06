@@ -6,6 +6,7 @@ import { PIVOT_TABLES } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
+import { useProjectContext } from "../../context/ProjectContext";
 
 const PivotTableForm = ({ projectId, onClose }) => {
   const [index, setIndex] = useState("");
@@ -15,6 +16,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
+  const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,6 +28,11 @@ const PivotTableForm = ({ projectId, onClose }) => {
         pivot_query: { index, column, value, aggfun },
       });
       setResult(response);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
+      await refreshProject(projectId, 1, pageSize);
     } catch (err) {
       console.error("Error applying pivot table:", err.message);
       handleError(err);
