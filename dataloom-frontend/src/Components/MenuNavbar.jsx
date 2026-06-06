@@ -45,7 +45,7 @@ import {
 } from "react-icons/lu";
 import { useProjectContext } from "../context/ProjectContext";
 
-const MenuNavbar = ({ projectId, onTransform }) => {
+const MenuNavbar = ({ projectId }) => {
   const [showGroupByForm, setShowGroupByForm] = useState(false);
   const [showFilterForm, setShowFilterForm] = useState(false);
   const [showSortForm, setShowSortForm] = useState(false);
@@ -152,7 +152,10 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       onConfirm: async () => {
         try {
           const response = await revertToCheckpoint(projectId, checkpointId);
-          onTransform(response);
+          updateData(response.columns, response.rows, {
+            dtypes: response.dtypes,
+            resetColumnOrder: false,
+          });
           setToast({ message: "Project reverted successfully!", type: "success" });
         } catch {
           setToast({ message: "Failed to revert project.", type: "error" });
@@ -545,7 +548,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
 
 MenuNavbar.propTypes = {
   projectId: proptype.string.isRequired,
-  onTransform: proptype.func.isRequired,
 };
 
 export default MenuNavbar;
