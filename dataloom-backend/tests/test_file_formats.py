@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 from fastapi import HTTPException
 
-from app.utils.file_formats import get_format, supported_extensions
+from app.utils.file_formats import TableWriteOptions, get_format, supported_extensions
 from app.utils.pandas_helpers import read_table_safe, save_table_safe
 
 
@@ -49,6 +49,54 @@ class TestRoundTrip:
 
         assert df.columns.tolist() == ["name", "note"]
         assert df.iloc[0]["note"] == "lives in NYC, USA"
+
+    def test_csv_write_uses_delimited_options(self, tmp_path):
+        df = pd.DataFrame({"name": ["Alice"], "city": ["Málaga"]})
+        path = tmp_path / "data.csv"
+
+        save_table_safe(
+            df,
+            path,
+            TableWriteOptions(delimiter="pipe", include_header=False, encoding="latin-1"),
+        )
+
+        assert path.read_bytes() == "Alice|Málaga\n".encode("latin-1")
+
+    def test_tsv_write_defaults_to_tab_with_options(self, tmp_path):
+        df = pd.DataFrame({"name": ["Alice"], "note": ["lives in NYC, USA"]})
+        path = tmp_path / "data.tsv"
+
+        save_table_safe(df, path, TableWriteOptions(include_header=False))
+
+        assert path.read_text() == "Alice\tlives in NYC, USA\n"
+
+    def test_invalid_delimited_options_are_400(self, tmp_path):
+        df = pd.DataFrame({"name": ["Alice"]})
+        path = tmp_path / "data.csv"
+
+        with pytest.raises(HTTPException) as exc:
+            save_table_safe(df, path, TableWriteOptions(delimiter="colon"))
+
+        assert exc.value.status_code == 400
+        assert "Unsupported delimiter" in exc.value.detail
+
+    def test_delimited_encoding_errors_are_400(self, tmp_path):
+        df = pd.DataFrame({"name": ["Málaga"]})
+        path = tmp_path / "data.csv"
+
+        with pytest.raises(HTTPException) as exc:
+            save_table_safe(df, path, TableWriteOptions(encoding="ascii"))
+
+        assert exc.value.status_code == 400
+        assert "ascii" in exc.value.detail
+
+    def test_non_delimited_writers_ignore_options(self, tmp_path):
+        df = pd.DataFrame({"name": ["Alice"]})
+        path = tmp_path / "data.json"
+
+        save_table_safe(df, path, TableWriteOptions(delimiter="colon", include_header=False, encoding="utf-16"))
+
+        assert json.loads(path.read_text()) == [{"name": "Alice"}]
 
     def test_parquet_write_survives_mixed_type_column(self, tmp_path):
         """A mixed-type object column must not crash the parquet writer.
