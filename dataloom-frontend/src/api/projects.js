@@ -68,13 +68,16 @@ export const revertToCheckpoint = async (projectId, checkpointId) => {
 };
 
 /**
- * Export the current working copy of a project in its native format.
+ * Export a project's working copy, optionally converting to another format.
  * @param {string} projectId - The project ID.
+ * @param {string} [format] - Target format extension (e.g. "csv", "json"). When
+ *   omitted the file is exported in its native format.
  * @returns {Promise<{blob: Blob, filename: string|null}>} The file blob and the
  *   server-provided download filename (parsed from Content-Disposition).
  */
-export const exportProject = async (projectId) => {
+export const exportProject = async (projectId, format) => {
   const response = await client.get(`/projects/${projectId}/export`, {
+    params: format ? { format } : undefined,
     responseType: "blob",
   });
   const disposition = response.headers["content-disposition"] || "";

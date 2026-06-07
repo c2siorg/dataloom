@@ -3,13 +3,17 @@
 Handles upload, retrieval, save (checkpoint), and revert operations.
 """
 
+import os
+import tempfile
 import uuid
+from contextlib import suppress
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
+from starlette.background import BackgroundTask
 
 from app import database, models, schemas
 from app.api.dependencies import get_current_user, get_project_or_404
@@ -23,7 +27,7 @@ from app.services.project_service import (
     get_recent_projects,
 )
 from app.services.transformation_service import apply_logged_transformation
-from app.utils.file_formats import get_format
+from app.utils.file_formats import get_format, get_format_for_extension
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
 from app.utils.security import validate_upload_file
@@ -31,6 +35,11 @@ from app.utils.security import validate_upload_file
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+def _unlink_if_exists(path: str) -> None:
+    with suppress(FileNotFoundError):
+        os.unlink(path)
 
 
 @router.post("/upload", response_model=schemas.ProjectResponse)
@@ -254,14 +263,55 @@ async def revert_to_checkpoint(
 
 
 @router.get("/{project_id}/export")
-async def export_project(project: models.Project = Depends(get_project_or_404)):
-    """Download the current working copy of a project in its native format."""
-    fmt = get_format(project.file_path)
-    return FileResponse(
-        project.file_path,
-        media_type=fmt.media_type,
-        filename=f"{project.name}{fmt.extension}",
-    )
+async def export_project(
+    fmt: str | None = Query(default=None, alias="format"),
+    project: models.Project = Depends(get_project_or_404),
+):
+    """Download a project's working copy in any supported format.
+
+    Without ``format`` the file is served in its native format (streamed
+    directly). With ``format`` set to a supported extension (e.g. ``csv``,
+    ``json``), the working copy is converted to that format on the fly and the
+    temporary converted file is cleaned up after the response is sent.
+    """
+    source_fmt = get_format(project.file_path)
+
+    # Native export — stream the working copy directly.
+    if fmt is None:
+        return FileResponse(
+            project.file_path,
+            media_type=source_fmt.media_type,
+            filename=f"{project.name}{source_fmt.extension}",
+        )
+
+    try:
+        target_fmt = get_format_for_extension(fmt)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    # Same as native — no conversion needed.
+    if target_fmt.extension == source_fmt.extension:
+        return FileResponse(
+            project.file_path,
+            media_type=target_fmt.media_type,
+            filename=f"{project.name}{target_fmt.extension}",
+        )
+
+    # Convert: read in the source format, write a temp file in the target format.
+    df = read_table_safe(project.file_path)
+    with tempfile.NamedTemporaryFile(suffix=target_fmt.extension, delete=False) as tmp:
+        tmp_path = tmp.name
+    try:
+        save_table_safe(df, Path(tmp_path))
+        return FileResponse(
+            tmp_path,
+            media_type=target_fmt.media_type,
+            filename=f"{project.name}{target_fmt.extension}",
+            background=BackgroundTask(_unlink_if_exists, tmp_path),
+        )
+    except Exception:
+        _unlink_if_exists(tmp_path)
+        raise
 
 
 @router.delete("/{project_id}")
