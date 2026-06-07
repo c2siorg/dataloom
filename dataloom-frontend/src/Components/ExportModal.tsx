@@ -1,14 +1,37 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import Modal from "./common/Modal";
 import Button from "./common/Button";
 import { exportProject } from "../api";
 
-const EXPORT_FORMATS = [
-  { ext: "csv", label: "CSV" },
-  { ext: "tsv", label: "TSV" },
-  { ext: "json", label: "JSON" },
-  { ext: "xlsx", label: "Excel" },
-  { ext: "parquet", label: "Parquet" },
+type FormatDef = {
+  ext: string;
+  label: string;
+  /** Delimiter/header/encoding controls only apply to delimited text. */
+  delimited: boolean;
+};
+
+const DEFAULT_FORMAT: FormatDef = { ext: "csv", label: "CSV", delimited: true };
+
+const EXPORT_FORMATS: FormatDef[] = [
+  DEFAULT_FORMAT,
+  { ext: "tsv", label: "TSV", delimited: true },
+  { ext: "json", label: "JSON", delimited: false },
+  { ext: "xlsx", label: "Excel", delimited: false },
+  { ext: "parquet", label: "Parquet", delimited: false },
+];
+
+const DELIMITERS = [
+  { value: "comma", label: "Comma", shown: "," },
+  { value: "tab", label: "Tab", shown: "→" },
+  { value: "semicolon", label: "Semicolon", shown: ";" },
+  { value: "pipe", label: "Pipe", shown: "|" },
+];
+
+const ENCODINGS = [
+  { value: "utf-8", label: "UTF-8  ·  Unicode (recommended)" },
+  { value: "latin-1", label: "Latin-1  ·  Western European" },
+  { value: "ascii", label: "ASCII  ·  English only" },
+  { value: "utf-16", label: "UTF-16  ·  Unicode, 2-byte" },
 ];
 
 interface ExportModalProps {
@@ -21,11 +44,6 @@ interface ExportModalProps {
   onError?: (message: string) => void;
 }
 
-/**
- * "Save As"-style export dialog: name the file, pick a target format, download.
- * The backend converts the working copy to the chosen format; the typed name
- * plus the selected extension determine the downloaded file name.
- */
 export default function ExportModal({
   isOpen,
   onClose,
@@ -35,45 +53,116 @@ export default function ExportModal({
 }: ExportModalProps) {
   const [name, setName] = useState(defaultName);
   const [format, setFormat] = useState("csv");
+  const [delimiter, setDelimiter] = useState("comma");
+  const [includeHeader, setIncludeHeader] = useState(true);
+  const [encoding, setEncoding] = useState("utf-8");
+  const [busy, setBusy] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setName(defaultName || "export");
-      setFormat("csv");
-    }
+    if (!isOpen) return;
+    setName(defaultName || "export");
+    setFormat("csv");
+    setDelimiter("comma");
+    setIncludeHeader(true);
+    setEncoding("utf-8");
+    setBusy(false);
+    setMounted(false);
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
   }, [isOpen, defaultName]);
+
+  const def = EXPORT_FORMATS.find((f) => f.ext === format) ?? DEFAULT_FORMAT;
+  const showOptions = def.delimited;
+  // TSV is tab by definition; a leftover "comma" selection would be misleading.
+  const effectiveDelimiter = format === "tsv" && delimiter === "comma" ? "tab" : delimiter;
+  const fileName = `${name.trim() || "dataset"}.${format}`;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const fileName = name.trim();
-    if (!fileName) {
+    const cleanName = name.trim();
+    if (!cleanName) {
       onError?.("Please enter a file name.");
       return;
     }
+    setBusy(true);
     try {
-      const { blob } = await exportProject(projectId, format);
+      const { blob } = await exportProject(projectId, {
+        format,
+        ...(showOptions ? { delimiter: effectiveDelimiter, includeHeader, encoding } : {}),
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${fileName}.${format}`;
+      a.download = `${cleanName}.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
       onClose();
-    } catch {
+    } catch (err) {
+      console.error("Failed to export project:", err);
       onError?.("Failed to export project.");
+    } finally {
+      setBusy(false);
     }
   };
 
+  const reveal = (i: number): CSSProperties => ({
+    transition: "opacity 320ms ease, transform 320ms ease",
+    transitionDelay: `${i * 45}ms`,
+    opacity: mounted ? 1 : 0,
+    transform: mounted ? "none" : "translateY(6px)",
+  });
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Export dataset">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div>
-          <label htmlFor="export-filename" className="block text-sm font-medium text-gray-700 mb-1.5">
-            File name
-          </label>
-          <div className="flex items-stretch rounded-lg border border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/30 transition-colors overflow-hidden">
+    <Modal isOpen={isOpen} onClose={onClose} title="Export dataset" className="max-w-lg">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6 font-sans">
+        {/* Step 1 — format */}
+        <div style={reveal(0)}>
+          <Label step="1">Choose a format</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {EXPORT_FORMATS.map((f) => {
+              const on = format === f.ext;
+              return (
+                <button
+                  key={f.ext}
+                  type="button"
+                  data-testid={`export-format-${f.ext}`}
+                  aria-pressed={on}
+                  onClick={() => {
+                    setFormat(f.ext);
+                    if (f.ext === "tsv") setDelimiter("tab");
+                    if (f.ext === "csv" && delimiter === "tab") setDelimiter("comma");
+                  }}
+                  className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-all duration-150 ${
+                    on
+                      ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500/30"
+                      : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <span
+                    className={`text-sm font-semibold ${on ? "text-blue-700" : "text-gray-800"}`}
+                  >
+                    {f.label}
+                  </span>
+                  <span
+                    className={`font-mono text-[11px] ${on ? "text-blue-500" : "text-gray-400"}`}
+                  >
+                    .{f.ext}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Step 2 — file name */}
+        <div style={reveal(1)}>
+          <Label step="2" htmlFor="export-filename">
+            Name the file
+          </Label>
+          <div className="flex items-stretch overflow-hidden rounded-lg border border-gray-300 transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/25">
             <input
               id="export-filename"
               data-testid="export-filename"
@@ -82,62 +171,138 @@ export default function ExportModal({
               onChange={(e) => setName(e.target.value)}
               onFocus={(e) => e.target.select()}
               placeholder="dataset"
-              autoFocus
-              className="flex-1 min-w-0 px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none"
+              className="min-w-0 flex-1 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none"
             />
-            <span className="flex items-center px-3 text-sm font-medium text-gray-400 bg-gray-50 border-l border-gray-200 tabular-nums">
+            <span className="flex items-center border-l border-gray-200 bg-gray-50 px-3 font-mono text-sm font-medium text-gray-400">
               .{format}
             </span>
           </div>
         </div>
 
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-1.5">Format</span>
-          <div className="grid grid-cols-5 gap-2">
-            {EXPORT_FORMATS.map((fmt) => {
-              const selected = format === fmt.ext;
-              return (
-                <button
-                  key={fmt.ext}
-                  type="button"
-                  data-testid={`export-format-${fmt.ext}`}
-                  aria-pressed={selected}
-                  onClick={() => setFormat(fmt.ext)}
-                  className={`flex flex-col items-center gap-0.5 rounded-lg border px-2 py-2.5 transition-all duration-150 ${
-                    selected
-                      ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500/40"
-                      : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+        {/* Step 3 — options (CSV / TSV only) */}
+        <div style={reveal(2)}>
+          <Label step="3">Text options</Label>
+          {showOptions ? (
+            <div className="space-y-4">
+              {/* Separator */}
+              <div>
+                <span className="mb-1.5 block text-xs text-gray-500">Column separator</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {DELIMITERS.map((d) => {
+                    const on = effectiveDelimiter === d.value;
+                    return (
+                      <button
+                        key={d.value}
+                        type="button"
+                        aria-pressed={on}
+                        aria-label={d.label}
+                        title={d.label}
+                        onClick={() => setDelimiter(d.value)}
+                        className={`flex flex-col items-center gap-0.5 rounded-lg border py-1.5 transition-colors ${
+                          on
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                      >
+                        <span
+                          className={`font-mono text-base leading-none ${on ? "text-blue-600" : "text-gray-600"}`}
+                        >
+                          {d.shown}
+                        </span>
+                        <span className={`text-[10px] ${on ? "text-blue-500" : "text-gray-400"}`}>
+                          {d.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Header toggle */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={includeHeader}
+                onClick={() => setIncludeHeader((v) => !v)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left transition-colors hover:border-gray-300"
+              >
+                <span>
+                  <span className="block text-sm text-gray-800">Include header row</span>
+                  <span className="block text-[11px] text-gray-400">
+                    Column names as the first line
+                  </span>
+                </span>
+                <span
+                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                    includeHeader ? "bg-blue-600" : "bg-gray-300"
                   }`}
                 >
-                  <span className={`text-xs font-semibold ${selected ? "text-blue-700" : "text-gray-700"}`}>
-                    {fmt.label}
-                  </span>
-                  <span className={`text-[10px] tabular-nums ${selected ? "text-blue-500" : "text-gray-400"}`}>
-                    .{fmt.ext}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  <span
+                    className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
+                    style={{ transform: includeHeader ? "translateX(18px)" : "translateX(3px)" }}
+                  />
+                </span>
+              </button>
+
+              {/* Encoding (secondary — quiet dropdown) */}
+              <label className="block">
+                <span className="mb-1.5 block text-xs text-gray-500">Encoding</span>
+                <select
+                  value={encoding}
+                  onChange={(e) => setEncoding(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25"
+                >
+                  {ENCODINGS.map((enc) => (
+                    <option key={enc.value} value={enc.value}>
+                      {enc.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : (
+            <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-xs leading-relaxed text-gray-500">
+              <span className="font-medium text-gray-600">{def.label}</span> keeps the original data
+              types and structure — no separator, header, or encoding settings needed.
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <p className="text-xs text-gray-500 truncate">
-            Saving as{" "}
-            <span className="font-medium text-gray-700">
-              {name.trim() || "dataset"}.{format}
-            </span>
+        {/* Actions */}
+        <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
+          <p className="truncate text-xs text-gray-500">
+            Downloads <span className="font-mono font-medium text-gray-700">{fileName}</span>
           </p>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex shrink-0 gap-2">
             <Button variant="secondary" type="button" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" data-testid="export-confirm">
-              Export
+            <Button type="submit" data-testid="export-confirm" disabled={busy}>
+              {busy ? "Exporting…" : "Export"}
             </Button>
           </div>
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Numbered step label used down the form. */
+function Label({
+  step,
+  htmlFor,
+  children,
+}: {
+  step: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label htmlFor={htmlFor} className="mb-2 flex items-center gap-2">
+      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-[10px] font-semibold text-white">
+        {step}
+      </span>
+      <span className="text-sm font-medium text-gray-800">{children}</span>
+    </label>
   );
 }

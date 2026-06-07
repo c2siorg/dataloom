@@ -168,6 +168,114 @@ class TestExportConversionMatrix:
         assert all(not path.exists() for path in temp_paths)
 
 
+class TestExportOptions:
+    """CSV/TSV exports honor delimiter, header, and encoding options"""
+
+    @pytest.mark.parametrize(
+        ("delimiter", "sep"),
+        [("comma", ","), ("tab", "\t"), ("semicolon", ";"), ("pipe", "|")],
+    )
+    def test_delimiter(self, client, delimiter, sep):
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(
+            f"/projects/{project_id}/export",
+            params={"format": "csv", "delimiter": delimiter},
+        )
+
+        assert response.status_code == 200, response.text
+        assert sep.encode() in response.content
+        result = pd.read_csv(BytesIO(response.content), sep=sep)
+        assert result["name"].tolist() == ["Alice", "Bob", "Charlie"]
+        assert result.columns.tolist() == ["name", "age", "city"]
+
+    def test_exclude_header(self, client):
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(
+            f"/projects/{project_id}/export",
+            params={"format": "csv", "include_header": "false"},
+        )
+
+        assert response.status_code == 200, response.text
+        # With no header row the first parsed row is data, not the column names.
+        result = pd.read_csv(BytesIO(response.content), header=None)
+        assert result.iloc[0].tolist() == ["Alice", 30, "New York"]
+
+    def test_include_header_by_default(self, client):
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export", params={"format": "csv"})
+
+        assert response.content.startswith(b"name,age,city")
+
+    @pytest.mark.parametrize("encoding", ["utf-8", "latin-1", "utf-16"])
+    def test_encoding_roundtrip(self, client, encoding):
+        accented = pd.DataFrame({"city": ["Montréal", "São Paulo"]})
+        project_id = _upload(client, _encode(accented, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(
+            f"/projects/{project_id}/export",
+            params={"format": "csv", "encoding": encoding},
+        )
+
+        assert response.status_code == 200, response.text
+        result = pd.read_csv(BytesIO(response.content), encoding=encoding)
+        assert result["city"].tolist() == ["Montréal", "São Paulo"]
+
+    def test_tsv_delimiter_defaults_to_tab(self, client):
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(
+            f"/projects/{project_id}/export",
+            params={"format": "tsv", "include_header": "false"},
+        )
+
+        assert response.status_code == 200, response.text
+        assert b"\t" in response.content
+
+    def test_invalid_delimiter_is_400(self, client):
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(
+            f"/projects/{project_id}/export",
+            params={"format": "csv", "delimiter": "colon"},
+        )
+
+        assert response.status_code == 400
+
+    def test_invalid_encoding_is_400(self, client):
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(
+            f"/projects/{project_id}/export",
+            params={"format": "csv", "encoding": "utf-99"},
+        )
+
+        assert response.status_code == 400
+
+    def test_unencodable_data_for_ascii_is_400(self, client):
+        accented = pd.DataFrame({"city": ["Montréal"]})
+        project_id = _upload(client, _encode(accented, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(
+            f"/projects/{project_id}/export",
+            params={"format": "csv", "encoding": "ascii"},
+        )
+
+        assert response.status_code == 400
+
+    def test_content_disposition_filename(self, client):
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(
+            f"/projects/{project_id}/export",
+            params={"format": "csv", "delimiter": "pipe"},
+        )
+
+        assert 'filename="Multiformat.csv"' in response.headers["content-disposition"]
+
+
 # --- Broken / malformed inputs fail gracefully (no 500 crash) -------------
 
 

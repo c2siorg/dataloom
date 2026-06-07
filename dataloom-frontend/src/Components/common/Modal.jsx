@@ -7,8 +7,9 @@ import { useEffect, useRef } from "react";
  * @param {Function} props.onClose - Callback to close the modal.
  * @param {string} [props.title] - Modal title text.
  * @param {React.ReactNode} props.children - Modal body content.
+ * @param {string} [props.className] - Optional width/spacing classes for the dialog shell.
  */
-export default function Modal({ isOpen, onClose, title, children }) {
+export default function Modal({ isOpen, onClose, title, children, className = "max-w-lg" }) {
   const dialogRef = useRef(null);
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto"
+        className={`bg-white rounded-xl shadow-xl ${className} w-full mx-4 max-h-[90vh] overflow-y-auto`}
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
