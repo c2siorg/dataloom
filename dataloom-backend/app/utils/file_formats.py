@@ -165,6 +165,27 @@ def supported_extensions() -> list[str]:
     return list(_FORMATS.keys())
 
 
+def get_format_for_extension(ext: str) -> FileFormat:
+    """Look up the :class:`FileFormat` for a bare extension (e.g. ``csv`` or ``.csv``).
+
+    Args:
+        ext: An extension, with or without the leading dot.
+
+    Returns:
+        The matching FileFormat.
+
+    Raises:
+        ValueError: If the extension is not supported.
+    """
+    ext = ext.lower()
+    if not ext.startswith("."):
+        ext = f".{ext}"
+    fmt = _FORMATS.get(ext)
+    if fmt is None:
+        raise ValueError(f"Unsupported file format '{ext}'. Supported: {supported_extensions()}")
+    return fmt
+
+
 def get_format(path) -> FileFormat:
     """Look up the :class:`FileFormat` for a path by its extension.
 
@@ -177,8 +198,4 @@ def get_format(path) -> FileFormat:
     Raises:
         ValueError: If the extension is not supported.
     """
-    ext = Path(path).suffix.lower()
-    fmt = _FORMATS.get(ext)
-    if fmt is None:
-        raise ValueError(f"Unsupported file format '{ext}'. Supported: {supported_extensions()}")
-    return fmt
+    return get_format_for_extension(Path(path).suffix)

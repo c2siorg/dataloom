@@ -6,9 +6,11 @@ the format registry in isolation.
 """
 
 from io import BytesIO
+from pathlib import Path
 
 import pandas as pd
 import pytest
+from fastapi import HTTPException
 
 SAMPLE = pd.DataFrame(
     {
@@ -101,6 +103,69 @@ class TestExportNativeFormat:
         # The downloaded bytes must re-open as a valid spreadsheet.
         result = pd.read_excel(BytesIO(response.content))
         assert result["name"].tolist() == ["Alice", "Bob", "Charlie"]
+
+
+def _decode(content: bytes, ext: str) -> pd.DataFrame:
+    """Parse downloaded export bytes for the given target format."""
+    if ext == "csv":
+        return pd.read_csv(BytesIO(content))
+    if ext == "tsv":
+        return pd.read_csv(BytesIO(content), sep="\t")
+    if ext == "json":
+        return pd.read_json(BytesIO(content))
+    if ext == "xlsx":
+        return pd.read_excel(BytesIO(content))
+    if ext == "parquet":
+        return pd.read_parquet(BytesIO(content))
+    raise ValueError(ext)
+
+
+class TestExportConversionMatrix:
+    """Any supported source format must be exportable to any target format."""
+
+    @pytest.mark.parametrize("source_ext", [".csv", ".tsv", ".json", ".xlsx", ".parquet"])
+    @pytest.mark.parametrize("target", ["csv", "tsv", "json", "xlsx", "parquet"])
+    def test_convert(self, client, source_ext, target):
+        project_id = _upload(client, _encode(SAMPLE, source_ext), f"data{source_ext}").json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export", params={"format": target})
+
+        assert response.status_code == 200, response.text
+        assert response.headers["content-disposition"].endswith(f'.{target}"')
+        result = _decode(response.content, target)
+        assert result["name"].tolist() == ["Alice", "Bob", "Charlie"]
+        assert result["age"].tolist() == [30, 25, 35]
+
+    def test_unsupported_target_format_is_400(self, client):
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export", params={"format": "txt"})
+
+        assert response.status_code == 400
+
+    def test_failed_conversion_write_removes_temp_file(self, client, monkeypatch):
+        from app.api.endpoints import projects as projects_endpoint
+
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+        temp_paths = []
+        original_named_temporary_file = projects_endpoint.tempfile.NamedTemporaryFile
+
+        def tracking_named_temporary_file(*args, **kwargs):
+            tmp = original_named_temporary_file(*args, **kwargs)
+            temp_paths.append(Path(tmp.name))
+            return tmp
+
+        def boom(*args, **kwargs):
+            raise HTTPException(status_code=500, detail="simulated write failure")
+
+        monkeypatch.setattr(projects_endpoint.tempfile, "NamedTemporaryFile", tracking_named_temporary_file)
+        monkeypatch.setattr(projects_endpoint, "save_table_safe", boom)
+
+        response = client.get(f"/projects/{project_id}/export", params={"format": "json"})
+
+        assert response.status_code == 500
+        assert temp_paths
+        assert all(not path.exists() for path in temp_paths)
 
 
 # --- Broken / malformed inputs fail gracefully (no 500 crash) -------------
