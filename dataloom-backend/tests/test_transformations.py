@@ -203,6 +203,24 @@ class TestChangeCellValue:
         result = change_cell_value(sample_df, 0, 1, "Alice Updated")
         assert result.iloc[0]["name"] == "Alice Updated"
 
+    # out-of-bounds indices — col_index is 1-based, row_index 0-based
+    def test_negative_row_index_raises(self, sample_df):
+        with pytest.raises(TransformationError, match="out of bounds"):
+            change_cell_value(sample_df, -1, 1, "x")
+
+    def test_negative_col_index_raises(self, sample_df):
+        # col_index < 1 must be rejected, not silently wrap to the last column.
+        with pytest.raises(TransformationError, match="out of bounds"):
+            change_cell_value(sample_df, 0, 0, "x")
+
+    def test_row_index_past_end_raises(self, sample_df):
+        with pytest.raises(TransformationError, match="out of bounds"):
+            change_cell_value(sample_df, len(sample_df), 1, "x")
+
+    def test_col_index_past_end_raises(self, sample_df):
+        with pytest.raises(TransformationError, match="out of bounds"):
+            change_cell_value(sample_df, 0, len(sample_df.columns) + 1, "x")
+
     # int column — frontend always sends strings
     def test_int_cell_with_numeric_string_preserves_dtype(self, sample_df):
         result = change_cell_value(sample_df, 0, 2, "31")
