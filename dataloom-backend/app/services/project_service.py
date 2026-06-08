@@ -39,19 +39,6 @@ def create_project(
     return project
 
 
-def get_project_by_id(db: Session, project_id: uuid.UUID) -> models.Project | None:
-    """Fetch a project by its primary key.
-
-    Args:
-        db: Database session.
-        project_id: The project primary key.
-
-    Returns:
-        The Project model instance or None if not found.
-    """
-    return db.query(models.Project).filter(models.Project.project_id == project_id).first()
-
-
 def get_recent_projects(db: Session, owner_id: uuid.UUID, limit: int = 3) -> list[models.Project]:
     """Fetch a user's most recently modified projects.
 
