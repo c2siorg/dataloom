@@ -224,7 +224,9 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
     """
     df = df.copy()
 
-    if row_index >= len(df) or col_index >= len(df.columns) + 1:
+    # col_index is 1-based (1..len(columns)); row_index is 0-based. Guard both
+    # ends so a negative index can't silently wrap to the wrong cell.
+    if row_index < 0 or row_index >= len(df) or col_index < 1 or col_index >= len(df.columns) + 1:
         raise TransformationError("Row or column index out of bounds")
 
     # col_index is 1-based from frontend (accounting for S.No. column)
