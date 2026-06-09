@@ -7,7 +7,7 @@ import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 
-const SampleRowsForm = ({ projectId, onClose, onTransform }) => {
+const SampleRowsForm = ({ projectId, onClose }) => {
   const { updateData } = useProjectContext();
   const [sampleSize, setSampleSize] = useState("");
   const [randomSeed, setRandomSeed] = useState("");
@@ -46,8 +46,10 @@ const SampleRowsForm = ({ projectId, onClose, onTransform }) => {
         sample_params: params,
       });
       setResult(response);
-      if (onTransform) onTransform(response);
-      updateData(response.columns, response.rows, response.dtypes);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
     } catch (err) {
       handleError(err);
     } finally {
@@ -115,7 +117,6 @@ const SampleRowsForm = ({ projectId, onClose, onTransform }) => {
 SampleRowsForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
-  onTransform: PropTypes.func,
 };
 
 export default SampleRowsForm;

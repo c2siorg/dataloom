@@ -12,7 +12,7 @@ import { useProjectContext } from "../../context/ProjectContext";
  * SortForm component for multi-column sorting.
  * Allows users to add, remove, and reorder multiple sort criteria.
  */
-const SortForm = ({ projectId, onClose, onTransform }) => {
+const SortForm = ({ projectId, onClose }) => {
   const { updateData } = useProjectContext();
   const [criteria, setCriteria] = useState([{ id: 1, column: "", ascending: true }]);
   const [nextId, setNextId] = useState(2);
@@ -89,8 +89,10 @@ const SortForm = ({ projectId, onClose, onTransform }) => {
         },
       });
       setResult(response);
-      if (onTransform) onTransform(response);
-      updateData(response.columns, response.rows, { dtypes: response.dtypes });
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
     } catch (err) {
       handleError(err);
     } finally {
@@ -217,7 +219,6 @@ const SortForm = ({ projectId, onClose, onTransform }) => {
 SortForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
-  onTransform: PropTypes.func,
 };
 
 export default SortForm;

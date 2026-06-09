@@ -1,6 +1,9 @@
 import PropTypes from "prop-types";
+import { useProjectContext } from "../../context/ProjectContext";
 
 const TransformResultPreview = ({ columns, rows }) => {
+  const { columnOrder } = useProjectContext();
+
   if (!rows || rows.length === 0) {
     return <p className="text-gray-500 mt-4 text-xs font-medium">No data available</p>;
   }
@@ -9,8 +12,15 @@ const TransformResultPreview = ({ columns, rows }) => {
     return <p className="text-gray-500 mt-4 text-xs font-medium">No columns available</p>;
   }
 
-  const displayColumns = ["S.No.", ...columns];
-  const displayRows = rows.map((row, index) => [index + 1, ...row]);
+  const orderedColumns =
+    columnOrder.length === columns.length ? columnOrder.map((i) => columns[i]) : columns;
+
+  const orderedRows = rows.map((row) =>
+    columnOrder.length === row.length ? columnOrder.map((i) => row[i]) : row,
+  );
+
+  const displayColumns = ["S.No.", ...orderedColumns];
+  const displayRows = orderedRows.map((row, index) => [index + 1, ...row]);
 
   return (
     <div

@@ -8,7 +8,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import { useProjectContext } from "../../context/ProjectContext";
 
-const FilterForm = ({ projectId, onClose, onTransform }) => {
+const FilterForm = ({ projectId, onClose }) => {
   const [filterParams, setFilterParams] = useState({
     column: "",
     condition: "=",
@@ -36,8 +36,10 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
         parameters: filterParams,
       });
       setResult(response);
-      if (onTransform) onTransform(response);
-      updateData(response.columns, response.rows, response.dtypes);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);
@@ -118,7 +120,6 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
 FilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
-  onTransform: PropTypes.func,
 };
 
 export default FilterForm;

@@ -49,3 +49,22 @@ export const getCurrentUser = async (): Promise<User> => {
   const response = await client.get<User>("/auth/me");
   return response.data;
 };
+
+/**
+ * Request a password reset email for an existing account. If the email exists, the server sends a password reset link/token.
+ * @param email - The account's email address.
+ * @returns nothing.
+ */
+export const forgotPassword = async (email: string): Promise<void> => {
+  await client.post("/auth/forgot-password", { email });
+};
+
+/**
+ * Reset the account password using a valid reset token.
+ * @param token - Password reset token received via email.
+ * @param newPassword - New password to set for the account.
+ * @returns Promise that resolves when the password is successfully updated.
+ */
+export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
+  await client.post("/auth/reset-password", { token, new_password: newPassword });
+};
