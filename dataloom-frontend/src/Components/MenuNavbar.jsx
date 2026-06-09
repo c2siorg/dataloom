@@ -79,9 +79,15 @@ const MenuNavbar = ({ projectId }) => {
   const fetchCheckpoints = useCallback(async () => {
     try {
       const checkpointsResponse = await getCheckpoints(projectId);
-      setCheckpoints(checkpointsResponse);
+
+      if (Array.isArray(checkpointsResponse)) {
+        setCheckpoints(checkpointsResponse.length > 0 ? checkpointsResponse[0] : null);
+      } else {
+        setCheckpoints(checkpointsResponse?.id ? checkpointsResponse : null);
+      }
     } catch (error) {
       console.error("Error fetching checkpoints:", error);
+      setCheckpoints(null);
     }
   }, [projectId]);
 
@@ -479,12 +485,14 @@ const MenuNavbar = ({ projectId }) => {
       )}
       {showCheckpoints && (
         <CheckpointsPanel
+          projectId={projectId}
           checkpoints={checkpoints}
           onClose={() => {
             setShowCheckpoints(false);
             setActiveForm(null);
           }}
           onRevert={handleRevert}
+          onCheckpointDeleted={fetchCheckpoints}
         />
       )}
       {showGroupByForm && (

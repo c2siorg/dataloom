@@ -218,3 +218,41 @@ def delete_change_log(db: Session, log: models.ProjectChangeLog) -> None:
     db.delete(log)
     db.flush()
     logger.debug("Deleted change log: id=%s, project_id=%s", log.change_log_id, log.project_id)
+
+
+def delete_checkpoint(db: Session, checkpoint_id: uuid.UUID, project_id: uuid.UUID) -> None:
+    """Delete a checkpoint and unlink its associated logs.
+
+    Logs that referenced this checkpoint are not deleted — they are unlinked
+    (checkpoint_id set to None) so the transformation history is preserved.
+
+    Args:
+        db: Database session.
+        checkpoint_id: The checkpoint to delete.
+        project_id: The project the checkpoint belongs to.
+
+    Raises:
+        HTTPException: If the checkpoint is not found.
+    """
+    from fastapi import HTTPException
+
+    checkpoint = (
+        db.query(models.Checkpoint)
+        .filter(
+            models.Checkpoint.id == checkpoint_id,
+            models.Checkpoint.project_id == project_id,
+        )
+        .first()
+    )
+
+    if not checkpoint:
+        raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+    # Unlink logs referencing this checkpoint
+    db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.checkpoint_id == checkpoint_id).update(
+        {"checkpoint_id": None}, synchronize_session="evaluate"
+    )
+
+    db.delete(checkpoint)
+    db.commit()
+    logger.info("Deleted checkpoint: id=%s, project_id=%s", checkpoint_id, project_id)

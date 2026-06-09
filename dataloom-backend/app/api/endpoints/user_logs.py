@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app import database, models, schemas
 from app.api import dependencies
-from app.services.project_service import get_checkpoints
+from app.services.project_service import delete_checkpoint, get_checkpoints
 
 router = APIRouter()
 
@@ -44,3 +44,16 @@ def get_project_checkpoints(
 ):
     """Fetch all checkpoints for a project ordered by creation time."""
     return get_checkpoints(db, project_id)
+
+
+@router.delete("/checkpoints/{project_id}/{checkpoint_id}")
+def delete_project_checkpoint(
+    project_id: uuid.UUID,
+    checkpoint_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
+    _project: models.Project = Depends(dependencies.get_project_or_404),
+):
+    """Delete a checkpoint and unlink its associated logs."""
+    delete_checkpoint(db, checkpoint_id, project_id)
+    db.commit()
+    return {"success": True, "message": "Checkpoint deleted"}

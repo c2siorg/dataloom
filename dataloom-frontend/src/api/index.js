@@ -11,6 +11,6 @@ export {
   exportProject,
   deleteProject,
 } from "./projects";
-export { getLogs, getCheckpoints } from "./logs";
+export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
 export { transformProject, groupByTransform, undoLastTransformation } from "./transforms";
 export { signup, signin, logout, getCurrentUser } from "./auth";
