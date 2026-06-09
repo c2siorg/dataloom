@@ -104,6 +104,7 @@ const MenuNavbar = ({ projectId }) => {
 
     try {
       await saveProject(projectId, message);
+      await fetchCheckpoints();
       setToast({ message: "Project saved successfully!", type: "success" });
     } catch {
       setToast({ message: "Failed to save project.", type: "error" });
