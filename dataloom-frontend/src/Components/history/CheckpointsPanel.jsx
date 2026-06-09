@@ -1,7 +1,23 @@
+import { useState } from "react";
+import { deleteCheckpoint } from "../../api";
 import PropTypes from "prop-types";
+import Modal from "../common/Modal";
 
-const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
+const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpointDeleted }) => {
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
   const hasCheckpoints = Array.isArray(checkpoints) && checkpoints.length > 0;
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await deleteCheckpoint(projectId, confirmDeleteId);
+      await onCheckpointDeleted();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
 
   return (
     <div
@@ -13,12 +29,7 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
         <button
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600 font-medium transition-opacity opacity-0 group-hover:opacity-100"
-          style={{
-            transition: "opacity 0.3s",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-          }}
+          style={{ transition: "opacity 0.3s", background: "transparent", border: "none", cursor: "pointer" }}
         >
           Close
         </button>
@@ -35,7 +46,7 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
                 Created At
               </th>
               <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Action
+                Actions
               </th>
             </tr>
           </thead>
@@ -51,12 +62,20 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
                     {new Date(checkpoint.created_at).toLocaleString()}
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <button
-                      onClick={() => onRevert(checkpoint.id)}
-                      className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
-                    >
-                      Revert
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => onRevert(checkpoint.id)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
+                      >
+                        Revert
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(checkpoint.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -70,11 +89,36 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
           </tbody>
         </table>
       </div>
+
+      <Modal
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        title="Delete Checkpoint"
+      >
+        <p className="text-gray-700 text-sm mb-6">
+          Are you sure you want to delete this checkpoint? This action cannot be undone.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setConfirmDeleteId(null)}
+            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDeleteConfirm}
+            className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-md"
+          >
+            Delete
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };
 
 CheckpointsPanel.propTypes = {
+  projectId: PropTypes.string.isRequired,
   checkpoints: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
@@ -84,6 +128,7 @@ CheckpointsPanel.propTypes = {
   ),
   onClose: PropTypes.func.isRequired,
   onRevert: PropTypes.func.isRequired,
+  onCheckpointDeleted: PropTypes.func.isRequired,
 };
 
 export default CheckpointsPanel;
