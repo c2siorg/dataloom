@@ -15,9 +15,9 @@ export const getLogs = async (projectId) => {
 };
 
 /**
- * Fetch checkpoints for a project.
+ * Fetch all checkpoints for a project.
  * @param {string} projectId - The project ID.
- * @returns {Promise<Object>} Checkpoint data.
+ * @returns {Promise<Array>} List of checkpoints ordered by creation time.
  */
 export const getCheckpoints = async (projectId) => {
   const response = await client.get(`/logs/checkpoints/${projectId}`);

@@ -172,6 +172,24 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     return checkpoint
 
 
+def get_checkpoints(db: Session, project_id: uuid.UUID) -> list[models.Checkpoint]:
+    """Fetch all checkpoints for a project ordered by creation time descending.
+
+    Args:
+        db: Database session.
+        project_id: The project to query.
+
+    Returns:
+        List of Checkpoint model instances ordered by created_at desc.
+    """
+    return (
+        db.query(models.Checkpoint)
+        .filter(models.Checkpoint.project_id == project_id)
+        .order_by(models.Checkpoint.created_at.desc())
+        .all()
+    )
+
+
 def get_last_change_log(db: Session, project_id: uuid.UUID) -> models.ProjectChangeLog | None:
     """Get the most recent change log entry for a project.
 
