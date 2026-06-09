@@ -1,10 +1,7 @@
 import PropTypes from "prop-types";
 
 const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
-  const hasCheckpoints =
-    checkpoints && Array.isArray(checkpoints)
-      ? checkpoints.length > 0
-      : checkpoints && checkpoints.id;
+  const hasCheckpoints = Array.isArray(checkpoints) && checkpoints.length > 0;
 
   return (
     <div
@@ -12,7 +9,7 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
       className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group"
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Last Checkpoint</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Checkpoints</h3>
         <button
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600 font-medium transition-opacity opacity-0 group-hover:opacity-100"
@@ -27,9 +24,9 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-72">
         <table className="min-w-full bg-white rounded-lg overflow-hidden">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 sticky top-0">
             <tr>
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Message
@@ -44,24 +41,29 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
           </thead>
           <tbody>
             {hasCheckpoints ? (
-              <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
-                <td className="py-3 px-4 text-sm text-gray-700">{checkpoints.message}</td>
-                <td className="py-3 px-4 text-sm text-gray-500">
-                  {new Date(checkpoints.created_at).toLocaleString()}
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <button
-                    onClick={() => onRevert(checkpoints.id)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
-                  >
-                    Revert
-                  </button>
-                </td>
-              </tr>
+              checkpoints.map((checkpoint) => (
+                <tr
+                  key={checkpoint.id}
+                  className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                >
+                  <td className="py-3 px-4 text-sm text-gray-700">{checkpoint.message}</td>
+                  <td className="py-3 px-4 text-sm text-gray-500">
+                    {new Date(checkpoint.created_at).toLocaleString()}
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <button
+                      onClick={() => onRevert(checkpoint.id)}
+                      className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
+                    >
+                      Revert
+                    </button>
+                  </td>
+                </tr>
+              ))
             ) : (
               <tr>
                 <td colSpan="3" className="py-4 px-4 text-center text-sm text-gray-500">
-                  No checkpoint available
+                  No checkpoints available
                 </td>
               </tr>
             )}
@@ -73,11 +75,13 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
 };
 
 CheckpointsPanel.propTypes = {
-  checkpoints: PropTypes.shape({
-    id: PropTypes.string,
-    message: PropTypes.string,
-    created_at: PropTypes.string,
-  }),
+  checkpoints: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      message: PropTypes.string.isRequired,
+      created_at: PropTypes.string.isRequired,
+    }),
+  ),
   onClose: PropTypes.func.isRequired,
   onRevert: PropTypes.func.isRequired,
 };
