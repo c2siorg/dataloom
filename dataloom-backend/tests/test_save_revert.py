@@ -8,6 +8,7 @@ from app import models
 from app.services.project_service import (
     create_checkpoint,
     create_project,
+    get_checkpoints,
     log_transformation,
 )
 from app.services.transformation_service import add_column, rename_column
@@ -126,3 +127,65 @@ class TestSaveEndpointRegressions:
         second_save = second_save_response.json()
         assert second_save["columns"] == ["name", "years", "city", "country"]
         assert read_table_safe(project.file_path).columns.tolist() == ["name", "years", "city", "country"]
+
+
+class TestGetCheckpoints:
+    def test_get_checkpoints_empty_project_returns_empty_list(self, db, test_user):
+        """get_checkpoints should return an empty list when no checkpoints exist."""
+        project = create_project(
+            db, name="get-checkpoints-empty", file_path="/tmp/test.csv", description="", owner_id=test_user.id
+        )
+
+        result = get_checkpoints(db, project.project_id)
+
+        assert result == []
+
+    def test_get_checkpoints_returns_all_checkpoints(self, db, test_user):
+        """get_checkpoints should return all checkpoints for a project."""
+        project = create_project(
+            db, name="get-checkpoints-all", file_path="/tmp/test.csv", description="", owner_id=test_user.id
+        )
+
+        create_checkpoint(db, project.project_id, "first save")
+        create_checkpoint(db, project.project_id, "second save")
+        create_checkpoint(db, project.project_id, "third save")
+
+        result = get_checkpoints(db, project.project_id)
+
+        assert len(result) == 3
+
+    def test_get_checkpoints_ordered_by_created_at_desc(self, db, test_user):
+        """get_checkpoints should return checkpoints newest first."""
+        project = create_project(
+            db, name="get-checkpoints-order", file_path="/tmp/test.csv", description="", owner_id=test_user.id
+        )
+
+        create_checkpoint(db, project.project_id, "first save")
+        create_checkpoint(db, project.project_id, "second save")
+        create_checkpoint(db, project.project_id, "third save")
+
+        result = get_checkpoints(db, project.project_id)
+
+        assert len(result) == 3
+        messages = [c.message for c in result]
+        assert set(messages) == {"first save", "second save", "third save"}
+        # verify ordering — each created_at should be >= the next
+        for i in range(len(result) - 1):
+            assert result[i].created_at >= result[i + 1].created_at
+
+    def test_get_checkpoints_does_not_return_other_project_checkpoints(self, db, test_user):
+        """get_checkpoints should only return checkpoints for the given project."""
+        project_a = create_project(
+            db, name="get-checkpoints-project-a", file_path="/tmp/test.csv", description="", owner_id=test_user.id
+        )
+        project_b = create_project(
+            db, name="get-checkpoints-project-b", file_path="/tmp/test.csv", description="", owner_id=test_user.id
+        )
+
+        create_checkpoint(db, project_a.project_id, "project a save")
+        create_checkpoint(db, project_b.project_id, "project b save")
+
+        result = get_checkpoints(db, project_a.project_id)
+
+        assert len(result) == 1
+        assert result[0].message == "project a save"
