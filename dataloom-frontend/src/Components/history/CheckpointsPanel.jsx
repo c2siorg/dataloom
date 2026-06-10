@@ -2,15 +2,18 @@ import { useState } from "react";
 import { deleteCheckpoint } from "../../api";
 import PropTypes from "prop-types";
 import Modal from "../common/Modal";
+import { useToast } from "../../context/ToastContext";
 
 const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpointDeleted }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const { showToast } = useToast();
 
   const hasCheckpoints = Array.isArray(checkpoints) && checkpoints.length > 0;
 
   const handleDeleteConfirm = async () => {
     try {
       await deleteCheckpoint(projectId, confirmDeleteId);
+      showToast("Checkpoint deleted successfully", "success");
       await onCheckpointDeleted();
     } catch (err) {
       console.error(err);
@@ -29,7 +32,12 @@ const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpo
         <button
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600 font-medium transition-opacity opacity-0 group-hover:opacity-100"
-          style={{ transition: "opacity 0.3s", background: "transparent", border: "none", cursor: "pointer" }}
+          style={{
+            transition: "opacity 0.3s",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+          }}
         >
           Close
         </button>
