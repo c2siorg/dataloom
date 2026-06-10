@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
@@ -234,7 +235,6 @@ def delete_checkpoint(db: Session, checkpoint_id: uuid.UUID, project_id: uuid.UU
     Raises:
         HTTPException: If the checkpoint is not found.
     """
-    from fastapi import HTTPException
 
     checkpoint = (
         db.query(models.Checkpoint)
@@ -254,5 +254,5 @@ def delete_checkpoint(db: Session, checkpoint_id: uuid.UUID, project_id: uuid.UU
     )
 
     db.delete(checkpoint)
-    db.commit()
+    db.flush()
     logger.info("Deleted checkpoint: id=%s, project_id=%s", checkpoint_id, project_id)

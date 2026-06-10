@@ -79,11 +79,13 @@ const MenuNavbar = ({ projectId }) => {
   const fetchCheckpoints = useCallback(async () => {
     try {
       const checkpointsResponse = await getCheckpoints(projectId);
-
+      console.log(checkpointsResponse);
       if (Array.isArray(checkpointsResponse)) {
-        setCheckpoints(checkpointsResponse.length > 0 ? checkpointsResponse[0] : null);
+        setCheckpoints(checkpointsResponse);
+      } else if (checkpointsResponse?.id) {
+        setCheckpoints([checkpointsResponse]);
       } else {
-        setCheckpoints(checkpointsResponse?.id ? checkpointsResponse : null);
+        setCheckpoints([]);
       }
     } catch (error) {
       console.error("Error fetching checkpoints:", error);
