@@ -53,6 +53,17 @@ class DropDup(StrEnum):
     last = "last"
 
 
+class FillStrategy(StrEnum):
+    """Supported strategies for filling empty cells."""
+
+    custom = "custom"
+    mean = "mean"
+    median = "median"
+    mode = "mode"
+    ffill = "ffill"
+    bfill = "bfill"
+
+
 class AggFunc(StrEnum):
     """Supported aggregation functions for pivot tables."""
 
@@ -141,7 +152,8 @@ class FillEmptyParams(BaseModel):
     """Parameters for filling empty cells."""
 
     index: int | None
-    fill_value: Any
+    fill_value: Any | None = None
+    strategy: FillStrategy = FillStrategy.custom
 
 
 class RenameColumnParams(BaseModel):

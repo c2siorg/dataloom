@@ -322,6 +322,93 @@ class TestFillEmpty:
         assert result["a"].tolist() == [1.0, 0, 3.0]
         assert pd.isna(result["b"].iloc[0])
 
+    def test_fill_custom_requires_value(self):
+        # Custom strategy must keep the existing API explicit when no fill value is provided.
+        df = pd.DataFrame({"a": [1, None, 3]})
+        with pytest.raises(TransformationError, match="fill value is required"):
+            fill_empty(df, strategy="custom")
+
+    def test_fill_mean_for_numeric_column(self):
+        # Mean strategy fills NaN with the numeric column average: (10 + 30) / 2 = 20.
+        df = pd.DataFrame({"score": [10, None, 30]})
+        result = fill_empty(df, column_index=0, strategy="mean")
+        assert result["score"].tolist() == [10.0, 20.0, 30.0]
+
+    def test_fill_median_for_numeric_column(self):
+        # Median strategy fills NaN with the middle value of the non-empty values.
+        df = pd.DataFrame({"score": [10, None, 50]})
+        result = fill_empty(df, column_index=0, strategy="median")
+        assert result["score"].tolist() == [10.0, 30.0, 50.0]
+
+    def test_fill_mode_for_string_column(self):
+        # Mode strategy supports categorical/string columns by using the most frequent value.
+        df = pd.DataFrame({"city": ["Delhi", None, "Delhi", "Mumbai"]})
+        result = fill_empty(df, column_index=0, strategy="mode")
+        assert result["city"].tolist() == ["Delhi", "Delhi", "Delhi", "Mumbai"]
+
+    def test_fill_forward_fill_specific_column(self):
+        # Forward fill propagates the last valid value downward within the selected column.
+        df = pd.DataFrame({"a": [1, None, None, 4], "b": [None, 2, None, 5]})
+        result = fill_empty(df, column_index=0, strategy="ffill")
+        assert result["a"].tolist() == [1.0, 1.0, 1.0, 4.0]
+        assert pd.isna(result["b"].iloc[0])  # column b untouched
+
+    def test_fill_backward_fill_specific_column(self):
+        # Backward fill propagates the next valid value upward within the selected column.
+        df = pd.DataFrame({"a": [None, None, 3, 4], "b": [None, 2, None, 5]})
+        result = fill_empty(df, column_index=0, strategy="bfill")
+        assert result["a"].tolist() == [3.0, 3.0, 3.0, 4.0]
+        assert pd.isna(result["b"].iloc[0])  # column b untouched
+
+    def test_fill_forward_fill_all_columns(self):
+        # All-column forward fill is supported because it does not need per-column statistics.
+        df = pd.DataFrame({"a": [1, None, 3], "b": [None, 5, None]})
+        result = fill_empty(df, strategy="ffill")
+        assert result["a"].tolist() == [1.0, 1.0, 3.0]
+        assert pd.isna(result["b"].iloc[0])
+        assert result["b"].tolist()[1:] == [5.0, 5.0]
+
+    def test_fill_backward_fill_all_columns(self):
+        # All-column backward fill is supported because it does not need per-column statistics.
+        df = pd.DataFrame({"a": [1, None, 3], "b": [None, 5, None]})
+        result = fill_empty(df, strategy="bfill")
+        assert result["a"].tolist() == [1.0, 3.0, 3.0]
+        assert result["b"].iloc[0] == 5.0
+        assert pd.isna(result["b"].iloc[2])
+
+    def test_fill_mean_non_numeric_column_raises(self):
+        # Mean requires numeric data and should fail clearly for string columns.
+        df = pd.DataFrame({"name": ["Alice", None, "Bob"]})
+        with pytest.raises(TransformationError, match="Cannot compute mean on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="mean")
+
+    def test_fill_median_non_numeric_column_raises(self):
+        # Median requires numeric data and should fail clearly for string columns.
+        df = pd.DataFrame({"name": ["Alice", None, "Bob"]})
+        with pytest.raises(TransformationError, match="Cannot compute median on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="median")
+
+    def test_fill_statistical_strategy_requires_specific_column(self):
+        # Statistical strategies need one selected column so the computed value is unambiguous.
+        df = pd.DataFrame({"a": [1, None, 3]})
+        with pytest.raises(TransformationError, match="requires a specific column"):
+            fill_empty(df, strategy="mean")
+
+    def test_fill_unsupported_strategy_raises(self):
+        df = pd.DataFrame({"a": [1, None, 3]})
+        with pytest.raises(TransformationError, match="Unsupported fill strategy"):
+            fill_empty(df, column_index=0, strategy="unknown")
+
+    def test_fill_empty_mean_rounds_to_two_decimals(self):
+        df = pd.DataFrame({"score": [10, None, 17.3333333333]})
+        result = fill_empty(df, column_index=0, strategy="mean")
+        assert result["score"].iloc[1] == 13.67
+
+    def test_fill_empty_median_rounds_to_two_decimals(self):
+        df = pd.DataFrame({"score": [10.111, None, 20.555]})
+        result = fill_empty(df, column_index=0, strategy="median")
+        assert result["score"].iloc[1] == 15.33
+
 
 class TestDropDuplicates:
     def test_drop_duplicates(self):
@@ -599,6 +686,56 @@ class TestApplyLoggedTransformation:
         )
         assert result["a"].tolist() == [1.0, 99]
         assert pd.isna(result["b"].iloc[0])  # column b untouched
+
+    def test_fill_empty_mean_strategy_replay(self):
+        # Replay must pass the logged strategy into fill_empty so saved datasets match live transforms.
+        df = pd.DataFrame({"score": [10, None, 30]})
+        result = apply_logged_transformation(
+            df,
+            "fillEmpty",
+            {"fill_empty_params": {"fill_value": None, "index": 0, "strategy": "mean"}},
+        )
+        assert result["score"].tolist() == [10.0, 20.0, 30.0]
+
+    def test_fill_empty_median_strategy_replay(self):
+        # Replay must support median because it is persisted in action_details like other parameters.
+        df = pd.DataFrame({"score": [10, None, 50]})
+        result = apply_logged_transformation(
+            df,
+            "fillEmpty",
+            {"fill_empty_params": {"fill_value": None, "index": 0, "strategy": "median"}},
+        )
+        assert result["score"].tolist() == [10.0, 30.0, 50.0]
+
+    def test_fill_empty_mode_strategy_replay(self):
+        # Replay must support non-numeric mode fills for categorical data.
+        df = pd.DataFrame({"city": ["Delhi", None, "Delhi", "Mumbai"]})
+        result = apply_logged_transformation(
+            df,
+            "fillEmpty",
+            {"fill_empty_params": {"fill_value": None, "index": 0, "strategy": "mode"}},
+        )
+        assert result["city"].tolist() == ["Delhi", "Delhi", "Delhi", "Mumbai"]
+
+    def test_fill_empty_forward_fill_strategy_replay(self):
+        # Replay must preserve forward-fill behavior for logged transformations.
+        df = pd.DataFrame({"a": [1, None, None, 4]})
+        result = apply_logged_transformation(
+            df,
+            "fillEmpty",
+            {"fill_empty_params": {"fill_value": None, "index": 0, "strategy": "ffill"}},
+        )
+        assert result["a"].tolist() == [1.0, 1.0, 1.0, 4.0]
+
+    def test_fill_empty_backward_fill_strategy_replay(self):
+        # Replay must preserve backward-fill behavior for logged transformations.
+        df = pd.DataFrame({"a": [None, None, 3, 4]})
+        result = apply_logged_transformation(
+            df,
+            "fillEmpty",
+            {"fill_empty_params": {"fill_value": None, "index": 0, "strategy": "bfill"}},
+        )
+        assert result["a"].tolist() == [3.0, 3.0, 3.0, 4.0]
 
     # -------------------------------------------------------------- dropDuplicate
     def test_drop_duplicate(self):

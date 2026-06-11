@@ -11,6 +11,7 @@ import GroupByForm from "./forms/GroupByForm";
 import StringReplaceForm from "./forms/StringReplaceForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
+import FillEmptyForm from "./forms/FillEmptyForm";
 import InputDialog from "./common/InputDialog";
 import ConfirmDialog from "./common/ConfirmDialog";
 import ExportModal from "./ExportModal";
@@ -41,6 +42,7 @@ import {
   LuGroup,
   LuUndo2,
   LuReplace,
+  LuEraser,
 } from "react-icons/lu";
 import { useProjectContext } from "../context/ProjectContext";
 
@@ -59,6 +61,7 @@ const MenuNavbar = ({ projectId }) => {
   const [showSampleRowsForm, setShowSampleRowsForm] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showStringReplaceForm, setShowStringReplaceForm] = useState(false);
+  const [showFillEmptyForm, setShowFillEmptyForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -173,6 +176,7 @@ const MenuNavbar = ({ projectId }) => {
       setShowLogs(false);
       setShowCheckpoints(false);
       setShowGroupByForm(false);
+      setShowFillEmptyForm(false);
       setShowSampleRowsForm(false);
       return;
     }
@@ -190,6 +194,7 @@ const MenuNavbar = ({ projectId }) => {
     setShowLogs(false);
     setShowCheckpoints(false);
     setShowGroupByForm(false);
+    setShowFillEmptyForm(false);
 
     setActiveForm(formType);
 
@@ -232,6 +237,9 @@ const MenuNavbar = ({ projectId }) => {
         break;
       case "SampleRowsForm":
         setShowSampleRowsForm(true);
+        break;
+      case "FillEmptyForm":
+        setShowFillEmptyForm(true);
         break;
 
       default:
@@ -320,6 +328,12 @@ const MenuNavbar = ({ projectId }) => {
             icon: LuReplace,
             formType: "StringReplaceForm",
             onClick: () => handleMenuClick("StringReplaceForm"),
+          },
+          {
+            label: "Fill Empty",
+            icon: LuEraser,
+            formType: "FillEmptyForm",
+            onClick: () => handleMenuClick("FillEmptyForm"),
           },
         ],
       },
@@ -501,6 +515,15 @@ const MenuNavbar = ({ projectId }) => {
           projectId={projectId}
           onClose={() => {
             setShowGroupByForm(false);
+            setActiveForm(null);
+          }}
+        />
+      )}
+      {showFillEmptyForm && (
+        <FillEmptyForm
+          projectId={projectId}
+          onClose={() => {
+            setShowFillEmptyForm(false);
             setActiveForm(null);
           }}
         />
