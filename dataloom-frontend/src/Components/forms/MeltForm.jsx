@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
 import { transformProject, getProjectDetails } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
+import Button from "../common/Button";
 
 const MeltForm = ({ projectId, onClose }) => {
   const [columns, setColumns] = useState([]);
@@ -180,20 +181,12 @@ const MeltForm = ({ projectId, onClose }) => {
 
         <div className="flex justify-between pt-2">
           <div className="flex gap-2">
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm disabled:opacity-50"
-              disabled={loading}
-            >
+            <Button type="submit" disabled={loading}>
               {loading ? "Processing..." : "Apply Melt"}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm"
-            >
+            </Button>
+            <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       </form>

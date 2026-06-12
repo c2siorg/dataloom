@@ -6,6 +6,7 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
+import Button from "../common/Button";
 
 const GroupByForm = ({ projectId, onClose }) => {
   const { columns: availableColumns, updateData, refreshProject, pageSize } = useProjectContext();
@@ -111,20 +112,12 @@ const GroupByForm = ({ projectId, onClose }) => {
           </div>
         </div>
         <div className="flex justify-between">
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
-            disabled={loading || selectedColumns.length === 0 || !aggColumn}
-          >
+          <Button type="submit" disabled={loading || selectedColumns.length === 0 || !aggColumn}>
             Apply GroupBy
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150"
-          >
+          </Button>
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
       <FormErrorAlert message={error} />

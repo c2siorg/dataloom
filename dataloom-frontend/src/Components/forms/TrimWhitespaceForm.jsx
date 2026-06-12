@@ -4,6 +4,7 @@ import { transformProject } from "../../api";
 import { TRIM_WHITESPACE } from "../../constants/operationTypes";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
+import Button from "../common/Button";
 
 const TrimWhitespaceForm = ({ projectId, onClose }) => {
   const { columns, updateData, refreshProject, pageSize } = useProjectContext();
@@ -63,21 +64,13 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
         </div>
 
         <div className="flex justify-between">
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button type="submit" disabled={loading}>
             {loading ? "Applying..." : "Apply"}
-          </button>
+          </Button>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>

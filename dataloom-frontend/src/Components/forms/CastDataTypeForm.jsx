@@ -7,6 +7,7 @@ import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import { useProjectContext } from "../../context/ProjectContext";
+import Button from "../common/Button";
 
 const CastDataTypeForm = ({ projectId, onClose }) => {
   const { showToast } = useToast();
@@ -74,20 +75,11 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
         </div>
 
         <div className="flex justify-between">
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
-          >
-            Apply
-          </button>
+          <Button type="submit">Apply</Button>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
       <FormErrorAlert message={error} />

@@ -4,6 +4,7 @@ import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
 import { STRING_REPLACE } from "../../constants/operationTypes";
+import Button from "../common/Button";
 
 const StringReplaceForm = ({ projectId, onClose }) => {
   const { columns, updateData, refreshProject, pageSize } = useProjectContext();
@@ -98,20 +99,11 @@ const StringReplaceForm = ({ projectId, onClose }) => {
         </div>
 
         <div className="flex justify-between">
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150"
-          >
-            Apply
-          </button>
+          <Button type="submit">Apply</Button>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150"
-          >
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>
