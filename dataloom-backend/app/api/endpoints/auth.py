@@ -98,3 +98,39 @@ async def reset_password(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     return {"message": "Password reset successful"}
+
+
+@router.patch("/me/email", response_model=schemas.UserResponse)
+def update_email(
+    payload: schemas.UpdateEmailRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    """Update the currently authenticated user's email."""
+    try:
+        return auth_service.update_user_email(db, current_user, payload.email)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@router.patch("/me/password")
+def change_password(
+    payload: schemas.ChangePasswordRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    """Change the currently authenticated user's password."""
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
+
+    try:
+        auth_service.change_user_password(
+            db,
+            current_user,
+            payload.current_password,
+            payload.new_password,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return {"message": "Password changed successfully"}

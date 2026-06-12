@@ -51,6 +51,37 @@ export const getCurrentUser = async (): Promise<User> => {
 };
 
 /**
+ * Update the authenticated user's email address.
+ * @param email - New email address.
+ * @returns Updated user object.
+ */
+export const updateEmail = async (email: string): Promise<User> => {
+  const response = await client.patch<User>("/auth/me/email", {
+    email,
+  });
+  console.log(response);
+  return response.data;
+};
+
+/**
+ * Change the authenticated user's password.
+ * @param currentPassword - Current account password.
+ * @param newPassword - New password to set.
+ * @returns Success response from the API.
+ */
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ message: string }> => {
+  const response = await client.patch<{ message: string }>("/auth/me/password", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+
+  return response.data;
+};
+
+/**
  * Request a password reset email for an existing account. If the email exists, the server sends a password reset link/token.
  * @param email - The account's email address.
  * @returns nothing.
