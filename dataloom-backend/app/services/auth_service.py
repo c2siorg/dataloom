@@ -153,3 +153,35 @@ def reset_user_password(db: Session, reset_token: models.PasswordResetToken, new
     reset_token.used = True
     db.commit()
     logger.info("Password reset successful for user: %s", user.id)
+
+
+def update_user_email(db: Session, user: models.User, new_email: str) -> models.User:
+    """Update a user's email address."""
+    existing_user = get_user_by_email(db, new_email)
+    if existing_user and existing_user.id != user.id:
+        raise ValueError("An account with this email already exists")
+
+    user.email = new_email
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    logger.info("Updated email for user: %s", user.id)
+    return user
+
+
+def change_user_password(
+    db: Session,
+    user: models.User,
+    current_password: str,
+    new_password: str,
+) -> None:
+    """Change a user's password after validating the current password."""
+    if not verify_password(current_password, user.password_hash):
+        raise ValueError("Current password is incorrect")
+
+    user.password_hash = hash_password(new_password)
+    db.add(user)
+    db.commit()
+
+    logger.info("Password changed for user: %s", user.id)

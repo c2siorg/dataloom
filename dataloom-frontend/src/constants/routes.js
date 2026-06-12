@@ -14,6 +14,8 @@ export const ROUTES = {
   forgotPassword: "/forgot-password",
   /** Reset-password page path */
   resetPassword: "/reset-password",
+  /** User profile page path */
+  profile: "/profile",
   /** Workspace view path */
   workspace: "/workspace/:projectId",
   /**

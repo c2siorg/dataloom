@@ -421,3 +421,16 @@ class ResetPasswordRequest(BaseModel):
 
     token: str
     new_password: str
+
+
+class UpdateEmailRequest(BaseModel):
+    """Request body for updating the authenticated user's email."""
+
+    email: EmailStr
+
+
+class ChangePasswordRequest(BaseModel):
+    """Request body for changing the authenticated user's password."""
+
+    current_password: str
+    new_password: str

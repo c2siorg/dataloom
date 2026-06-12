@@ -3,6 +3,7 @@ import { useProjectContext } from "../context/ProjectContext";
 import { useAuth } from "../context/AuthContext";
 import { ROUTES } from "../constants/routes";
 import DataLoomLogo from "./common/DataLoomLogo";
+import { LuCircleUserRound } from "react-icons/lu";
 
 const Navbar = () => {
   const location = useLocation();
@@ -42,19 +43,31 @@ const Navbar = () => {
             </div>
           )}
           {user && (
-            <span
-              className="hidden sm:inline text-sm text-gray-500 truncate max-w-[180px]"
-              title={user.email}
-            >
-              {user.email}
-            </span>
+            <Link to={ROUTES.profile} className="flex items-center justify-center gap-2">
+              <span
+                className="hidden sm:inline text-sm text-gray-500 truncate max-w-[180px]"
+                title={user.email}
+              >
+                {user.email}
+              </span>
+
+              <div
+                to={ROUTES.profile}
+                title="Profile"
+                aria-label="Profile"
+                className="flex items-center justify-center w-9 h-9 rounded-2xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              >
+                <LuCircleUserRound className="w-5 h-5" />
+              </div>
+            </Link>
           )}
           <button
             type="button"
             onClick={handleLogout}
             className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150"
           >
-            Sign out
+            {" "}
+            Sign out{" "}
           </button>
         </div>
       </nav>
