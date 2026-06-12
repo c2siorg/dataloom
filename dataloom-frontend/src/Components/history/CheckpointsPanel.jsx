@@ -3,6 +3,7 @@ import { deleteCheckpoint } from "../../api";
 import PropTypes from "prop-types";
 import Modal from "../common/Modal";
 import { useToast } from "../../context/ToastContext";
+import Button from "../common/Button";
 
 const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpointDeleted }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -71,18 +72,16 @@ const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpo
                   </td>
                   <td className="py-3 px-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => onRevert(checkpoint.id)}
-                        className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
-                      >
+                      <Button onClick={() => onRevert(checkpoint.id)} className="text-sm">
                         Revert
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="danger"
                         onClick={() => setConfirmDeleteId(checkpoint.id)}
-                        className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
+                        className="text-sm"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -107,18 +106,12 @@ const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpo
           Are you sure you want to delete this checkpoint? This action cannot be undone.
         </p>
         <div className="flex justify-end gap-2">
-          <button
-            onClick={() => setConfirmDeleteId(null)}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
+          <Button variant="secondary" onClick={() => setConfirmDeleteId(null)}>
             Cancel
-          </button>
-          <button
-            onClick={handleDeleteConfirm}
-            className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-md"
-          >
+          </Button>
+          <Button variant="danger" onClick={handleDeleteConfirm}>
             Delete
-          </button>
+          </Button>
         </div>
       </Modal>
     </div>

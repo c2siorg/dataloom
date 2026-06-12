@@ -7,6 +7,7 @@ import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import { useProjectContext } from "../../context/ProjectContext";
+import Button from "../common/Button";
 
 /**
  * SortForm component for multi-column sorting.
@@ -195,20 +196,12 @@ const SortForm = ({ projectId, onClose }) => {
           Add Sort Criterion
         </button>
         <div className="flex justify-between pt-4 border-t border-gray-200">
-          <button
-            type="submit"
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading || criteria.length === 0}
-          >
+          <Button type="submit" disabled={loading || criteria.length === 0}>
             {loading ? "Applying..." : "Apply Sort"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150"
-          >
+          </Button>
+          <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
       <FormErrorAlert message={error} />
