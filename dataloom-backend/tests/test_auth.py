@@ -87,6 +87,90 @@ class TestCurrentUser:
         assert resp.status_code == 401
 
 
+class TestProfileManagement:
+    def test_update_email_success(self, client, test_user):
+        """Should update the authenticated user's email."""
+        response = client.patch("/auth/me/email", json={"email": "updated@test.com"})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["email"] == "updated@test.com"
+        assert body["id"] == str(test_user.id)
+
+    def test_update_email_requires_auth(self, anon_client):
+        """Should reject email updates without authentication."""
+        response = anon_client.patch("/auth/me/email", json={"email": "updated@test.com"})
+
+        assert response.status_code == 401
+
+    def test_update_email_duplicate_returns_409(self, client, db):
+        """Should reject email updates when another account already uses the email."""
+        create_user(db, "existing@test.com", "password123")
+
+        response = client.patch("/auth/me/email", json={"email": "existing@test.com"})
+
+        assert response.status_code == 409
+
+    def test_update_email_invalid_returns_422(self, client):
+        """Should reject invalid email format."""
+        response = client.patch("/auth/me/email", json={"email": "not-an-email"})
+
+        assert response.status_code == 422
+
+    def test_change_password_success(self, client, test_user, db):
+        """Should change password when current password is valid."""
+        response = client.patch(
+            "/auth/me/password",
+            json={
+                "current_password": "testpassword",
+                "new_password": "newpassword123",
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["message"] == "Password changed successfully"
+
+        db.refresh(test_user)
+        assert verify_password("newpassword123", test_user.password_hash)
+
+    def test_change_password_requires_auth(self, anon_client):
+        """Should reject password changes without authentication."""
+        response = anon_client.patch(
+            "/auth/me/password",
+            json={
+                "current_password": "testpassword",
+                "new_password": "newpassword123",
+            },
+        )
+
+        assert response.status_code == 401
+
+    def test_change_password_wrong_current_password_returns_400(self, client):
+        """Should reject password change when current password is incorrect."""
+        response = client.patch(
+            "/auth/me/password",
+            json={
+                "current_password": "wrongpassword",
+                "new_password": "newpassword123",
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Current password is incorrect"
+
+    def test_change_password_too_short_returns_422(self, client):
+        """Should reject new passwords shorter than 8 characters."""
+        response = client.patch(
+            "/auth/me/password",
+            json={
+                "current_password": "testpassword",
+                "new_password": "short",
+            },
+        )
+
+        assert response.status_code == 422
+
+
 class TestLogout:
     def test_logout_clears_cookie(self, anon_client):
         _signup(anon_client, "logout@test.com")
