@@ -78,13 +78,21 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
             raise TransformationError(f"Invalid numeric value: {value}") from None
 
     ops = {
-        "=": lambda: df[df[column] == value],
-        "!=": lambda: df[df[column] != value],
-        ">": lambda: df[df[column] > value],
-        "<": lambda: df[df[column] < value],
-        ">=": lambda: df[df[column] >= value],
-        "<=": lambda: df[df[column] <= value],
-        "contains": lambda: df[df[column].astype(str).str.contains(value, na=False)],
+        "=": lambda col, val: (
+            df[col.notna() & (col.astype(str).str.lower() == val.lower())]
+            if pd.api.types.is_string_dtype(col)
+            else df[col == val]
+        ),
+        "!=": lambda col, val: (
+            df[col.isna() | (col.astype(str).str.lower() != val.lower())]
+            if pd.api.types.is_string_dtype(col)
+            else df[col != val]
+        ),
+        ">": lambda col, val: df[col > val],
+        "<": lambda col, val: df[col < val],
+        ">=": lambda col, val: df[col >= val],
+        "<=": lambda col, val: df[col <= val],
+        "contains": lambda col, val: df[col.astype(str).str.contains(val, na=False, case=False)],
     }
 
     condition_str = condition.value if hasattr(condition, "value") else str(condition)
@@ -92,7 +100,7 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     if condition_str not in ops:
         raise TransformationError(f"Unsupported filter condition: {condition_str}")
 
-    return ops[condition_str]()
+    return ops[condition_str](df[column], value)
 
 
 def apply_sort(
