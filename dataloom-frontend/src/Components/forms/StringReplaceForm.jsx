@@ -5,8 +5,8 @@ import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
 import { STRING_REPLACE } from "../../constants/operationTypes";
 
-const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
-  const { columns } = useProjectContext();
+const StringReplaceForm = ({ projectId, onClose }) => {
+  const { columns, updateData, refreshProject, pageSize } = useProjectContext();
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -18,7 +18,7 @@ const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
 
     try {
       const response = await transformProject(projectId, {
-        transformation_type: STRING_REPLACE,
+        operation_type: STRING_REPLACE,
         string_replace_params: {
           column,
           find_value: findValue,
@@ -26,11 +26,23 @@ const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
         },
       });
 
-      onTransform(response);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
+      await refreshProject(projectId, 1, pageSize);
       onClose();
     } catch (error) {
       console.error("Error replacing string:", error);
-      showToast(error.response?.data?.detail || "Failed to replace string.", "error");
+      const detail = error.response?.data?.detail;
+      const message =
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? detail.map((e) => e.msg ?? JSON.stringify(e)).join(", ")
+            : "Failed to replace string.";
+
+      showToast(message, "error");
     }
   };
 
@@ -109,7 +121,6 @@ const StringReplaceForm = ({ projectId, onClose, onTransform }) => {
 StringReplaceForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
-  onTransform: PropTypes.func.isRequired,
 };
 
 export default StringReplaceForm;

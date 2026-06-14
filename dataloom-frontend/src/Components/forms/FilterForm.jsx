@@ -8,7 +8,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import { useProjectContext } from "../../context/ProjectContext";
 
-const FilterForm = ({ projectId, onClose, onTransform }) => {
+const FilterForm = ({ projectId, onClose }) => {
   const [filterParams, setFilterParams] = useState({
     column: "",
     condition: "=",
@@ -17,7 +17,7 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
-  const { updateData } = useProjectContext();
+  const { updateData, setPaginationData, pageSize } = useProjectContext();
 
   const handleInputChange = (e) => {
     setFilterParams({
@@ -36,8 +36,21 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
         parameters: filterParams,
       });
       setResult(response);
-      if (onTransform) onTransform(response);
-      updateData(response.columns, response.rows, response.dtypes);
+      // Update table data directly from the transform response.
+      // Do NOT call refreshProject here — that re-fetches from the saved file
+      // on disk (which is already mutated), causing a second filter to search
+      // inside an already-filtered dataset and return 0 rows.
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
+      // Sync pagination counters with the filtered row count.
+      // Keep total_pages at minimum 1 so the pagination bar never shows "1 of 0".
+      setPaginationData({
+        total_rows: response.row_count,
+        total_pages: Math.max(1, Math.ceil(response.row_count / pageSize)),
+        page: 1,
+      });
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);
@@ -118,7 +131,6 @@ const FilterForm = ({ projectId, onClose, onTransform }) => {
 FilterForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
-  onTransform: PropTypes.func,
 };
 
 export default FilterForm;

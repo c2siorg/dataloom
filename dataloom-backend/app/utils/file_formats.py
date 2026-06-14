@@ -19,6 +19,18 @@ import pandas as pd
 
 
 @dataclass(frozen=True)
+class TableWriteOptions:
+    """Optional settings for writing a DataFrame to disk."""
+
+    delimiter: str | None = None
+    include_header: bool = True
+    encoding: str | None = None
+
+    def has_options(self) -> bool:
+        return self.delimiter is not None or self.encoding is not None or not self.include_header
+
+
+@dataclass(frozen=True)
 class FileFormat:
     """Describes how to read, write, and serve a single dataset file format.
 
@@ -31,27 +43,52 @@ class FileFormat:
 
     extension: str
     read: Callable[[Path], pd.DataFrame]
-    write: Callable[[pd.DataFrame, Path], None]
+    write: Callable[[pd.DataFrame, Path, TableWriteOptions | None], None]
     media_type: str
 
 
 # --- CSV / TSV ------------------------------------------------------------
 
 
+_DELIMITER_ALIASES = {"comma": ",", "tab": "\t", "semicolon": ";", "pipe": "|"}
+_ENCODINGS = {"utf-8", "latin-1", "ascii", "utf-16"}
+
+
+def _resolve_delimited_options(options: TableWriteOptions | None, default_sep: str) -> dict:
+    options = options or TableWriteOptions()
+
+    sep = default_sep
+    if options.delimiter is not None:
+        sep = _DELIMITER_ALIASES.get(options.delimiter.lower())
+        if sep is None:
+            raise ValueError(f"Unsupported delimiter '{options.delimiter}'. Supported: {sorted(_DELIMITER_ALIASES)}")
+
+    encoding = options.encoding or "utf-8"
+    if encoding.lower() not in _ENCODINGS:
+        raise ValueError(f"Unsupported encoding '{encoding}'. Supported: {sorted(_ENCODINGS)}")
+
+    return {
+        "sep": sep,
+        "header": options.include_header,
+        "index": False,
+        "encoding": encoding,
+    }
+
+
 def _read_csv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def _write_csv(df: pd.DataFrame, path: Path) -> None:
-    df.to_csv(path, index=False)
+def _write_csv(df: pd.DataFrame, path: Path, options: TableWriteOptions | None = None) -> None:
+    df.to_csv(path, **_resolve_delimited_options(options, default_sep=","))
 
 
 def _read_tsv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path, sep="\t")
 
 
-def _write_tsv(df: pd.DataFrame, path: Path) -> None:
-    df.to_csv(path, sep="\t", index=False)
+def _write_tsv(df: pd.DataFrame, path: Path, options: TableWriteOptions | None = None) -> None:
+    df.to_csv(path, **_resolve_delimited_options(options, default_sep="\t"))
 
 
 # --- JSON (one level of nesting) ------------------------------------------
@@ -107,7 +144,7 @@ def _read_json(path: Path) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
-def _write_json(df: pd.DataFrame, path: Path) -> None:
+def _write_json(df: pd.DataFrame, path: Path, _) -> None:
     df.to_json(path, orient="records", indent=2)
 
 
@@ -119,7 +156,7 @@ def _read_xlsx(path: Path) -> pd.DataFrame:
     return pd.read_excel(path)
 
 
-def _write_xlsx(df: pd.DataFrame, path: Path) -> None:
+def _write_xlsx(df: pd.DataFrame, path: Path, *_ignored) -> None:
     df.to_excel(path, index=False)
 
 
@@ -130,7 +167,7 @@ def _read_parquet(path: Path) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
-def _write_parquet(df: pd.DataFrame, path: Path) -> None:
+def _write_parquet(df: pd.DataFrame, path: Path, *_ignored) -> None:
     try:
         df.to_parquet(path, index=False)
     except (ValueError, TypeError):
@@ -165,6 +202,27 @@ def supported_extensions() -> list[str]:
     return list(_FORMATS.keys())
 
 
+def get_format_for_extension(ext: str) -> FileFormat:
+    """Look up the :class:`FileFormat` for a bare extension (e.g. ``csv`` or ``.csv``).
+
+    Args:
+        ext: An extension, with or without the leading dot.
+
+    Returns:
+        The matching FileFormat.
+
+    Raises:
+        ValueError: If the extension is not supported.
+    """
+    ext = ext.lower()
+    if not ext.startswith("."):
+        ext = f".{ext}"
+    fmt = _FORMATS.get(ext)
+    if fmt is None:
+        raise ValueError(f"Unsupported file format '{ext}'. Supported: {supported_extensions()}")
+    return fmt
+
+
 def get_format(path) -> FileFormat:
     """Look up the :class:`FileFormat` for a path by its extension.
 
@@ -177,8 +235,4 @@ def get_format(path) -> FileFormat:
     Raises:
         ValueError: If the extension is not supported.
     """
-    ext = Path(path).suffix.lower()
-    fmt = _FORMATS.get(ext)
-    if fmt is None:
-        raise ValueError(f"Unsupported file format '{ext}'. Supported: {supported_extensions()}")
-    return fmt
+    return get_format_for_extension(Path(path).suffix)

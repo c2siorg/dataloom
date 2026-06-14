@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 from fastapi import HTTPException
 
-from app.utils.file_formats import get_format
+from app.utils.file_formats import TableWriteOptions, get_format
 
 
 def read_table_safe(path: Path) -> pd.DataFrame:
@@ -35,18 +35,21 @@ def read_table_safe(path: Path) -> pd.DataFrame:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}") from e
 
 
-def save_table_safe(df: pd.DataFrame, path: Path) -> None:
+def save_table_safe(df: pd.DataFrame, path: Path, options: TableWriteOptions | None = None) -> None:
     """Save a DataFrame safely, dispatching on the destination file's format.
 
     Args:
         df: DataFrame to save.
         path: Destination file path; its extension selects the writer.
+        options: Optional settings for formats that support configurable writes.
 
     Raises:
         HTTPException: If the file cannot be saved.
     """
     try:
-        get_format(path).write(df, Path(path))
+        get_format(path).write(df, Path(path), options)
+    except (ValueError, UnicodeEncodeError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}") from e
 
@@ -95,37 +98,3 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
         "row_count": len(rows),
         "dtypes": dtypes,
     }
-
-
-def validate_row_index(df: pd.DataFrame, index: int) -> None:
-    """Validate that a row index is within DataFrame bounds.
-
-    Args:
-        df: Source DataFrame.
-        index: Row index to validate.
-
-    Raises:
-        HTTPException: If index is out of range.
-    """
-    if index < 0 or index >= len(df):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Row index {index} out of range (0-{len(df) - 1})",
-        )
-
-
-def validate_column_index(df: pd.DataFrame, index: int) -> None:
-    """Validate that a column index is within DataFrame bounds.
-
-    Args:
-        df: Source DataFrame.
-        index: Column index to validate.
-
-    Raises:
-        HTTPException: If index is out of range.
-    """
-    if index < 0 or index >= len(df.columns):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Column index {index} out of range (0-{len(df.columns) - 1})",
-        )

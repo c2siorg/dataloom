@@ -7,6 +7,10 @@ import os
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-for-the-dataloom-suite")
 os.environ.setdefault("COOKIE_SECURE", "false")
 
+os.environ.setdefault("SMTP_USERNAME", "test@example.com")
+os.environ.setdefault("SMTP_PASSWORD", "test-password")
+os.environ.setdefault("SMTP_FROM_EMAIL", "noreply@example.com")
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlmodel import Session, SQLModel, create_engine  # noqa: E402

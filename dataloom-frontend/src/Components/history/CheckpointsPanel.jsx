@@ -1,10 +1,26 @@
+import { useState } from "react";
+import { deleteCheckpoint } from "../../api";
 import PropTypes from "prop-types";
+import Modal from "../common/Modal";
+import { useToast } from "../../context/ToastContext";
 
-const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
-  const hasCheckpoints =
-    checkpoints && Array.isArray(checkpoints)
-      ? checkpoints.length > 0
-      : checkpoints && checkpoints.id;
+const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpointDeleted }) => {
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const { showToast } = useToast();
+
+  const hasCheckpoints = Array.isArray(checkpoints) && checkpoints.length > 0;
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await deleteCheckpoint(projectId, confirmDeleteId);
+      showToast("Checkpoint deleted successfully", "success");
+      await onCheckpointDeleted();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
 
   return (
     <div
@@ -12,7 +28,7 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
       className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group"
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Last Checkpoint</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Checkpoints</h3>
         <button
           onClick={onClose}
           className="text-gray-400 hover:text-gray-600 font-medium transition-opacity opacity-0 group-hover:opacity-100"
@@ -27,9 +43,9 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-72">
         <table className="min-w-full bg-white rounded-lg overflow-hidden">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 sticky top-0">
             <tr>
               <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Message
@@ -38,48 +54,89 @@ const CheckpointsPanel = ({ checkpoints, onClose, onRevert }) => {
                 Created At
               </th>
               <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Action
+                Actions
               </th>
             </tr>
           </thead>
           <tbody>
             {hasCheckpoints ? (
-              <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
-                <td className="py-3 px-4 text-sm text-gray-700">{checkpoints.message}</td>
-                <td className="py-3 px-4 text-sm text-gray-500">
-                  {new Date(checkpoints.created_at).toLocaleString()}
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <button
-                    onClick={() => onRevert(checkpoints.id)}
-                    className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
-                  >
-                    Revert
-                  </button>
-                </td>
-              </tr>
+              checkpoints.map((checkpoint) => (
+                <tr
+                  key={checkpoint.id}
+                  className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                >
+                  <td className="py-3 px-4 text-sm text-gray-700">{checkpoint.message}</td>
+                  <td className="py-3 px-4 text-sm text-gray-500">
+                    {new Date(checkpoint.created_at).toLocaleString()}
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => onRevert(checkpoint.id)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
+                      >
+                        Revert
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(checkpoint.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
             ) : (
               <tr>
                 <td colSpan="3" className="py-4 px-4 text-center text-sm text-gray-500">
-                  No checkpoint available
+                  No checkpoints available
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <Modal
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        title="Delete Checkpoint"
+      >
+        <p className="text-gray-700 text-sm mb-6">
+          Are you sure you want to delete this checkpoint? This action cannot be undone.
+        </p>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setConfirmDeleteId(null)}
+            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDeleteConfirm}
+            className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-md"
+          >
+            Delete
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };
 
 CheckpointsPanel.propTypes = {
-  checkpoints: PropTypes.shape({
-    id: PropTypes.string,
-    message: PropTypes.string,
-    created_at: PropTypes.string,
-  }),
+  projectId: PropTypes.string.isRequired,
+  checkpoints: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      message: PropTypes.string.isRequired,
+      created_at: PropTypes.string.isRequired,
+    }),
+  ),
   onClose: PropTypes.func.isRequired,
   onRevert: PropTypes.func.isRequired,
+  onCheckpointDeleted: PropTypes.func.isRequired,
 };
 
 export default CheckpointsPanel;

@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
@@ -37,19 +38,6 @@ def create_project(
     db.refresh(project)
     logger.info("Created project: id=%s, name=%s", project.project_id, name)
     return project
-
-
-def get_project_by_id(db: Session, project_id: uuid.UUID) -> models.Project | None:
-    """Fetch a project by its primary key.
-
-    Args:
-        db: Database session.
-        project_id: The project primary key.
-
-    Returns:
-        The Project model instance or None if not found.
-    """
-    return db.query(models.Project).filter(models.Project.project_id == project_id).first()
 
 
 def get_recent_projects(db: Session, owner_id: uuid.UUID, limit: int = 3) -> list[models.Project]:
@@ -185,6 +173,24 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     return checkpoint
 
 
+def get_checkpoints(db: Session, project_id: uuid.UUID) -> list[models.Checkpoint]:
+    """Fetch all checkpoints for a project ordered by creation time descending.
+
+    Args:
+        db: Database session.
+        project_id: The project to query.
+
+    Returns:
+        List of Checkpoint model instances ordered by created_at desc.
+    """
+    return (
+        db.query(models.Checkpoint)
+        .filter(models.Checkpoint.project_id == project_id)
+        .order_by(models.Checkpoint.created_at.desc())
+        .all()
+    )
+
+
 def get_last_change_log(db: Session, project_id: uuid.UUID) -> models.ProjectChangeLog | None:
     """Get the most recent change log entry for a project.
 
@@ -213,3 +219,40 @@ def delete_change_log(db: Session, log: models.ProjectChangeLog) -> None:
     db.delete(log)
     db.flush()
     logger.debug("Deleted change log: id=%s, project_id=%s", log.change_log_id, log.project_id)
+
+
+def delete_checkpoint(db: Session, checkpoint_id: uuid.UUID, project_id: uuid.UUID) -> None:
+    """Delete a checkpoint and unlink its associated logs.
+
+    Logs that referenced this checkpoint are not deleted — they are unlinked
+    (checkpoint_id set to None) so the transformation history is preserved.
+
+    Args:
+        db: Database session.
+        checkpoint_id: The checkpoint to delete.
+        project_id: The project the checkpoint belongs to.
+
+    Raises:
+        HTTPException: If the checkpoint is not found.
+    """
+
+    checkpoint = (
+        db.query(models.Checkpoint)
+        .filter(
+            models.Checkpoint.id == checkpoint_id,
+            models.Checkpoint.project_id == project_id,
+        )
+        .first()
+    )
+
+    if not checkpoint:
+        raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+    # Unlink logs referencing this checkpoint
+    db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.checkpoint_id == checkpoint_id).update(
+        {"checkpoint_id": None}, synchronize_session="evaluate"
+    )
+
+    db.delete(checkpoint)
+    db.flush()
+    logger.info("Deleted checkpoint: id=%s, project_id=%s", checkpoint_id, project_id)

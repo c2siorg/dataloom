@@ -68,18 +68,45 @@ export const revertToCheckpoint = async (projectId, checkpointId) => {
 };
 
 /**
- * Export the current working copy of a project in its native format.
+ * Export a project's working copy, optionally converting to another format.
  * @param {string} projectId - The project ID.
+ * @param {string|Object} [options] - Target format extension or export options.
+ * @param {string} [options.format] - Target format extension (e.g. "csv", "json").
+ * @param {string} [options.delimiter] - CSV delimiter option: comma, tab, semicolon, or pipe.
+ * @param {boolean} [options.includeHeader] - Whether to include the header row.
+ * @param {string} [options.encoding] - Output encoding: utf-8, latin-1, ascii, or utf-16.
  * @returns {Promise<{blob: Blob, filename: string|null}>} The file blob and the
  *   server-provided download filename (parsed from Content-Disposition).
  */
-export const exportProject = async (projectId) => {
-  const response = await client.get(`/projects/${projectId}/export`, {
-    responseType: "blob",
-  });
-  const disposition = response.headers["content-disposition"] || "";
-  const match = disposition.match(/filename="?([^"]+)"?/);
-  return { blob: response.data, filename: match ? match[1] : null };
+export const exportProject = async (projectId, options) => {
+  const exportOptions = typeof options === "string" ? { format: options } : options || {};
+  const { format, delimiter, includeHeader, encoding } = exportOptions;
+  const params = {
+    ...(format ? { format } : {}),
+    ...(delimiter ? { delimiter } : {}),
+    ...(includeHeader !== undefined ? { include_header: includeHeader } : {}),
+    ...(encoding ? { encoding } : {}),
+  };
+
+  try {
+    const response = await client.get(`/projects/${projectId}/export`, {
+      params: Object.keys(params).length > 0 ? params : undefined,
+      responseType: "blob",
+    });
+    const disposition = response.headers["content-disposition"] || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    return { blob: response.data, filename: match ? match[1] : null };
+  } catch (err) {
+    // Under responseType:"blob" an error body arrives as a Blob, so the shared
+    // interceptor can't read it. Surface the real backend detail (e.g. a 400
+    // message) before re-throwing.
+    const data = err?.response?.data;
+    if (data instanceof Blob) {
+      const detail = await data.text().catch(() => "");
+      if (detail) console.error("Export failed:", err.response.status, detail);
+    }
+    throw err;
+  }
 };
 
 /**

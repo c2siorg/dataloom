@@ -63,10 +63,10 @@ const Table = ({ projectId, data: externalData }) => {
   }, [columnOrder, ctxColumns]);
 
   useEffect(() => {
-    if (ctxColumns.length > 0 && ctxRows.length > 0) {
+    if (ctxColumns.length > 0) {
       setColumns(["S.No.", ...safeOrder.map((i) => ctxColumns[i])]);
       setData(
-        ctxRows.map((row, index) => [
+        (ctxRows || []).map((row, index) => [
           (page - 1) * pageSize + index + 1,
           ...safeOrder.map((i) => row[i]),
         ]),

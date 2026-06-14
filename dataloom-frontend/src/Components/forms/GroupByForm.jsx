@@ -7,8 +7,8 @@ import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 
-const GroupByForm = ({ projectId, onClose, onTransform }) => {
-  const { columns: availableColumns, updateData } = useProjectContext();
+const GroupByForm = ({ projectId, onClose }) => {
+  const { columns: availableColumns, updateData, refreshProject, pageSize } = useProjectContext();
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [aggColumn, setAggColumn] = useState("");
   const [aggFunction, setAggFunction] = useState("sum");
@@ -39,8 +39,11 @@ const GroupByForm = ({ projectId, onClose, onTransform }) => {
         },
       });
       setResult(response);
-      if (onTransform) onTransform(response);
-      updateData(response.columns, response.rows, response.dtypes);
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
+      await refreshProject(projectId, 1, pageSize);
     } catch (err) {
       handleError(err);
     } finally {
@@ -133,7 +136,6 @@ const GroupByForm = ({ projectId, onClose, onTransform }) => {
 GroupByForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
-  onTransform: PropTypes.func,
 };
 
 export default GroupByForm;

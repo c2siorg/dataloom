@@ -58,12 +58,17 @@ jobs:
           DEBUG=false
           JWT_SECRET=ci-e2e-jwt-secret-not-for-production-use-only
           COOKIE_SECURE=false
+          SMTP_HOST=smtp.gmail.com
+          SMTP_PORT=587
+          SMTP_USERNAME=test@example.com
+          SMTP_PASSWORD=placeholder-not-used-in-e2e
+          SMTP_FROM_EMAIL=noreply@example.com
           EOF
 
       # Frontend setup
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: dataloom-frontend/package-lock.json
       - name: Install frontend dependencies

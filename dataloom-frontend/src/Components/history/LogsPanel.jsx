@@ -41,19 +41,27 @@ const LogsPanel = ({ logs, onClose }) => {
             </tr>
           </thead>
           <tbody>
-            {logs.map((log) => (
-              <tr
-                key={log.id}
-                className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
-              >
-                <td className="py-3 px-4 text-sm text-gray-700">{log.action_type}</td>
-                <td className="py-3 px-4 text-sm text-gray-700">
-                  {new Date(log.timestamp).toLocaleString()}
+            {logs.length > 0 ? (
+              logs.map((log) => (
+                <tr
+                  key={log.id}
+                  className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                >
+                  <td className="py-3 px-4 text-sm text-gray-700">{log.action_type}</td>
+                  <td className="py-3 px-4 text-sm text-gray-700">
+                    {new Date(log.timestamp).toLocaleString()}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-700">{log.checkpoint_id || "-"}</td>
+                  <td className="py-3 px-4 text-sm text-gray-700">{log.applied ? "Yes" : "No"}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="4" className="py-4 px-4 text-center text-sm text-gray-500">
+                  No logs available
                 </td>
-                <td className="py-3 px-4 text-sm text-gray-700">{log.checkpoint_id || "-"}</td>
-                <td className="py-3 px-4 text-sm text-gray-700">{log.applied ? "Yes" : "No"}</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

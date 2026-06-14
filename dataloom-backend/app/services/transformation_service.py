@@ -79,16 +79,20 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
 
     ops = {
         "=": lambda col, val: (
-            col.astype(str).str.lower() == val.lower() if col.dtype == object else col.astype(float) == float(val)
+            df[col.notna() & (col.astype(str).str.lower() == val.lower())]
+            if pd.api.types.is_string_dtype(col)
+            else df[col == val]
         ),
         "!=": lambda col, val: (
-            col.astype(str).str.lower() != val.lower() if col.dtype == object else col.astype(float) != float(val)
+            df[col.isna() | (col.astype(str).str.lower() != val.lower())]
+            if pd.api.types.is_string_dtype(col)
+            else df[col != val]
         ),
-        ">": lambda: df[df[column] > value],
-        "<": lambda: df[df[column] < value],
-        ">=": lambda: df[df[column] >= value],
-        "<=": lambda: df[df[column] <= value],
-        "contains": lambda col, val: col.astype(str).str.contains(val, na=False, case=False),
+        ">": lambda col, val: df[col > val],
+        "<": lambda col, val: df[col < val],
+        ">=": lambda col, val: df[col >= val],
+        "<=": lambda col, val: df[col <= val],
+        "contains": lambda col, val: df[col.astype(str).str.contains(val, na=False, case=False)],
     }
 
     condition_str = condition.value if hasattr(condition, "value") else str(condition)
@@ -96,7 +100,7 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     if condition_str not in ops:
         raise TransformationError(f"Unsupported filter condition: {condition_str}")
 
-    return ops[condition_str]()
+    return ops[condition_str](df[column], value)
 
 
 def apply_sort(
@@ -228,7 +232,9 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
     """
     df = df.copy()
 
-    if row_index >= len(df) or col_index >= len(df.columns) + 1:
+    # col_index is 1-based (1..len(columns)); row_index is 0-based. Guard both
+    # ends so a negative index can't silently wrap to the wrong cell.
+    if row_index < 0 or row_index >= len(df) or col_index < 1 or col_index >= len(df.columns) + 1:
         raise TransformationError("Row or column index out of bounds")
 
     # col_index is 1-based from frontend (accounting for S.No. column)
@@ -705,7 +711,7 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         func="apply_filter",
         params_field="parameters",
         missing_error="Filter parameters required",
-        persist=True,
+        persist=False,  # Filter is a non-destructive view: does not overwrite the file on disk.
         build_args=lambda d: (d["parameters"]["column"], d["parameters"]["condition"], d["parameters"]["value"]),
     ),
     OperationType.sort: TransformationSpec(

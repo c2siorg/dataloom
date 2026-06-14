@@ -4,11 +4,13 @@ import { transformProject } from "../../api";
 import { DROP_DUPLICATE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import { useProjectContext } from "../../context/ProjectContext";
 
-const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
+const DropDuplicateForm = ({ projectId, onClose }) => {
   const [columns, setColumns] = useState("");
   const [keep, setKeep] = useState("first");
   const { error, clearError, handleError } = useError();
+  const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,7 +25,11 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
     clearError();
     try {
       const response = await transformProject(projectId, transformationInput);
-      onTransform(response); // Pass data to parent component
+      updateData(response.columns, response.rows, {
+        dtypes: response.dtypes,
+        resetColumnOrder: false,
+      });
+      await refreshProject(projectId, 1, pageSize);
       onClose(); // Close the form after submission
     } catch (err) {
       console.error("Error transforming project:", err);
@@ -83,7 +89,6 @@ const DropDuplicateForm = ({ projectId, onClose, onTransform }) => {
 DropDuplicateForm.propTypes = {
   projectId: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
-  onTransform: PropTypes.func.isRequired,
 };
 
 export default DropDuplicateForm;

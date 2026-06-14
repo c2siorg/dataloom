@@ -13,14 +13,13 @@ import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import InputDialog from "./common/InputDialog";
 import ConfirmDialog from "./common/ConfirmDialog";
+import ExportModal from "./ExportModal";
 import Toast from "./common/Toast";
 import {
   saveProject,
-  exportProject,
   getLogs,
   getCheckpoints,
   revertToCheckpoint,
-  getProjectDetails,
   undoLastTransformation,
 } from "../api";
 import proptype from "prop-types";
@@ -45,7 +44,7 @@ import {
 } from "react-icons/lu";
 import { useProjectContext } from "../context/ProjectContext";
 
-const MenuNavbar = ({ projectId, onTransform }) => {
+const MenuNavbar = ({ projectId }) => {
   const [showGroupByForm, setShowGroupByForm] = useState(false);
   const [showFilterForm, setShowFilterForm] = useState(false);
   const [showSortForm, setShowSortForm] = useState(false);
@@ -58,6 +57,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
   const [showMeltForm, setShowMeltForm] = useState(false);
   const [showSampleRowsForm, setShowSampleRowsForm] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [showStringReplaceForm, setShowStringReplaceForm] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
@@ -65,7 +65,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const [confirmData, setConfirmData] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const { updateData } = useProjectContext();
+  const { updateData, refreshProject, pageSize, projectName } = useProjectContext();
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -79,9 +79,17 @@ const MenuNavbar = ({ projectId, onTransform }) => {
   const fetchCheckpoints = useCallback(async () => {
     try {
       const checkpointsResponse = await getCheckpoints(projectId);
-      setCheckpoints(checkpointsResponse);
+      console.log(checkpointsResponse);
+      if (Array.isArray(checkpointsResponse)) {
+        setCheckpoints(checkpointsResponse);
+      } else if (checkpointsResponse?.id) {
+        setCheckpoints([checkpointsResponse]);
+      } else {
+        setCheckpoints([]);
+      }
     } catch (error) {
       console.error("Error fetching checkpoints:", error);
+      setCheckpoints(null);
     }
   }, [projectId]);
 
@@ -104,6 +112,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
 
     try {
       await saveProject(projectId, message);
+      await fetchCheckpoints();
       setToast({ message: "Project saved successfully!", type: "success" });
     } catch {
       setToast({ message: "Failed to save project.", type: "error" });
@@ -116,9 +125,8 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       setShowFilterForm(false);
       setShowSortForm(false);
       setActiveForm(null);
-      updateData([], [], {});
-      const data = await getProjectDetails(projectId);
-      updateData(data.columns, data.rows, data.dtypes);
+      updateData([], [], { resetColumnOrder: false });
+      await refreshProject(projectId, 1, pageSize);
       await fetchLogs();
       setToast({ message: "Last transformation undone!", type: "success" });
     } catch (error) {
@@ -130,29 +138,16 @@ const MenuNavbar = ({ projectId, onTransform }) => {
     }
   };
 
-  const handleExport = async () => {
-    try {
-      const { blob, filename } = await exportProject(projectId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename || "export.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      setToast({ message: "Failed to export project.", type: "error" });
-    }
-  };
-
   const handleRevert = (checkpointId) => {
     setConfirmData({
       message: "Are you sure you want to revert to this checkpoint?",
       onConfirm: async () => {
         try {
           const response = await revertToCheckpoint(projectId, checkpointId);
-          onTransform(response);
+          updateData(response.columns, response.rows, {
+            dtypes: response.dtypes,
+            resetColumnOrder: false,
+          });
           setToast({ message: "Project reverted successfully!", type: "success" });
         } catch {
           setToast({ message: "Failed to revert project.", type: "error" });
@@ -253,7 +248,7 @@ const MenuNavbar = ({ projectId, onTransform }) => {
         group: "Save",
         items: [
           { label: "Save", icon: LuSave, onClick: handleSave },
-          { label: "Export", icon: LuDownload, onClick: handleExport },
+          { label: "Export", icon: LuDownload, onClick: () => setShowExportModal(true) },
           { label: "Undo", icon: LuUndo2, onClick: handleUndo },
         ],
       },
@@ -424,7 +419,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setActiveForm(null);
           }}
           projectId={projectId}
-          onTransform={onTransform}
         />
       )}
       {showDropDuplicateForm && (
@@ -434,7 +428,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowDropDuplicateForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showAdvQueryFilterForm && (
@@ -463,7 +456,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowCastDataTypeForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showTrimWhitespaceForm && (
@@ -473,7 +465,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowTrimWhitespaceForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showStringReplaceForm && (
@@ -483,7 +474,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowStringReplaceForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showLogs && (
@@ -497,12 +487,14 @@ const MenuNavbar = ({ projectId, onTransform }) => {
       )}
       {showCheckpoints && (
         <CheckpointsPanel
+          projectId={projectId}
           checkpoints={checkpoints}
           onClose={() => {
             setShowCheckpoints(false);
             setActiveForm(null);
           }}
           onRevert={handleRevert}
+          onCheckpointDeleted={fetchCheckpoints}
         />
       )}
       {showGroupByForm && (
@@ -512,7 +504,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowGroupByForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
       {showSampleRowsForm && (
@@ -522,9 +513,16 @@ const MenuNavbar = ({ projectId, onTransform }) => {
             setShowSampleRowsForm(false);
             setActiveForm(null);
           }}
-          onTransform={onTransform}
         />
       )}
+
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        projectId={projectId}
+        defaultName={projectName}
+        onError={(message) => setToast({ message, type: "error" })}
+      />
 
       <InputDialog
         isOpen={isInputOpen}
@@ -552,7 +550,6 @@ const MenuNavbar = ({ projectId, onTransform }) => {
 
 MenuNavbar.propTypes = {
   projectId: proptype.string.isRequired,
-  onTransform: proptype.func.isRequired,
 };
 
 export default MenuNavbar;
