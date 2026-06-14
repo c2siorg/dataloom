@@ -10,6 +10,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const { projectName } = useProjectContext();
   const { user, logout } = useAuth();
+
   const isWorkspacePage = location.pathname.startsWith("/workspace/");
   const displayProjectName = projectName || "Untitled Project";
 
@@ -33,6 +34,7 @@ const Navbar = () => {
             <span className="text-base">DataLoom</span>
           </Link>
         </div>
+
         <div className="ml-auto flex items-center gap-3 min-w-0">
           {isWorkspacePage && (
             <div
@@ -42,6 +44,7 @@ const Navbar = () => {
               {displayProjectName}
             </div>
           )}
+
           {user && (
             <Link to={ROUTES.profile} className="flex items-center justify-center gap-2">
               <span
@@ -52,7 +55,6 @@ const Navbar = () => {
               </span>
 
               <div
-                to={ROUTES.profile}
                 title="Profile"
                 aria-label="Profile"
                 className="flex items-center justify-center w-9 h-9 rounded-2xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
@@ -61,13 +63,13 @@ const Navbar = () => {
               </div>
             </Link>
           )}
+
           <button
             type="button"
             onClick={handleLogout}
             className="bg-white border border-gray-300 rounded-md text-gray-700 text-sm py-1.5 px-4 hover:bg-gray-50 transition-colors duration-150"
           >
-            {" "}
-            Sign out{" "}
+            Sign out
           </button>
         </div>
       </nav>
