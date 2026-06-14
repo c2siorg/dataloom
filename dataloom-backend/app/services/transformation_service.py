@@ -711,7 +711,7 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         func="apply_filter",
         params_field="parameters",
         missing_error="Filter parameters required",
-        persist=False,  # Filter is a non-destructive view: does not overwrite the file on disk.
+        persist=False,
         build_args=lambda d: (d["parameters"]["column"], d["parameters"]["condition"], d["parameters"]["value"]),
     ),
     OperationType.sort: TransformationSpec(

@@ -36,16 +36,10 @@ const FilterForm = ({ projectId, onClose }) => {
         parameters: filterParams,
       });
       setResult(response);
-      // Update table data directly from the transform response.
-      // Do NOT call refreshProject here — that re-fetches from the saved file
-      // on disk (which is already mutated), causing a second filter to search
-      // inside an already-filtered dataset and return 0 rows.
       updateData(response.columns, response.rows, {
         dtypes: response.dtypes,
         resetColumnOrder: false,
       });
-      // Sync pagination counters with the filtered row count.
-      // Keep total_pages at minimum 1 so the pagination bar never shows "1 of 0".
       setPaginationData({
         total_rows: response.row_count,
         total_pages: Math.max(1, Math.ceil(response.row_count / pageSize)),
