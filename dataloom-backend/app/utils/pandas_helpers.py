@@ -54,7 +54,7 @@ def save_table_safe(df: pd.DataFrame, path: Path, options: TableWriteOptions | N
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}") from e
 
 
-def _map_dtype(dtype) -> str:
+def map_dtype(dtype) -> str:
     """Map a pandas dtype to a short label string."""
     kind = dtype.kind
     if kind == "i" or kind == "u":
@@ -81,7 +81,7 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
         Dict with columns (list of str), rows (list of lists), row_count, and dtypes.
     """
 
-    dtypes = {col: _map_dtype(dtype) for col, dtype in df.dtypes.items()}
+    dtypes = {col: map_dtype(dtype) for col, dtype in df.dtypes.items()}
     columns = df.columns.tolist()
 
     # Preserve null semantics: real empty strings stay "", while missing and

@@ -328,6 +328,86 @@ class ProjectResponse(BaseModel):
     dtypes: dict[str, str] = {}
 
 
+# --- Profiling response schemas ---
+#
+# Descriptive profiling only (dataset/column/correlation). All ``*_percentage``
+# fields are 0–100. Type-specific column fields are optional: a numeric column
+# fills the numeric block and leaves the categorical/datetime blocks null, etc.
+
+
+class DatasetSummaryResponse(BaseModel):
+    """Top-level overview of a dataset."""
+
+    row_count: int
+    column_count: int
+    total_missing_cells: int
+    missing_cell_percentage: float
+    duplicate_row_count: int
+    memory_usage_bytes: int
+    dtype_counts: dict[str, int]
+    numeric_columns: list[str]
+    categorical_columns: list[str]
+    boolean_columns: list[str]
+    datetime_columns: list[str]
+
+
+class TopValue(BaseModel):
+    """A single value/count/percentage entry in a categorical column profile."""
+
+    value: str
+    count: int
+    percentage: float
+
+
+class ColumnProfileResponse(BaseModel):
+    """Type-aware profile of a single column."""
+
+    column: str
+    dtype: str
+    row_count: int
+    null_count: int
+    null_percentage: float
+    unique_count: int
+    unique_percentage: float
+    distribution: str
+
+    # Numeric block
+    mean: float | None = None
+    median: float | None = None
+    min: float | None = None
+    max: float | None = None
+    std: float | None = None
+    q1: float | None = None
+    q3: float | None = None
+    skew: float | None = None
+    zero_count: int | None = None
+    negative_count: int | None = None
+
+    # Categorical block
+    top_values: list[TopValue] | None = None
+    cardinality: int | None = None
+    dominant_value_percentage: float | None = None
+    rare_value_count: int | None = None
+
+    # Boolean block
+    true_count: int | None = None
+    false_count: int | None = None
+    true_percentage: float | None = None
+
+    # Datetime block
+    min_date: str | None = None
+    max_date: str | None = None
+    range_days: int | None = None
+    inferred_granularity: str | None = None
+
+
+class CorrelationResponse(BaseModel):
+    """Pairwise Pearson correlation over numeric columns."""
+
+    columns: list[str]
+    matrix: list[list[float | None]]
+
+
 # --- Other response schemas ---
 
 

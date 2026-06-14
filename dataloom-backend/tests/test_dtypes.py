@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from app.utils.pandas_helpers import _map_dtype, dataframe_to_response
+from app.utils.pandas_helpers import dataframe_to_response, map_dtype
 
 
 @pytest.fixture
@@ -19,22 +19,22 @@ def sample_df():
 
 class TestMapDtype:
     def test_int_column(self, sample_df):
-        assert _map_dtype(sample_df["age"].dtype) == "int"
+        assert map_dtype(sample_df["age"].dtype) == "int"
 
     def test_float_column(self):
         df = pd.DataFrame({"val": [1.5, 2.7]})
-        assert _map_dtype(df["val"].dtype) == "float"
+        assert map_dtype(df["val"].dtype) == "float"
 
     def test_str_column(self, sample_df):
-        assert _map_dtype(sample_df["name"].dtype) == "str"
+        assert map_dtype(sample_df["name"].dtype) == "str"
 
     def test_bool_column(self):
         df = pd.DataFrame({"val": [True, False]})
-        assert _map_dtype(df["val"].dtype) == "bool"
+        assert map_dtype(df["val"].dtype) == "bool"
 
     def test_datetime_column(self):
         df = pd.DataFrame({"val": pd.to_datetime(["2024-01-01", "2024-06-15"])})
-        assert _map_dtype(df["val"].dtype) == "datetime"
+        assert map_dtype(df["val"].dtype) == "datetime"
 
 
 class TestDataframeToResponse:
