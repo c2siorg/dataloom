@@ -72,13 +72,13 @@ const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpo
                   </td>
                   <td className="py-3 px-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <Button onClick={() => onRevert(checkpoint.id)} className="text-sm">
+                      <Button size="sm" onClick={() => onRevert(checkpoint.id)}>
                         Revert
                       </Button>
                       <Button
+                        size="sm"
                         variant="danger"
                         onClick={() => setConfirmDeleteId(checkpoint.id)}
-                        className="text-sm"
                       >
                         Delete
                       </Button>
