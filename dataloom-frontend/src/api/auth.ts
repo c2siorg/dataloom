@@ -59,7 +59,6 @@ export const updateEmail = async (email: string): Promise<User> => {
   const response = await client.patch<User>("/auth/me/email", {
     email,
   });
-  console.log(response);
   return response.data;
 };
 
