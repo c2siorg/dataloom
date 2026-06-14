@@ -54,7 +54,9 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
           />
         </div>
         <div className="flex justify-between">
-          <Button disabled={loading}>Submit</Button>
+          <Button disabled={loading} type="submit">
+            Submit
+          </Button>
 
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
