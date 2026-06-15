@@ -79,7 +79,6 @@ const MenuNavbar = ({ projectId }) => {
   const fetchCheckpoints = useCallback(async () => {
     try {
       const checkpointsResponse = await getCheckpoints(projectId);
-      console.log(checkpointsResponse);
       if (Array.isArray(checkpointsResponse)) {
         setCheckpoints(checkpointsResponse);
       } else if (checkpointsResponse?.id) {
