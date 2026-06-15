@@ -41,7 +41,9 @@ class PasswordResetToken(SQLModel, table=True):
     __tablename__ = "password_reset_tokens"
 
     id: int | None = Field(default=None, primary_key=True)
-    user_id: uuid_mod.UUID = Field(sa_column=Column(sa.Uuid, sa.ForeignKey("users.id"), nullable=False))
+    user_id: uuid_mod.UUID = Field(
+        sa_column=Column(sa.Uuid, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    )
     token_hash: str = Field(sa_column=Column(sa.String(64), nullable=False, index=True))
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     used: bool = Field(

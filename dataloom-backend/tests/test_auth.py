@@ -170,6 +170,38 @@ class TestProfileManagement:
 
         assert response.status_code == 422
 
+    def test_delete_account_success(self, client, test_user, db):
+        response = client.request(
+            "DELETE",
+            "/auth/me",
+            json={"password": "testpassword"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["message"] == "Account deleted successfully"
+
+        deleted_user = db.query(models.User).filter(models.User.id == test_user.id).first()
+        assert deleted_user is None
+
+    def test_delete_account_requires_auth(self, anon_client):
+        response = anon_client.request(
+            "DELETE",
+            "/auth/me",
+            json={"password": "testpassword"},
+        )
+
+        assert response.status_code == 401
+
+    def test_delete_account_wrong_password_returns_400(self, client):
+        response = client.request(
+            "DELETE",
+            "/auth/me",
+            json={"password": "wrongpassword"},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Incorrect password"
+
 
 class TestLogout:
     def test_logout_clears_cookie(self, anon_client):

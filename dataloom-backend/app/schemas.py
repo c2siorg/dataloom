@@ -526,3 +526,9 @@ class ChangePasswordRequest(BaseModel):
 
     current_password: str
     new_password: str
+
+
+class DeleteAccountRequest(BaseModel):
+    """Request body for deleting the authenticated user's account."""
+
+    password: str

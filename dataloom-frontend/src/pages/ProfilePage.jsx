@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
+  AlertTriangle,
   CalendarDays,
   Check,
   CornerDownLeft,
@@ -9,10 +11,12 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { changePassword, getCurrentUser, updateEmail } from "../api/auth";
+import { changePassword, deleteAccount, getCurrentUser, updateEmail } from "../api/auth";
+import Button from "../Components/common/Button";
 import DataLoomLogo from "../Components/common/DataLoomLogo";
-import Toast from "../Components/common/Toast";
+import Modal from "../Components/common/Modal";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 const INPUT_CLASS =
   "block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 " +
@@ -40,7 +44,6 @@ const getErrorMessage = (error, fallback) => {
 const ProfilePage = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
 
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [email, setEmail] = useState("");
@@ -55,7 +58,13 @@ const ProfilePage = () => {
   const [savingEmail, setSavingEmail] = useState(false);
   const [submittingPassword, setSubmittingPassword] = useState(false);
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
   const { setUser: setAuthUser } = useAuth();
+  const { showToast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -64,17 +73,14 @@ const ProfilePage = () => {
         setUser(res);
         setEmail(res.email);
       } catch (error) {
-        setToast({
-          message: getErrorMessage(error, "Failed to load profile."),
-          type: "error",
-        });
+        showToast(getErrorMessage(error, "Failed to load profile."), "error");
       } finally {
         setLoading(false);
       }
     };
 
     fetchUser();
-  }, []);
+  }, [showToast]);
 
   const formatDate = (value) => {
     if (!value) return "—";
@@ -100,7 +106,7 @@ const ProfilePage = () => {
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail) {
-      setToast({ message: "Email is required.", type: "error" });
+      showToast("Email is required.", "error");
       return;
     }
 
@@ -112,16 +118,9 @@ const ProfilePage = () => {
       setAuthUser(updatedUser);
       setEmail(updatedUser.email);
       setIsEditingEmail(false);
-
-      setToast({
-        message: "Email updated successfully.",
-        type: "success",
-      });
+      showToast("Email updated successfully.", "success");
     } catch (error) {
-      setToast({
-        message: getErrorMessage(error, "Failed to update email."),
-        type: "error",
-      });
+      showToast(getErrorMessage(error, "Failed to update email."), "error");
     } finally {
       setSavingEmail(false);
     }
@@ -131,20 +130,17 @@ const ProfilePage = () => {
     event.preventDefault();
 
     if (!currentPassword) {
-      setToast({ message: "Current password is required.", type: "error" });
+      showToast("Current password is required.", "error");
       return;
     }
 
     if (password !== confirm) {
-      setToast({ message: "Passwords do not match.", type: "error" });
+      showToast("Passwords do not match.", "error");
       return;
     }
 
     if (password.length < 8) {
-      setToast({
-        message: "Password must be at least 8 characters.",
-        type: "error",
-      });
+      showToast("Password must be at least 8 characters.", "error");
       return;
     }
 
@@ -152,22 +148,37 @@ const ProfilePage = () => {
 
     try {
       const response = await changePassword(currentPassword, password);
-
-      setToast({
-        message: response.message || "Password changed successfully.",
-        type: "success",
-      });
+      showToast(response.message || "Password changed successfully.", "success");
 
       setCurrentPassword("");
       setPassword("");
       setConfirm("");
     } catch (error) {
-      setToast({
-        message: getErrorMessage(error, "Failed to change password."),
-        type: "error",
-      });
+      showToast(getErrorMessage(error, "Failed to change password."), "error");
     } finally {
       setSubmittingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      showToast("Password is required.", "error");
+      return;
+    }
+
+    setDeletingAccount(true);
+
+    try {
+      await deleteAccount(deletePassword);
+      showToast("Account deleted successfully.", "success");
+      setShowDeleteModal(false);
+      setDeletePassword("");
+      setAuthUser(null);
+      navigate("/signin");
+    } catch (error) {
+      showToast(getErrorMessage(error, "Failed to delete account."), "error");
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -223,25 +234,26 @@ const ProfilePage = () => {
                       />
 
                       <div className="flex gap-2">
-                        <button
+                        <Button
                           type="button"
+                          size="sm"
                           onClick={handleSaveEmail}
                           disabled={savingEmail}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           <Check className="h-3.5 w-3.5" />
                           {savingEmail ? "Saving..." : "Save"}
-                        </button>
+                        </Button>
 
-                        <button
+                        <Button
                           type="button"
+                          size="sm"
+                          variant="secondary"
                           onClick={handleCancelEmailEdit}
                           disabled={savingEmail}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           <X className="h-3.5 w-3.5" />
                           Cancel
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ) : (
@@ -270,6 +282,29 @@ const ProfilePage = () => {
                   <p className="mt-1 text-sm font-medium text-slate-900">
                     {formatDate(user?.created_at)}
                   </p>
+                </div>
+
+                <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+                    <div>
+                      <h3 className="text-sm font-semibold text-red-700">Delete account</h3>
+                      <p className="mt-1 text-sm text-red-600">
+                        Permanently delete your account and all associated projects, checkpoints,
+                        and logs. This action cannot be undone.
+                      </p>
+
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        className="mt-4"
+                        onClick={() => setShowDeleteModal(true)}
+                      >
+                        Delete account
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -375,10 +410,10 @@ const ProfilePage = () => {
                   </div>
                 </div>
 
-                <button
+                <Button
                   type="submit"
                   disabled={submittingPassword}
-                  className="mt-6 flex w-full items-center justify-between rounded-lg bg-accent px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-6 flex w-full items-center justify-between rounded-lg px-4 py-3 bg-accent hover:bg-accent-hover focus:ring-accent"
                 >
                   <span>{submittingPassword ? "Submitting..." : "Change password"}</span>
                   {!submittingPassword && (
@@ -386,18 +421,71 @@ const ProfilePage = () => {
                       <CornerDownLeft className="h-3.5 w-3.5" />
                     </span>
                   )}
-                </button>
+                </Button>
               </form>
             </section>
           </div>
         )}
-      </div>
 
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
-        </div>
-      )}
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setDeletePassword("");
+          }}
+          title="Delete Account"
+        >
+          <p className="mb-4 text-sm text-gray-700">
+            This will permanently delete your account and all associated projects, checkpoints, and
+            logs. This action cannot be undone.
+          </p>
+
+          <label
+            htmlFor="deletePassword"
+            className="mb-1.5 block text-sm font-medium text-gray-700"
+          >
+            Confirm your password
+          </label>
+          <input
+            id="deletePassword"
+            type="password"
+            autoComplete="current-password"
+            className={INPUT_CLASS}
+            value={deletePassword}
+            onChange={(event) => setDeletePassword(event.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleDeleteAccount();
+              }
+            }}
+            placeholder="Enter your password"
+          />
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setDeletePassword("");
+              }}
+              disabled={deletingAccount}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount}
+            >
+              {deletingAccount ? "Deleting..." : "Delete account"}
+            </Button>
+          </div>
+        </Modal>
+      </div>
     </div>
   );
 };

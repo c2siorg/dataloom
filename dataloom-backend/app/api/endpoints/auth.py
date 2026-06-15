@@ -1,6 +1,7 @@
 """Authentication API endpoints: signup, signin, logout, and current user."""
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Response
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app import database, models, schemas
@@ -134,3 +135,32 @@ def change_password(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     return {"message": "Password changed successfully"}
+
+
+@router.delete("/me")
+def delete_account(
+    response: Response,
+    payload: schemas.DeleteAccountRequest = Body(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    """Delete the currently authenticated user's account and all associated data."""
+    try:
+        auth_service.delete_user_account(db, current_user, payload.password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete account. Please try again later.",
+        ) from e
+
+    settings = get_settings()
+    response.delete_cookie(
+        key=ACCESS_TOKEN_COOKIE,
+        path="/",
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+    )
+    return {"message": "Account deleted successfully"}
