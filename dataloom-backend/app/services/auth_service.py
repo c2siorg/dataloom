@@ -7,10 +7,12 @@ from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app import models
 from app.config import get_settings
+from app.services.file_service import delete_project_files
 from app.utils.email import send_reset_email
 from app.utils.logging import get_logger
 
@@ -185,3 +187,49 @@ def change_user_password(
     db.commit()
 
     logger.info("Password changed for user: %s", user.id)
+
+
+def delete_user_account(db: Session, user: models.User, password: str) -> None:
+    """Delete a user account along with all owned projects, logs, checkpoints, and files.
+
+    The database deletion (logs, checkpoints, projects, user) happens in a single
+    transaction so a failure partway through leaves no orphaned records. File
+    cleanup happens after the transaction commits, since filesystem operations
+    cannot be rolled back alongside the DB transaction.
+
+    Args:
+        db: Database session.
+        user: The user to delete.
+        password: The user's current password, required for confirmation.
+
+    Raises:
+        ValueError: If the provided password is incorrect.
+    """
+    if not verify_password(password, user.password_hash):
+        raise ValueError("Incorrect password")
+
+    project_ids = [project.project_id for project in user.projects]
+    file_paths = [project.file_path for project in user.projects]
+
+    try:
+        db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.project_id.in_(project_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(models.Checkpoint).filter(models.Checkpoint.project_id.in_(project_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(models.Project).filter(models.Project.project_id.in_(project_ids)).delete(synchronize_session=False)
+        db.delete(user)
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Failed to delete user account database records: id=%s", user.id)
+        raise
+
+    for file_path in file_paths:
+        try:
+            delete_project_files(file_path)
+        except OSError:
+            logger.exception("Failed to delete project files during account deletion: file_path=%s", file_path)
+
+    logger.info("Deleted user account: id=%s, projects_deleted=%d", user.id, len(project_ids))

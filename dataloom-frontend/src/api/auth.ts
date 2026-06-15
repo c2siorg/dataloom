@@ -98,3 +98,16 @@ export const forgotPassword = async (email: string): Promise<void> => {
 export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
   await client.post("/auth/reset-password", { token, new_password: newPassword });
 };
+
+/**
+ * Delete the authenticated user's account and all associated data.
+ * Requires the current password for confirmation.
+ * @param password - The account's current password.
+ * @returns Success response from the API.
+ */
+export const deleteAccount = async (password: string): Promise<{ message: string }> => {
+  const response = await client.delete<{ message: string }>("/auth/me", {
+    data: { password },
+  });
+  return response.data;
+};
