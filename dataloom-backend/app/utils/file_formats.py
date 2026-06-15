@@ -144,7 +144,7 @@ def _read_json(path: Path) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
-def _write_json(df: pd.DataFrame, path: Path, _) -> None:
+def _write_json(df: pd.DataFrame, path: Path, *_ignored) -> None:
     df.to_json(path, orient="records", indent=2)
 
 
