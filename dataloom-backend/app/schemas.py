@@ -532,3 +532,19 @@ class DeleteAccountRequest(BaseModel):
     """Request body for deleting the authenticated user's account."""
 
     password: str
+
+
+class RenameProjectRequest(BaseModel):
+    """Request body for renaming a project."""
+
+    name: str
+
+
+class RenameProjectResponse(BaseModel):
+    """Response for renaming a project."""
+
+    project_id: str
+    filename: str
+    file_path: str
+
+    model_config = ConfigDict(from_attributes=True)

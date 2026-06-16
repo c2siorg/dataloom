@@ -256,3 +256,29 @@ def delete_checkpoint(db: Session, checkpoint_id: uuid.UUID, project_id: uuid.UU
     db.delete(checkpoint)
     db.flush()
     logger.info("Deleted checkpoint: id=%s, project_id=%s", checkpoint_id, project_id)
+
+
+def rename_project(db: Session, project: models.Project, new_name: str) -> models.Project:
+    """Rename a project.
+
+    Args:
+        db: Database session.
+        project: The project to rename.
+        new_name: The new project name (must be non-empty after trimming).
+
+    Returns:
+        The updated Project model instance.
+
+    Raises:
+        ValueError: If new_name is empty or whitespace-only.
+    """
+    trimmed_name = new_name.strip()
+    if not trimmed_name:
+        raise ValueError("Project name cannot be empty")
+
+    project.name = trimmed_name
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    logger.info("Renamed project: id=%s, new_name=%s", project.project_id, trimmed_name)
+    return project

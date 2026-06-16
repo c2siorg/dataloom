@@ -25,6 +25,7 @@ from app.services.project_service import (
     delete_project,
     get_last_change_log,
     get_recent_projects,
+    rename_project,
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
@@ -131,6 +132,33 @@ def recent_projects(
         )
         for p in projects
     ]
+
+
+@router.patch("/{project_id}/rename", response_model=schemas.ProjectResponse)
+async def rename_project_endpoint(
+    payload: schemas.RenameProjectRequest,
+    db: Session = Depends(database.get_db),
+    project: models.Project = Depends(get_project_or_404),
+):
+    """Rename a project."""
+    try:
+        updated_project = rename_project(db, project, payload.name)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    df = read_table_safe(updated_project.file_path)
+    total_rows = len(df)
+    resp = dataframe_to_response(df)
+    return {
+        "filename": updated_project.name,
+        "file_path": updated_project.file_path,
+        "project_id": updated_project.project_id,
+        "page": 1,
+        "page_size": total_rows,
+        "total_rows": total_rows,
+        "total_pages": 1,
+        **resp,
+    }
 
 
 @router.post("/{project_id}/save", response_model=schemas.ProjectResponse)
