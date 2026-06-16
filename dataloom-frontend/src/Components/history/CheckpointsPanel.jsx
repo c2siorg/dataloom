@@ -72,6 +72,18 @@ const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpo
                   </td>
                   <td className="py-3 px-4 text-center">
                     <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => onRevert(checkpoint.id)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
+                      >
+                        Revert
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(checkpoint.id)}
+                        className="bg-red-500 hover:bg-red-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-colors duration-150"
+                      >
+                        Delete
+                      </button>
                       <Button size="sm" onClick={() => onRevert(checkpoint.id)}>
                         Revert
                       </Button>
@@ -106,6 +118,18 @@ const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpo
           Are you sure you want to delete this checkpoint? This action cannot be undone.
         </p>
         <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setConfirmDeleteId(null)}
+            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDeleteConfirm}
+            className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-md"
+          >
+            Delete
+          </button>
           <Button variant="secondary" onClick={() => setConfirmDeleteId(null)}>
             Cancel
           </Button>

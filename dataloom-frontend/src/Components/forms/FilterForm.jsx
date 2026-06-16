@@ -18,6 +18,7 @@ const FilterForm = ({ projectId, onClose }) => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
+  const { updateData, setPaginationData } = useProjectContext();
   const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleInputChange = (e) => {
@@ -41,6 +42,9 @@ const FilterForm = ({ projectId, onClose }) => {
         dtypes: response.dtypes,
         resetColumnOrder: false,
       });
+      if (response.pagination) {
+        setPaginationData(response.pagination);
+      }
       await refreshProject(projectId, 1, pageSize);
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);

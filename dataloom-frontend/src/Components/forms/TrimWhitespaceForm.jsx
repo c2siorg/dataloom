@@ -8,6 +8,7 @@ import Button from "../common/Button";
 
 const TrimWhitespaceForm = ({ projectId, onClose }) => {
   const { columns, updateData, refreshProject, pageSize } = useProjectContext();
+
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
