@@ -537,7 +537,7 @@ class DeleteAccountRequest(BaseModel):
 class RenameProjectRequest(BaseModel):
     """Request body for renaming a project."""
 
-    name: str
+    name: str = Field(..., min_length=1, max_length=255)
 
 
 class RenameProjectResponse(BaseModel):

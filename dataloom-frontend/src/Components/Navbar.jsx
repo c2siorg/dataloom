@@ -28,7 +28,6 @@ const Navbar = () => {
   };
 
   const handleCancelEdit = () => {
-    setEditedName(projectName || "");
     setIsEditingName(false);
   };
 
