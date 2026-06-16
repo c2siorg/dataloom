@@ -134,7 +134,7 @@ def recent_projects(
     ]
 
 
-@router.patch("/{project_id}/rename", response_model=schemas.ProjectResponse)
+@router.patch("/{project_id}/rename", response_model=schemas.RenameProjectResponse)
 async def rename_project_endpoint(
     payload: schemas.RenameProjectRequest,
     db: Session = Depends(database.get_db),
@@ -146,18 +146,10 @@ async def rename_project_endpoint(
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
-    df = read_table_safe(updated_project.file_path)
-    total_rows = len(df)
-    resp = dataframe_to_response(df)
     return {
+        "project_id": str(updated_project.project_id),
         "filename": updated_project.name,
         "file_path": updated_project.file_path,
-        "project_id": updated_project.project_id,
-        "page": 1,
-        "page_size": total_rows,
-        "total_rows": total_rows,
-        "total_pages": 1,
-        **resp,
     }
 
 
