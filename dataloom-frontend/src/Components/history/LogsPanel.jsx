@@ -22,7 +22,7 @@ const LogsPanel = ({ logs, onClose }) => {
         </button>
       </div>
 
-      <div className="mt-4 overflow-x-auto">
+      <div className="mt-4 overflow-x-auto overflow-y-auto max-h-72">
         <table className="min-w-full bg-white rounded-lg overflow-hidden">
           <thead className="bg-gray-50">
             <tr>

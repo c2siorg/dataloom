@@ -12,6 +12,7 @@ import client from "./client";
  */
 export const transformProject = async (projectId, transformationInput) => {
   const response = await client.post(`/projects/${projectId}/transform`, transformationInput);
+  window.dispatchEvent(new CustomEvent("project:logs-refresh"));
   return response.data;
 };
 

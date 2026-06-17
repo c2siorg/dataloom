@@ -100,6 +100,18 @@ const MenuNavbar = ({ projectId }) => {
     if (showCheckpoints) fetchCheckpoints();
   }, [showLogs, showCheckpoints, fetchLogs, fetchCheckpoints]);
 
+  useEffect(() => {
+    const handleLogsRefresh = () => {
+      if (showLogs) fetchLogs();
+    };
+
+    window.addEventListener("project:logs-refresh", handleLogsRefresh);
+
+    return () => {
+      window.removeEventListener("project:logs-refresh", handleLogsRefresh);
+    };
+  }, [showLogs, fetchLogs]);
+
   const handleSave = () => {
     setIsInputOpen(true);
   };
