@@ -51,6 +51,26 @@ export async function createProject(
 }
 
 /**
+ * Choose a column in a ColumnSelect combobox.
+ *
+ * ColumnSelect replaced the native <select>, so Playwright's `.selectOption()`
+ * no longer works. This opens the popover via its trigger button, then clicks
+ * the option whose label exactly matches the column name. Scoping the click to
+ * the open listbox avoids matching the trigger's own value/placeholder text, and
+ * the exact match avoids substring collisions (e.g. "age" vs "page").
+ *
+ * @param {import('@playwright/test').Locator} scope  Container holding the select (e.g. the form)
+ * @param {string} testId  data-testid of the trigger button (e.g. "sort-column")
+ * @param {string} columnName  Exact column label to select
+ */
+export async function selectColumn(scope, testId, columnName) {
+  await scope.locator(`[data-testid="${testId}"]`).click();
+  const listbox = scope.locator('[role="listbox"]');
+  await listbox.waitFor({ state: "visible" });
+  await listbox.getByText(columnName, { exact: true }).click();
+}
+
+/**
  * Delete a project via the API for clean test teardown.
  * Ignores 404 (project already deleted by the test).
  * Logs and re-throws on other failures so CI issues are visible.

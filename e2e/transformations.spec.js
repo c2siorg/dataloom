@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures.js";
+import { selectColumn } from "./helpers.js";
 
 test.describe("Transformations", () => {
   test("filter rows by city equals New York", async ({ page, projectId }) => {
@@ -7,7 +8,7 @@ test.describe("Transformations", () => {
 
     const form = page.locator('[data-testid="filter-form"]');
     await form.waitFor({ state: "visible" });
-    await form.locator('[data-testid="filter-column"]').selectOption("city");
+    await selectColumn(form, "filter-column", "city");
     await form.locator('[data-testid="filter-value"]').fill("New York");
     await form.getByRole("button", { name: "Apply Filter" }).click();
 
@@ -27,7 +28,7 @@ test.describe("Transformations", () => {
 
     const form = page.locator('[data-testid="sort-form"]');
     await form.waitFor({ state: "visible" });
-    await form.locator('[data-testid="sort-column"]').selectOption("age");
+    await selectColumn(form, "sort-column", "age");
     await form.getByRole("button", { name: /Apply Sort/i }).click();
 
     const preview = page.locator('[data-testid="transform-preview"]');

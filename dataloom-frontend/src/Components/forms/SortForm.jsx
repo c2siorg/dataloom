@@ -119,7 +119,7 @@ const SortForm = ({ projectId, onClose }) => {
               <div className="flex-1">
                 <ColumnSelect
                   value={criterion.column}
-                  onChange={(e) => updateCriterionColumn(criterion.id, e.target.value)}
+                  onChange={(value) => updateCriterionColumn(criterion.id, value)}
                   placeholder="Select column..."
                   required
                   data-testid={index === 0 ? "sort-column" : undefined}

@@ -115,11 +115,10 @@ describe("FilterForm — updateData propagation", () => {
     const { getByTestId, getByText } = render(<FilterForm projectId="proj-1" onClose={vi.fn()} />);
 
     // Fill required fields
-    // ColumnSelect renders a select; pick first real column
-    const columnSelect = getByTestId("filter-column");
-    // fire change on the underlying select
+    // ColumnSelect renders a combobox button; open it and pick a column
     const { fireEvent } = await import("@testing-library/react");
-    fireEvent.change(columnSelect, { target: { value: "City" } });
+    fireEvent.click(getByTestId("filter-column"));
+    fireEvent.click(getByText("City"));
 
     const valueInput = getByTestId("filter-value");
     fireEvent.change(valueInput, { target: { value: "Paris" } });

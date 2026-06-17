@@ -17,7 +17,7 @@ const FilterForm = ({ projectId, onClose }) => {
   });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { error, clearError, handleError } = useError();
+  const { error, setError, clearError, handleError } = useError();
   const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleInputChange = (e) => {
@@ -29,8 +29,14 @@ const FilterForm = ({ projectId, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     clearError();
+
+    if (!filterParams.column) {
+      setError("Please select a column.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const response = await transformProject(projectId, {
         operation_type: FILTER,
@@ -61,7 +67,7 @@ const FilterForm = ({ projectId, onClose }) => {
               name="column"
               data-testid="filter-column"
               value={filterParams.column}
-              onChange={handleInputChange}
+              onChange={(value) => setFilterParams((p) => ({ ...p, column: value }))}
               placeholder="Select column to filter..."
             />
           </div>

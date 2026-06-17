@@ -14,13 +14,19 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
 
   const [column, setColumn] = useState("");
   const [targetType, setTargetType] = useState("string");
-  const { error, clearError, handleError } = useError();
+  const { error, setError, clearError, handleError } = useError();
   const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     clearError();
+
+    if (!column) {
+      setError("Please select a column.");
+      return;
+    }
+
     try {
       const response = await transformProject(projectId, {
         operation_type: CAST_DATA_TYPE,
@@ -53,7 +59,7 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
             <label className="block text-sm font-medium text-gray-700">Column:</label>
             <ColumnSelect
               value={column}
-              onChange={(e) => setColumn(e.target.value)}
+              onChange={(value) => setColumn(value)}
               placeholder="Select column..."
             />
           </div>
