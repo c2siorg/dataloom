@@ -6,6 +6,8 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
+import ColumnSelect from "../common/ColumnSelect";
+import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Button from "../common/Button";
 
 const GroupByForm = ({ projectId, onClose }) => {
@@ -16,12 +18,6 @@ const GroupByForm = ({ projectId, onClose }) => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
-
-  const handleColumnToggle = (col) => {
-    setSelectedColumns((prev) =>
-      prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col],
-    );
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -61,39 +57,23 @@ const GroupByForm = ({ projectId, onClose }) => {
             <label className="block mb-1 text-sm font-medium text-gray-700">
               Group By Columns:
             </label>
-            <div className="border border-gray-300 rounded-md p-2 max-h-32 overflow-y-auto bg-white">
-              {availableColumns.map((col) => (
-                <label key={col} className="flex items-center gap-2 py-0.5 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={selectedColumns.includes(col)}
-                    onChange={() => handleColumnToggle(col)}
-                    className="rounded border-gray-300"
-                  />
-                  {col}
-                </label>
-              ))}
-            </div>
+            <ColumnMultiSelect
+              value={selectedColumns}
+              onChange={setSelectedColumns}
+              options={availableColumns}
+              required
+            />
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
             <label className="block mb-1 text-sm font-medium text-gray-700">
               Aggregation Column:
             </label>
-            <select
+            <ColumnSelect
               value={aggColumn}
-              onChange={(e) => setAggColumn(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+              onChange={setAggColumn}
+              options={availableColumns.filter((col) => !selectedColumns.includes(col))}
               required
-            >
-              <option value="">Select column...</option>
-              {availableColumns
-                .filter((col) => !selectedColumns.includes(col))
-                .map((col) => (
-                  <option key={col} value={col}>
-                    {col}
-                  </option>
-                ))}
-            </select>
+            />
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
             <label className="block mb-1 text-sm font-medium text-gray-700">Function:</label>

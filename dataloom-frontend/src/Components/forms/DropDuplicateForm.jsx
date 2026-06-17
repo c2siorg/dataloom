@@ -5,25 +5,32 @@ import { DROP_DUPLICATE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
+import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Button from "../common/Button";
 
 const DropDuplicateForm = ({ projectId, onClose }) => {
-  const [columns, setColumns] = useState("");
+  const [columns, setColumns] = useState([]);
   const [keep, setKeep] = useState("first");
-  const { error, clearError, handleError } = useError();
+  const { error, setError, clearError, handleError } = useError();
   const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    clearError();
+
+    if (columns.length === 0) {
+      setError("Please select at least one column.");
+      return;
+    }
+
     const transformationInput = {
       operation_type: DROP_DUPLICATE,
       drop_duplicate: {
-        columns: columns,
+        columns: columns.join(","),
         keep: keep,
       },
     };
 
-    clearError();
     try {
       const response = await transformProject(projectId, transformationInput);
       updateData(response.columns, response.rows, {
@@ -45,14 +52,7 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Columns:</label>
-            <input
-              type="text"
-              value={columns}
-              onChange={(e) => setColumns(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              placeholder="e.g., col1,col2"
-              required
-            />
+            <ColumnMultiSelect value={columns} onChange={setColumns} required />
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Keep:</label>

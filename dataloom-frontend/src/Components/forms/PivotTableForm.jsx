@@ -6,27 +6,39 @@ import { PIVOT_TABLES } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
+import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
 
 const PivotTableForm = ({ projectId, onClose }) => {
-  const [index, setIndex] = useState("");
+  const [index, setIndex] = useState([]);
   const [column, setColumn] = useState("");
   const [value, setValue] = useState("");
   const [aggfun, setAggfun] = useState("sum");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { error, clearError, handleError } = useError();
+  const { error, setError, clearError, handleError } = useError();
   const { updateData, refreshProject, pageSize } = useProjectContext();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     clearError();
+
+    if (index.length === 0) {
+      setError("Please select at least one index column.");
+      return;
+    }
+
+    if (!column || !value) {
+      setError("Please select a column and a value.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const response = await transformProject(projectId, {
         operation_type: PIVOT_TABLES,
-        pivot_query: { index, column, value, aggfun },
+        pivot_query: { index: index.join(","), column, value, aggfun },
       });
       setResult(response);
       updateData(response.columns, response.rows, {
@@ -49,20 +61,13 @@ const PivotTableForm = ({ projectId, onClose }) => {
         <div className="flex space-x-2 mb-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Index:</label>
-            <input
-              type="text"
-              value={index}
-              onChange={(e) => setIndex(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              placeholder="e.g., col1,col2"
-              required
-            />
+            <ColumnMultiSelect value={index} onChange={setIndex} required />
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Column:</label>
             <ColumnSelect
               value={column}
-              onChange={(e) => setColumn(e.target.value)}
+              onChange={(value) => setColumn(value)}
               placeholder="Select column..."
             />
           </div>
@@ -72,7 +77,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
             <label className="block text-sm font-medium text-gray-700">Value:</label>
             <ColumnSelect
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(value) => setValue(value)}
               placeholder="Select column..."
             />
           </div>

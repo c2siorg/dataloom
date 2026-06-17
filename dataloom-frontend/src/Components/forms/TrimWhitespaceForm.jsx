@@ -4,6 +4,9 @@ import { transformProject } from "../../api";
 import { TRIM_WHITESPACE } from "../../constants/operationTypes";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
+import useError from "../../hooks/useError";
+import FormErrorAlert from "../common/FormErrorAlert";
+import ColumnSelect from "../common/ColumnSelect";
 import Button from "../common/Button";
 
 const TrimWhitespaceForm = ({ projectId, onClose }) => {
@@ -12,9 +15,18 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
 
   const [column, setColumn] = useState("");
   const [loading, setLoading] = useState(false);
+  const { error, setError, clearError } = useError();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    clearError();
+
+    if (!column) {
+      setError("Please select a column.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -47,20 +59,12 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700">Column:</label>
-          <select
+          <ColumnSelect
             value={column}
-            onChange={(e) => setColumn(e.target.value)}
-            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            onChange={setColumn}
+            options={["All string columns", ...columns]}
             required
-          >
-            <option value="">Select column...</option>
-            <option value="All string columns">All string columns</option>
-            {columns.map((col) => (
-              <option key={col} value={col}>
-                {col}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         <div className="flex justify-between">
@@ -73,6 +77,7 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
           </Button>
         </div>
       </form>
+      <FormErrorAlert message={error} />
     </div>
   );
 };

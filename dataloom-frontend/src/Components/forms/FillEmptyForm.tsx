@@ -4,6 +4,7 @@ import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
+import ColumnSelect from "../common/ColumnSelect";
 
 const STRATEGIES = [
   { value: "custom", label: "Custom Value" },
@@ -62,18 +63,13 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Column:</label>
-          <select
+          <ColumnSelect
             value={selectedColumn}
-            onChange={(e) => setSelectedColumn(e.target.value)}
-            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900"
-          >
-            <option value="">All columns</option>
-            {columns.map((col) => (
-              <option key={col} value={col}>
-                {col}
-              </option>
-            ))}
-          </select>
+            onChange={setSelectedColumn}
+            includeEmptyOption
+            emptyLabel="All columns"
+            required={false}
+          />
           <p className="text-xs text-gray-400 mt-1">
             Note: Mean, median, and mode require a specific column.
           </p>

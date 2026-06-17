@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
 import { transformProject, getProjectDetails } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
+import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Button from "../common/Button";
 
 const MeltForm = ({ projectId, onClose }) => {
@@ -77,22 +78,6 @@ const MeltForm = ({ projectId, onClose }) => {
     }
   };
 
-  const handleIdVarsChange = (col) => {
-    if (idVars.includes(col)) {
-      setIdVars(idVars.filter((v) => v !== col));
-    } else {
-      setIdVars([...idVars, col]);
-    }
-  };
-
-  const handleValueVarsChange = (col) => {
-    if (valueVars.includes(col)) {
-      setValueVars(valueVars.filter((v) => v !== col));
-    } else {
-      setValueVars([...valueVars, col]);
-    }
-  };
-
   return (
     <div className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -111,22 +96,7 @@ const MeltForm = ({ projectId, onClose }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               ID Variables (Keep as columns):
             </label>
-            <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto p-2 bg-gray-50">
-              {columns.map((col) => (
-                <label
-                  key={`id-${col}`}
-                  className="flex items-center gap-2 py-1 px-1 hover:bg-gray-200 rounded cursor-pointer text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={idVars.includes(col)}
-                    onChange={() => handleIdVarsChange(col)}
-                    className="rounded text-blue-600"
-                  />
-                  {col}
-                </label>
-              ))}
-            </div>
+            <ColumnMultiSelect value={idVars} onChange={setIdVars} options={columns} />
             <p className="text-[10px] text-gray-400 mt-1">Columns that remain as identifiers.</p>
           </div>
 
@@ -134,22 +104,7 @@ const MeltForm = ({ projectId, onClose }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Value Variables (to unpivot):
             </label>
-            <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto p-2 bg-gray-50">
-              {columns.map((col) => (
-                <label
-                  key={`val-${col}`}
-                  className="flex items-center gap-2 py-1 px-1 hover:bg-gray-200 rounded cursor-pointer text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={valueVars.includes(col)}
-                    onChange={() => handleValueVarsChange(col)}
-                    className="rounded text-blue-600"
-                  />
-                  {col}
-                </label>
-              ))}
-            </div>
+            <ColumnMultiSelect value={valueVars} onChange={setValueVars} options={columns} />
             <p className="text-[10px] text-gray-400 mt-1">
               Leave empty to unpivot all non-ID columns.
             </p>
