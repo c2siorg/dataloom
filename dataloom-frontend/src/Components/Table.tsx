@@ -1,6 +1,6 @@
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, type ReactNode, type KeyboardEvent } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
@@ -15,10 +15,76 @@ import {
 import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
 import DtypeBadge from "./common/DtypeBadge";
-import PropTypes from "prop-types";
 import { useToast } from "../context/ToastContext";
 
-const MenuButton = ({ children, onClick }) => (
+/** A single table cell value. `undefined` arises from sparse index access. */
+type Cell = string | number | null | undefined;
+
+/** Backend transform response: rows may be arrays or column-keyed objects. */
+interface TransformResponse {
+  columns: string[];
+  rows: Array<Cell[] | Record<string, Cell>>;
+  dtypes?: Record<string, string>;
+}
+
+/** Project data passed in directly, bypassing ProjectContext. */
+interface ExternalData {
+  columns: string[];
+  rows: Array<Record<string, Cell>>;
+}
+
+type ToastType = "success" | "error" | "info" | "warning";
+
+interface ToastState {
+  message: string;
+  type: ToastType;
+}
+
+interface InputConfig {
+  message: string;
+  defaultValue: string;
+  onSubmit: (value: string) => void | Promise<void>;
+}
+
+interface EditingCell {
+  rowIndex: number;
+  cellIndex: number;
+}
+
+/** Subset of ProjectContext consumed here; the context itself is still JS. */
+interface ProjectContextValue {
+  columns: string[];
+  rows: Cell[][];
+  dtypes: Record<string, string>;
+  updateData: (
+    columns: string[],
+    rows: Cell[][],
+    options?: { dtypes?: Record<string, string>; resetColumnOrder?: boolean },
+  ) => void;
+  columnOrder: number[];
+  setColumnOrder: (order: number[]) => void;
+  totalRows: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+  setPaginationData: (info: {
+    page?: number;
+    page_size?: number;
+    total_rows?: number;
+    total_pages?: number;
+  }) => void;
+  refreshProject: (id: string, page: number, pageSize: number) => void;
+}
+
+/** Context payload carried by the right-click context menu. */
+type ContextData = { type: "column"; columnIndex: number } | { type: "row"; rowIndex: number };
+
+interface MenuButtonProps {
+  children: ReactNode;
+  onClick: () => void;
+}
+
+const MenuButton = ({ children, onClick }: MenuButtonProps) => (
   <button
     role="menuitem"
     className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150 whitespace-nowrap"
@@ -27,12 +93,13 @@ const MenuButton = ({ children, onClick }) => (
     {children}
   </button>
 );
-MenuButton.propTypes = {
-  children: PropTypes.node.isRequired,
-  onClick: PropTypes.func.isRequired,
-};
 
-const Table = ({ projectId, data: externalData }) => {
+interface TableProps {
+  projectId: string;
+  data?: ExternalData;
+}
+
+const Table = ({ projectId, data: externalData }: TableProps) => {
   const {
     columns: ctxColumns,
     rows: ctxRows,
@@ -46,18 +113,22 @@ const Table = ({ projectId, data: externalData }) => {
     pageSize,
     setPaginationData,
     refreshProject,
-  } = useProjectContext();
-  const [data, setData] = useState([]);
-  const [columns, setColumns] = useState([]);
-  const [editingCell, setEditingCell] = useState(null);
+  } = useProjectContext() as unknown as ProjectContextValue;
+  const [data, setData] = useState<Cell[][]>([]);
+  const [columns, setColumns] = useState<string[]>([]);
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState("");
   const { isOpen, position, contextData, open, close } = useContextMenu();
 
-  const [inputConfig, setInputConfig] = useState(null);
-  const [toast, setToast] = useState(null);
+  const [inputConfig, setInputConfig] = useState<InputConfig | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
-  const [draggedColIndex, setDraggedColIndex] = useState(null);
-  const [hoveredTargetIndex, setHoveredTargetIndex] = useState(null);
+  const [draggedColIndex, setDraggedColIndex] = useState<number | null>(null);
+  const [hoveredTargetIndex, setHoveredTargetIndex] = useState<number | null>(null);
+
+  // transformProject is JS-typed as Promise<Object>; narrow it here.
+  const applyTransform = (input: Record<string, unknown>) =>
+    transformProject(projectId, input) as unknown as Promise<TransformResponse>;
 
   const safeOrder = useMemo(() => {
     return columnOrder.length === ctxColumns.length ? columnOrder : ctxColumns.map((_, i) => i);
@@ -65,7 +136,7 @@ const Table = ({ projectId, data: externalData }) => {
 
   useEffect(() => {
     if (ctxColumns.length > 0 && ctxRows.length > 0) {
-      setColumns(["S.No.", ...safeOrder.map((i) => ctxColumns[i])]);
+      setColumns(["S.No.", ...safeOrder.map((i) => ctxColumns[i] as string)]);
       setData(
         ctxRows.map((row, index) => [
           (page - 1) * pageSize + index + 1,
@@ -83,24 +154,21 @@ const Table = ({ projectId, data: externalData }) => {
     }
   }, [externalData]);
 
-  const updateTableData = (response) => {
+  const updateTableData = (response: TransformResponse) => {
     const { columns, rows, dtypes: newDtypes } = response;
     setColumns(["S.No.", ...columns]);
     setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
-    updateData(columns, rows, { dtypes: newDtypes });
+    updateData(columns, normalizeRows(rows), { dtypes: newDtypes });
   };
 
-  const handleAddRow = async (index) => {
+  const handleAddRow = async (index: number) => {
     try {
-      const response = await transformProject(projectId, {
+      const response = await applyTransform({
         operation_type: ADD_ROW,
         row_params: { index },
       });
       updateTableData(response);
-      const normalizedRows = response.rows.map((row) =>
-        Array.isArray(row) ? row : Object.values(row),
-      );
-      updateData(response.columns, normalizedRows, { resetColumnOrder: false });
+      updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: false });
       refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
@@ -110,7 +178,7 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleAddColumn = (index) => {
+  const handleAddColumn = (index: number) => {
     setInputConfig({
       message: "Enter column name:",
       defaultValue: "",
@@ -121,23 +189,20 @@ const Table = ({ projectId, data: externalData }) => {
         }
 
         try {
-          let backendIndex; // Normalized index
+          let backendIndex: number; // Normalized index
           if (index === 0) {
             backendIndex = 0;
           } else {
             const displayDataIndex = index - 1;
-            const baseIndex = columnOrder[displayDataIndex];
+            const baseIndex = columnOrder[displayDataIndex] as number;
             backendIndex = baseIndex + 1;
           }
-          const response = await transformProject(projectId, {
+          const response = await applyTransform({
             operation_type: ADD_COLUMN,
             add_col_params: { index: backendIndex, name: newColumnName },
           });
           updateTableData(response);
-          const normalizedRows = response.rows.map((row) =>
-            Array.isArray(row) ? row : Object.values(row),
-          );
-          updateData(response.columns, normalizedRows, { resetColumnOrder: true });
+          updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: true });
           refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
@@ -151,17 +216,14 @@ const Table = ({ projectId, data: externalData }) => {
     });
   };
 
-  const handleDeleteRow = async (index) => {
+  const handleDeleteRow = async (index: number) => {
     try {
-      const response = await transformProject(projectId, {
+      const response = await applyTransform({
         operation_type: DELETE_ROW,
         row_params: { index },
       });
       updateTableData(response);
-      const normalizedRows = response.rows.map((row) =>
-        Array.isArray(row) ? row : Object.values(row),
-      );
-      updateData(response.columns, normalizedRows, { resetColumnOrder: false });
+      updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: false });
       refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
@@ -171,7 +233,7 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleRenameColumn = (index) => {
+  const handleRenameColumn = (index: number) => {
     if (index === 0) {
       setToast({
         message: "Cannot rename the S.No. column.",
@@ -191,16 +253,13 @@ const Table = ({ projectId, data: externalData }) => {
 
         try {
           const displayDataIndex = index - 1;
-          const backendIndex = columnOrder[displayDataIndex]; // Normalized index
-          const response = await transformProject(projectId, {
+          const backendIndex = columnOrder[displayDataIndex] as number; // Normalized index
+          const response = await applyTransform({
             operation_type: RENAME_COLUMN,
             rename_col_params: { col_index: backendIndex, new_name: newName },
           });
           updateTableData(response);
-          const normalizedRows = response.rows.map((row) =>
-            Array.isArray(row) ? row : Object.values(row),
-          );
-          updateData(response.columns, normalizedRows, { resetColumnOrder: false });
+          updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: false });
           refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
@@ -214,7 +273,7 @@ const Table = ({ projectId, data: externalData }) => {
     });
   };
 
-  const handleDeleteColumn = async (index) => {
+  const handleDeleteColumn = async (index: number) => {
     if (index === 0) {
       setToast({
         message: "Cannot delete the S.No. column.",
@@ -225,16 +284,13 @@ const Table = ({ projectId, data: externalData }) => {
 
     try {
       const displayDataIndex = index - 1;
-      const backendIndex = columnOrder[displayDataIndex]; // Normalized index
-      const response = await transformProject(projectId, {
+      const backendIndex = columnOrder[displayDataIndex] as number; // Normalized index
+      const response = await applyTransform({
         operation_type: DELETE_COLUMN,
         del_col_params: { index: backendIndex },
       });
       updateTableData(response);
-      const normalizedRows = response.rows.map((row) =>
-        Array.isArray(row) ? row : Object.values(row),
-      );
-      updateData(response.columns, normalizedRows, { resetColumnOrder: true });
+      updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: true });
       refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
@@ -244,12 +300,16 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleEditCell = async (rowIndex, cellIndex, newValue) => {
+  const handleEditCell = async (rowIndex: number, cellIndex: number, newValue: string) => {
     try {
       const backendColIndex =
-        cellIndex === 0 ? 0 : columnOrder.length > 0 ? columnOrder[cellIndex - 1] + 1 : cellIndex;
+        cellIndex === 0
+          ? 0
+          : columnOrder.length > 0
+            ? (columnOrder[cellIndex - 1] as number) + 1
+            : cellIndex;
 
-      const response = await transformProject(projectId, {
+      const response = await applyTransform({
         operation_type: CHANGE_CELL_VALUE,
         change_cell_value: {
           col_index: backendColIndex,
@@ -269,7 +329,11 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleInputKeyDown = (e, rowIndex, cellIndex) => {
+  const handleInputKeyDown = (
+    e: KeyboardEvent<HTMLInputElement>,
+    rowIndex: number,
+    cellIndex: number,
+  ) => {
     if (e.key === "Enter") {
       handleEditCell(rowIndex, cellIndex, editValue);
     } else if (e.key === "Escape") {
@@ -278,21 +342,21 @@ const Table = ({ projectId, data: externalData }) => {
     }
   };
 
-  const handleCellClick = (rowIndex, cellIndex, cellValue) => {
+  const handleCellClick = (rowIndex: number, cellIndex: number, cellValue: Cell) => {
     if (cellIndex !== 0) {
       setEditingCell({ rowIndex, cellIndex });
       // Coerce null/undefined (missing cells now serialize to null) to "" so the
       // controlled input stays controlled and never renders the literal "null".
-      setEditValue(cellValue ?? "");
+      setEditValue(cellValue == null ? "" : String(cellValue));
     }
   };
 
-  const handlePageChange = (newPage) => {
+  const handlePageChange = (newPage: number) => {
     setPaginationData({ page: newPage });
     refreshProject(projectId, newPage, pageSize);
   };
 
-  const handlePageSizeChange = (newSize) => {
+  const handlePageSizeChange = (newSize: number) => {
     setPaginationData({ page: 1, page_size: newSize });
     refreshProject(projectId, 1, newSize);
   };
@@ -313,7 +377,9 @@ const Table = ({ projectId, data: externalData }) => {
                     className={`py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
                       isDropTarget ? "ring-2 ring-blue-400" : ""
                     }`}
-                    onContextMenu={(e) => open(e, { type: "column", columnIndex })}
+                    onContextMenu={(e) =>
+                      open(e as unknown as MouseEvent, { type: "column", columnIndex })
+                    }
                   >
                     <button
                       type="button"
@@ -344,7 +410,7 @@ const Table = ({ projectId, data: externalData }) => {
                         }
                         const newOrder = [...safeOrder];
                         const [moved] = newOrder.splice(source, 1);
-                        newOrder.splice(target, 0, moved);
+                        newOrder.splice(target, 0, moved as number);
                         setColumnOrder(newOrder);
                         setDraggedColIndex(null);
                         setHoveredTargetIndex(null);
@@ -373,7 +439,9 @@ const Table = ({ projectId, data: externalData }) => {
                   <td
                     key={cellIndex}
                     className="py-1 px-3 text-xs text-gray-700"
-                    onContextMenu={(e) => open(e, { type: "row", rowIndex })}
+                    onContextMenu={(e) =>
+                      open(e as unknown as MouseEvent, { type: "row", rowIndex })
+                    }
                   >
                     {editingCell &&
                     editingCell.rowIndex === rowIndex &&
@@ -420,8 +488,12 @@ const Table = ({ projectId, data: externalData }) => {
         position={position}
         contextData={contextData}
         onClose={close}
-        data-testid={contextData?.type ? `context-menu-${contextData.type}` : "context-menu"}
-        actions={(data) => {
+        data-testid={
+          (contextData as ContextData | null)?.type
+            ? `context-menu-${(contextData as ContextData).type}`
+            : "context-menu"
+        }
+        actions={(data: ContextData | null) => {
           if (!data) return null;
           if (data.type === "column")
             return (
@@ -467,17 +539,21 @@ const Table = ({ projectId, data: externalData }) => {
   );
 };
 
-Table.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  data: PropTypes.shape({
-    columns: PropTypes.arrayOf(PropTypes.string),
-    rows: PropTypes.arrayOf(
-      PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.number])),
-    ),
-  }),
-};
-
 export default Table;
+
+/** Normalize backend rows (arrays or column-keyed objects) to value arrays. */
+function normalizeRows(rows: Array<Cell[] | Record<string, Cell>>): Cell[][] {
+  return rows.map((row) => (Array.isArray(row) ? row : Object.values(row)));
+}
+
+interface TablePaginationProps {
+  totalRows: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+}
 
 // TablePagination Component
 export function TablePagination({
@@ -487,10 +563,10 @@ export function TablePagination({
   pageSize,
   onPageChange,
   onPageSizeChange,
-}) {
+}: TablePaginationProps) {
   const [pageSizeOpen, setPageSizeOpen] = useState(false);
   const [pageInput, setPageInput] = useState(String(page));
-  const pageInputRef = useRef(null);
+  const pageInputRef = useRef<HTMLInputElement>(null);
   const pageSizeOptions = [10, 25, 50, 100];
   const { showToast } = useToast();
 
@@ -524,7 +600,7 @@ export function TablePagination({
     if (parsed !== page) onPageChange(parsed);
   };
 
-  const handlePageInputKeyDown = (e) => {
+  const handlePageInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
       commitPageInput();
@@ -630,11 +706,3 @@ export function TablePagination({
     </div>
   );
 }
-
-TablePagination.propTypes = {
-  totalRows: PropTypes.number.isRequired,
-  totalPages: PropTypes.number.isRequired,
-  page: PropTypes.number.isRequired,
-  pageSize: PropTypes.number.isRequired,
-  onPageChange: PropTypes.func.isRequired,
-};
