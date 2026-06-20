@@ -129,3 +129,13 @@ export const renameProject = async (projectId, name) => {
   const response = await client.patch(`/projects/${projectId}/rename`, { name });
   return response.data;
 };
+
+/**
+ * Search a project.
+ * @param {string} query - The search query.
+ * @returns {Promise<Object>} List of matched projects.
+ */
+export const searchProjects = async (query) => {
+  const response = await client.get("/projects/search", { params: { q: query } });
+  return response.data;
+};

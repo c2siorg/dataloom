@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadProject, getRecentProjects, deleteProject } from "../api";
+import { uploadProject, getRecentProjects, deleteProject, searchProjects } from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
-import { UploadCloud, FileText, X, Pencil } from "lucide-react";
+import { UploadCloud, FileText, X, Pencil, Search } from "lucide-react";
 import { ACCEPTED_EXTENSIONS, formatFileSize, validateFile } from "../utils/fileUtils";
 import { useProjectContext } from "../context/ProjectContext";
 
@@ -106,11 +106,17 @@ const HomeScreen = () => {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [recentProjects, setRecentProjects] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, projectId: null });
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { deleteProjectOrder } = useProjectContext();
+
+  const isSearching = searchQuery.trim().length > 0;
+  const visibleProjects = isSearching ? searchResults : recentProjects;
 
   const isFormValid =
     projectName.trim().length > 0 && projectDescription.trim().length > 0 && fileUpload !== null;
@@ -125,9 +131,44 @@ const HomeScreen = () => {
     }
   }, []);
 
+  const fetchRecentProjects = useCallback(async () => {
+    try {
+      const response = await getRecentProjects();
+      setRecentProjects(response);
+    } catch (error) {
+      console.error("Error fetching recent projects:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchRecentProjects();
-  }, []);
+  }, [fetchRecentProjects]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+
+    if (!query) {
+      setSearchResults([]);
+      setIsSearchLoading(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsSearchLoading(true);
+        const response = await searchProjects(query);
+        setSearchResults(response);
+      } catch (error) {
+        console.error("Error searching projects:", error);
+        setSearchResults([]);
+        showToast("Failed to search projects", "error");
+      } finally {
+        setIsSearchLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, showToast]);
 
   useEffect(() => {
     if (!showModal) return;
@@ -137,15 +178,6 @@ const HomeScreen = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showModal, isSubmitting, handleCloseModal]);
-
-  const fetchRecentProjects = async () => {
-    try {
-      const response = await getRecentProjects();
-      setRecentProjects(response);
-    } catch (error) {
-      console.error("Error fetching recent projects:", error);
-    }
-  };
 
   const handleNewProjectClick = () => {
     setShowModal(true);
@@ -245,7 +277,8 @@ const HomeScreen = () => {
       await deleteProject(deleteConfirm.projectId);
       deleteProjectOrder(deleteConfirm.projectId);
       showToast("Project deleted successfully", "success");
-      fetchRecentProjects();
+      await fetchRecentProjects();
+      setSearchResults((prev) => prev.filter((p) => p.project_id !== deleteConfirm.projectId));
     } catch (error) {
       console.error("Error deleting project:", error);
       showToast("Failed to delete project", "error");
@@ -260,6 +293,44 @@ const HomeScreen = () => {
   const handleRecentProjectClick = (projectId) => {
     if (!projectId) return;
     navigate(`/workspace/${projectId}`);
+  };
+
+  const renderProjectGrid = () => {
+    if (isSearchLoading) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <NewProjectCard onClick={handleNewProjectClick} />
+          <div className="col-span-2 md:col-span-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+            Searching projects...
+          </div>
+        </div>
+      );
+    }
+
+    if (isSearching && searchResults.length === 0) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <NewProjectCard onClick={handleNewProjectClick} />
+          <div className="col-span-2 md:col-span-3 flex items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+            No projects found for &quot;{searchQuery.trim()}&quot;
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <NewProjectCard onClick={handleNewProjectClick} />
+        {visibleProjects.map((project) => (
+          <ProjectCard
+            key={project.project_id}
+            project={project}
+            onClick={() => handleRecentProjectClick(project.project_id)}
+            onDelete={handleDeleteClick}
+          />
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -294,20 +365,22 @@ const HomeScreen = () => {
           )}
         </div>
 
-        {recentProjects.length === 0 ? (
+        <div className="relative mb-5">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            data-testid="project-search-input"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search projects..."
+            className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 shadow-sm outline-none transition-all duration-150 placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          />
+        </div>
+
+        {recentProjects.length === 0 && !isSearching ? (
           <EmptyState onClick={handleNewProjectClick} />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <NewProjectCard onClick={handleNewProjectClick} />
-            {recentProjects.map((project) => (
-              <ProjectCard
-                key={project.project_id}
-                project={project}
-                onClick={() => handleRecentProjectClick(project.project_id)}
-                onDelete={handleDeleteClick}
-              />
-            ))}
-          </div>
+          renderProjectGrid()
         )}
       </div>
 
