@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
+import sqlalchemy as sa
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
@@ -282,3 +283,31 @@ def rename_project(db: Session, project: models.Project, new_name: str) -> model
     db.refresh(project)
     logger.info("Renamed project: id=%s, new_name=%s", project.project_id, trimmed_name)
     return project
+
+
+def search_projects(db: Session, owner_id: uuid.UUID, query: str, limit: int = 20) -> list[models.Project]:
+    """Search a user's projects by name or description, case-insensitive.
+
+    Args:
+        db: Database session.
+        owner_id: Restrict results to projects owned by this user.
+        query: Search string to match against name/description.
+        limit: Maximum number of results to return.
+
+    Returns:
+        List of matching Project model instances ordered by last_modified desc.
+    """
+    pattern = f"%{query}%"
+    return (
+        db.query(models.Project)
+        .filter(
+            models.Project.owner_id == owner_id,
+            sa.or_(
+                models.Project.name.ilike(pattern),
+                models.Project.description.ilike(pattern),
+            ),
+        )
+        .order_by(models.Project.last_modified.desc())
+        .limit(limit)
+        .all()
+    )

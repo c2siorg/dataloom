@@ -26,6 +26,7 @@ from app.services.project_service import (
     get_last_change_log,
     get_recent_projects,
     rename_project,
+    search_projects,
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
@@ -431,3 +432,24 @@ async def undo_last_transformation(
         "total_pages": 1,
         **resp,
     }
+
+
+@router.get("/search", response_model=list[schemas.LastResponse])
+def search_user_projects(
+    q: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Search the current user's projects by name or description."""
+    if not q or not q.strip():
+        return []
+    projects = search_projects(db, owner_id=current_user.id, query=q.strip(), limit=20)
+    return [
+        schemas.LastResponse(
+            project_id=p.project_id,
+            name=p.name,
+            description=p.description,
+            last_modified=p.last_modified,
+        )
+        for p in projects
+    ]

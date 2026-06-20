@@ -10,6 +10,7 @@ export {
   revertToCheckpoint,
   exportProject,
   deleteProject,
+  searchProjects,
 } from "./projects";
 export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
 export { transformProject, groupByTransform, undoLastTransformation } from "./transforms";
