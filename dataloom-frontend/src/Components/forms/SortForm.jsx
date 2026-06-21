@@ -6,8 +6,14 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
+import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
+
+const ORDER_OPTIONS = [
+  { value: "true", label: "Ascending" },
+  { value: "false", label: "Descending" },
+];
 
 /**
  * SortForm component for multi-column sorting.
@@ -125,14 +131,12 @@ const SortForm = ({ projectId, onClose }) => {
                   data-testid={index === 0 ? "sort-column" : undefined}
                 />
               </div>
-              <select
-                value={criterion.ascending}
-                onChange={(e) => updateCriterionOrder(criterion.id, e.target.value === "true")}
-                className="border border-gray-300 rounded-md px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-sm w-32"
-              >
-                <option value="true">Ascending</option>
-                <option value="false">Descending</option>
-              </select>
+              <Select
+                value={String(criterion.ascending)}
+                onChange={(value) => updateCriterionOrder(criterion.id, value === "true")}
+                options={ORDER_OPTIONS}
+                className="w-32 shrink-0"
+              />
               <div className="flex gap-1">
                 <button
                   type="button"

@@ -6,8 +6,17 @@ import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
+import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
+
+const TARGET_TYPES = [
+  { value: "string", label: "String" },
+  { value: "integer", label: "Integer" },
+  { value: "float", label: "Float" },
+  { value: "boolean", label: "Boolean" },
+  { value: "datetime", label: "DateTime" },
+];
 
 const CastDataTypeForm = ({ projectId, onClose }) => {
   const { showToast } = useToast();
@@ -66,17 +75,7 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
 
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Target Type:</label>
-            <select
-              value={targetType}
-              onChange={(e) => setTargetType(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="string">String</option>
-              <option value="integer">Integer</option>
-              <option value="float">Float</option>
-              <option value="boolean">Boolean</option>
-              <option value="datetime">DateTime</option>
-            </select>
+            <Select value={targetType} onChange={setTargetType} options={TARGET_TYPES} />
           </div>
         </div>
 

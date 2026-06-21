@@ -6,7 +6,13 @@ import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
+import Select from "../common/Select";
 import Button from "../common/Button";
+
+const KEEP_OPTIONS = [
+  { value: "first", label: "First" },
+  { value: "last", label: "Last" },
+];
 
 const DropDuplicateForm = ({ projectId, onClose }) => {
   const [columns, setColumns] = useState([]);
@@ -56,14 +62,7 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Keep:</label>
-            <select
-              value={keep}
-              onChange={(e) => setKeep(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="first">First</option>
-              <option value="last">Last</option>
-            </select>
+            <Select value={keep} onChange={setKeep} options={KEEP_OPTIONS} />
           </div>
         </div>
         <div className="flex justify-between">
