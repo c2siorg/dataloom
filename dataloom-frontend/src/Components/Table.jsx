@@ -1,7 +1,7 @@
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import {
@@ -488,23 +488,53 @@ export function TablePagination({
   onPageSizeChange,
 }) {
   const [pageSizeOpen, setPageSizeOpen] = useState(false);
+  const [pageInput, setPageInput] = useState("");
+  const pageInputRef = useRef(null);
   const pageSizeOptions = [10, 25, 50, 100];
 
+  const handleFirst = () => {
+    if (page !== 1) onPageChange(1);
+  };
+
   const handlePrevious = () => {
-    if (page > 1) {
-      onPageChange(page - 1);
-    }
+    if (page > 1) onPageChange(page - 1);
   };
 
   const handleNext = () => {
-    if (page < totalPages) {
-      onPageChange(page + 1);
+    if (page < totalPages) onPageChange(page + 1);
+  };
+
+  const handleLast = () => {
+    if (page !== totalPages) onPageChange(totalPages);
+  };
+
+  const goToInputPage = () => {
+    const input = pageInputRef.current;
+
+    if (input && !input.reportValidity()) {
+      return;
+    }
+
+    const trimmed = pageInput.trim();
+    if (!trimmed) return;
+
+    const parsed = Number(trimmed);
+    const clamped = Math.min(Math.max(parsed, 1), totalPages);
+    onPageChange(clamped);
+    setPageInput("");
+  };
+
+  const handlePageInputKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      goToInputPage();
     }
   };
 
   return (
-    <div className="flex items-center justify-between px-8 py-3 bg-white">
-      <div className="flex items-center gap-6 text-sm text-gray-600">
+    <div className="flex flex-col gap-3 px-4 py-3 bg-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
+      {/* Info section */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-600">
         <div className="flex items-center gap-2">
           <span className="text-gray-500">Total Rows:</span>
           <span className="text-gray-900">{totalRows}</span>
@@ -515,18 +545,18 @@ export function TablePagination({
             {page} of {totalPages}
           </span>
         </div>
-        <div className="flex items-center gap-2 relative">
+        <div className="relative flex items-center gap-2">
           <span className="text-gray-500">Page Size:</span>
           <div className="relative inline-block">
             <button
               onClick={() => setPageSizeOpen(!pageSizeOpen)}
-              className="border-2 border-gray-300 rounded-md px-4 py-1 text-sm min-w-[40px] text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="min-w-[40px] rounded-md border-2 border-gray-300 px-4 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {pageSize}
             </button>
 
             {pageSizeOpen && (
-              <div className="absolute bottom-full mb-1 min-w-[60px] bg-white border-2 border-gray-300 rounded-lg shadow-lg z-10">
+              <div className="absolute bottom-full z-10 mb-1 min-w-[60px] rounded-lg border-2 border-gray-300 bg-white shadow-lg">
                 {pageSizeOptions.map((size) => (
                   <div
                     key={size}
@@ -534,7 +564,7 @@ export function TablePagination({
                       onPageSizeChange(size);
                       setPageSizeOpen(false);
                     }}
-                    className="px-4 py-2 text-sm hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-md"
+                    className="cursor-pointer rounded-md px-4 py-2 text-sm hover:bg-blue-50 hover:text-blue-700"
                   >
                     {size}
                   </div>
@@ -545,22 +575,62 @@ export function TablePagination({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:justify-end">
+        <button
+          onClick={handleFirst}
+          disabled={page === 1}
+          className="rounded-md border-2 border-gray-300 p-1.5 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="First page"
+        >
+          <ChevronsLeft className="h-5 w-5 text-gray-700" />
+        </button>
         <button
           onClick={handlePrevious}
           disabled={page === 1}
-          className="p-1.5 border-2 border-gray-300 rounded-md hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="rounded-md border-2 border-gray-300 p-1.5 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Previous page"
         >
-          <ChevronLeft className="w-5 h-5 text-gray-700" />
+          <ChevronLeft className="h-5 w-5 text-gray-700" />
         </button>
+
+        <div className="flex items-center gap-1.5">
+          <input
+            ref={pageInputRef}
+            type="number"
+            min={1}
+            max={totalPages}
+            step={1}
+            value={pageInput}
+            onChange={(e) => setPageInput(e.target.value)}
+            onKeyDown={handlePageInputKeyDown}
+            placeholder={String(page)}
+            title={`Enter a page between 1 and ${totalPages}`}
+            className="h-[34px] w-16 rounded-md border-2 border-gray-300 px-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            aria-label="Go to page"
+          />
+          <button
+            onClick={goToInputPage}
+            className="h-[34px] rounded-md border-2 border-gray-300 px-3 text-sm text-gray-700 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Go
+          </button>
+        </div>
+
         <button
           onClick={handleNext}
           disabled={page === totalPages}
-          className="p-1.5 border-2 border-gray-300 rounded-md hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="rounded-md border-2 border-gray-300 p-1.5 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Next page"
         >
-          <ChevronRight className="w-5 h-5 text-gray-700" />
+          <ChevronRight className="h-5 w-5 text-gray-700" />
+        </button>
+        <button
+          onClick={handleLast}
+          disabled={page === totalPages}
+          className="rounded-md border-2 border-gray-300 p-1.5 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Last page"
+        >
+          <ChevronsRight className="h-5 w-5 text-gray-700" />
         </button>
       </div>
     </div>
