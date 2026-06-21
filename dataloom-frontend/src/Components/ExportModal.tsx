@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import Modal from "./common/Modal";
 import Button from "./common/Button";
+import Select from "./common/Select";
 import { exportProject } from "../api";
 
 type FormatDef = {
@@ -247,17 +248,7 @@ export default function ExportModal({
               {/* Encoding (secondary — quiet dropdown) */}
               <label className="block">
                 <span className="mb-1.5 block text-xs text-gray-500">Encoding</span>
-                <select
-                  value={encoding}
-                  onChange={(e) => setEncoding(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25"
-                >
-                  {ENCODINGS.map((enc) => (
-                    <option key={enc.value} value={enc.value}>
-                      {enc.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={encoding} onChange={setEncoding} options={ENCODINGS} />
               </label>
             </div>
           ) : (

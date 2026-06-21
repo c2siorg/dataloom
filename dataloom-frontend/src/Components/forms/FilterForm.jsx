@@ -6,8 +6,19 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
+import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
+
+const CONDITIONS = [
+  { value: "=", label: "=" },
+  { value: "!=", label: "!= (not equal)" },
+  { value: ">", label: ">" },
+  { value: "<", label: "<" },
+  { value: ">=", label: ">=" },
+  { value: "<=", label: "<=" },
+  { value: "contains", label: "contains" },
+];
 
 const FilterForm = ({ projectId, onClose }) => {
   const [filterParams, setFilterParams] = useState({
@@ -73,21 +84,11 @@ const FilterForm = ({ projectId, onClose }) => {
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
             <label className="block mb-1 text-sm font-medium text-gray-700">Condition:</label>
-            <select
-              name="condition"
+            <Select
               value={filterParams.condition}
-              onChange={handleInputChange}
-              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              required
-            >
-              <option value="=">=</option>
-              <option value="!=">!= (not equal)</option>
-              <option value=">">&gt;</option>
-              <option value="<">&lt;</option>
-              <option value=">=">&gt;=</option>
-              <option value="<=">&lt;=</option>
-              <option value="contains">contains</option>
-            </select>
+              onChange={(value) => setFilterParams((p) => ({ ...p, condition: value }))}
+              options={CONDITIONS}
+            />
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
             <label className="block mb-1 text-sm font-medium text-gray-700">Value:</label>

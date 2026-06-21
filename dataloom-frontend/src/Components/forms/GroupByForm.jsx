@@ -8,7 +8,17 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 import ColumnSelect from "../common/ColumnSelect";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
+import Select from "../common/Select";
 import Button from "../common/Button";
+
+const AGG_FUNCTIONS = [
+  { value: "sum", label: "Sum" },
+  { value: "mean", label: "Mean" },
+  { value: "count", label: "Count" },
+  { value: "min", label: "Min" },
+  { value: "max", label: "Max" },
+  { value: "median", label: "Median" },
+];
 
 const GroupByForm = ({ projectId, onClose }) => {
   const { columns: availableColumns, updateData, refreshProject, pageSize } = useProjectContext();
@@ -77,18 +87,7 @@ const GroupByForm = ({ projectId, onClose }) => {
           </div>
           <div className="w-full sm:w-1/3 mb-2 pl-2">
             <label className="block mb-1 text-sm font-medium text-gray-700">Function:</label>
-            <select
-              value={aggFunction}
-              onChange={(e) => setAggFunction(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="sum">Sum</option>
-              <option value="mean">Mean</option>
-              <option value="count">Count</option>
-              <option value="min">Min</option>
-              <option value="max">Max</option>
-              <option value="median">Median</option>
-            </select>
+            <Select value={aggFunction} onChange={setAggFunction} options={AGG_FUNCTIONS} />
           </div>
         </div>
         <div className="flex justify-between">

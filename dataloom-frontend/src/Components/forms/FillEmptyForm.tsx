@@ -5,6 +5,7 @@ import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
+import Select from "../common/Select";
 
 const STRATEGIES = [
   { value: "custom", label: "Custom Value" },
@@ -77,17 +78,7 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Strategy:</label>
-          <select
-            value={strategy}
-            onChange={(e) => setStrategy(e.target.value)}
-            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900"
-          >
-            {STRATEGIES.map((strategyOption) => (
-              <option key={strategyOption.value} value={strategyOption.value}>
-                {strategyOption.label}
-              </option>
-            ))}
-          </select>
+          <Select value={strategy} onChange={setStrategy} options={STRATEGIES} />
         </div>
 
         {strategy === "custom" && (

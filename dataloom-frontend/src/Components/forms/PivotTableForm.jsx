@@ -7,8 +7,17 @@ import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
+import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
+
+const AGG_FUNCTIONS = [
+  { value: "sum", label: "Sum" },
+  { value: "mean", label: "Mean" },
+  { value: "count", label: "Count" },
+  { value: "min", label: "Min" },
+  { value: "max", label: "Max" },
+];
 
 const PivotTableForm = ({ projectId, onClose }) => {
   const [index, setIndex] = useState([]);
@@ -83,17 +92,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
           </div>
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">Aggregation Function:</label>
-            <select
-              value={aggfun}
-              onChange={(e) => setAggfun(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="sum">Sum</option>
-              <option value="mean">Mean</option>
-              <option value="count">Count</option>
-              <option value="min">Min</option>
-              <option value="max">Max</option>
-            </select>
+            <Select value={aggfun} onChange={setAggfun} options={AGG_FUNCTIONS} />
           </div>
         </div>
         <div className="flex justify-between">
