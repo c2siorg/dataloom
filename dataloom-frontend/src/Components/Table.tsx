@@ -363,113 +363,121 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="min-h-0 m-4 overflow-auto border border-gray-200 rounded-lg shadow-sm">
-        <table data-testid="data-table" className="min-w-full bg-white">
-          <thead className="sticky top-0 bg-gray-50">
-            <tr>
-              {columns.map((column, columnIndex) => {
-                const isSNo = columnIndex === 0;
-                const isDragged = !isSNo && draggedColIndex === columnIndex - 1;
-                const isDropTarget = !isSNo && hoveredTargetIndex === columnIndex - 1;
-                return (
-                  <th
-                    key={columnIndex}
-                    className={`py-1.5 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                      isDropTarget ? "ring-2 ring-blue-400" : ""
-                    }`}
-                    onContextMenu={(e) =>
-                      open(e as unknown as MouseEvent, { type: "column", columnIndex })
-                    }
-                  >
-                    <button
-                      type="button"
-                      className={`w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150 ${
-                        isSNo ? "" : "cursor-grab active:cursor-grabbing"
-                      } ${isDragged ? "opacity-50" : ""}`}
-                      draggable={!isSNo}
-                      onDragStart={(event) => {
-                        if (isSNo) return;
-                        setDraggedColIndex(columnIndex - 1);
-                        event.dataTransfer.effectAllowed = "move";
-                      }}
-                      onDragOver={(event) => {
-                        if (isSNo) return;
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "move";
-                        setHoveredTargetIndex(columnIndex - 1);
-                      }}
-                      onDrop={(event) => {
-                        if (isSNo) return;
-                        event.preventDefault();
-                        if (draggedColIndex === null) return;
-                        const source = draggedColIndex;
-                        const target = columnIndex - 1;
-                        if (source === target) {
-                          setHoveredTargetIndex(null);
-                          return;
-                        }
-                        const newOrder = [...safeOrder];
-                        const [moved] = newOrder.splice(source, 1);
-                        newOrder.splice(target, 0, moved as number);
-                        setColumnOrder(newOrder);
-                        setDraggedColIndex(null);
-                        setHoveredTargetIndex(null);
-                      }}
-                      onDragEnd={() => {
-                        setDraggedColIndex(null);
-                        setHoveredTargetIndex(null);
-                      }}
+      <div className="flex-1 min-h-0 overflow-hidden border-x border-b border-gray-200 shadow-sm">
+        <div className="h-full overflow-auto">
+          <table
+            data-testid="data-table"
+            className="min-w-full bg-white border-separate border-spacing-0"
+          >
+            <thead className="sticky top-0 z-20 bg-gray-50">
+              <tr>
+                {columns.map((column, columnIndex) => {
+                  const isSerialNumber = columnIndex === 0;
+                  const isDragged = !isSerialNumber && draggedColIndex === columnIndex - 1;
+                  const isDropTarget = !isSerialNumber && hoveredTargetIndex === columnIndex - 1;
+                  return (
+                    <th
+                      key={columnIndex}
+                      className={`py-1.5 px-3 border-b border-r border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                        isDropTarget ? "ring-2 ring-blue-400" : ""
+                      } ${
+                        isSerialNumber ? "w-16 sticky left-0 z-10 bg-gray-50" : "bg-gray-50"
+                      }`}
+                      onContextMenu={(e) =>
+                        open(e as unknown as MouseEvent, { type: "column", columnIndex })
+                      }
                     >
-                      {column}
-                      {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
-                    </button>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-
-          <tbody>
-            {data.map((row, rowIndex) => (
-              <tr
-                key={rowIndex}
-                className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
-              >
-                {row.map((cell, cellIndex) => (
-                  <td
-                    key={cellIndex}
-                    className="py-1 px-3 text-xs text-gray-700"
-                    onContextMenu={(e) =>
-                      open(e as unknown as MouseEvent, { type: "row", rowIndex })
-                    }
-                  >
-                    {editingCell &&
-                    editingCell.rowIndex === rowIndex &&
-                    editingCell.cellIndex === cellIndex ? (
-                      <input
-                        type="text"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
-                        className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-                        onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
-                      />
-                    ) : (
-                      <div
-                        onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
-                        className={
-                          cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""
-                        }
+                      <button
+                        type="button"
+                        className={`w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150 ${
+                          isSerialNumber ? "" : "cursor-grab active:cursor-grabbing"
+                        } ${isDragged ? "opacity-50" : ""}`}
+                        draggable={!isSerialNumber}
+                        onDragStart={(event) => {
+                          if (isSerialNumber) return;
+                          setDraggedColIndex(columnIndex - 1);
+                          event.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragOver={(event) => {
+                          if (isSerialNumber) return;
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                          setHoveredTargetIndex(columnIndex - 1);
+                        }}
+                        onDrop={(event) => {
+                          if (isSerialNumber) return;
+                          event.preventDefault();
+                          if (draggedColIndex === null) return;
+                          const source = draggedColIndex;
+                          const target = columnIndex - 1;
+                          if (source === target) {
+                            setHoveredTargetIndex(null);
+                            return;
+                          }
+                          const newOrder = [...safeOrder];
+                          const [moved] = newOrder.splice(source, 1);
+                          newOrder.splice(target, 0, moved as number);
+                          setColumnOrder(newOrder);
+                          setDraggedColIndex(null);
+                          setHoveredTargetIndex(null);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedColIndex(null);
+                          setHoveredTargetIndex(null);
+                        }}
                       >
-                        {cell}
-                      </div>
-                    )}
-                  </td>
-                ))}
+                        {column}
+                        {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {data.map((row, rowIndex) => (
+                <tr key={rowIndex} className="hover:bg-gray-50 transition-colors duration-150">
+                  {row.map((cell, cellIndex) => (
+                    <td
+                      key={cellIndex}
+                      className={`py-1 px-3 text-xs border-b border-r border-gray-200 ${
+                        cellIndex === 0
+                          ? "w-16 sticky left-0 z-10 bg-gray-50 text-center font-medium text-gray-500"
+                          : "text-gray-700"
+                      }`}
+                      onContextMenu={(e) =>
+                        open(e as unknown as MouseEvent, { type: "row", rowIndex })
+                      }
+                    >
+                      {editingCell &&
+                      editingCell.rowIndex === rowIndex &&
+                      editingCell.cellIndex === cellIndex ? (
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
+                          className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                          onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
+                        />
+                      ) : (
+                        <div
+                          onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
+                          className={
+                            cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""
+                          }
+                        >
+                          {cell}
+                        </div>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="mt-auto bg-white shadow-lg border-t border-gray-200 z-10">
