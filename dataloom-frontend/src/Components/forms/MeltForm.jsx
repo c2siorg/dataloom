@@ -180,14 +180,12 @@ const MeltForm = ({ projectId, onClose }) => {
         </div>
 
         <div className="flex justify-between pt-2">
-          <div className="flex gap-2">
-            <Button type="submit" disabled={loading}>
-              {loading ? "Processing..." : "Apply Melt"}
-            </Button>
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Cancel
-            </Button>
-          </div>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Processing..." : "Apply Melt"}
+          </Button>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
         </div>
       </form>
       {result && (

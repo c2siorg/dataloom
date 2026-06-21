@@ -355,6 +355,7 @@ const MenuNavbar = ({ projectId }) => {
           {
             label: "Melt (Unpivot)",
             icon: LuLayoutList,
+            formType: "MeltForm",
             onClick: () => handleMenuClick("MeltForm"),
           },
         ],
@@ -461,7 +462,15 @@ const MenuNavbar = ({ projectId }) => {
           projectId={projectId}
         />
       )}
-      {showMeltForm && <MeltForm onClose={() => setShowMeltForm(false)} projectId={projectId} />}
+      {showMeltForm && (
+        <MeltForm
+          onClose={() => {
+            setShowMeltForm(false);
+            setActiveForm(null);
+          }}
+          projectId={projectId}
+        />
+      )}
       {showCastDataTypeForm && (
         <CastDataTypeForm
           projectId={projectId}
