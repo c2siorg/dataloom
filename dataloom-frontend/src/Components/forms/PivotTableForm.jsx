@@ -10,14 +10,7 @@ import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
-
-const AGG_FUNCTIONS = [
-  { value: "sum", label: "Sum" },
-  { value: "mean", label: "Mean" },
-  { value: "count", label: "Count" },
-  { value: "min", label: "Min" },
-  { value: "max", label: "Max" },
-];
+import { AGG_FUNCTIONS } from "../../constants/aggregations";
 
 const PivotTableForm = ({ projectId, onClose }) => {
   const [index, setIndex] = useState([]);

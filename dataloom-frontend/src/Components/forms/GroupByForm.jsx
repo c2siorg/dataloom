@@ -10,15 +10,7 @@ import ColumnSelect from "../common/ColumnSelect";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Select from "../common/Select";
 import Button from "../common/Button";
-
-const AGG_FUNCTIONS = [
-  { value: "sum", label: "Sum" },
-  { value: "mean", label: "Mean" },
-  { value: "count", label: "Count" },
-  { value: "min", label: "Min" },
-  { value: "max", label: "Max" },
-  { value: "median", label: "Median" },
-];
+import { AGG_FUNCTIONS } from "../../constants/aggregations";
 
 const GroupByForm = ({ projectId, onClose }) => {
   const { columns: availableColumns, updateData, refreshProject, pageSize } = useProjectContext();
