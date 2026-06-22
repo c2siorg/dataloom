@@ -321,6 +321,21 @@ def column_profile(df: pd.DataFrame, column: str) -> dict[str, Any]:
     return profile
 
 
+def all_column_profiles(df: pd.DataFrame) -> dict[str, Any]:
+    """Return type-aware profiles for every column in a single pass.
+
+    Equivalent to calling :func:`column_profile` per column, but reads the
+    DataFrame once so the caller avoids an N+1 read of the working copy.
+
+    Args:
+        df: The DataFrame to profile.
+
+    Returns:
+        ``{"profiles": [<column_profile>, ...]}`` in column order.
+    """
+    return {"profiles": [column_profile(df, str(column)) for column in df.columns]}
+
+
 def correlation_matrix(df: pd.DataFrame) -> dict[str, Any]:
     """Return the pairwise Pearson correlation over numeric columns.
 

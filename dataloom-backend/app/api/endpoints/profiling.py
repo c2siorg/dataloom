@@ -69,6 +69,21 @@ async def get_column_profile(
         raise HTTPException(status_code=404, detail=f"Column '{column_name}' not found") from e
 
 
+@router.get("/{project_id}/profile/columns", response_model=schemas.ColumnProfilesResponse)
+async def get_all_column_profiles(
+    project_id: uuid.UUID,
+    project: models.Project = Depends(get_project_or_404),
+):
+    """Return type-aware profiles for every column from a single dataset read.
+
+    Batch equivalent of ``/profile/column`` for each column; preferred when the
+    client needs all columns (e.g. the column-profiles table view) so the
+    working copy is read once rather than once per column.
+    """
+    df = _load_project_df(project)
+    return profiling_service.all_column_profiles(df)
+
+
 @router.get("/{project_id}/profile/correlation", response_model=schemas.CorrelationResponse)
 async def get_correlation_matrix(
     project_id: uuid.UUID,

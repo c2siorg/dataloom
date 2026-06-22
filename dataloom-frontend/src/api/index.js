@@ -15,4 +15,4 @@ export {
 export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
 export { transformProject, groupByTransform, undoLastTransformation } from "./transforms";
 export { signup, signin, logout, getCurrentUser } from "./auth";
-export { getDatasetSummary, getColumnProfile, getCorrelationMatrix } from "./profiling";
+export { getDatasetSummary, getColumnProfile, getColumnProfiles, getCorrelationMatrix } from "./profiling";
