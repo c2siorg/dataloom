@@ -104,6 +104,21 @@ export const getColumnProfile = async (
 };
 
 /**
+ * Fetch type-aware profiles for every column in one request.
+ *
+ * Preferred over calling {@link getColumnProfile} per column: the backend reads
+ * the dataset once instead of once per column.
+ * @param projectId - The project ID.
+ * @returns The column profiles, in column order.
+ */
+export const getColumnProfiles = async (projectId: string): Promise<ColumnProfile[]> => {
+  const response = await client.get<{ profiles: ColumnProfile[] }>(
+    `/projects/${projectId}/profile/columns`,
+  );
+  return response.data.profiles;
+};
+
+/**
  * Fetch the pairwise correlation matrix over the project's numeric columns.
  * @param projectId - The project ID.
  * @returns The numeric column names and their correlation matrix.

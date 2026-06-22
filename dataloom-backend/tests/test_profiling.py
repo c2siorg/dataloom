@@ -200,6 +200,24 @@ class TestColumnProfileDatetime:
         assert profile["inferred_granularity"] is None
 
 
+# --- Service: all_column_profiles ---
+
+
+class TestAllColumnProfiles:
+    def test_profiles_every_column_in_order(self):
+        df = pd.DataFrame({"age": [30, 25, 35], "name": ["Alice", "Bob", "Charlie"]})
+        result = ps.all_column_profiles(df)
+        assert [p["column"] for p in result["profiles"]] == ["age", "name"]
+
+    def test_matches_single_column_profile(self):
+        df = pd.DataFrame({"age": [30, 25, 35], "name": ["Alice", "Bob", "Charlie"]})
+        batch = {p["column"]: p for p in ps.all_column_profiles(df)["profiles"]}
+        assert batch["age"] == ps.column_profile(df, "age")
+
+    def test_empty_dataframe(self):
+        assert ps.all_column_profiles(pd.DataFrame()) == {"profiles": []}
+
+
 # --- Service: correlation_matrix ---
 
 
@@ -318,6 +336,16 @@ class TestProfilingEndpoints:
         response = client.get(f"/projects/{pid}/profile/column", params={"column_name": "revenue/cost"})
         assert response.status_code == 200, response.text
         assert response.json()["column"] == "revenue/cost"
+
+    def test_all_column_profiles(self, client, project_id):
+        response = client.get(f"/projects/{project_id}/profile/columns")
+        assert response.status_code == 200, response.text
+        profiles = response.json()["profiles"]
+        # One profile per column, in column order, matching the single-column route.
+        assert [p["column"] for p in profiles] == ["name", "age", "city"]
+        age = next(p for p in profiles if p["column"] == "age")
+        assert age["dtype"] == "int"
+        assert age["mean"] is not None
 
     def test_correlation(self, client, project_id):
         response = client.get(f"/projects/{project_id}/profile/correlation")

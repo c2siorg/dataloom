@@ -413,6 +413,12 @@ class ColumnProfileResponse(BaseModel):
     inferred_granularity: str | None = None
 
 
+class ColumnProfilesResponse(BaseModel):
+    """Type-aware profiles for every column, from a single read of the dataset."""
+
+    profiles: list[ColumnProfileResponse]
+
+
 class CorrelationResponse(BaseModel):
     """Pairwise Pearson correlation over numeric columns."""
 
