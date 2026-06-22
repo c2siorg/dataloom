@@ -8,6 +8,7 @@ export default function DataScreen() {
   const { projectId } = useParams();
   const { setProjectInfo, refreshProject } = useProjectContext();
   const [tableData, setTableData] = useState(null);
+  const [showColumnProfiles, setShowColumnProfiles] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -22,8 +23,13 @@ export default function DataScreen() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <MenuNavbar onTransform={handleTransform} projectId={projectId} />
-      <Table projectId={projectId} data={tableData} />
+      <MenuNavbar
+        onTransform={handleTransform}
+        projectId={projectId}
+        columnProfilesActive={showColumnProfiles}
+        onToggleColumnProfiles={() => setShowColumnProfiles((v) => !v)}
+      />
+      <Table projectId={projectId} data={tableData} showColumnProfiles={showColumnProfiles} />
     </div>
   );
 }

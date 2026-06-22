@@ -15,6 +15,8 @@ import {
 import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
 import DtypeBadge from "./common/DtypeBadge";
+import ColumnProfileCard from "./profiling/ColumnProfileCard";
+import useColumnProfiles from "../hooks/useColumnProfiles";
 import { useToast } from "../context/ToastContext";
 
 /** A single table cell value. `undefined` arises from sparse index access. */
@@ -102,9 +104,10 @@ function normalizeRows(rows: Array<Cell[] | Record<string, Cell>>): Cell[][] {
 interface TableProps {
   projectId: string;
   data?: ExternalData;
+  showColumnProfiles?: boolean;
 }
 
-const Table = ({ projectId, data: externalData }: TableProps) => {
+const Table = ({ projectId, data: externalData, showColumnProfiles = false }: TableProps) => {
   const {
     columns: ctxColumns,
     rows: ctxRows,
@@ -130,6 +133,15 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
 
   const [draggedColIndex, setDraggedColIndex] = useState<number | null>(null);
   const [hoveredTargetIndex, setHoveredTargetIndex] = useState<number | null>(null);
+
+  // Per-column profiles for the "Columns" toggle. totalRows is the change signal
+  // so profiles refresh after a row-count-changing transform.
+  const { profiles, loading: profilesLoading } = useColumnProfiles(
+    projectId,
+    ctxColumns,
+    showColumnProfiles,
+    totalRows,
+  );
 
   // transformProject is JS-typed as Promise<Object>; narrow it here.
   const applyTransform = (input: Record<string, unknown>) =>
@@ -372,6 +384,30 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
             className="min-w-full bg-white border-separate border-spacing-0"
           >
             <thead className="sticky top-0 z-20 bg-gray-50">
+              {showColumnProfiles && (
+                <tr>
+                  {columns.map((column, columnIndex) => {
+                    const isSerialNumber = columnIndex === 0;
+                    return (
+                      <th
+                        key={columnIndex}
+                        className={`align-top border-b border-r border-gray-200 ${
+                          isSerialNumber
+                            ? "w-16 sticky left-0 z-10 bg-gray-50"
+                            : "bg-white min-w-[140px]"
+                        }`}
+                      >
+                        {!isSerialNumber && (
+                          <ColumnProfileCard
+                            profile={profiles[column] ?? null}
+                            loading={profilesLoading && !profiles[column]}
+                          />
+                        )}
+                      </th>
+                    );
+                  })}
+                </tr>
+              )}
               <tr>
                 {columns.map((column, columnIndex) => {
                   const isSerialNumber = columnIndex === 0;
