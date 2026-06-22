@@ -96,8 +96,8 @@ const PivotTableForm = ({ projectId, onClose }) => {
             Cancel
           </Button>
         </div>
+        <FormErrorAlert message={error} />
       </form>
-      <FormErrorAlert message={error} />
       {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
