@@ -16,6 +16,7 @@ import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
 import DtypeBadge from "./common/DtypeBadge";
 import PropTypes from "prop-types";
+import { useToast } from "../context/ToastContext";
 
 const MenuButton = ({ children, onClick }) => (
   <button
@@ -488,62 +489,58 @@ export function TablePagination({
   onPageSizeChange,
 }) {
   const [pageSizeOpen, setPageSizeOpen] = useState(false);
-  const [pageInput, setPageInput] = useState("");
+  const [pageInput, setPageInput] = useState(String(page));
   const pageInputRef = useRef(null);
   const pageSizeOptions = [10, 25, 50, 100];
+  const { showToast } = useToast();
+
+  const prevPageRef = useRef(page);
+  if (prevPageRef.current !== page) {
+    prevPageRef.current = page;
+    setPageInput(String(page));
+  }
 
   const handleFirst = () => {
     if (page !== 1) onPageChange(1);
   };
-
   const handlePrevious = () => {
     if (page > 1) onPageChange(page - 1);
   };
-
   const handleNext = () => {
     if (page < totalPages) onPageChange(page + 1);
   };
-
   const handleLast = () => {
     if (page !== totalPages) onPageChange(totalPages);
   };
 
-  const goToInputPage = () => {
+  const commitPageInput = () => {
     const input = pageInputRef.current;
-
     if (input && !input.reportValidity()) {
+      showToast("Invalid page number", "error");
+      setPageInput(String(page));
       return;
     }
-
-    const trimmed = pageInput.trim();
-    if (!trimmed) return;
-
-    const parsed = Number(trimmed);
-    const clamped = Math.min(Math.max(parsed, 1), totalPages);
-    onPageChange(clamped);
-    setPageInput("");
+    const parsed = Number(pageInput);
+    if (parsed !== page) onPageChange(parsed);
   };
 
   const handlePageInputKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      goToInputPage();
+      commitPageInput();
+    }
+    if (e.key === "Escape") {
+      setPageInput(String(page));
     }
   };
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3 bg-white sm:flex-row sm:items-center sm:justify-between sm:px-8">
-      {/* Info section */}
+      {/* Left: Total Rows + Page Size */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-600">
         <div className="flex items-center gap-2">
           <span className="text-gray-500">Total Rows:</span>
           <span className="text-gray-900">{totalRows}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-gray-500">Page:</span>
-          <span className="text-gray-900">
-            {page} of {totalPages}
-          </span>
         </div>
         <div className="relative flex items-center gap-2">
           <span className="text-gray-500">Page Size:</span>
@@ -554,7 +551,6 @@ export function TablePagination({
             >
               {pageSize}
             </button>
-
             {pageSizeOpen && (
               <div className="absolute bottom-full z-10 mb-1 min-w-[60px] rounded-lg border-2 border-gray-300 bg-white shadow-lg">
                 {pageSizeOptions.map((size) => (
@@ -575,6 +571,7 @@ export function TablePagination({
         </div>
       </div>
 
+      {/* Right: nav buttons + Page X of Y */}
       <div className="flex flex-wrap items-center justify-center gap-2 sm:flex-nowrap sm:justify-end">
         <button
           onClick={handleFirst}
@@ -593,7 +590,9 @@ export function TablePagination({
           <ChevronLeft className="h-5 w-5 text-gray-700" />
         </button>
 
-        <div className="flex items-center gap-1.5">
+        {/* Page X of Y — X always editable */}
+        <div className="flex items-center gap-1.5 text-sm text-gray-600 select-none">
+          <span className="text-gray-500">Page</span>
           <input
             ref={pageInputRef}
             type="number"
@@ -603,17 +602,12 @@ export function TablePagination({
             value={pageInput}
             onChange={(e) => setPageInput(e.target.value)}
             onKeyDown={handlePageInputKeyDown}
-            placeholder={String(page)}
+            onBlur={commitPageInput}
             title={`Enter a page between 1 and ${totalPages}`}
-            className="h-[34px] w-16 rounded-md border-2 border-gray-300 px-2 text-center text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            aria-label="Go to page"
+            className="h-7 w-14 rounded-md border-2 border-gray-300 px-1.5 text-center text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            aria-label="Current page"
           />
-          <button
-            onClick={goToInputPage}
-            className="h-[34px] rounded-md border-2 border-gray-300 px-3 text-sm text-gray-700 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Go
-          </button>
+          <span className="text-gray-500">of {totalPages}</span>
         </div>
 
         <button

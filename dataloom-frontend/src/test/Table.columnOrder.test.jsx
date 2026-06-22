@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import Table from "../Components/Table";
 import { transformProject } from "../api";
+import { ToastProvider } from "../context/ToastContext";
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(() =>
@@ -45,11 +46,18 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+const renderTable = () =>
+  render(
+    <ToastProvider>
+      <Table projectId="test-id" />
+    </ToastProvider>,
+  );
+
 describe("Table — column reorder behavior", () => {
   it("renders columns in default order", () => {
     mockContext.columnOrder = [0, 1, 2];
 
-    render(<Table projectId="test-id" />);
+    renderTable();
 
     const headers = screen.getAllByRole("columnheader");
 
@@ -61,7 +69,7 @@ describe("Table — column reorder behavior", () => {
   it("renders columns in reordered sequence [2, 0, 1]", () => {
     mockContext.columnOrder = [2, 0, 1];
 
-    render(<Table projectId="test-id" />);
+    renderTable();
 
     const headers = screen.getAllByRole("columnheader");
 
@@ -73,7 +81,7 @@ describe("Table — column reorder behavior", () => {
   it("falls back to default order when columnOrder length mismatches", () => {
     mockContext.columnOrder = [0, 1];
 
-    render(<Table projectId="test-id" />);
+    renderTable();
 
     const headers = screen.getAllByRole("columnheader");
 
@@ -85,7 +93,7 @@ describe("Table — column reorder behavior", () => {
   it("calls setColumnOrder when columns are reordered via drag and drop", async () => {
     mockContext.columnOrder = [0, 1, 2];
 
-    render(<Table projectId="test-id" />);
+    renderTable();
 
     const buttons = screen.getAllByRole("button");
 
@@ -112,7 +120,7 @@ describe("Table — column reorder behavior", () => {
 
     mockContext.columnOrder = [2, 0, 1];
 
-    render(<Table projectId="test-id" />);
+    renderTable();
 
     const cells = screen.getAllByText("New York");
 
