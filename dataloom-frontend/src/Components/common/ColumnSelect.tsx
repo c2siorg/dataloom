@@ -149,6 +149,7 @@ const ColumnSelect = ({
         aria-expanded={open}
         aria-required={required}
         onClick={toggle}
+        onKeyDown={handleKeyDown}
         className="flex items-center justify-between gap-2 border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-left text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span className="flex items-center min-w-0">

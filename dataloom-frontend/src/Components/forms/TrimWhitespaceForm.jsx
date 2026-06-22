@@ -76,8 +76,8 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
             Cancel
           </Button>
         </div>
+        <FormErrorAlert message={error} />
       </form>
-      <FormErrorAlert message={error} />
     </div>
   );
 };
