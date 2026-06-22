@@ -11,6 +11,7 @@ import GroupByForm from "./forms/GroupByForm";
 import StringReplaceForm from "./forms/StringReplaceForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
+import DatasetSummaryPanel from "./profiling/DatasetSummaryPanel";
 import FillEmptyForm from "./forms/FillEmptyForm";
 import InputDialog from "./common/InputDialog";
 import ConfirmDialog from "./common/ConfirmDialog";
@@ -22,6 +23,7 @@ import {
   getCheckpoints,
   revertToCheckpoint,
   undoLastTransformation,
+  getDatasetSummary,
 } from "../api";
 import proptype from "prop-types";
 import SampleRowsForm from "./forms/SampleRowsForm";
@@ -43,10 +45,12 @@ import {
   LuUndo2,
   LuReplace,
   LuEraser,
+  LuLayoutDashboard,
+  LuColumns3,
 } from "react-icons/lu";
 import { useProjectContext } from "../context/ProjectContext";
 
-const MenuNavbar = ({ projectId }) => {
+const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles }) => {
   const [showGroupByForm, setShowGroupByForm] = useState(false);
   const [showFilterForm, setShowFilterForm] = useState(false);
   const [showSortForm, setShowSortForm] = useState(false);
@@ -62,6 +66,9 @@ const MenuNavbar = ({ projectId }) => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showStringReplaceForm, setShowStringReplaceForm] = useState(false);
   const [showFillEmptyForm, setShowFillEmptyForm] = useState(false);
+  const [showDatasetSummary, setShowDatasetSummary] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [summaryError, setSummaryError] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
@@ -95,10 +102,23 @@ const MenuNavbar = ({ projectId }) => {
     }
   }, [projectId]);
 
+  const fetchSummary = useCallback(async () => {
+    try {
+      setSummary(null);
+      setSummaryError(false);
+      const summaryResponse = await getDatasetSummary(projectId);
+      setSummary(summaryResponse);
+    } catch (error) {
+      console.error("Error fetching dataset summary:", error);
+      setSummaryError(true);
+    }
+  }, [projectId]);
+
   useEffect(() => {
     if (showLogs) fetchLogs();
     if (showCheckpoints) fetchCheckpoints();
-  }, [showLogs, showCheckpoints, fetchLogs, fetchCheckpoints]);
+    if (showDatasetSummary) fetchSummary();
+  }, [showLogs, showCheckpoints, showDatasetSummary, fetchLogs, fetchCheckpoints, fetchSummary]);
 
   useEffect(() => {
     const handleLogsRefresh = () => {
@@ -190,6 +210,7 @@ const MenuNavbar = ({ projectId }) => {
       setShowGroupByForm(false);
       setShowFillEmptyForm(false);
       setShowSampleRowsForm(false);
+      setShowDatasetSummary(false);
       return;
     }
 
@@ -207,6 +228,7 @@ const MenuNavbar = ({ projectId }) => {
     setShowCheckpoints(false);
     setShowGroupByForm(false);
     setShowFillEmptyForm(false);
+    setShowDatasetSummary(false);
 
     setActiveForm(formType);
 
@@ -252,6 +274,9 @@ const MenuNavbar = ({ projectId }) => {
         break;
       case "FillEmptyForm":
         setShowFillEmptyForm(true);
+        break;
+      case "DatasetSummary":
+        setShowDatasetSummary(true);
         break;
 
       default:
@@ -385,6 +410,25 @@ const MenuNavbar = ({ projectId }) => {
         ],
       },
     ],
+    Profile: [
+      {
+        group: "Profile",
+        items: [
+          {
+            label: "Overview",
+            icon: LuLayoutDashboard,
+            formType: "DatasetSummary",
+            onClick: () => handleMenuClick("DatasetSummary"),
+          },
+          {
+            label: "Columns",
+            icon: LuColumns3,
+            active: columnProfilesActive,
+            onClick: onToggleColumnProfiles,
+          },
+        ],
+      },
+    ],
   };
 
   return (
@@ -413,7 +457,7 @@ const MenuNavbar = ({ projectId }) => {
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-1 flex-1">
                 {section.items.map((item) => {
-                  const isActive = item.formType && activeForm === item.formType;
+                  const isActive = item.formType ? activeForm === item.formType : !!item.active;
                   return (
                     <button
                       key={item.label}
@@ -573,6 +617,17 @@ const MenuNavbar = ({ projectId }) => {
           }}
         />
       )}
+      {showDatasetSummary && (
+        <DatasetSummaryPanel
+          summary={summary}
+          error={summaryError}
+          onRetry={fetchSummary}
+          onClose={() => {
+            setShowDatasetSummary(false);
+            setActiveForm(null);
+          }}
+        />
+      )}
 
       <ExportModal
         isOpen={showExportModal}
@@ -608,6 +663,8 @@ const MenuNavbar = ({ projectId }) => {
 
 MenuNavbar.propTypes = {
   projectId: proptype.string.isRequired,
+  columnProfilesActive: proptype.bool,
+  onToggleColumnProfiles: proptype.func,
 };
 
 export default MenuNavbar;
