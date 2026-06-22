@@ -65,6 +65,7 @@ interface ProjectContextValue {
   ) => void;
   columnOrder: number[];
   setColumnOrder: (order: number[]) => void;
+  dataVersion: number;
   totalRows: number;
   totalPages: number;
   page: number;
@@ -115,6 +116,7 @@ const Table = ({ projectId, data: externalData, showColumnProfiles = false }: Ta
     updateData,
     columnOrder,
     setColumnOrder,
+    dataVersion,
     totalRows,
     totalPages,
     page,
@@ -134,12 +136,13 @@ const Table = ({ projectId, data: externalData, showColumnProfiles = false }: Ta
   const [draggedColIndex, setDraggedColIndex] = useState<number | null>(null);
   const [hoveredTargetIndex, setHoveredTargetIndex] = useState<number | null>(null);
 
-  // Per-column profiles for the "Columns" toggle. totalRows is the change signal
-  // so profiles refresh after a row-count-changing transform.
+  // Per-column profiles for the "Columns" toggle. dataVersion is the change
+  // signal (bumped on any content edit), so cached profiles refresh after a
+  // transform or cell edit but survive pagination.
   const { profiles, loading: profilesLoading } = useColumnProfiles(
     projectId,
     showColumnProfiles,
-    totalRows,
+    dataVersion,
   );
 
   // transformProject is JS-typed as Promise<Object>; narrow it here.

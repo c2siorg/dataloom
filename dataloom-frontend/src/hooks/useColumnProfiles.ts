@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getColumnProfiles, type ColumnProfile } from "../api/profiling";
+import { getCached, setCached } from "../utils/profilingCache";
 
 interface UseColumnProfilesResult {
   /** Profiles keyed by column name. Empty if the fetch failed. */
@@ -7,24 +8,30 @@ interface UseColumnProfilesResult {
   loading: boolean;
 }
 
+type ProfileMap = Record<string, ColumnProfile>;
+
+const NAMESPACE = "columns";
+
 /**
  * Fetch per-column profiles for the current project, keyed by column name.
  *
  * Profiles are dataset-wide (the backend reads the whole working copy), so all
- * columns are fetched in a single batch request that reads the data once. A
- * failed request leaves `profiles` empty rather than throwing.
+ * columns are fetched in a single batch request that reads the data once, then
+ * cached by `dataVersion`. While the cache holds the current version the hook
+ * serves it without hitting the API; it refetches only after a content change
+ * bumps the version. A failed request leaves `profiles` empty rather than
+ * throwing.
  *
- * `dataVersion` is an opaque change signal — pass something that changes when
- * the underlying data changes (e.g. row count) so profiles refresh after a
- * transform. Cell edits that don't change the row count won't trigger a refetch
- * on their own; that's a known v1 limitation.
+ * `dataVersion` is ProjectContext's content-mutation counter — it changes on any
+ * edit (and never on pagination), so the cache invalidates exactly when the data
+ * does.
  */
 export default function useColumnProfiles(
   projectId: string | undefined,
   enabled: boolean,
   dataVersion: number,
 ): UseColumnProfilesResult {
-  const [profiles, setProfiles] = useState<Record<string, ColumnProfile>>({});
+  const [profiles, setProfiles] = useState<ProfileMap>({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -34,16 +41,24 @@ export default function useColumnProfiles(
       return;
     }
 
+    const cached = getCached<ProfileMap>(NAMESPACE, projectId, dataVersion);
+    if (cached) {
+      setProfiles(cached);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
 
     getColumnProfiles(projectId)
       .then((results) => {
         if (cancelled) return;
-        const next: Record<string, ColumnProfile> = {};
+        const next: ProfileMap = {};
         for (const profile of results) {
           next[profile.column] = profile;
         }
+        setCached(NAMESPACE, projectId, dataVersion, next);
         setProfiles(next);
       })
       .catch(() => {
