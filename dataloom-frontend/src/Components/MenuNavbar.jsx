@@ -12,6 +12,7 @@ import StringReplaceForm from "./forms/StringReplaceForm";
 import LogsPanel from "./history/LogsPanel";
 import CheckpointsPanel from "./history/CheckpointsPanel";
 import DatasetSummaryPanel from "./profiling/DatasetSummaryPanel";
+import useDatasetSummary from "../hooks/useDatasetSummary";
 import FillEmptyForm from "./forms/FillEmptyForm";
 import InputDialog from "./common/InputDialog";
 import ConfirmDialog from "./common/ConfirmDialog";
@@ -23,7 +24,6 @@ import {
   getCheckpoints,
   revertToCheckpoint,
   undoLastTransformation,
-  getDatasetSummary,
 } from "../api";
 import proptype from "prop-types";
 import SampleRowsForm from "./forms/SampleRowsForm";
@@ -67,15 +67,20 @@ const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles })
   const [showStringReplaceForm, setShowStringReplaceForm] = useState(false);
   const [showFillEmptyForm, setShowFillEmptyForm] = useState(false);
   const [showDatasetSummary, setShowDatasetSummary] = useState(false);
-  const [summary, setSummary] = useState(null);
-  const [summaryError, setSummaryError] = useState(false);
   const [logs, setLogs] = useState([]);
   const [checkpoints, setCheckpoints] = useState(null);
   const [isInputOpen, setIsInputOpen] = useState(false);
   const [confirmData, setConfirmData] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const { updateData, refreshProject, pageSize, projectName, isPreviewMode } = useProjectContext();
+  const { updateData, refreshProject, pageSize, projectName, isPreviewMode, dataVersion } =
+    useProjectContext();
+
+  const {
+    summary,
+    error: summaryError,
+    refetch: refetchSummary,
+  } = useDatasetSummary(projectId, showDatasetSummary, dataVersion);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -102,23 +107,10 @@ const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles })
     }
   }, [projectId]);
 
-  const fetchSummary = useCallback(async () => {
-    try {
-      setSummary(null);
-      setSummaryError(false);
-      const summaryResponse = await getDatasetSummary(projectId);
-      setSummary(summaryResponse);
-    } catch (error) {
-      console.error("Error fetching dataset summary:", error);
-      setSummaryError(true);
-    }
-  }, [projectId]);
-
   useEffect(() => {
     if (showLogs) fetchLogs();
     if (showCheckpoints) fetchCheckpoints();
-    if (showDatasetSummary) fetchSummary();
-  }, [showLogs, showCheckpoints, showDatasetSummary, fetchLogs, fetchCheckpoints, fetchSummary]);
+  }, [showLogs, showCheckpoints, fetchLogs, fetchCheckpoints]);
 
   useEffect(() => {
     const handleLogsRefresh = () => {
@@ -621,7 +613,7 @@ const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles })
         <DatasetSummaryPanel
           summary={summary}
           error={summaryError}
-          onRetry={fetchSummary}
+          onRetry={refetchSummary}
           onClose={() => {
             setShowDatasetSummary(false);
             setActiveForm(null);

@@ -5,7 +5,7 @@ const ProjectContext = createContext(null);
 
 /**
  * Hook to access project state and actions.
- * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, loading: boolean, error: string|null, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, isPreviewMode: boolean, previewSnapshot: object|null, pendingTransform: object|null, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function, setIsPreviewMode: Function, setPreviewSnapshot: Function, setPendingTransform: Function, enterPreviewMode: Function, cancelPreview: Function, confirmPreview: Function }}
+ * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, loading: boolean, error: string|null, dataVersion: number, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function }}
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useProjectContext() {
@@ -28,6 +28,11 @@ export function ProjectProvider({ children }) {
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState(null);
   const [pendingTransform, setPendingTransform] = useState(null);
+
+  // Monotonic counter bumped on every content mutation (via updateData), used to
+  // key derived caches (e.g. column profiles). Pagination does not touch it, so
+  // paging never invalidates those caches.
+  const [dataVersion, setDataVersion] = useState(0);
 
   const [totalRows, setTotalRows] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -110,6 +115,7 @@ export function ProjectProvider({ children }) {
     (newColumns, newRows, options = {}) => {
       setColumns(newColumns);
       setRows(newRows);
+      setDataVersion((v) => v + 1);
       if (options.dtypes) setDtypes(options.dtypes);
       if (!projectId) return;
       setColumnOrders((prev) => {
@@ -251,6 +257,7 @@ export function ProjectProvider({ children }) {
         deleteProjectOrder,
         loading,
         error,
+        dataVersion,
         totalRows,
         totalPages,
         page,
