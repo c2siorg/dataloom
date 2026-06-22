@@ -378,18 +378,16 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
                   return (
                     <th
                       key={columnIndex}
-                      className={`py-1.5 px-3 border-b border-r border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                      className={`h-6 px-0.5 py-0 border-r border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
                         isDropTarget ? "ring-2 ring-blue-400" : ""
-                      } ${
-                        isSerialNumber ? "w-16 sticky left-0 z-10 bg-gray-50" : "bg-gray-50"
-                      }`}
+                      } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-gray-50" : "bg-gray-50"}`}
                       onContextMenu={(e) =>
                         open(e as unknown as MouseEvent, { type: "column", columnIndex })
                       }
                     >
                       <button
                         type="button"
-                        className={`w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 py-0.5 px-1.5 rounded-md transition-colors duration-150 ${
+                        className={`w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-150 ${
                           isSerialNumber ? "" : "cursor-grab active:cursor-grabbing"
                         } ${isDragged ? "opacity-50" : ""}`}
                         draggable={!isSerialNumber}
@@ -427,8 +425,28 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
                         }}
                       >
                         {column}
-                        {column !== "S.No." && <DtypeBadge dtype={dtypes[column]} />}
                       </button>
+                    </th>
+                  );
+                })}
+              </tr>
+              <tr>
+                {columns.map((column, columnIndex) => {
+                  const isSerialNumber = columnIndex === 0;
+                  const isDropTarget = !isSerialNumber && hoveredTargetIndex === columnIndex - 1;
+                  return (
+                    <th
+                      key={columnIndex}
+                      className={`h-5 px-0.5 py-0 border-b border-r border-gray-200 text-left text-[10px] leading-none ${
+                        isDropTarget ? "ring-2 ring-blue-400" : ""
+                      } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-gray-50" : "bg-gray-50"}`}
+                      onContextMenu={(e) =>
+                        open(e as unknown as MouseEvent, { type: "column", columnIndex })
+                      }
+                    >
+                      {!isSerialNumber && dtypes[column] ? (
+                        <DtypeBadge dtype={dtypes[column]} className="" />
+                      ) : null}
                     </th>
                   );
                 })}
@@ -441,7 +459,7 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
                   {row.map((cell, cellIndex) => (
                     <td
                       key={cellIndex}
-                      className={`py-1 px-3 text-xs border-b border-r border-gray-200 ${
+                      className={`h-6 px-0.5 py-0 text-xs border-b border-r border-gray-200 ${
                         cellIndex === 0
                           ? "w-16 sticky left-0 z-10 bg-gray-50 text-center font-medium text-gray-500"
                           : "text-gray-700"
@@ -465,7 +483,9 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
                         <div
                           onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
                           className={
-                            cellIndex !== 0 ? "cursor-pointer hover:bg-gray-50 p-1 rounded" : ""
+                            cellIndex !== 0
+                              ? "cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded"
+                              : ""
                           }
                         >
                           {cell}

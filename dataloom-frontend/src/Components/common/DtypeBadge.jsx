@@ -8,13 +8,15 @@ const DTYPE_STYLES = {
   bool: "bg-orange-100 text-orange-700",
 };
 
-const DtypeBadge = ({ dtype }) => {
+const DtypeBadge = ({ dtype, className = "ml-1.5" }) => {
   if (!dtype) return null;
 
   const style = DTYPE_STYLES[dtype] || "bg-gray-100 text-gray-700";
 
   return (
-    <span className={`ml-1.5 inline-block px-1.5 py-0.5 text-[10px] font-medium rounded ${style}`}>
+    <span
+      className={`${className} inline-block px-1.5 py-0.5 text-[10px] font-medium rounded ${style}`}
+    >
       {dtype}
     </span>
   );
@@ -22,6 +24,7 @@ const DtypeBadge = ({ dtype }) => {
 
 DtypeBadge.propTypes = {
   dtype: PropTypes.string,
+  className: PropTypes.string,
 };
 
 export default DtypeBadge;
