@@ -53,7 +53,11 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
       onClose();
     } catch (err) {
       handleError(err);
-      showToast((err as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Failed to fill empty cells.", "error");
+      showToast(
+        (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+          "Failed to fill empty cells.",
+        "error",
+      );
     }
   };
 
@@ -98,7 +102,7 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
         <FormErrorAlert message={error} />
 
         <div className="flex justify-between mt-2">
-         <button
+          <button
             type="submit"
             disabled={isSubmitDisabled}
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"

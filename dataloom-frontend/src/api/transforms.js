@@ -8,11 +8,25 @@ import client from "./client";
  * Apply a transformation (filter, sort, add/delete row/column, pivot, etc).
  * @param {string} projectId - The project ID.
  * @param {Object} transformationInput - The transformation parameters including operation_type.
+ * @param {Object} options - Request options.
+ * @param {boolean} options.preview - If true, return transformed data without persisting.
  * @returns {Promise<Object>} Transformation result with updated rows and columns.
  */
-export const transformProject = async (projectId, transformationInput) => {
-  const response = await client.post(`/projects/${projectId}/transform`, transformationInput);
-  window.dispatchEvent(new CustomEvent("project:logs-refresh"));
+export const transformProject = async (
+  projectId,
+  transformationInput,
+  { preview = false } = {},
+) => {
+  const params = preview ? { preview: true } : {};
+  const response = await client.post(`/projects/${projectId}/transform`, transformationInput, {
+    params,
+  });
+  // Notify the logs panel to refresh, but only for persisted transforms.
+  // Preview-mode transforms are not logged, so firing the event would cause
+  // a spurious refetch.
+  if (!preview) {
+    window.dispatchEvent(new CustomEvent("project:logs-refresh"));
+  }
   return response.data;
 };
 

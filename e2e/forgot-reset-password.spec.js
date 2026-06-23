@@ -289,7 +289,6 @@ test.describe("ForgotPassword page", () => {
   });
 });
 
-
 // Reset Password Page
 test.describe("ResetPassword page", () => {
   test.beforeEach(async ({ page }) => {

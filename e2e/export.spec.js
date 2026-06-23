@@ -15,9 +15,7 @@ function parseDelimitedLines(content) {
 }
 
 function normalizeDelimitedRow(row, delimiter) {
-  return row
-    .split(delimiter)
-    .map((cell) => cell.trim().replace(/^"|"$/g, ""));
+  return row.split(delimiter).map((cell) => cell.trim().replace(/^"|"$/g, ""));
 }
 
 async function readDownloadBuffer(download) {
@@ -34,10 +32,9 @@ async function downloadExport(page, projectId, format) {
   await page.locator('[data-testid="toolbar-export"]').click();
   await expect(page.locator('[data-testid="export-filename"]')).toBeVisible();
   await page.locator(`[data-testid="export-format-${format}"]`).click();
-  await expect(page.locator(`[data-testid="export-format-${format}"]`)).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    page.locator(`[data-testid="export-format-${format}"]`),
+  ).toHaveAttribute("aria-pressed", "true");
 
   await page.locator('[data-testid="export-filename"]').fill(exportName);
   const downloadPromise = page.waitForEvent("download");
@@ -91,7 +88,10 @@ function expectParquetContent(buffer) {
 }
 
 test.describe("Export", () => {
-  test("export downloads valid files for every supported format", async ({ page, projectId }) => {
+  test("export downloads valid files for every supported format", async ({
+    page,
+    projectId,
+  }) => {
     const downloads = {};
     for (const format of EXPORT_FORMATS) {
       downloads[format] = await downloadExport(page, projectId, format);

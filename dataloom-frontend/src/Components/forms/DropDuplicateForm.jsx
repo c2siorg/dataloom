@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { DROP_DUPLICATE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
+import usePreviewSave from "../../hooks/usePreviewSave";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
@@ -18,7 +19,12 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
   const [columns, setColumns] = useState([]);
   const [keep, setKeep] = useState("first");
   const { error, setError, clearError, handleError } = useError();
-  const { updateData, refreshProject, pageSize } = useProjectContext();
+  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { saving, handleSave } = usePreviewSave({
+    clearError,
+    handleError,
+    onClose,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,17 +44,22 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
     };
 
     try {
-      const response = await transformProject(projectId, transformationInput);
-      updateData(response.columns, response.rows, {
-        dtypes: response.dtypes,
-        resetColumnOrder: false,
+      const response = await transformProject(projectId, transformationInput, { preview: true });
+      enterPreviewMode(response.columns, response.rows, response.dtypes, {
+        projectId,
+        payload: transformationInput,
       });
-      await refreshProject(projectId, 1, pageSize);
-      onClose(); // Close the form after submission
     } catch (err) {
       console.error("Error transforming project:", err);
       handleError(err);
     }
+  };
+
+  const handleClose = () => {
+    if (isPreviewMode) {
+      cancelPreview();
+    }
+    onClose();
   };
 
   return (
@@ -66,8 +77,22 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
           </div>
         </div>
         <div className="flex justify-between">
-          <Button type="submit">Submit</Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={saving || isPreviewMode}>
+              Submit
+            </Button>
+            {isPreviewMode && (
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700 focus:ring-green-600"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
+          <Button type="button" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
         </div>

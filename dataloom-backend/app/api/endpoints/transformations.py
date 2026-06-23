@@ -6,7 +6,7 @@ All transformations are handled through a single unified /transform endpoint.
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app import database, models, schemas
@@ -104,6 +104,7 @@ def _dispatch_transform(df, transformation_input):
 async def transform_project(
     project_id: uuid.UUID,
     transformation_input: schemas.TransformationInput,
+    preview: bool = Query(False, description="If true, return transformation data without saving."),
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -121,7 +122,7 @@ async def transform_project(
 
         result_df, should_save = _dispatch_transform(df, transformation_input)
 
-        if should_save:
+        if should_save and not preview:
             save_table_safe(result_df, project.file_path)
             try:
                 log_transformation(db, project_id, operation_type, transformation_input.dict())

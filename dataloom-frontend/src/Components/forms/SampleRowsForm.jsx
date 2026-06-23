@@ -2,19 +2,23 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { SAMPLE_ROWS } from "../../constants/operationTypes";
-import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
+import usePreviewSave from "../../hooks/usePreviewSave";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
 
 const SampleRowsForm = ({ projectId, onClose }) => {
-  const { updateData, refreshProject, pageSize } = useProjectContext();
+  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const [sampleSize, setSampleSize] = useState("");
   const [randomSeed, setRandomSeed] = useState("");
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
+  const { saving, handleSave } = usePreviewSave({
+    clearError,
+    handleError,
+    onClose,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,23 +44,31 @@ const SampleRowsForm = ({ projectId, onClose }) => {
           return;
         }
         params.random_seed = seed;
+      } else {
+        // Auto-generate a seed so the preview and the final save produce
+        // identical results (avoids the double-request divergence bug).
+        const autoSeed = Math.floor(Math.random() * 4294967295);
+        params.random_seed = autoSeed;
       }
 
-      const response = await transformProject(projectId, {
+      const payload = {
         operation_type: SAMPLE_ROWS,
         sample_params: params,
-      });
-      setResult(response);
-      updateData(response.columns, response.rows, {
-        dtypes: response.dtypes,
-        resetColumnOrder: false,
-      });
-      await refreshProject(projectId, 1, pageSize);
+      };
+      const response = await transformProject(projectId, payload, { preview: true });
+      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
       handleError(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClose = () => {
+    if (isPreviewMode) {
+      cancelPreview();
+    }
+    onClose();
   };
 
   return (
@@ -94,16 +106,27 @@ const SampleRowsForm = ({ projectId, onClose }) => {
           </div>
         </div>
         <div className="flex justify-between">
-          <Button type="submit" disabled={loading || !sampleSize}>
-            Apply Sample
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={loading || saving || !sampleSize || isPreviewMode}>
+              Apply Sample
+            </Button>
+            {isPreviewMode && (
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700 focus:ring-green-600"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
+          <Button type="button" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
         </div>
         <FormErrorAlert message={error} />
       </form>
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };

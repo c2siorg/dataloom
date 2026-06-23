@@ -12,6 +12,13 @@ const mockContext = {
   columns: ["City", "Amount", "Date"],
   columnOrder: [0, 1, 2],
   updateData: vi.fn(),
+  enterPreviewMode: vi.fn(),
+  cancelPreview: vi.fn(),
+  confirmPreview: vi.fn(),
+  refreshProject: vi.fn(),
+  pageSize: 50,
+  pendingTransform: null,
+  isPreviewMode: false,
 };
 
 vi.mock("../context/ProjectContext", () => ({
@@ -21,6 +28,8 @@ vi.mock("../context/ProjectContext", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mockContext.columnOrder = [0, 1, 2];
+  mockContext.isPreviewMode = false;
+  mockContext.pendingTransform = null;
 });
 
 // TransformResultPreview — column-ordering logic
@@ -105,7 +114,7 @@ describe("TransformResultPreview — column ordering", () => {
 
 // FilterForm — updateData propagation
 describe("FilterForm — updateData propagation", () => {
-  it("calls updateData with dtypes and resetColumnOrder:false after successful transform", async () => {
+  it("calls enterPreviewMode with dtypes after successful transform", async () => {
     transformProject.mockResolvedValueOnce({
       columns: ["City", "Amount"],
       rows: [["Paris", "300"]],
@@ -126,14 +135,26 @@ describe("FilterForm — updateData propagation", () => {
     fireEvent.click(getByText("Apply Filter"));
 
     await vi.waitFor(() => {
-      expect(mockContext.updateData).toHaveBeenCalledWith(["City", "Amount"], [["Paris", "300"]], {
-        dtypes: { City: "string", Amount: "float" },
-        resetColumnOrder: false,
-      });
+      expect(mockContext.enterPreviewMode).toHaveBeenCalledWith(
+        ["City", "Amount"],
+        [["Paris", "300"]],
+        { City: "string", Amount: "float" }, // <-- This was the missing argument causing the test to fail
+        {
+          payload: {
+            operation_type: "filter",
+            parameters: {
+              column: "City",
+              condition: "=",
+              value: "Paris",
+            },
+          },
+          projectId: "proj-1",
+        },
+      );
     });
   });
 
-  it("does not call updateData when transform fails", async () => {
+  it("does not call enterPreviewMode when transform fails", async () => {
     transformProject.mockRejectedValueOnce(new Error("Server error"));
 
     const { getByTestId, getByText } = render(<FilterForm projectId="proj-1" onClose={vi.fn()} />);
@@ -145,7 +166,7 @@ describe("FilterForm — updateData propagation", () => {
     fireEvent.click(getByText("Apply Filter"));
 
     await vi.waitFor(() => {
-      expect(mockContext.updateData).not.toHaveBeenCalled();
+      expect(mockContext.enterPreviewMode).not.toHaveBeenCalled();
     });
   });
 });

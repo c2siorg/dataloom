@@ -5,7 +5,7 @@ const ProjectContext = createContext(null);
 
 /**
  * Hook to access project state and actions.
- * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, loading: boolean, error: string|null, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function }}
+ * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, loading: boolean, error: string|null, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, isPreviewMode: boolean, previewSnapshot: object|null, pendingTransform: object|null, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function, setIsPreviewMode: Function, setPreviewSnapshot: Function, setPendingTransform: Function, enterPreviewMode: Function, cancelPreview: Function, confirmPreview: Function }}
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useProjectContext() {
@@ -25,6 +25,9 @@ export function ProjectProvider({ children }) {
   const [dtypes, setDtypes] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [previewSnapshot, setPreviewSnapshot] = useState(null);
+  const [pendingTransform, setPendingTransform] = useState(null);
 
   const [totalRows, setTotalRows] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -151,6 +154,64 @@ export function ProjectProvider({ children }) {
     }
   }, []);
 
+  const enterPreviewMode = useCallback(
+    (previewColumns, previewRows, previewDtypes, transformInfo = null) => {
+      // Save the current table state into the snapshot (only on first entry;
+      // a second Apply click while already in preview mode refreshes the
+      // preview data but keeps the original snapshot intact).
+      if (!previewSnapshot) {
+        setPreviewSnapshot({
+          columns,
+          rows,
+          dtypes,
+          totalRows,
+          totalPages,
+          page,
+        });
+      }
+
+      // Update the table to show the preview data
+      setColumns(previewColumns);
+      setRows(previewRows);
+      if (previewDtypes) setDtypes(previewDtypes);
+      setPendingTransform(transformInfo);
+
+      // Update pagination counters to reflect the preview result so the
+      // pagination UI doesn't misleadingly show the original row/page count.
+      const previewRowCount = previewRows.length;
+      setTotalRows(previewRowCount);
+      setTotalPages(1);
+      setPage(1);
+
+      // Activate preview mode
+      setIsPreviewMode(true);
+    },
+    [columns, rows, dtypes, totalRows, totalPages, page, previewSnapshot],
+  );
+
+  const cancelPreview = useCallback(() => {
+    if (!previewSnapshot) return;
+
+    // Restore the table state from the snapshot
+    setColumns(previewSnapshot.columns);
+    setRows(previewSnapshot.rows);
+    setDtypes(previewSnapshot.dtypes);
+    setTotalRows(previewSnapshot.totalRows);
+    setTotalPages(previewSnapshot.totalPages);
+    setPage(previewSnapshot.page);
+
+    // Clear the snapshot and exit preview mode
+    setPreviewSnapshot(null);
+    setPendingTransform(null);
+    setIsPreviewMode(false);
+  }, [previewSnapshot]);
+
+  const confirmPreview = useCallback(() => {
+    setPreviewSnapshot(null);
+    setPendingTransform(null);
+    setIsPreviewMode(false);
+  }, []);
+
   const columnOrder = useMemo(() => {
     if (!projectId || !columnOrders[projectId]) return [];
     const stored = columnOrders[projectId];
@@ -198,6 +259,15 @@ export function ProjectProvider({ children }) {
         updateData,
         setProjectInfo,
         setPaginationData,
+        isPreviewMode,
+        previewSnapshot,
+        pendingTransform,
+        setIsPreviewMode,
+        setPreviewSnapshot,
+        setPendingTransform,
+        enterPreviewMode,
+        cancelPreview,
+        confirmPreview,
         setColumnOrder,
       }}
     >

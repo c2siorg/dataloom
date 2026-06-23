@@ -49,7 +49,7 @@ export default defineConfig({
       env: {
         DATABASE_URL:
           process.env.DATABASE_URL ??
-          "postgresql://localhost:5432/dataloom",
+          "postgresql://postgres:postgres@localhost:5432/dataloom",
         // Auth settings: dev-only fallbacks so local runs work without a .env.
         // CI overrides these via the workflow's .env step.
         JWT_SECRET:
