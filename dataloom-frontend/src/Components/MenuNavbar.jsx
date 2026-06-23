@@ -68,7 +68,7 @@ const MenuNavbar = ({ projectId }) => {
   const [confirmData, setConfirmData] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const { updateData, refreshProject, pageSize, projectName } = useProjectContext();
+  const { updateData, refreshProject, pageSize, projectName, isPreviewMode } = useProjectContext();
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -297,54 +297,63 @@ const MenuNavbar = ({ projectId }) => {
             label: "Filter",
             icon: LuFilter,
             formType: "FilterForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("FilterForm"),
           },
           {
             label: "Sample",
             icon: LuDice5,
             formType: "SampleRowsForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("SampleRowsForm"),
           },
           {
             label: "Sort",
             icon: LuArrowUpDown,
             formType: "SortForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("SortForm"),
           },
           {
             label: "Drop Dup",
             icon: LuCopyMinus,
             formType: "DropDuplicateForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("DropDuplicateForm"),
           },
           {
             label: "GroupBy",
             icon: LuGroup,
             formType: "GroupByForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("GroupByForm"),
           },
           {
             label: "Cast Type",
             icon: LuRefreshCw,
             formType: "CastDataTypeForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("CastDataTypeForm"),
           },
           {
             label: "Trim Space",
             icon: LuScissors,
             formType: "TrimWhitespaceForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("TrimWhitespaceForm"),
           },
           {
             label: "Replace",
             icon: LuReplace,
             formType: "StringReplaceForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("StringReplaceForm"),
           },
           {
             label: "Fill Empty",
             icon: LuEraser,
             formType: "FillEmptyForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("FillEmptyForm"),
           },
         ],
@@ -356,18 +365,21 @@ const MenuNavbar = ({ projectId }) => {
             label: "Adv Query",
             icon: LuCode,
             formType: "AdvQueryFilterForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("AdvQueryFilterForm"),
           },
           {
             label: "Pivot Table",
             icon: LuTable2,
             formType: "PivotTableForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("PivotTableForm"),
           },
           {
             label: "Melt (Unpivot)",
             icon: LuLayoutList,
             formType: "MeltForm",
+            disabled: isPreviewMode,
             onClick: () => handleMenuClick("MeltForm"),
           },
         ],
@@ -407,9 +419,12 @@ const MenuNavbar = ({ projectId }) => {
                       key={item.label}
                       data-testid={`toolbar-${item.label.toLowerCase().replace(/ /g, "-")}`}
                       onClick={item.onClick}
-                      className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md ${
-                        isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
-                      }`}
+                      disabled={item.disabled}
+                      className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md transition-colors ${
+                        isActive
+                          ? "bg-blue-50 text-blue-600"
+                          : "hover:bg-gray-100 disabled:hover:bg-transparent"
+                      } ${item.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       <item.icon
                         className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-gray-600"}`}

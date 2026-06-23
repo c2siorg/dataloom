@@ -93,7 +93,10 @@ export const getDatasetSummary = async (projectId: string): Promise<DatasetSumma
  * @param columnName - The column to profile.
  * @returns The column profile.
  */
-export const getColumnProfile = async (projectId: string, columnName: string): Promise<ColumnProfile> => {
+export const getColumnProfile = async (
+  projectId: string,
+  columnName: string,
+): Promise<ColumnProfile> => {
   const response = await client.get<ColumnProfile>(`/projects/${projectId}/profile/column`, {
     params: { column_name: columnName },
   });

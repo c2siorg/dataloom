@@ -1,41 +1,48 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import TransformResultPreview from "./TransformResultPreview";
 import { transformProject } from "../../api";
 import { ADV_QUERY_FILTER } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
+import usePreviewSave from "../../hooks/usePreviewSave";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
 
 const AdvQueryFilterForm = ({ projectId, onClose }) => {
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
-  const { updateData, refreshProject, pageSize } = useProjectContext();
+  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { saving, handleSave } = usePreviewSave({
+    clearError,
+    handleError,
+    onClose,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     clearError();
     try {
-      const response = await transformProject(projectId, {
+      const payload = {
         operation_type: ADV_QUERY_FILTER,
         adv_query: { query },
-      });
-      setResult(response);
-      updateData(response.columns, response.rows, {
-        dtypes: response.dtypes,
-        resetColumnOrder: false,
-      });
-      await refreshProject(projectId, 1, pageSize);
+      };
+      const response = await transformProject(projectId, payload, { preview: true });
+      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
       console.error("Error applying query:", err.message);
       handleError(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClose = () => {
+    if (isPreviewMode) {
+      cancelPreview();
+    }
+    onClose();
   };
 
   return (
@@ -54,17 +61,28 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
           />
         </div>
         <div className="flex justify-between">
-          <Button disabled={loading} type="submit">
-            Submit
-          </Button>
+          <div className="flex gap-2">
+            <Button disabled={loading || saving || isPreviewMode} type="submit">
+              Submit
+            </Button>
+            {isPreviewMode && (
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700 focus:ring-green-600"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
 
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
         </div>
         <FormErrorAlert message={error} />
       </form>
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };

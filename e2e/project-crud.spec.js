@@ -21,9 +21,11 @@ test.describe("Project CRUD", () => {
     projectId,
   }) => {
     await page.goto("/projects");
-    const projectCard = page.locator('[data-testid="project-card"]', {
-      hasText: /E2E/,
-    }).first();
+    const projectCard = page
+      .locator('[data-testid="project-card"]', {
+        hasText: /E2E/,
+      })
+      .first();
     await expect(projectCard).toBeVisible();
   });
 

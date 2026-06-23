@@ -51,7 +51,9 @@ const ColumnMultiSelect = ({
         className="border border-gray-300 rounded-md w-full px-3 py-2 mb-1 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
       />
       <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto p-2 bg-gray-50">
-        {filtered.length === 0 && <p className="px-1 py-1 text-sm text-gray-400">No columns found</p>}
+        {filtered.length === 0 && (
+          <p className="px-1 py-1 text-sm text-gray-400">No columns found</p>
+        )}
         {filtered.map((col) => (
           <label
             key={col}

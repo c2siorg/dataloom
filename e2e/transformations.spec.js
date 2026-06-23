@@ -12,14 +12,17 @@ test.describe("Transformations", () => {
     await form.locator('[data-testid="filter-value"]').fill("New York");
     await form.getByRole("button", { name: "Apply Filter" }).click();
 
-    const preview = page.locator('[data-testid="transform-preview"]');
-    await preview.waitFor({ state: "visible" });
+    // FilterForm calls enterPreviewMode — main table updates and Save Changes button appears
+    await page
+      .getByText("Save Changes")
+      .waitFor({ state: "visible", timeout: 30000 });
 
-    await expect(
-      page.locator('[data-testid="preview-table"] tbody tr'),
-    ).toHaveCount(2);
-    await expect(preview).toContainText("Alice");
-    await expect(preview).toContainText("Diana");
+    const table = page.locator('[data-testid="data-table"]');
+    const rows = table.locator("tbody tr");
+    await rows.first().waitFor({ state: "visible", timeout: 30000 });
+    await expect(rows).toHaveCount(2, { timeout: 30000 });
+    await expect(table).toContainText("Alice");
+    await expect(table).toContainText("Diana");
   });
 
   test("sort rows by age ascending", async ({ page, projectId }) => {
@@ -31,13 +34,13 @@ test.describe("Transformations", () => {
     await selectColumn(form, "sort-column", "age");
     await form.getByRole("button", { name: /Apply Sort/i }).click();
 
-    const preview = page.locator('[data-testid="transform-preview"]');
-    await preview.waitFor({ state: "visible" });
+    // Sort applies directly to the table, wait for the first row to be updated
 
     const firstRow = page
-      .locator('[data-testid="preview-table"] tbody tr')
+      .locator('[data-testid="data-table"] tbody tr')
       .first();
-    await expect(firstRow).toContainText("Bob");
-    await expect(firstRow).toContainText("25");
+    await firstRow.waitFor({ state: "visible", timeout: 30000 });
+    await expect(firstRow).toContainText("Bob", { timeout: 30000 });
+    await expect(firstRow).toContainText("25", { timeout: 30000 });
   });
 });

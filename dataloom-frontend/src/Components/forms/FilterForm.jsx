@@ -2,8 +2,8 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { FILTER } from "../../constants/operationTypes";
-import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
+import usePreviewSave from "../../hooks/usePreviewSave";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import Select from "../common/Select";
@@ -26,10 +26,14 @@ const FilterForm = ({ projectId, onClose }) => {
     condition: "=",
     value: "",
   });
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
-  const { updateData, refreshProject, pageSize } = useProjectContext();
+  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { saving, handleSave } = usePreviewSave({
+    clearError,
+    handleError,
+    onClose,
+  });
 
   const handleInputChange = (e) => {
     setFilterParams({
@@ -49,22 +53,30 @@ const FilterForm = ({ projectId, onClose }) => {
 
     setLoading(true);
     try {
-      const response = await transformProject(projectId, {
+      const payload = {
         operation_type: FILTER,
         parameters: filterParams,
+      };
+      const response = await transformProject(projectId, payload, {
+        preview: true,
       });
-      setResult(response);
-      updateData(response.columns, response.rows, {
-        dtypes: response.dtypes,
-        resetColumnOrder: false,
+      enterPreviewMode(response.columns, response.rows, response.dtypes, {
+        projectId,
+        payload,
       });
-      await refreshProject(projectId, 1, pageSize);
     } catch (err) {
       console.error("Error applying filter:", err.response?.data || err.message);
       handleError(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClose = () => {
+    if (isPreviewMode) {
+      cancelPreview();
+    }
+    onClose();
   };
 
   return (
@@ -104,16 +116,27 @@ const FilterForm = ({ projectId, onClose }) => {
           </div>
         </div>
         <div className="flex justify-between">
-          <Button type="submit" disabled={loading}>
-            Apply Filter
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={loading || saving || isPreviewMode}>
+              Apply Filter
+            </Button>
+            {isPreviewMode && (
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700 focus:ring-green-600"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
+          <Button type="button" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
         </div>
         <FormErrorAlert message={error} />
       </form>
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };
