@@ -12,7 +12,7 @@ import { useState, useCallback } from "react";
  *   isOpen: boolean,
  *   position: { x: number, y: number },
  *   contextData: object | null,
- *   open: (e: MouseEvent, data: object) => void,
+ *   open: (e: MouseEvent | import("react").MouseEvent, data: object) => void,
  *   close: () => void
  * }}
  */
