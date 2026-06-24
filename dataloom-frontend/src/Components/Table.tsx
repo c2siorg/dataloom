@@ -158,6 +158,8 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
     const { columns, rows, dtypes: newDtypes } = response;
     setColumns(["S.No.", ...columns]);
     setData(rows.map((row, index) => [index + 1, ...Object.values(row)]));
+    // updateData resets the saved column order when the column count changes,
+    // which covers add/delete column; rename and row ops keep the order.
     updateData(columns, normalizeRows(rows), { dtypes: newDtypes });
   };
 
@@ -168,7 +170,6 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
         row_params: { index },
       });
       updateTableData(response);
-      updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: false });
       refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
@@ -202,7 +203,6 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
             add_col_params: { index: backendIndex, name: newColumnName },
           });
           updateTableData(response);
-          updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: true });
           refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
@@ -223,7 +223,6 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
         row_params: { index },
       });
       updateTableData(response);
-      updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: false });
       refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
@@ -259,7 +258,6 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
             rename_col_params: { col_index: backendIndex, new_name: newName },
           });
           updateTableData(response);
-          updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: false });
           refreshProject(projectId, 1, pageSize);
         } catch {
           setToast({
@@ -290,7 +288,6 @@ const Table = ({ projectId, data: externalData }: TableProps) => {
         del_col_params: { index: backendIndex },
       });
       updateTableData(response);
-      updateData(response.columns, normalizeRows(response.rows), { resetColumnOrder: true });
       refreshProject(projectId, 1, pageSize);
     } catch {
       setToast({
