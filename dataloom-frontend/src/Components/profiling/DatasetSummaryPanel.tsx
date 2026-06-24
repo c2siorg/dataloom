@@ -51,7 +51,7 @@ export default function DatasetSummaryPanel({
         <button
           type="button"
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 font-medium opacity-0 group-hover:opacity-100"
+          className="text-gray-400 hover:text-gray-600 font-medium opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
           style={{ transition: "opacity 0.3s", background: "transparent", border: "none", cursor: "pointer" }}
         >
           Close

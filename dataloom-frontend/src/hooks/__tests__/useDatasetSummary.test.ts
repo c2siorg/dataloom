@@ -64,4 +64,26 @@ describe("useDatasetSummary", () => {
     act(() => result.current.refetch());
     await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2));
   });
+
+  it("consults the cache again after a refetch (bypass does not persist)", async () => {
+    mockGet.mockResolvedValue({ row_count: 10 } as never);
+
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useDatasetSummary("p1", enabled, 0),
+      { initialProps: { enabled: true } },
+    );
+    await waitFor(() => expect(result.current.summary).not.toBeNull());
+    expect(mockGet).toHaveBeenCalledTimes(1);
+
+    // A manual retry should bypass the cache exactly once.
+    act(() => result.current.refetch());
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2));
+
+    // Re-running the effect at the same version (e.g. toggling the panel off
+    // and back on) must hit the cache, not refetch — the bypass is one-shot.
+    rerender({ enabled: false });
+    rerender({ enabled: true });
+    await waitFor(() => expect(result.current.summary?.row_count).toBe(10));
+    expect(mockGet).toHaveBeenCalledTimes(2);
+  });
 });

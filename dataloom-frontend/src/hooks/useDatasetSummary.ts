@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getDatasetSummary, type DatasetSummary } from "../api/profiling";
 import { getCached, setCached } from "../utils/profilingCache";
 
@@ -27,15 +27,20 @@ export default function useDatasetSummary(
 ): UseDatasetSummaryResult {
   const [summary, setSummary] = useState<DatasetSummary | null>(null);
   const [error, setError] = useState(false);
-  // Bumped by refetch() to force a cache-bypassing reload from the same version.
+  // Bumped by refetch() to re-run the effect for the same version.
   const [reloadToken, setReloadToken] = useState(0);
+  // Set by refetch() to skip the cache once; consumed (reset) on the next run.
+  const bypassCache = useRef(false);
 
-  const refetch = useCallback(() => setReloadToken((t) => t + 1), []);
+  const refetch = useCallback(() => {
+    bypassCache.current = true;
+    setReloadToken((t) => t + 1);
+  }, []);
 
   useEffect(() => {
     if (!enabled || !projectId) return;
 
-    if (reloadToken === 0) {
+    if (!bypassCache.current) {
       const cached = getCached<DatasetSummary>(NAMESPACE, projectId, dataVersion);
       if (cached) {
         setSummary(cached);
@@ -43,6 +48,7 @@ export default function useDatasetSummary(
         return;
       }
     }
+    bypassCache.current = false;
 
     let cancelled = false;
     setSummary(null);
