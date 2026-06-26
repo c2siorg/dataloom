@@ -139,3 +139,40 @@ export const searchProjects = async (query) => {
   const response = await client.get("/projects/search", { params: { q: query } });
   return response.data;
 };
+
+/**
+ * Update project name and/or description.
+ * @param {string} projectId
+ * @param {{ name?: string, description?: string }} payload
+ */
+export const updateProject = async (projectId, { name, description } = {}) => {
+  const response = await client.patch(`/projects/${projectId}`, {
+    ...(name !== undefined ? { name } : {}),
+    ...(description !== undefined ? { description } : {}),
+  });
+  return response.data;
+};
+
+/**
+ * Fetch project metadata only — no row data.
+ * @param {string} projectId - The project ID.
+ * @returns {Promise<Object>} Project metadata.
+ */
+export const getProjectMeta = async (projectId) => {
+  const response = await client.get(`/projects/${projectId}/meta`);
+  return response.data;
+};
+
+/**
+ * Fetch a list of projects with optional pagination.
+ * @param {Object} options - Pagination options.
+ * @param {number} options.limit - Number of projects to fetch.
+ * @param {number} options.offset - Offset for pagination.
+ * @returns {Promise<Object>} List of projects.
+ */
+export const getProjects = async ({ limit = 50, offset = 0 } = {}) => {
+  const response = await client.get("/projects", {
+    params: { limit, offset },
+  });
+  return response.data;
+};

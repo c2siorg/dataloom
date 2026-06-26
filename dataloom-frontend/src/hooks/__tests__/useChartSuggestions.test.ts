@@ -11,7 +11,13 @@ vi.mock("../../api/visualizations", () => ({
 const mockGet = vi.mocked(getChartSuggestions);
 
 const sample: ChartSpec[] = [
-  { chart_type: "histogram", title: "Distribution of x", x_label: "x", y_label: "Count", series: [] },
+  {
+    chart_type: "histogram",
+    title: "Distribution of x",
+    x_label: "x",
+    y_label: "Count",
+    series: [],
+  },
 ];
 
 beforeEach(() => {

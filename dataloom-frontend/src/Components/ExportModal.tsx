@@ -53,7 +53,9 @@ export default function ExportModal({
   onError,
 }: ExportModalProps) {
   const [name, setName] = useState(defaultName);
-  const [format, setFormat] = useState("csv");
+  const [format, setFormat] = useState(() => {
+    return localStorage.getItem("defaultExportFormat") || "csv";
+  });
   const [delimiter, setDelimiter] = useState("comma");
   const [includeHeader, setIncludeHeader] = useState(true);
   const [encoding, setEncoding] = useState("utf-8");
@@ -63,7 +65,7 @@ export default function ExportModal({
   useEffect(() => {
     if (!isOpen) return;
     setName(defaultName || "export");
-    setFormat("csv");
+    setFormat(localStorage.getItem("defaultExportFormat") || "csv");
     setDelimiter("comma");
     setIncludeHeader(true);
     setEncoding("utf-8");

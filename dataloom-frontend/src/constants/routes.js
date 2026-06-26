@@ -14,8 +14,6 @@ export const ROUTES = {
   forgotPassword: "/forgot-password",
   /** Reset-password page path */
   resetPassword: "/reset-password",
-  /** User profile page path */
-  profile: "/profile",
   /** Workspace view path */
   workspace: "/workspace/:projectId",
   /**
@@ -24,4 +22,16 @@ export const ROUTES = {
    * @returns {string} The full route path.
    */
   workspacePath: (id) => `/workspace/${id}`,
+  /** Settings path */
+  settings: "/settings",
+  /** Account settings path */
+  settingsAccount: "/settings/account",
+  /** User preference settings path */
+  settingsPreferences: "/settings/preferences",
+  /**
+   * Generate settings path for a specific project.
+   * @param {string} id - The project UUID.
+   * @returns {string} The full route path.
+   */
+  settingsProject: (id) => `/settings/projects/${id}`,
 };

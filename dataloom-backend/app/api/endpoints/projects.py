@@ -24,9 +24,11 @@ from app.services.project_service import (
     delete_change_log,
     delete_project,
     get_last_change_log,
+    get_projects,
     get_recent_projects,
     rename_project,
     search_projects,
+    update_project,
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
@@ -86,6 +88,27 @@ async def upload_project(
         "total_pages": 1,
         **resp,
     }
+
+
+@router.get("", response_model=list[schemas.LastResponse])
+def list_projects(
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Get the current user's projects with pagination."""
+    projects = get_projects(db, owner_id=current_user.id, limit=limit, offset=offset)
+
+    return [
+        schemas.LastResponse(
+            project_id=p.project_id,
+            name=p.name,
+            description=p.description,
+            last_modified=p.last_modified,
+        )
+        for p in projects
+    ]
 
 
 @router.get("/get/{project_id}", response_model=schemas.ProjectResponse)
@@ -453,3 +476,22 @@ def search_user_projects(
         )
         for p in projects
     ]
+
+
+@router.patch("/{project_id}", response_model=schemas.UpdateProjectResponse)
+async def update_project_endpoint(
+    payload: schemas.UpdateProjectRequest,
+    db: Session = Depends(database.get_db),
+    project: models.Project = Depends(get_project_or_404),
+):
+    """Update project name and/or description."""
+    try:
+        updated = update_project(db, project, payload.name, payload.description)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return {
+        "project_id": str(updated.project_id),
+        "filename": updated.name,
+        "description": updated.description,
+        "file_path": updated.file_path,
+    }

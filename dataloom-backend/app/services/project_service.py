@@ -259,6 +259,24 @@ def delete_checkpoint(db: Session, checkpoint_id: uuid.UUID, project_id: uuid.UU
     logger.info("Deleted checkpoint: id=%s, project_id=%s", checkpoint_id, project_id)
 
 
+def _normalize_project_name(name: str) -> str:
+    """Trim whitespace from a project name and ensure it is not empty.
+
+    Args:
+        name: The project name to normalize.
+
+    Returns:
+        The normalized project name.
+
+    Raises:
+        ValueError: If the project name is empty or whitespace-only.
+    """
+    trimmed_name = name.strip()
+    if not trimmed_name:
+        raise ValueError("Project name cannot be empty")
+    return trimmed_name
+
+
 def rename_project(db: Session, project: models.Project, new_name: str) -> models.Project:
     """Rename a project.
 
@@ -273,9 +291,7 @@ def rename_project(db: Session, project: models.Project, new_name: str) -> model
     Raises:
         ValueError: If new_name is empty or whitespace-only.
     """
-    trimmed_name = new_name.strip()
-    if not trimmed_name:
-        raise ValueError("Project name cannot be empty")
+    trimmed_name = _normalize_project_name(new_name)
 
     project.name = trimmed_name
     db.add(project)
@@ -308,6 +324,68 @@ def search_projects(db: Session, owner_id: uuid.UUID, query: str, limit: int = 2
             ),
         )
         .order_by(models.Project.last_modified.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def update_project(
+    db: Session,
+    project: models.Project,
+    name: str | None,
+    description: str | None,
+) -> models.Project:
+    """Update a project's name and/or description.
+
+    Args:
+        db: Database session.
+        project: The project to update.
+        name: The new project name. If provided, it is trimmed and must not be empty.
+        description: The new project description. If provided, it is trimmed before being saved.
+
+    Returns:
+        The updated Project model instance.
+
+    Raises:
+        ValueError: If ``name`` is provided but is empty after trimming.
+    """
+    if name is not None:
+        trimmed = _normalize_project_name(name)
+        project.name = trimmed
+
+    if description is not None:
+        project.description = description.strip()
+
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+
+    logger.info("Updated project: id=%s", project.project_id)
+    return project
+
+
+def get_projects(
+    db: Session,
+    owner_id: uuid.UUID,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[models.Project]:
+    """Fetch a user's projects with pagination.
+
+    Args:
+        db: Database session.
+        owner_id: Restrict results to projects owned by this user.
+        limit: Maximum number of projects to return.
+        offset: Number of projects to skip.
+
+    Returns:
+        List of Project model instances ordered by last_modified desc.
+    """
+    return (
+        db.query(models.Project)
+        .filter(models.Project.owner_id == owner_id)
+        .order_by(models.Project.last_modified.desc())
+        .offset(offset)
         .limit(limit)
         .all()
     )

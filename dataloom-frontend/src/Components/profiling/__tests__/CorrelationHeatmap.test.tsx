@@ -27,9 +27,7 @@ describe("CorrelationHeatmap", () => {
   });
 
   it("prompts for more numeric columns when fewer than two have variance", () => {
-    render(
-      <CorrelationHeatmap correlation={{ columns: ["a"], matrix: [[1]] }} />,
-    );
+    render(<CorrelationHeatmap correlation={{ columns: ["a"], matrix: [[1]] }} />);
     expect(screen.getByText(/at least two numeric columns/i)).toBeInTheDocument();
     expect(screen.queryByTestId("highlights-list")).not.toBeInTheDocument();
   });
