@@ -27,6 +27,7 @@ from app.services.project_service import (
     get_recent_projects,
     rename_project,
     search_projects,
+    update_project,
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
@@ -453,3 +454,22 @@ def search_user_projects(
         )
         for p in projects
     ]
+
+
+@router.patch("/{project_id}", response_model=schemas.UpdateProjectResponse)
+async def update_project_endpoint(
+    payload: schemas.UpdateProjectRequest,
+    db: Session = Depends(database.get_db),
+    project: models.Project = Depends(get_project_or_404),
+):
+    """Update project name and/or description."""
+    try:
+        updated = update_project(db, project, payload.name, payload.description)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return {
+        "project_id": str(updated.project_id),
+        "filename": updated.name,
+        "description": updated.description,
+        "file_path": updated.file_path,
+    }
