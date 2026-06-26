@@ -5,7 +5,7 @@ const ProjectContext = createContext(null);
 
 /**
  * Hook to access project state and actions.
- * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, loading: boolean, error: string|null, dataVersion: number, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function }}
+ * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, loading: boolean, error: string|null, dataVersion: number, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function, updatePageSizePreference: Function }}
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useProjectContext() {
@@ -82,6 +82,15 @@ export function ProjectProvider({ children }) {
       // localStorage unavailable — fail silently
     }
   }, [pageSize]);
+
+  const updatePageSizePreference = useCallback((newPageSize) => {
+    setPageSize(newPageSize);
+    try {
+      localStorage.setItem("pageSize", String(newPageSize));
+    } catch {
+      // localStorage unavailable — fail silently
+    }
+  }, []);
 
   const refreshProject = useCallback(
     async (id, targetPage, preferredSize) => {
@@ -260,6 +269,7 @@ export function ProjectProvider({ children }) {
         dataVersion,
         totalRows,
         totalPages,
+        updatePageSizePreference,
         page,
         pageSize,
         refreshProject,

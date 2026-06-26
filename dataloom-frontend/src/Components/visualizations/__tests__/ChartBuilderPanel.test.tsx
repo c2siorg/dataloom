@@ -46,7 +46,11 @@ describe("ChartBuilderPanel", () => {
     expect(renderButton()).toBeEnabled();
 
     fireEvent.click(renderButton());
-    expect(renderChart).toHaveBeenCalledWith({ chart_type: "histogram", column: "revenue", bins: 20 });
+    expect(renderChart).toHaveBeenCalledWith({
+      chart_type: "histogram",
+      column: "revenue",
+      bins: 20,
+    });
   });
 
   it("offers only numeric columns for a histogram", () => {

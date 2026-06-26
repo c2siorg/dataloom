@@ -10,7 +10,13 @@ vi.mock("../../api/profiling", () => ({
 
 const mockGet = vi.mocked(getCorrelationMatrix);
 
-const sample = { columns: ["a", "b"], matrix: [[1, 0.5], [0.5, 1]] };
+const sample = {
+  columns: ["a", "b"],
+  matrix: [
+    [1, 0.5],
+    [0.5, 1],
+  ],
+};
 
 beforeEach(() => {
   mockGet.mockReset();
@@ -59,10 +65,9 @@ describe("useCorrelation", () => {
   it("refetches when the data version changes", async () => {
     mockGet.mockResolvedValue(sample);
 
-    const { rerender, result } = renderHook(
-      ({ version }) => useCorrelation("p1", true, version),
-      { initialProps: { version: 0 } },
-    );
+    const { rerender, result } = renderHook(({ version }) => useCorrelation("p1", true, version), {
+      initialProps: { version: 0 },
+    });
     await waitFor(() => expect(result.current.correlation).not.toBeNull());
     expect(mockGet).toHaveBeenCalledTimes(1);
 

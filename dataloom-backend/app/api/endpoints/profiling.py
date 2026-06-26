@@ -69,3 +69,16 @@ async def get_correlation_matrix(
     """Return the pairwise Pearson correlation over numeric columns."""
     df = load_project_df(project)
     return profiling_service.correlation_matrix(df)
+
+
+@router.get("/{project_id}/meta", response_model=schemas.LastResponse)
+async def get_project_meta(
+    project: models.Project = Depends(get_project_or_404),
+):
+    """Fetch project metadata only — no row data."""
+    return schemas.LastResponse(
+        project_id=project.project_id,
+        name=project.name,
+        description=project.description,
+        last_modified=project.last_modified,
+    )

@@ -20,9 +20,9 @@ const BASE_TYPES: SelectOption[] = [
   { value: "pie", label: "Pie" },
 ];
 
-const AGG_OPTIONS: SelectOption[] = (["sum", "mean", "median", "min", "max", "count"] as AggFunc[]).map(
-  (a) => ({ value: a, label: a.charAt(0).toUpperCase() + a.slice(1) }),
-);
+const AGG_OPTIONS: SelectOption[] = (
+  ["sum", "mean", "median", "min", "max", "count"] as AggFunc[]
+).map((a) => ({ value: a, label: a.charAt(0).toUpperCase() + a.slice(1) }));
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

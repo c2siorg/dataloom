@@ -67,7 +67,13 @@ export default function ChartRenderer({ spec }: { spec: ChartSpec }) {
   const axisProps = { tick: { fontSize: AXIS_FONT, fill: TEXT }, stroke: "#d1d5db" } as const;
   // Recharts renders these as the visible axis titles; widened margins below
   // leave room so they aren't clipped.
-  const xLabel = { value: spec.x_label, position: "insideBottom" as const, offset: -8, fontSize: AXIS_FONT, fill: TEXT };
+  const xLabel = {
+    value: spec.x_label,
+    position: "insideBottom" as const,
+    offset: -8,
+    fontSize: AXIS_FONT,
+    fill: TEXT,
+  };
   const yLabel = {
     value: spec.y_label,
     angle: -90,
@@ -163,7 +169,14 @@ export default function ChartRenderer({ spec }: { spec: ChartSpec }) {
           <PieChart>
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={legendStyle} />
-            <Pie data={data} dataKey="y" nameKey="x" outerRadius={110} stroke="#fff" strokeWidth={1}>
+            <Pie
+              data={data}
+              dataKey="y"
+              nameKey="x"
+              outerRadius={110}
+              stroke="#fff"
+              strokeWidth={1}
+            >
               {data.map((point, i) => (
                 <Cell key={i} fill={pieColor(i, data.length, point.x)} />
               ))}

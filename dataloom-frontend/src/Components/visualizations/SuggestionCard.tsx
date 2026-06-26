@@ -8,7 +8,12 @@ interface SuggestionCardProps {
 }
 
 /** A clickable card for one suggested visualization. */
-export default function SuggestionCard({ typeLabel, title, active, onSelect }: SuggestionCardProps) {
+export default function SuggestionCard({
+  typeLabel,
+  title,
+  active,
+  onSelect,
+}: SuggestionCardProps) {
   return (
     <button
       type="button"

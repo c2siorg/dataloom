@@ -60,7 +60,10 @@ export default function ColumnProfileCard({ profile, loading }: ColumnProfileCar
         </span>
       </div>
       <Stat label="Missing" value={`${profile.null_count} (${fmtPct(profile.null_percentage)})`} />
-      <Stat label="Unique" value={`${profile.unique_count} (${fmtPct(profile.unique_percentage)})`} />
+      <Stat
+        label="Unique"
+        value={`${profile.unique_count} (${fmtPct(profile.unique_percentage)})`}
+      />
       <ProfileBlock profile={profile} />
     </div>
   );
@@ -86,7 +89,10 @@ function ProfileBlock({ profile }: { profile: ColumnProfile }) {
     case "bool":
       return (
         <>
-          <Stat label="True" value={`${profile.true_count ?? 0} (${fmtPct(profile.true_percentage)})`} />
+          <Stat
+            label="True"
+            value={`${profile.true_count ?? 0} (${fmtPct(profile.true_percentage)})`}
+          />
           <Stat
             label="False"
             value={`${profile.false_count ?? 0} (${fmtPct(

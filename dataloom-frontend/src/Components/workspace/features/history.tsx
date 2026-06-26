@@ -19,7 +19,21 @@ registerFeature({
     { type: "checkpoints", component: CheckpointsTab },
   ],
   menu: [
-    { ribbon: "File", group: "History", order: 0, label: "Logs", icon: LuHistory, action: { openTab: LOGS_TAB } },
-    { ribbon: "File", group: "History", order: 1, label: "Checkpoints", icon: LuBookmark, action: { openTab: CHECKPOINTS_TAB } },
+    {
+      ribbon: "File",
+      group: "History",
+      order: 0,
+      label: "Logs",
+      icon: LuHistory,
+      action: { openTab: LOGS_TAB },
+    },
+    {
+      ribbon: "File",
+      group: "History",
+      order: 1,
+      label: "Checkpoints",
+      icon: LuBookmark,
+      action: { openTab: CHECKPOINTS_TAB },
+    },
   ],
 });

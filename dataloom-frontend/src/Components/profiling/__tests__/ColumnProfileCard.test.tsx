@@ -60,7 +60,12 @@ describe("ColumnProfileCard", () => {
   it("renders the boolean block when true_percentage is present", () => {
     render(
       <ColumnProfileCard
-        profile={makeProfile({ dtype: "bool", true_count: 60, false_count: 40, true_percentage: 60 })}
+        profile={makeProfile({
+          dtype: "bool",
+          true_count: 60,
+          false_count: 40,
+          true_percentage: 60,
+        })}
         loading={false}
       />,
     );
