@@ -14,14 +14,43 @@ from datetime import UTC, datetime
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
+_STANDARD_ATTRS = frozenset(
+    {
+        "args",
+        "asctime",
+        "created",
+        "exc_info",
+        "exc_text",
+        "filename",
+        "funcName",
+        "levelname",
+        "levelno",
+        "lineno",
+        "message",
+        "module",
+        "msecs",
+        "msg",
+        "name",
+        "pathname",
+        "process",
+        "processName",
+        "relativeCreated",
+        "stack_info",
+        "thread",
+        "threadName",
+    }
+)
+
 
 class JSONFormatter(logging.Formatter):
     """Format log records as JSON lines.
 
     The output always contains ``timestamp``, ``level``, ``logger``, and
     ``message`` keys.  If a ``request_id`` is set on the current execution
-    context via ``request_id_var`` it is included.  Exception tracebacks
-    are serialised under an ``exception`` key when present.
+    context via ``request_id_var`` it is included.  Any extra keyword
+    arguments passed via ``logging.Logger.*`` calls are surfaced as
+    top-level JSON keys.  Exception tracebacks are serialised under an
+    ``exception`` key when present.
     """
 
     def format(self, record: logging.LogRecord) -> str:
@@ -35,6 +64,10 @@ class JSONFormatter(logging.Formatter):
         rid = request_id_var.get()
         if rid:
             log_entry["request_id"] = rid
+
+        for key, value in record.__dict__.items():
+            if key not in _STANDARD_ATTRS:
+                log_entry[key] = value
 
         if record.exc_info and record.exc_info[0]:
             log_entry["exception"] = self.formatException(record.exc_info)
