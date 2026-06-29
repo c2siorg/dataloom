@@ -3,6 +3,8 @@
 Configures middleware, exception handlers, and mounts all API routers.
 """
 
+import time
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,7 +17,7 @@ from app.config import get_settings
 from app.database import verify_database_connection
 from app.exceptions import AppException, app_exception_handler
 from app.services.transformation_service import TransformationError
-from app.utils.logging import get_logger, setup_logging
+from app.utils.logging import get_logger, request_id_var, setup_logging
 
 logger = get_logger(__name__)
 
@@ -56,6 +58,34 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
+
+
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    """Attach a correlation ID (request_id) to every request.
+
+    Reads the ``X-Request-ID`` header from the client when present so that
+    downstream consumers can correlate their own tracing IDs; otherwise
+    generates a new UUID hex string.  The ID is set on a ``ContextVar`` that
+    propagates to all log entries emitted during the request lifecycle.
+    """
+    rid = (request.headers.get("X-Request-ID") or "").strip() or uuid.uuid4().hex
+    request_id_var.set(rid)
+
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
+
+    response.headers["X-Request-ID"] = rid
+
+    logger.info(
+        "request complete (method=%s path=%s status=%d duration_ms=%.2f)",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
 
 
 @app.exception_handler(TransformationError)
