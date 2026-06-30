@@ -311,3 +311,40 @@ def search_projects(db: Session, owner_id: uuid.UUID, query: str, limit: int = 2
         .limit(limit)
         .all()
     )
+
+
+def update_project(
+    db: Session,
+    project: models.Project,
+    name: str | None,
+    description: str | None,
+) -> models.Project:
+    """Update a project's name and/or description.
+
+    Args:
+        db: Database session.
+        project: The project to update.
+        name: The new project name. If provided, it is trimmed and must not be empty.
+        description: The new project description. If provided, it is trimmed before being saved.
+
+    Returns:
+        The updated Project model instance.
+
+    Raises:
+        ValueError: If ``name`` is provided but is empty after trimming.
+    """
+    if name is not None:
+        trimmed = name.strip()
+        if not trimmed:
+            raise ValueError("Project name cannot be empty")
+        project.name = trimmed
+
+    if description is not None:
+        project.description = description.strip()
+
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+
+    logger.info("Updated project: id=%s", project.project_id)
+    return project

@@ -139,3 +139,16 @@ export const searchProjects = async (query) => {
   const response = await client.get("/projects/search", { params: { q: query } });
   return response.data;
 };
+
+/**
+ * Update project name and/or description.
+ * @param {string} projectId
+ * @param {{ name?: string, description?: string }} payload
+ */
+export const updateProject = async (projectId, { name, description } = {}) => {
+  const response = await client.patch(`/projects/${projectId}`, {
+    ...(name !== undefined ? { name } : {}),
+    ...(description !== undefined ? { description } : {}),
+  });
+  return response.data;
+};

@@ -145,7 +145,7 @@ const Navbar = () => {
             ))}
 
           {user && (
-            <Link to={ROUTES.profile} className="shrink-0">
+            <Link to={ROUTES.settings} className="shrink-0">
               <div
                 title="Profile"
                 aria-label="Profile"

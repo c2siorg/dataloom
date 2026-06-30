@@ -12,7 +12,10 @@ import Homescreen from "./Components/Homescreen";
 import DataScreen from "./Components/DataScreen";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/settings/SettingsPage";
+import SettingsAccountPage from "./pages/settings/SettingsAccountPage";
+import SettingsPreferencesPage from "./pages/settings/SettingsPreferencesPage";
+import SettingsProjectPage from "./pages/settings/SettingsProjectPage";
 
 /**
  * Root application component with routing, providers, and error boundary.
@@ -34,7 +37,13 @@ export default function App() {
                     <Route path="/" element={<Navigate to="/projects" replace />} />
                     <Route path="/projects" element={<Homescreen />} />
                     <Route path="/workspace/:projectId" element={<DataScreen />} />
-                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/profile" element={<Navigate to="/settings/account" replace />} />
+                    <Route path="/settings" element={<SettingsPage />}>
+                      <Route index element={<Navigate to="/settings/account" replace />} />
+                      <Route path="account" element={<SettingsAccountPage />} />
+                      <Route path="preferences" element={<SettingsPreferencesPage />} />
+                      <Route path="projects/:projectId" element={<SettingsProjectPage />} />
+                    </Route>
                     <Route path="*" element={<NotFoundPage />} />
                   </Route>
                 </Route>
