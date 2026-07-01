@@ -21,3 +21,4 @@ export {
   getColumnProfiles,
   getCorrelationMatrix,
 } from "./profiling";
+export { getChartSuggestions, getChart } from "./visualizations";
