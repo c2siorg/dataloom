@@ -143,7 +143,7 @@ const Select = ({
         <div
           data-state={open ? "open" : "closed"}
           onAnimationEnd={handleAnimationEnd}
-          className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg origin-top data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fill-mode-forwards data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-top-2 data-[state=closed]:slide-out-to-top-2"
+          className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg origin-top data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fill-mode-forwards data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-top-2 data-[state=closed]:slide-out-to-top-2"
         >
           <ul ref={listRef} role="listbox" className="max-h-48 overflow-y-auto p-1">
             {options.map((item, index) => (

@@ -1,28 +1,9 @@
 import PropTypes from "prop-types";
 
-const LogsPanel = ({ logs, onClose }) => {
+const LogsPanel = ({ logs }) => {
   return (
-    <div
-      data-testid="logs-panel"
-      className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Logs</h3>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 font-medium transition-opacity opacity-0 group-hover:opacity-100"
-          style={{
-            transition: "opacity 0.3s",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="mt-4 overflow-x-auto overflow-y-auto max-h-72">
+    <div data-testid="logs-panel">
+      <div className="overflow-x-auto">
         <table className="min-w-full bg-white rounded-lg overflow-hidden">
           <thead className="bg-gray-50">
             <tr>
@@ -79,7 +60,6 @@ LogsPanel.propTypes = {
       applied: PropTypes.bool.isRequired,
     }),
   ).isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default LogsPanel;

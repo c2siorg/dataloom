@@ -2,12 +2,14 @@
 
 import uuid
 
+import pandas as pd
 from fastapi import Cookie, Depends, HTTPException
 from sqlmodel import Session
 
 from app import database, models
 from app.services import auth_service
 from app.utils.logging import get_logger
+from app.utils.pandas_helpers import read_table_safe
 
 logger = get_logger(__name__)
 
@@ -66,3 +68,19 @@ def get_project_or_404(
     if project is None or project.owner_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found")
     return project
+
+
+def load_project_df(project: models.Project) -> pd.DataFrame:
+    """Read a project's working copy, redacting any path from error details.
+
+    ``read_table_safe`` embeds the absolute file path in its 404/500 details;
+    surface a generic message to the client instead, matching the transform
+    endpoint's handling. Shared by the profiling and visualization endpoints.
+    """
+    try:
+        return read_table_safe(project.file_path)
+    except HTTPException as e:
+        if e.status_code == 404:
+            raise HTTPException(status_code=404, detail="Project data file not found") from e
+        logger.warning("Failed to read project file project_id=%s status=%s", project.project_id, e.status_code)
+        raise HTTPException(status_code=e.status_code, detail="Could not read project data") from e
