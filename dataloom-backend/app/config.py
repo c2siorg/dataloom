@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_email: str = ""
     frontend_url: str = "http://localhost:3200"
+    rate_limit_enabled: bool = True
+    rate_limit_max_requests: int = 20
+    rate_limit_window_seconds: int = 300
 
     model_config = {
         "env_file": ".env",
