@@ -1,144 +1,58 @@
-import { useState, useEffect, useCallback } from "react";
-import FilterForm from "./forms/FilterForm";
-import SortForm from "./forms/SortForm";
-import DropDuplicateForm from "./forms/DropDuplicateForm";
-import AdvQueryFilterForm from "./forms/AdvQueryFilterForm";
-import PivotTableForm from "./forms/PivotTableForm";
-import MeltForm from "./forms/MeltForm";
-import CastDataTypeForm from "./forms/CastDataTypeForm";
-import TrimWhitespaceForm from "./forms/TrimWhitespaceForm";
-import GroupByForm from "./forms/GroupByForm";
-import StringReplaceForm from "./forms/StringReplaceForm";
-import LogsPanel from "./history/LogsPanel";
-import CheckpointsPanel from "./history/CheckpointsPanel";
-import DatasetSummaryPanel from "./profiling/DatasetSummaryPanel";
-import useDatasetSummary from "../hooks/useDatasetSummary";
-import FillEmptyForm from "./forms/FillEmptyForm";
+import { useState } from "react";
 import InputDialog from "./common/InputDialog";
-import ConfirmDialog from "./common/ConfirmDialog";
 import ExportModal from "./ExportModal";
 import Toast from "./common/Toast";
-import {
-  saveProject,
-  getLogs,
-  getCheckpoints,
-  revertToCheckpoint,
-  undoLastTransformation,
-} from "../api";
+import { saveProject, undoLastTransformation } from "../api";
 import proptype from "prop-types";
-import SampleRowsForm from "./forms/SampleRowsForm";
-import { LuDice5 } from "react-icons/lu";
-import {
-  LuFilter,
-  LuArrowUpDown,
-  LuCopyMinus,
-  LuCode,
-  LuTable2,
-  LuSave,
-  LuHistory,
-  LuBookmark,
-  LuDownload,
-  LuRefreshCw,
-  LuScissors,
-  LuLayoutList,
-  LuGroup,
-  LuUndo2,
-  LuReplace,
-  LuEraser,
-  LuLayoutDashboard,
-  LuColumns3,
-} from "react-icons/lu";
+import { LuSave, LuDownload, LuUndo2, LuColumns3 } from "react-icons/lu";
 import { useProjectContext } from "../context/ProjectContext";
+import { usePanel } from "../context/PanelContext";
+import { useWorkspaceTabs } from "../context/WorkspaceTabsContext";
+import { useHistoryRefresh } from "../context/HistoryRefreshContext";
+import { useColumnProfilesView } from "../context/ColumnProfilesContext";
+import { DATASET_TAB } from "./workspace/DataSetTab";
+import { getFeatureMenu } from "./workspace/featureRegistry";
 
-const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles }) => {
-  const [showGroupByForm, setShowGroupByForm] = useState(false);
-  const [showFilterForm, setShowFilterForm] = useState(false);
-  const [showSortForm, setShowSortForm] = useState(false);
-  const [showDropDuplicateForm, setShowDropDuplicateForm] = useState(false);
-  const [showAdvQueryFilterForm, setShowAdvQueryFilterForm] = useState(false);
-  const [showPivotTableForm, setShowPivotTableForm] = useState(false);
-  const [showLogs, setShowLogs] = useState(false);
-  const [showCheckpoints, setShowCheckpoints] = useState(false);
-  const [showCastDataTypeForm, setShowCastDataTypeForm] = useState(false);
-  const [showTrimWhitespaceForm, setShowTrimWhitespaceForm] = useState(false);
-  const [showMeltForm, setShowMeltForm] = useState(false);
-  const [showSampleRowsForm, setShowSampleRowsForm] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [showStringReplaceForm, setShowStringReplaceForm] = useState(false);
-  const [showFillEmptyForm, setShowFillEmptyForm] = useState(false);
-  const [showDatasetSummary, setShowDatasetSummary] = useState(false);
-  const [logs, setLogs] = useState([]);
-  const [checkpoints, setCheckpoints] = useState(null);
+// Ribbon skeleton: the top tabs and the group order within each. Features and the
+// core items below slot their entries into these buckets; layout stays stable.
+const RIBBON_LAYOUT = {
+  File: ["Save", "History"],
+  Data: ["Transform", "Query"],
+  Profiling: ["Profiling"],
+};
+
+const MenuNavbar = ({ projectId }) => {
   const [isInputOpen, setIsInputOpen] = useState(false);
-  const [confirmData, setConfirmData] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [toast, setToast] = useState(null);
+  const [activeTab, setActiveTab] = useState("File");
 
-  const { updateData, refreshProject, pageSize, projectName, isPreviewMode, dataVersion } =
-    useProjectContext();
+  const { updateData, refreshProject, pageSize, projectName, isPreviewMode } = useProjectContext();
+  const { activePanel, togglePanel, closePanel } = usePanel();
+  const { openTab } = useWorkspaceTabs();
+  const { refreshLogs, refreshCheckpoints } = useHistoryRefresh();
+  const { showColumnProfiles, toggleColumnProfiles } = useColumnProfilesView();
 
-  const {
-    summary,
-    error: summaryError,
-    refetch: refetchSummary,
-  } = useDatasetSummary(projectId, showDatasetSummary, dataVersion);
-
-  const fetchLogs = useCallback(async () => {
-    try {
-      const logsResponse = await getLogs(projectId);
-      setLogs(logsResponse);
-    } catch (error) {
-      console.error("Error fetching logs:", error);
-    }
-  }, [projectId]);
-
-  const fetchCheckpoints = useCallback(async () => {
-    try {
-      const checkpointsResponse = await getCheckpoints(projectId);
-      if (Array.isArray(checkpointsResponse)) {
-        setCheckpoints(checkpointsResponse);
-      } else if (checkpointsResponse?.id) {
-        setCheckpoints([checkpointsResponse]);
-      } else {
-        setCheckpoints([]);
-      }
-    } catch (error) {
-      console.error("Error fetching checkpoints:", error);
-      setCheckpoints(null);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    if (showLogs) fetchLogs();
-    if (showCheckpoints) fetchCheckpoints();
-  }, [showLogs, showCheckpoints, fetchLogs, fetchCheckpoints]);
-
-  useEffect(() => {
-    const handleLogsRefresh = () => {
-      if (showLogs) fetchLogs();
-    };
-
-    window.addEventListener("project:logs-refresh", handleLogsRefresh);
-
-    return () => {
-      window.removeEventListener("project:logs-refresh", handleLogsRefresh);
-    };
-  }, [showLogs, fetchLogs]);
-
-  const handleSave = () => {
-    setIsInputOpen(true);
+  // Column profiles render inside the DataSet tab, so focus it when turning
+  // them on (re-opens it if the tab was closed).
+  const handleToggleColumnProfiles = () => {
+    if (!showColumnProfiles) openTab(DATASET_TAB);
+    toggleColumnProfiles();
   };
+
+  const handleSave = () => setIsInputOpen(true);
 
   const handleSubmitCommit = async (message) => {
     if (!message || !message.trim()) {
       setToast({ message: "Commit message is required.", type: "error" });
       return;
     }
-
     setIsInputOpen(false);
-
     try {
       await saveProject(projectId, message);
-      await fetchCheckpoints();
+      // Saving creates a checkpoint and marks pending logs as applied.
+      refreshCheckpoints();
+      refreshLogs();
       setToast({ message: "Project saved successfully!", type: "success" });
     } catch {
       setToast({ message: "Failed to save project.", type: "error" });
@@ -148,12 +62,11 @@ const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles })
   const handleUndo = async () => {
     try {
       await undoLastTransformation(projectId);
-      setShowFilterForm(false);
-      setShowSortForm(false);
-      setActiveForm(null);
+      closePanel();
       updateData([], [], { resetColumnOrder: false });
       await refreshProject(projectId, 1, pageSize);
-      await fetchLogs();
+      // Undo removes the last log entry.
+      refreshLogs();
       setToast({ message: "Last transformation undone!", type: "success" });
     } catch (error) {
       if (error.response?.status === 404) {
@@ -164,264 +77,61 @@ const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles })
     }
   };
 
-  const handleRevert = (checkpointId) => {
-    setConfirmData({
-      message: "Are you sure you want to revert to this checkpoint?",
-      onConfirm: async () => {
-        try {
-          const response = await revertToCheckpoint(projectId, checkpointId);
-          updateData(response.columns, response.rows, {
-            dtypes: response.dtypes,
-            resetColumnOrder: false,
-          });
-          setToast({ message: "Project reverted successfully!", type: "success" });
-        } catch {
-          setToast({ message: "Failed to revert project.", type: "error" });
-        }
-        setConfirmData(null);
-      },
-    });
-  };
+  // Core ribbon items — the ones that need component-local state/handlers and so
+  // can't be declared as (declarative) feature menu items.
+  const coreItems = [
+    { ribbon: "File", group: "Save", order: 0, label: "Save", icon: LuSave, onClick: handleSave },
+    {
+      ribbon: "File",
+      group: "Save",
+      order: 1,
+      label: "Export",
+      icon: LuDownload,
+      onClick: () => setShowExportModal(true),
+    },
+    { ribbon: "File", group: "Save", order: 2, label: "Undo", icon: LuUndo2, onClick: handleUndo },
+    {
+      ribbon: "Profiling",
+      group: "Profiling",
+      order: 1,
+      label: "Column Profiles",
+      icon: LuColumns3,
+      onClick: handleToggleColumnProfiles,
+      active: showColumnProfiles,
+    },
+  ];
 
-  const [activeForm, setActiveForm] = useState(null);
+  // Feature-contributed items resolved against the workspace hooks.
+  const featureItems = getFeatureMenu().map((item) => ({
+    ribbon: item.ribbon,
+    group: item.group,
+    order: item.order,
+    label: item.label,
+    icon: item.icon,
+    onClick:
+      "openTab" in item.action
+        ? () => openTab(item.action.openTab)
+        : () => togglePanel(item.action.togglePanel),
+    disabled: item.disabledInPreview ? isPreviewMode : false,
+    active: item.activePanel ? activePanel === item.activePanel : false,
+  }));
 
-  const handleMenuClick = (formType) => {
-    // If clicking the same form that's already open, close it
-    if (activeForm === formType) {
-      setActiveForm(null);
-      setShowFilterForm(false);
-      setShowSortForm(false);
-      setShowDropDuplicateForm(false);
-      setShowAdvQueryFilterForm(false);
-      setShowPivotTableForm(false);
-      setShowCastDataTypeForm(false);
-      setShowTrimWhitespaceForm(false);
-      setShowMeltForm(false);
-      setShowLogs(false);
-      setShowCheckpoints(false);
-      setShowGroupByForm(false);
-      setShowFillEmptyForm(false);
-      setShowSampleRowsForm(false);
-      setShowDatasetSummary(false);
-      return;
-    }
+  const allItems = [...coreItems, ...featureItems];
 
-    setShowSampleRowsForm(false);
-    setShowFilterForm(false);
-    setShowSortForm(false);
-    setShowDropDuplicateForm(false);
-    setShowAdvQueryFilterForm(false);
-    setShowPivotTableForm(false);
-    setShowCastDataTypeForm(false);
-    setShowTrimWhitespaceForm(false);
-    setShowMeltForm(false);
-    setShowStringReplaceForm(false);
-    setShowLogs(false);
-    setShowCheckpoints(false);
-    setShowGroupByForm(false);
-    setShowFillEmptyForm(false);
-    setShowDatasetSummary(false);
-
-    setActiveForm(formType);
-
-    switch (formType) {
-      case "FilterForm":
-        setShowFilterForm(true);
-        break;
-      case "SortForm":
-        setShowSortForm(true);
-        break;
-      case "DropDuplicateForm":
-        setShowDropDuplicateForm(true);
-        break;
-      case "AdvQueryFilterForm":
-        setShowAdvQueryFilterForm(true);
-        break;
-      case "PivotTableForm":
-        setShowPivotTableForm(true);
-        break;
-      case "CastDataTypeForm":
-        setShowCastDataTypeForm(true);
-        break;
-      case "TrimWhitespaceForm":
-        setShowTrimWhitespaceForm(true);
-        break;
-      case "MeltForm":
-        setShowMeltForm(true);
-        break;
-      case "StringReplaceForm":
-        setShowStringReplaceForm(true);
-        break;
-      case "Logs":
-        setShowLogs(true);
-        break;
-      case "Checkpoints":
-        setShowCheckpoints(true);
-        break;
-      case "GroupByForm":
-        setShowGroupByForm(true);
-        break;
-      case "SampleRowsForm":
-        setShowSampleRowsForm(true);
-        break;
-      case "FillEmptyForm":
-        setShowFillEmptyForm(true);
-        break;
-      case "DatasetSummary":
-        setShowDatasetSummary(true);
-        break;
-
-      default:
-        break;
-    }
-  };
-
-  const [activeTab, setActiveTab] = useState("File");
-
-  const tabs = {
-    File: [
-      {
-        group: "Save",
-        items: [
-          { label: "Save", icon: LuSave, onClick: handleSave },
-          { label: "Export", icon: LuDownload, onClick: () => setShowExportModal(true) },
-          { label: "Undo", icon: LuUndo2, onClick: handleUndo },
-        ],
-      },
-      {
-        group: "History",
-        items: [
-          {
-            label: "Logs",
-            icon: LuHistory,
-            formType: "Logs",
-            onClick: () => handleMenuClick("Logs"),
-          },
-          {
-            label: "Checkpoints",
-            icon: LuBookmark,
-            formType: "Checkpoints",
-            onClick: () => handleMenuClick("Checkpoints"),
-          },
-        ],
-      },
-    ],
-    Data: [
-      {
-        group: "Transform",
-        items: [
-          {
-            label: "Filter",
-            icon: LuFilter,
-            formType: "FilterForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("FilterForm"),
-          },
-          {
-            label: "Sample",
-            icon: LuDice5,
-            formType: "SampleRowsForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("SampleRowsForm"),
-          },
-          {
-            label: "Sort",
-            icon: LuArrowUpDown,
-            formType: "SortForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("SortForm"),
-          },
-          {
-            label: "Drop Dup",
-            icon: LuCopyMinus,
-            formType: "DropDuplicateForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("DropDuplicateForm"),
-          },
-          {
-            label: "GroupBy",
-            icon: LuGroup,
-            formType: "GroupByForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("GroupByForm"),
-          },
-          {
-            label: "Cast Type",
-            icon: LuRefreshCw,
-            formType: "CastDataTypeForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("CastDataTypeForm"),
-          },
-          {
-            label: "Trim Space",
-            icon: LuScissors,
-            formType: "TrimWhitespaceForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("TrimWhitespaceForm"),
-          },
-          {
-            label: "Replace",
-            icon: LuReplace,
-            formType: "StringReplaceForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("StringReplaceForm"),
-          },
-          {
-            label: "Fill Empty",
-            icon: LuEraser,
-            formType: "FillEmptyForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("FillEmptyForm"),
-          },
-        ],
-      },
-      {
-        group: "Query",
-        items: [
-          {
-            label: "Adv Query",
-            icon: LuCode,
-            formType: "AdvQueryFilterForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("AdvQueryFilterForm"),
-          },
-          {
-            label: "Pivot Table",
-            icon: LuTable2,
-            formType: "PivotTableForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("PivotTableForm"),
-          },
-          {
-            label: "Melt (Unpivot)",
-            icon: LuLayoutList,
-            formType: "MeltForm",
-            disabled: isPreviewMode,
-            onClick: () => handleMenuClick("MeltForm"),
-          },
-        ],
-      },
-    ],
-    Profile: [
-      {
-        group: "Profile",
-        items: [
-          {
-            label: "Overview",
-            icon: LuLayoutDashboard,
-            formType: "DatasetSummary",
-            onClick: () => handleMenuClick("DatasetSummary"),
-          },
-          {
-            label: "Columns",
-            icon: LuColumns3,
-            active: columnProfilesActive,
-            onClick: onToggleColumnProfiles,
-          },
-        ],
-      },
-    ],
-  };
+  // Bucket items into the ribbon skeleton, dropping empty groups.
+  const tabs = Object.fromEntries(
+    Object.entries(RIBBON_LAYOUT).map(([ribbon, groups]) => [
+      ribbon,
+      groups
+        .map((group) => ({
+          group,
+          items: allItems
+            .filter((it) => it.ribbon === ribbon && it.group === group)
+            .sort((a, b) => a.order - b.order),
+        }))
+        .filter((section) => section.items.length > 0),
+    ]),
+  );
 
   return (
     <div className="bg-white border-b border-gray-200">
@@ -449,7 +159,7 @@ const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles })
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-1 flex-1">
                 {section.items.map((item) => {
-                  const isActive = item.formType ? activeForm === item.formType : !!item.active;
+                  const isActive = Boolean(item.active);
                   return (
                     <button
                       key={item.label}
@@ -472,154 +182,10 @@ const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles })
                   );
                 })}
               </div>
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
-                {section.group}
-              </span>
             </div>
           </div>
         ))}
       </div>
-
-      {showFilterForm && (
-        <FilterForm
-          onClose={() => {
-            setShowFilterForm(false);
-            setActiveForm(null);
-          }}
-          projectId={projectId}
-        />
-      )}
-      {showSortForm && (
-        <SortForm
-          onClose={() => {
-            setShowSortForm(false);
-            setActiveForm(null);
-          }}
-          projectId={projectId}
-        />
-      )}
-      {showDropDuplicateForm && (
-        <DropDuplicateForm
-          projectId={projectId}
-          onClose={() => {
-            setShowDropDuplicateForm(false);
-            setActiveForm(null);
-          }}
-        />
-      )}
-      {showAdvQueryFilterForm && (
-        <AdvQueryFilterForm
-          onClose={() => {
-            setShowAdvQueryFilterForm(false);
-            setActiveForm(null);
-          }}
-          projectId={projectId}
-        />
-      )}
-      {showPivotTableForm && (
-        <PivotTableForm
-          onClose={() => {
-            setShowPivotTableForm(false);
-            setActiveForm(null);
-          }}
-          projectId={projectId}
-        />
-      )}
-      {showMeltForm && (
-        <MeltForm
-          onClose={() => {
-            setShowMeltForm(false);
-            setActiveForm(null);
-          }}
-          projectId={projectId}
-        />
-      )}
-      {showCastDataTypeForm && (
-        <CastDataTypeForm
-          projectId={projectId}
-          onClose={() => {
-            setShowCastDataTypeForm(false);
-            setActiveForm(null);
-          }}
-        />
-      )}
-      {showTrimWhitespaceForm && (
-        <TrimWhitespaceForm
-          projectId={projectId}
-          onClose={() => {
-            setShowTrimWhitespaceForm(false);
-            setActiveForm(null);
-          }}
-        />
-      )}
-      {showStringReplaceForm && (
-        <StringReplaceForm
-          projectId={projectId}
-          onClose={() => {
-            setShowStringReplaceForm(false);
-            setActiveForm(null);
-          }}
-        />
-      )}
-      {showLogs && (
-        <LogsPanel
-          logs={logs}
-          onClose={() => {
-            setShowLogs(false);
-            setActiveForm(null);
-          }}
-        />
-      )}
-      {showCheckpoints && (
-        <CheckpointsPanel
-          projectId={projectId}
-          checkpoints={checkpoints}
-          onClose={() => {
-            setShowCheckpoints(false);
-            setActiveForm(null);
-          }}
-          onRevert={handleRevert}
-          onCheckpointDeleted={fetchCheckpoints}
-        />
-      )}
-      {showGroupByForm && (
-        <GroupByForm
-          projectId={projectId}
-          onClose={() => {
-            setShowGroupByForm(false);
-            setActiveForm(null);
-          }}
-        />
-      )}
-      {showFillEmptyForm && (
-        <FillEmptyForm
-          projectId={projectId}
-          onClose={() => {
-            setShowFillEmptyForm(false);
-            setActiveForm(null);
-          }}
-        />
-      )}
-      {showSampleRowsForm && (
-        <SampleRowsForm
-          projectId={projectId}
-          onClose={() => {
-            setShowSampleRowsForm(false);
-            setActiveForm(null);
-          }}
-        />
-      )}
-      {showDatasetSummary && (
-        <DatasetSummaryPanel
-          summary={summary}
-          error={summaryError}
-          onRetry={refetchSummary}
-          onClose={() => {
-            setShowDatasetSummary(false);
-            setActiveForm(null);
-          }}
-        />
-      )}
 
       <ExportModal
         isOpen={showExportModal}
@@ -637,13 +203,6 @@ const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles })
         onCancel={() => setIsInputOpen(false)}
       />
 
-      <ConfirmDialog
-        isOpen={!!confirmData}
-        message={confirmData?.message}
-        onConfirm={confirmData?.onConfirm}
-        onCancel={() => setConfirmData(null)}
-      />
-
       {toast && (
         <div className="fixed bottom-4 right-4 z-50">
           <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
@@ -655,8 +214,6 @@ const MenuNavbar = ({ projectId, columnProfilesActive, onToggleColumnProfiles })
 
 MenuNavbar.propTypes = {
   projectId: proptype.string.isRequired,
-  columnProfilesActive: proptype.bool,
-  onToggleColumnProfiles: proptype.func,
 };
 
 export default MenuNavbar;

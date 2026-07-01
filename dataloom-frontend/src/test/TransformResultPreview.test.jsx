@@ -25,6 +25,10 @@ vi.mock("../context/ProjectContext", () => ({
   useProjectContext: () => mockContext,
 }));
 
+vi.mock("../context/HistoryRefreshContext", () => ({
+  useHistoryRefresh: () => ({ refreshLogs: vi.fn(), refreshCheckpoints: vi.fn() }),
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockContext.columnOrder = [0, 1, 2];

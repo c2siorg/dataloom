@@ -5,7 +5,7 @@ import Modal from "../common/Modal";
 import { useToast } from "../../context/ToastContext";
 import Button from "../common/Button";
 
-const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpointDeleted }) => {
+const CheckpointsPanel = ({ projectId, checkpoints, onRevert, onCheckpointDeleted }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const { showToast } = useToast();
 
@@ -24,27 +24,8 @@ const CheckpointsPanel = ({ projectId, checkpoints, onClose, onRevert, onCheckpo
   };
 
   return (
-    <div
-      data-testid="checkpoints-panel"
-      className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Checkpoints</h3>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 font-medium transition-opacity opacity-0 group-hover:opacity-100"
-          style={{
-            transition: "opacity 0.3s",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="overflow-x-auto overflow-y-auto max-h-72">
+    <div data-testid="checkpoints-panel">
+      <div className="overflow-x-auto">
         <table className="min-w-full bg-white rounded-lg overflow-hidden">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
@@ -127,7 +108,6 @@ CheckpointsPanel.propTypes = {
       created_at: PropTypes.string.isRequired,
     }),
   ),
-  onClose: PropTypes.func.isRequired,
   onRevert: PropTypes.func.isRequired,
   onCheckpointDeleted: PropTypes.func.isRequired,
 };

@@ -46,9 +46,8 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div>
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">Advanced Query</h3>
         <div className="mb-2">
           <label className="block text-sm font-medium text-gray-700">Query:</label>
           <input

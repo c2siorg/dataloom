@@ -63,18 +63,15 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div>
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">Drop Duplicate</h3>
-        <div className="flex space-x-2 mb-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Columns:</label>
-            <ColumnMultiSelect value={columns} onChange={setColumns} required />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Keep:</label>
-            <Select value={keep} onChange={setKeep} options={KEEP_OPTIONS} />
-          </div>
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700">Columns:</label>
+          <ColumnMultiSelect value={columns} onChange={setColumns} required />
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700">Keep:</label>
+          <Select value={keep} onChange={setKeep} options={KEEP_OPTIONS} />
         </div>
         <div className="flex justify-between">
           <div className="flex gap-2">

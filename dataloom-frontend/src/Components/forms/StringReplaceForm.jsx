@@ -2,6 +2,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
 import { useToast } from "../../context/ToastContext";
 import { STRING_REPLACE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
@@ -11,6 +12,7 @@ import Button from "../common/Button";
 
 const StringReplaceForm = ({ projectId, onClose }) => {
   const { updateData, refreshProject, pageSize } = useProjectContext();
+  const { refreshLogs } = useHistoryRefresh();
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -43,6 +45,7 @@ const StringReplaceForm = ({ projectId, onClose }) => {
         resetColumnOrder: false,
       });
       await refreshProject(projectId, 1, pageSize);
+      refreshLogs();
       onClose();
     } catch (error) {
       console.error("Error replacing string:", error);
@@ -59,10 +62,8 @@ const StringReplaceForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div>
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">Find & Replace</h3>
-
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700">Column:</label>
           <ColumnSelect value={column} onChange={setColumn} required />

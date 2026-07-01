@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
+import { useHistoryRefresh } from "../context/HistoryRefreshContext";
 
 /**
  * Shared hook that encapsulates the Save-Changes logic used by every
@@ -11,6 +12,7 @@ import { useProjectContext } from "../context/ProjectContext";
  */
 const usePreviewSave = ({ clearError, handleError, onClose }) => {
   const { confirmPreview, refreshProject, pageSize, pendingTransform } = useProjectContext();
+  const { refreshLogs } = useHistoryRefresh();
   const [saving, setSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
@@ -23,6 +25,8 @@ const usePreviewSave = ({ clearError, handleError, onClose }) => {
       });
       confirmPreview();
       await refreshProject(pendingTransform.projectId, 1, pageSize);
+      // Persisting the transform adds a log entry.
+      refreshLogs();
       onClose();
     } catch (err) {
       handleError(err);
@@ -37,6 +41,7 @@ const usePreviewSave = ({ clearError, handleError, onClose }) => {
     pageSize,
     onClose,
     handleError,
+    refreshLogs,
   ]);
 
   return { saving, handleSave };

@@ -8,6 +8,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
 import Button from "../common/Button";
 
 const ORDER_OPTIONS = [
@@ -21,6 +22,7 @@ const ORDER_OPTIONS = [
  */
 const SortForm = ({ projectId, onClose }) => {
   const { updateData, refreshProject, pageSize } = useProjectContext();
+  const { refreshLogs } = useHistoryRefresh();
   const [criteria, setCriteria] = useState([{ id: 1, column: "", ascending: true }]);
   const [nextId, setNextId] = useState(2);
   const [result, setResult] = useState(null);
@@ -101,6 +103,7 @@ const SortForm = ({ projectId, onClose }) => {
         resetColumnOrder: false,
       });
       await refreshProject(projectId, 1, pageSize);
+      refreshLogs();
     } catch (err) {
       handleError(err);
     } finally {
@@ -109,9 +112,8 @@ const SortForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div data-testid="sort-form" className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div data-testid="sort-form">
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">Sort Dataset</h3>
         <p className="text-sm text-gray-600 mb-4">
           Add multiple sort criteria. Priority is determined by order (top = primary sort).
         </p>
