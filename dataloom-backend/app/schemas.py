@@ -75,6 +75,17 @@ class AggFunc(StrEnum):
     count = "count"
 
 
+class ChartType(StrEnum):
+    """Supported chart types. The frontend maps each to a renderer."""
+
+    histogram = "histogram"
+    bar = "bar"
+    line = "line"
+    area = "area"
+    scatter = "scatter"
+    pie = "pie"
+
+
 # --- Basic transformation parameter schemas ---
 
 
@@ -424,6 +435,54 @@ class CorrelationResponse(BaseModel):
 
     columns: list[str]
     matrix: list[list[float | None]]
+
+
+# --- Visualization response schemas ---
+#
+# One ChartSpec shape for every chart type: the backend computes aggregated data,
+# the frontend maps ``chart_type`` to a renderer. Adding a chart type needs only a
+# new builder + renderer case, no protocol change.
+
+
+class ChartPoint(BaseModel):
+    """A single (x, y) datum. x is a label, number, or ISO date; y is numeric."""
+
+    x: str | float | None
+    y: float | None
+
+
+class ChartSeries(BaseModel):
+    """A named set of points, optionally tinted with a color."""
+
+    name: str
+    data: list[ChartPoint]
+    color: str | None = None
+
+
+class ChartMeta(BaseModel):
+    """Honesty flags about how the data was reduced for rendering."""
+
+    sampled: bool | None = None
+    truncated: bool | None = None
+    total_rows: int | None = None
+    bins: int | None = None
+
+
+class ChartSpec(BaseModel):
+    """Self-describing chart payload rendered as-is by the frontend."""
+
+    chart_type: ChartType
+    title: str
+    x_label: str
+    y_label: str
+    series: list[ChartSeries]
+    meta: ChartMeta | None = None
+
+
+class ChartSuggestionsResponse(BaseModel):
+    """Auto-suggested charts based on the dataset's column shapes."""
+
+    suggestions: list[ChartSpec]
 
 
 # --- Other response schemas ---

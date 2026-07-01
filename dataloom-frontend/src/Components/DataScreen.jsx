@@ -6,12 +6,14 @@ import { WorkspaceTabsProvider, useWorkspaceTabs } from "../context/WorkspaceTab
 import { PanelProvider } from "../context/PanelContext";
 import { HistoryRefreshProvider } from "../context/HistoryRefreshContext";
 import { ColumnProfilesProvider } from "../context/ColumnProfilesContext";
+import { ChartViewProvider } from "../context/ChartViewContext";
 import { getTabComponent } from "./workspace/TabRegistry";
 // Each feature module self-registers its tabs, panels, and menu items.
 import { DATASET_TAB } from "./workspace/features/dataset";
 import "./workspace/features/transforms";
 import "./workspace/features/history";
 import "./workspace/features/profiling";
+import "./workspace/features/charts";
 import WorkspaceTabBar from "./workspace/WorkspaceTabBar";
 import RightPanel from "./workspace/RightPanel";
 import MenuNavbar from "./MenuNavbar";
@@ -82,7 +84,9 @@ export default function DataScreen() {
         <PanelProvider>
           <HistoryRefreshProvider>
             <ColumnProfilesProvider>
-              <WorkspaceContent projectId={projectId} />
+              <ChartViewProvider>
+                <WorkspaceContent projectId={projectId} />
+              </ChartViewProvider>
             </ColumnProfilesProvider>
           </HistoryRefreshProvider>
         </PanelProvider>
