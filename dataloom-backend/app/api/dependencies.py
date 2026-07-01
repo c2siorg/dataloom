@@ -2,14 +2,54 @@
 
 import uuid
 
-from fastapi import Cookie, Depends, HTTPException
+from fastapi import Cookie, Depends, HTTPException, Request
 from sqlmodel import Session
 
 from app import database, models
+from app.config import get_settings
 from app.services import auth_service
 from app.utils.logging import get_logger
+from app.utils.rate_limiter import RateLimiter
 
 logger = get_logger(__name__)
+
+_limiter: RateLimiter | None = None
+
+
+def rate_limit(
+    request: Request,
+) -> None:
+    """FastAPI dependency that rate-limits requests by client IP.
+
+    Reads ``X-Forwarded-For`` (comma-separated, leftmost is the client),
+    then ``X-Real-IP``, then falls back to ``request.client.host``.
+    Returns 429 with a ``Retry-After`` header when the limit is exceeded.
+    """
+    settings = get_settings()
+    if not settings.rate_limit_enabled:
+        return
+
+    global _limiter
+    if _limiter is None:
+        _limiter = RateLimiter(
+            settings.rate_limit_max_requests,
+            settings.rate_limit_window_seconds,
+        )
+
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+    else:
+        real_ip = request.headers.get("X-Real-IP")
+        client_ip = real_ip or (request.client.host if request.client is not None else "unknown")
+
+    allowed, retry_after = _limiter.check(client_ip)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many requests. Try again in {int(retry_after)} seconds.",
+            headers={"Retry-After": str(int(retry_after))},
+        )
 
 
 def get_current_user(

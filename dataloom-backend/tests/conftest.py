@@ -11,6 +11,8 @@ os.environ.setdefault("SMTP_USERNAME", "test@example.com")
 os.environ.setdefault("SMTP_PASSWORD", "test-password")
 os.environ.setdefault("SMTP_FROM_EMAIL", "noreply@example.com")
 
+os.environ["RATE_LIMIT_ENABLED"] = "false"
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
