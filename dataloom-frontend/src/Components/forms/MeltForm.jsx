@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import TransformResultPreview from "./TransformResultPreview";
 import { transformProject, getProjectDetails } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Button from "../common/Button";
 
@@ -16,6 +17,7 @@ const MeltForm = ({ projectId, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { updateData, refreshProject, pageSize } = useProjectContext();
+  const { refreshLogs } = useHistoryRefresh();
 
   useEffect(() => {
     const fetchProjectDetails = async () => {
@@ -71,6 +73,7 @@ const MeltForm = ({ projectId, onClose }) => {
         resetColumnOrder: false,
       });
       await refreshProject(projectId, 1, pageSize);
+      refreshLogs();
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
     } finally {
@@ -79,19 +82,15 @@ const MeltForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
+    <div>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-          Melt (Unpivot) Dataset
-        </h3>
-
         {error && (
           <div className="bg-red-50 text-red-600 p-2 rounded text-sm border border-red-100">
             {typeof error === "string" ? error : JSON.stringify(error, null, 2)}
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               ID Variables (Keep as columns):
@@ -111,7 +110,7 @@ const MeltForm = ({ projectId, onClose }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Variable Name:</label>
             <input

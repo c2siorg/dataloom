@@ -8,6 +8,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
 import Button from "../common/Button";
 
 const TARGET_TYPES = [
@@ -25,6 +26,7 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
   const [targetType, setTargetType] = useState("string");
   const { error, setError, clearError, handleError } = useError();
   const { updateData, refreshProject, pageSize } = useProjectContext();
+  const { refreshLogs } = useHistoryRefresh();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,6 +52,7 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
         resetColumnOrder: false,
       });
       await refreshProject(projectId, 1, pageSize);
+      refreshLogs();
       onClose();
     } catch (err) {
       console.error("Error casting data type:", err);
@@ -59,24 +62,20 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div>
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">Cast Data Type</h3>
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700">Column:</label>
+          <ColumnSelect
+            value={column}
+            onChange={(value) => setColumn(value)}
+            placeholder="Select column..."
+          />
+        </div>
 
-        <div className="flex space-x-2 mb-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Column:</label>
-            <ColumnSelect
-              value={column}
-              onChange={(value) => setColumn(value)}
-              placeholder="Select column..."
-            />
-          </div>
-
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Target Type:</label>
-            <Select value={targetType} onChange={setTargetType} options={TARGET_TYPES} />
-          </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700">Target Type:</label>
+          <Select value={targetType} onChange={setTargetType} options={TARGET_TYPES} />
         </div>
 
         <div className="flex justify-between">

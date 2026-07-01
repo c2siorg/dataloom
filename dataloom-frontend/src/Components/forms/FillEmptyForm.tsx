@@ -1,6 +1,7 @@
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
 import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
@@ -18,6 +19,7 @@ const STRATEGIES = [
 
 const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
   const { columns, refreshProject, pageSize } = useProjectContext();
+  const { refreshLogs } = useHistoryRefresh();
   const { showToast } = useToast();
   const { error, clearError, handleError } = useError();
 
@@ -50,6 +52,7 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
       });
 
       await refreshProject(projectId, 1, pageSize);
+      refreshLogs();
       onClose();
     } catch (err) {
       handleError(err);
@@ -62,9 +65,8 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div>
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-4">Fill Empty Cells</h3>
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Column:</label>

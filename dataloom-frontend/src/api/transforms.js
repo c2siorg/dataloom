@@ -21,12 +21,6 @@ export const transformProject = async (
   const response = await client.post(`/projects/${projectId}/transform`, transformationInput, {
     params,
   });
-  // Notify the logs panel to refresh, but only for persisted transforms.
-  // Preview-mode transforms are not logged, so firing the event would cause
-  // a spurious refetch.
-  if (!preview) {
-    window.dispatchEvent(new CustomEvent("project:logs-refresh"));
-  }
   return response.data;
 };
 

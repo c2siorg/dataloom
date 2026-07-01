@@ -25,7 +25,7 @@ const TransformResultPreview = ({ columns, rows }) => {
   return (
     <div
       data-testid="transform-preview"
-      className="mt-2 border border-gray-200 rounded-lg shadow-sm overflow-hidden bg-white"
+      className="mt-2 border border-gray-200 rounded-lg overflow-hidden bg-white"
     >
       <div className="overflow-x-auto overflow-y-auto max-h-72">
         <table data-testid="preview-table" className="min-w-full bg-white border-collapse">

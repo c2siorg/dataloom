@@ -80,40 +80,37 @@ const FilterForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div data-testid="filter-form" className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div data-testid="filter-form">
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">Filter Dataset</h3>
-        <div className="flex flex-wrap mb-4">
-          <div className="w-full sm:w-1/3 mb-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Column:</label>
-            <ColumnSelect
-              name="column"
-              data-testid="filter-column"
-              value={filterParams.column}
-              onChange={(value) => setFilterParams((p) => ({ ...p, column: value }))}
-              placeholder="Select column to filter..."
-            />
-          </div>
-          <div className="w-full sm:w-1/3 mb-2 pl-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Condition:</label>
-            <Select
-              value={filterParams.condition}
-              onChange={(value) => setFilterParams((p) => ({ ...p, condition: value }))}
-              options={CONDITIONS}
-            />
-          </div>
-          <div className="w-full sm:w-1/3 mb-2 pl-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Value:</label>
-            <input
-              type="text"
-              name="value"
-              data-testid="filter-value"
-              value={filterParams.value}
-              onChange={handleInputChange}
-              className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-              required
-            />
-          </div>
+        <div className="mb-3">
+          <label className="block mb-1 text-sm font-medium text-gray-700">Column:</label>
+          <ColumnSelect
+            name="column"
+            data-testid="filter-column"
+            value={filterParams.column}
+            onChange={(value) => setFilterParams((p) => ({ ...p, column: value }))}
+            placeholder="Select column to filter..."
+          />
+        </div>
+        <div className="mb-3">
+          <label className="block mb-1 text-sm font-medium text-gray-700">Condition:</label>
+          <Select
+            value={filterParams.condition}
+            onChange={(value) => setFilterParams((p) => ({ ...p, condition: value }))}
+            options={CONDITIONS}
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-1 text-sm font-medium text-gray-700">Value:</label>
+          <input
+            type="text"
+            name="value"
+            data-testid="filter-value"
+            value={filterParams.value}
+            onChange={handleInputChange}
+            className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            required
+          />
         </div>
         <div className="flex justify-between">
           <div className="flex gap-2">

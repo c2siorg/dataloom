@@ -6,6 +6,7 @@ import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
 import ColumnSelect from "../common/ColumnSelect";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Select from "../common/Select";
@@ -14,6 +15,7 @@ import { AGG_FUNCTIONS } from "../../constants/aggregations";
 
 const GroupByForm = ({ projectId, onClose }) => {
   const { columns: availableColumns, updateData, refreshProject, pageSize } = useProjectContext();
+  const { refreshLogs } = useHistoryRefresh();
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [aggColumn, setAggColumn] = useState("");
   const [aggFunction, setAggFunction] = useState("sum");
@@ -43,6 +45,7 @@ const GroupByForm = ({ projectId, onClose }) => {
         resetColumnOrder: false,
       });
       await refreshProject(projectId, 1, pageSize);
+      refreshLogs();
     } catch (err) {
       handleError(err);
     } finally {
@@ -51,36 +54,31 @@ const GroupByForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div>
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">GroupBy Aggregation</h3>
-        <div className="flex flex-wrap mb-4">
-          <div className="w-full sm:w-1/3 mb-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">
-              Group By Columns:
-            </label>
-            <ColumnMultiSelect
-              value={selectedColumns}
-              onChange={setSelectedColumns}
-              options={availableColumns}
-              required
-            />
-          </div>
-          <div className="w-full sm:w-1/3 mb-2 pl-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">
-              Aggregation Column:
-            </label>
-            <ColumnSelect
-              value={aggColumn}
-              onChange={setAggColumn}
-              options={availableColumns.filter((col) => !selectedColumns.includes(col))}
-              required
-            />
-          </div>
-          <div className="w-full sm:w-1/3 mb-2 pl-2">
-            <label className="block mb-1 text-sm font-medium text-gray-700">Function:</label>
-            <Select value={aggFunction} onChange={setAggFunction} options={AGG_FUNCTIONS} />
-          </div>
+        <div className="mb-3">
+          <label className="block mb-1 text-sm font-medium text-gray-700">Group By Columns:</label>
+          <ColumnMultiSelect
+            value={selectedColumns}
+            onChange={setSelectedColumns}
+            options={availableColumns}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label className="block mb-1 text-sm font-medium text-gray-700">
+            Aggregation Column:
+          </label>
+          <ColumnSelect
+            value={aggColumn}
+            onChange={setAggColumn}
+            options={availableColumns.filter((col) => !selectedColumns.includes(col))}
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-1 text-sm font-medium text-gray-700">Function:</label>
+          <Select value={aggFunction} onChange={setAggFunction} options={AGG_FUNCTIONS} />
         </div>
         <div className="flex justify-between">
           <Button type="submit" disabled={loading || selectedColumns.length === 0 || !aggColumn}>
