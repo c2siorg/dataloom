@@ -348,3 +348,26 @@ class TestPasswordReset:
             json={"token": raw_token, "new_password": "short"},
         )
         assert response.status_code == 422
+
+
+def test_rate_limit_http_429(anon_client, monkeypatch):
+    from app.api import dependencies as deps
+    from app.config import get_settings
+    from app.utils.rate_limiter import RateLimiter
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "rate_limit_enabled", True)
+    fake_limiter = RateLimiter(max_requests=2, window_seconds=60)
+    monkeypatch.setattr(deps, "_limiter", fake_limiter)
+
+    r1 = anon_client.post("/auth/signup", json={"email": "rl-one@test.com", "password": "testpassword"})
+    assert r1.status_code != 429
+
+    r2 = anon_client.post("/auth/signup", json={"email": "rl-two@test.com", "password": "testpassword"})
+    assert r2.status_code != 429
+
+    r3 = anon_client.post("/auth/signup", json={"email": "rl-three@test.com", "password": "testpassword"})
+    assert r3.status_code == 429
+    assert "Retry-After" in r3.headers
+    retry_after = int(r3.headers["Retry-After"])
+    assert retry_after > 0

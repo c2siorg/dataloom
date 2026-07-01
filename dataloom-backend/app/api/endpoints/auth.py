@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app import database, models, schemas
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, rate_limit
 from app.config import get_settings
 from app.services import auth_service
 from app.utils.logging import get_logger
@@ -32,7 +32,12 @@ def _set_auth_cookie(response: Response, token: str) -> None:
 
 
 @router.post("/signup", response_model=schemas.UserResponse, status_code=201)
-def signup(payload: schemas.SignupRequest, response: Response, db: Session = Depends(database.get_db)):
+def signup(
+    payload: schemas.SignupRequest,
+    response: Response,
+    db: Session = Depends(database.get_db),
+    _rate_limit: None = Depends(rate_limit),
+):
     """Register a new user and issue an auth cookie."""
     if auth_service.get_user_by_email(db, payload.email) is not None:
         raise HTTPException(status_code=409, detail="An account with this email already exists")
@@ -42,7 +47,12 @@ def signup(payload: schemas.SignupRequest, response: Response, db: Session = Dep
 
 
 @router.post("/signin", response_model=schemas.UserResponse)
-def signin(payload: schemas.SigninRequest, response: Response, db: Session = Depends(database.get_db)):
+def signin(
+    payload: schemas.SigninRequest,
+    response: Response,
+    db: Session = Depends(database.get_db),
+    _rate_limit: None = Depends(rate_limit),
+):
     """Authenticate an existing user and issue an auth cookie."""
     user = auth_service.authenticate_user(db, payload.email, payload.password)
     if user is None:
@@ -75,6 +85,7 @@ def me(current_user: models.User = Depends(get_current_user)):
 async def forgot_password(
     payload: schemas.ForgotPasswordRequest,
     db: Session = Depends(database.get_db),
+    _rate_limit: None = Depends(rate_limit),
 ):
     """Requests a password reset email."""
     settings = get_settings()
@@ -88,6 +99,7 @@ async def forgot_password(
 async def reset_password(
     payload: schemas.ResetPasswordRequest,
     db: Session = Depends(database.get_db),
+    _rate_limit: None = Depends(rate_limit),
 ):
     """Reset password using a valid reset token."""
     if len(payload.new_password) < 8:

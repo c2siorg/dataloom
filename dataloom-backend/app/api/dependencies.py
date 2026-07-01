@@ -1,15 +1,56 @@
 """Shared FastAPI dependencies for endpoint functions."""
 
+import math
+import threading
 import uuid
 
-from fastapi import Cookie, Depends, HTTPException
+from fastapi import Cookie, Depends, HTTPException, Request
 from sqlmodel import Session
 
 from app import database, models
+from app.config import get_settings
 from app.services import auth_service
 from app.utils.logging import get_logger
+from app.utils.rate_limiter import RateLimiter
 
 logger = get_logger(__name__)
+
+_limiter: RateLimiter | None = None
+_limiter_lock = threading.Lock()
+
+
+def rate_limit(
+    request: Request,
+) -> None:
+    """FastAPI dependency that rate-limits requests by the direct TCP client IP.
+
+    The client IP is always taken from ``request.client.host`` (the direct TCP
+    connection) and never from client-supplied headers.  Operators behind a
+    reverse proxy must strip or overwrite the peer IP at the proxy layer.
+
+    Returns 429 with a ``Retry-After`` header when the limit is exceeded.
+    """
+    settings = get_settings()
+    if not settings.rate_limit_enabled:
+        return
+
+    global _limiter
+    if _limiter is None:
+        with _limiter_lock:
+            if _limiter is None:
+                _limiter = RateLimiter(
+                    settings.rate_limit_max_requests,
+                    settings.rate_limit_window_seconds,
+                )
+
+    client_ip = request.client.host if request.client is not None else "unknown"
+    allowed, retry_after = _limiter.check(client_ip)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many requests. Try again in {math.ceil(retry_after)} seconds.",
+            headers={"Retry-After": str(math.ceil(retry_after))},
+        )
 
 
 def get_current_user(
