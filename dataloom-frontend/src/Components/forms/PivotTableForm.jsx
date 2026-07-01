@@ -9,6 +9,7 @@ import ColumnSelect from "../common/ColumnSelect";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
 import Button from "../common/Button";
 import { AGG_FUNCTIONS } from "../../constants/aggregations";
 
@@ -21,6 +22,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
   const { updateData, refreshProject, pageSize } = useProjectContext();
+  const { refreshLogs } = useHistoryRefresh();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,6 +50,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
         resetColumnOrder: false,
       });
       await refreshProject(projectId, 1, pageSize);
+      refreshLogs();
     } catch (err) {
       console.error("Error applying pivot table:", err.message);
       handleError(err);
@@ -57,36 +60,31 @@ const PivotTableForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div>
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">Pivot Table</h3>
-        <div className="flex space-x-2 mb-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Index:</label>
-            <ColumnMultiSelect value={index} onChange={setIndex} required />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Column:</label>
-            <ColumnSelect
-              value={column}
-              onChange={(value) => setColumn(value)}
-              placeholder="Select column..."
-            />
-          </div>
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700">Index:</label>
+          <ColumnMultiSelect value={index} onChange={setIndex} required />
         </div>
-        <div className="flex space-x-2 mb-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Value:</label>
-            <ColumnSelect
-              value={value}
-              onChange={(value) => setValue(value)}
-              placeholder="Select column..."
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700">Aggregation Function:</label>
-            <Select value={aggfun} onChange={setAggfun} options={AGG_FUNCTIONS} />
-          </div>
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700">Column:</label>
+          <ColumnSelect
+            value={column}
+            onChange={(value) => setColumn(value)}
+            placeholder="Select column..."
+          />
+        </div>
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700">Value:</label>
+          <ColumnSelect
+            value={value}
+            onChange={(value) => setValue(value)}
+            placeholder="Select column..."
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700">Aggregation Function:</label>
+          <Select value={aggfun} onChange={setAggfun} options={AGG_FUNCTIONS} />
         </div>
         <div className="flex justify-between">
           <Button type="submit" disabled={loading}>

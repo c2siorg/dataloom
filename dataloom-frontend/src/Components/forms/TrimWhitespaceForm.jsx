@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { TRIM_WHITESPACE } from "../../constants/operationTypes";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
 import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
@@ -11,6 +12,7 @@ import Button from "../common/Button";
 
 const TrimWhitespaceForm = ({ projectId, onClose }) => {
   const { columns, updateData, refreshProject, pageSize } = useProjectContext();
+  const { refreshLogs } = useHistoryRefresh();
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -42,6 +44,7 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
         resetColumnOrder: false,
       });
       await refreshProject(projectId, 1, pageSize);
+      refreshLogs();
       onClose();
     } catch (error) {
       console.error("Error trimming whitespace:", error);
@@ -53,10 +56,8 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div>
       <form onSubmit={handleSubmit}>
-        <h3 className="font-semibold text-gray-900 mb-2">Trim Whitespace</h3>
-
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700">Column:</label>
           <ColumnSelect

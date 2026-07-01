@@ -60,6 +60,10 @@ test.describe("Checkpoints", () => {
     await expect(
       page.getByText("Project reverted successfully!"),
     ).toBeVisible();
+
+    // The Checkpoints tab is active and the data table only renders on the
+    // DataSet tab, so switch back to it before asserting on the restored data.
+    await page.getByRole("tab", { name: "DataSet" }).click();
     await expect(table).not.toContainText("MODIFIED");
     // Verify the known original value was restored.
     await expect(targetCell).toContainText(expectedOriginalValue);
