@@ -28,7 +28,7 @@ const MenuNavbar = ({ projectId }) => {
   const [activeTab, setActiveTab] = useState("File");
 
   const { updateData, refreshProject, pageSize, projectName, isPreviewMode } = useProjectContext();
-  const { activePanel, togglePanel, closePanel } = usePanel();
+  const { activePanel, openPanel, togglePanel, closePanel } = usePanel();
   const { openTab } = useWorkspaceTabs();
   const { refreshLogs, refreshCheckpoints } = useHistoryRefresh();
   const { showColumnProfiles, toggleColumnProfiles } = useColumnProfilesView();
@@ -108,10 +108,12 @@ const MenuNavbar = ({ projectId }) => {
     order: item.order,
     label: item.label,
     icon: item.icon,
-    onClick:
-      "openTab" in item.action
-        ? () => openTab(item.action.openTab)
-        : () => togglePanel(item.action.togglePanel),
+    onClick: () => {
+      const { openTab: tab, openPanel: panel, togglePanel: toggle } = item.action;
+      if (tab) openTab(tab);
+      if (panel) openPanel(panel);
+      if (toggle) togglePanel(toggle);
+    },
     disabled: item.disabledInPreview ? isPreviewMode : false,
     active: item.activePanel ? activePanel === item.activePanel : false,
   }));

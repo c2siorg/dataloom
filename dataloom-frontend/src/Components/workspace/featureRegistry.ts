@@ -29,9 +29,17 @@ export interface FeaturePanel {
 
 /**
  * What a menu item does when clicked. Declarative because the registry can't call
- * hooks; MenuNavbar interprets it against useWorkspaceTabs / usePanel.
+ * hooks; MenuNavbar interprets it against useWorkspaceTabs / usePanel. Fields
+ * compose — e.g. Charts opens its tab and docks the builder panel together.
  */
-export type MenuAction = { openTab: WorkspaceTab } | { togglePanel: string };
+export interface MenuAction {
+  /** Open (or focus) this workspace tab. */
+  openTab?: WorkspaceTab;
+  /** Dock this side panel open. */
+  openPanel?: string;
+  /** Toggle this side panel (open if closed, close if open). */
+  togglePanel?: string;
+}
 
 /** A ribbon menu item contributed by a feature. */
 export interface FeatureMenuItem {
