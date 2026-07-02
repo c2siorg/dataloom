@@ -115,29 +115,17 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
 
         <div className="flex justify-between mt-2">
           <div className="flex gap-2">
-            <Button
-              type="submit"
-              disabled={isSubmitDisabled || loading || saving || isPreviewMode}
-            >
+            <Button type="submit" disabled={isSubmitDisabled || loading || saving || isPreviewMode}>
               {loading ? "Applying..." : "Apply"}
             </Button>
             {isPreviewMode && (
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                variant="success"
-              >
+              <Button type="button" onClick={handleSave} disabled={saving} variant="success">
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
             )}
           </div>
 
-          <Button
-            type="button"
-            onClick={handleCancel}
-            variant="secondary"
-          >
+          <Button type="button" onClick={handleCancel} variant="secondary">
             Cancel
           </Button>
         </div>

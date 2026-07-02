@@ -26,6 +26,7 @@ registerFeature({
       label: "Summary",
       icon: LuLayoutDashboard,
       action: { openTab: SUMMARY_TAB },
+      hover: "View a summary of the dataset.",
     },
   ],
 });

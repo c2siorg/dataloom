@@ -26,6 +26,7 @@ registerFeature({
       label: "Logs",
       icon: LuHistory,
       action: { openTab: LOGS_TAB },
+      hover: "View the history of transformations.",
     },
     {
       ribbon: "File",
@@ -34,6 +35,7 @@ registerFeature({
       label: "Checkpoints",
       icon: LuBookmark,
       action: { openTab: CHECKPOINTS_TAB },
+      hover: "View and revert to previous checkpoints.",
     },
   ],
 });

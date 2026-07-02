@@ -56,6 +56,8 @@ export interface FeatureMenuItem {
   disabledInPreview?: boolean;
   /** Highlight the item while this panel is the active one. */
   activePanel?: string;
+  /** Tooltip text to show on hover. */
+  hover?: string;
 }
 
 /** A tab contribution: a tab type mapped to the component that renders it. */

@@ -59,6 +59,7 @@ registerFeature({
       action: { togglePanel: "FilterForm" },
       disabledInPreview: true,
       activePanel: "FilterForm",
+      hover: "Filter rows based on conditions you specify.",
     },
     {
       ribbon: "Data",
@@ -69,6 +70,7 @@ registerFeature({
       action: { togglePanel: "SampleRowsForm" },
       disabledInPreview: true,
       activePanel: "SampleRowsForm",
+      hover: "Take a random sample of rows from the dataset.",
     },
     {
       ribbon: "Data",
@@ -79,6 +81,7 @@ registerFeature({
       action: { togglePanel: "SortForm" },
       disabledInPreview: true,
       activePanel: "SortForm",
+      hover: "Sort rows based on one or more columns.",
     },
     {
       ribbon: "Data",
@@ -89,6 +92,7 @@ registerFeature({
       action: { togglePanel: "DropDuplicateForm" },
       disabledInPreview: true,
       activePanel: "DropDuplicateForm",
+      hover: "Drop duplicate rows from the dataset.",
     },
     {
       ribbon: "Data",
@@ -99,6 +103,7 @@ registerFeature({
       action: { togglePanel: "GroupByForm" },
       disabledInPreview: true,
       activePanel: "GroupByForm",
+      hover: "Group rows by one or more columns and apply an aggregation.",
     },
     {
       ribbon: "Data",
@@ -109,6 +114,7 @@ registerFeature({
       action: { togglePanel: "CastDataTypeForm" },
       disabledInPreview: true,
       activePanel: "CastDataTypeForm",
+      hover: "Change the data type of a column.",
     },
     {
       ribbon: "Data",
@@ -119,6 +125,7 @@ registerFeature({
       action: { togglePanel: "TrimWhitespaceForm" },
       disabledInPreview: true,
       activePanel: "TrimWhitespaceForm",
+      hover: "Trim whitespace from the beginning and end of a column.",
     },
     {
       ribbon: "Data",
@@ -129,6 +136,7 @@ registerFeature({
       action: { togglePanel: "StringReplaceForm" },
       disabledInPreview: true,
       activePanel: "StringReplaceForm",
+      hover: "Replace a string in a column with another string.",
     },
     {
       ribbon: "Data",
@@ -139,6 +147,7 @@ registerFeature({
       action: { togglePanel: "FillEmptyForm" },
       disabledInPreview: true,
       activePanel: "FillEmptyForm",
+      hover: "Fill empty cells in a column with a specific value.",
     },
     // Data ▸ Query
     {
@@ -150,6 +159,7 @@ registerFeature({
       action: { togglePanel: "AdvQueryFilterForm" },
       disabledInPreview: true,
       activePanel: "AdvQueryFilterForm",
+      hover: "Filter rows using a SQL-like query.",
     },
     {
       ribbon: "Data",
@@ -160,6 +170,7 @@ registerFeature({
       action: { togglePanel: "PivotTableForm" },
       disabledInPreview: true,
       activePanel: "PivotTableForm",
+      hover: "Create a pivot table from the data.",
     },
     {
       ribbon: "Data",
@@ -170,6 +181,7 @@ registerFeature({
       action: { togglePanel: "MeltForm" },
       disabledInPreview: true,
       activePanel: "MeltForm",
+      hover: "Unpivot the data from a wide to a long format.",
     },
   ],
 });
