@@ -80,7 +80,15 @@ const MenuNavbar = ({ projectId }) => {
   // Core ribbon items — the ones that need component-local state/handlers and so
   // can't be declared as (declarative) feature menu items.
   const coreItems = [
-    { ribbon: "File", group: "Save", order: 0, label: "Save", icon: LuSave, onClick: handleSave },
+    {
+      ribbon: "File",
+      group: "Save",
+      order: 0,
+      label: "Save",
+      icon: LuSave,
+      onClick: handleSave,
+      hover: "Save the current state of the project as a new checkpoint.",
+    },
     {
       ribbon: "File",
       group: "Save",
@@ -88,8 +96,17 @@ const MenuNavbar = ({ projectId }) => {
       label: "Export",
       icon: LuDownload,
       onClick: () => setShowExportModal(true),
+      hover: "Export the data to a file.",
     },
-    { ribbon: "File", group: "Save", order: 2, label: "Undo", icon: LuUndo2, onClick: handleUndo },
+    {
+      ribbon: "File",
+      group: "Save",
+      order: 2,
+      label: "Undo",
+      icon: LuUndo2,
+      onClick: handleUndo,
+      hover: "Undo the last transformation.",
+    },
     {
       ribbon: "Profiling",
       group: "Profiling",
@@ -98,6 +115,7 @@ const MenuNavbar = ({ projectId }) => {
       icon: LuColumns3,
       onClick: handleToggleColumnProfiles,
       active: showColumnProfiles,
+      hover: "View the profile of each column.",
     },
   ];
 
@@ -168,6 +186,7 @@ const MenuNavbar = ({ projectId }) => {
                       data-testid={`toolbar-${item.label.toLowerCase().replace(/ /g, "-")}`}
                       onClick={item.onClick}
                       disabled={item.disabled}
+                      title={item.hover}
                       className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md transition-colors ${
                         isActive
                           ? "bg-blue-50 text-blue-600"
