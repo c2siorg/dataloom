@@ -36,6 +36,7 @@ _STANDARD_ATTRS = frozenset(
         "processName",
         "relativeCreated",
         "stack_info",
+        "taskName",
         "thread",
         "threadName",
     }
