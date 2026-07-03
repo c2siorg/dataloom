@@ -176,6 +176,36 @@ class TestJson:
             read_table_safe(path)
         assert exc.value.status_code == 400
 
+    def test_raw_utf8_read_is_locale_independent(self, tmp_path, monkeypatch):
+        """A JSON upload with raw UTF-8 bytes must decode correctly anywhere.
+
+        Most tools emit JSON as raw UTF-8 (ensure_ascii=False), but ``open()``
+        without an explicit encoding uses the platform default codec, so the
+        same file decodes to mojibake (or raises UnicodeDecodeError) on non-UTF-8
+        locales: Western Windows (cp1252), or an ASCII C/POSIX locale in slim
+        containers. This can't reproduce on the maintainers' UTF-8 dev boxes, so
+        we simulate the platform default by forcing cp1252 whenever the reader
+        opens the file in text mode without asking for an encoding.
+        """
+        import app.utils.file_formats as file_formats
+
+        real_open = open
+
+        def platform_default_open(file, mode="r", *args, **kwargs):
+            if "b" not in mode and "encoding" not in kwargs and len(args) < 2:
+                kwargs["encoding"] = "cp1252"
+            return real_open(file, mode, *args, **kwargs)
+
+        monkeypatch.setattr(file_formats, "open", platform_default_open, raising=False)
+
+        path = tmp_path / "data.json"
+        path.write_bytes(json.dumps([{"city": "München", "note": "café"}], ensure_ascii=False).encode("utf-8"))
+
+        df = read_table_safe(path)
+
+        assert df.iloc[0]["city"] == "München"
+        assert df.iloc[0]["note"] == "café"
+
 
 class TestHelperErrors:
     def test_missing_file_is_404(self, tmp_path):
