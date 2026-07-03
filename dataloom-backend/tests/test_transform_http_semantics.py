@@ -129,6 +129,27 @@ def test_transform_add_col_without_valid_name_returns_422(client, project_id, ad
     assert response.status_code == 422
 
 
+def test_transform_drop_duplicate_keep_true_returns_422(client, project_id):
+    # keep=True passes schema typing (DropDup | bool) but pandas rejects it;
+    # it must be a clean 422, not an Internal server error 500.
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={"operation_type": "dropDuplicate", "drop_duplicate": {"columns": "name", "keep": True}},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("keep", ["first", "last", False])
+def test_transform_drop_duplicate_valid_keep_succeeds(client, project_id, keep):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={"operation_type": "dropDuplicate", "drop_duplicate": {"columns": "name", "keep": keep}},
+    )
+
+    assert response.status_code == 200, response.text
+
+
 def test_transform_returns_500_on_unexpected_exception(client, project_id, monkeypatch):
     # Patch the endpoint's imported service module to force an unexpected crash.
     from app.api.endpoints import transformations as transformations_endpoint
