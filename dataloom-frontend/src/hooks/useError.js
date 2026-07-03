@@ -6,7 +6,13 @@ const useError = () => {
   const clearError = () => setError(null);
 
   const handleError = (err) => {
-    setError(err.response?.data?.detail || "Something went wrong. Please try again.");
+    let detail = err.response?.data?.detail;
+    if (Array.isArray(detail)) {
+      detail = detail.map((e) => e.msg ?? JSON.stringify(e)).join(", ");
+    } else if (typeof detail === "object" && detail !== null) {
+      detail = JSON.stringify(detail);
+    }
+    setError(detail || "Something went wrong. Please try again.");
   };
 
   return { error, setError, clearError, handleError };

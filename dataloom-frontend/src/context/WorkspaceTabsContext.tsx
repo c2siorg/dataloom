@@ -82,17 +82,20 @@ export function WorkspaceTabsProvider({
     setActiveTabId(tab.id);
   }, []);
 
-  const closeTab = useCallback((id: string) => {
-    setTabs((prev) => prev.filter((t) => t.id !== id));
-    setActiveTabId((currentActive) => {
-      if (currentActive !== id) return currentActive;
-      const index = tabs.findIndex((t) => t.id === id);
-      const remaining = tabs.filter((t) => t.id !== id);
-      // Activate the left neighbour, falling back to the right, else nothing.
-      const neighbour = remaining[index - 1] ?? remaining[index] ?? null;
-      return neighbour?.id ?? null;
-    });
-  }, [tabs]);
+  const closeTab = useCallback(
+    (id: string) => {
+      setTabs((prev) => prev.filter((t) => t.id !== id));
+      setActiveTabId((currentActive) => {
+        if (currentActive !== id) return currentActive;
+        const index = tabs.findIndex((t) => t.id === id);
+        const remaining = tabs.filter((t) => t.id !== id);
+        // Activate the left neighbour, falling back to the right, else nothing.
+        const neighbour = remaining[index - 1] ?? remaining[index] ?? null;
+        return neighbour?.id ?? null;
+      });
+    },
+    [tabs],
+  );
 
   const setActiveTab = useCallback((id: string) => {
     setActiveTabId(id);

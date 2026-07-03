@@ -34,7 +34,10 @@ test.describe("Transformations", () => {
     await selectColumn(form, "sort-column", "age");
     await form.getByRole("button", { name: /Apply Sort/i }).click();
 
-    // Sort applies directly to the table, wait for the first row to be updated
+    // Sort applies via preview workflow, wait for Save Changes to appear
+    await page
+      .getByText("Save Changes")
+      .waitFor({ state: "visible", timeout: 30000 });
 
     const firstRow = page
       .locator('[data-testid="data-table"] tbody tr')

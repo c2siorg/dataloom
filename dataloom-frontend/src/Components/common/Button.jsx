@@ -1,7 +1,7 @@
 /**
  * Reusable button component with variant and size support.
  * @param {Object} props
- * @param {'primary'|'secondary'|'danger'|'ghost'} [props.variant='primary'] - Visual style variant.
+ * @param {'primary'|'secondary'|'danger'|'ghost'|'success'} [props.variant='primary'] - Visual style variant.
  * @param {'sm'|'md'} [props.size='md'] - Button size.
  * @param {React.ReactNode} props.children - Button content.
  * @param {string} [props.className] - Additional CSS classes.
@@ -12,6 +12,7 @@ const VARIANT_CLASSES = {
   secondary: "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-300",
   danger: "bg-red-500 hover:bg-red-600 text-white focus:ring-red-500",
   ghost: "text-gray-500 hover:text-gray-700 hover:bg-gray-100",
+  success: "bg-green-600 hover:bg-green-700 text-white focus:ring-green-600",
 };
 
 const SIZE_CLASSES = {

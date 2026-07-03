@@ -72,11 +72,12 @@ const FilterForm = ({ projectId, onClose }) => {
     }
   };
 
-  const handleClose = () => {
+  const handleCancel = () => {
     if (isPreviewMode) {
       cancelPreview();
+    } else {
+      onClose();
     }
-    onClose();
   };
 
   return (
@@ -118,17 +119,12 @@ const FilterForm = ({ projectId, onClose }) => {
               Apply Filter
             </Button>
             {isPreviewMode && (
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-green-600 hover:bg-green-700 focus:ring-green-600"
-              >
+              <Button type="button" onClick={handleSave} disabled={saving} variant="success">
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
             )}
           </div>
-          <Button type="button" variant="secondary" onClick={handleClose}>
+          <Button type="button" variant="secondary" onClick={handleCancel}>
             Cancel
           </Button>
         </div>

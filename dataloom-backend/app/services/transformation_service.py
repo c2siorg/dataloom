@@ -779,8 +779,6 @@ class TransformationSpec:
         missing_error: Client-facing 400 detail raised by the execution path when
             ``params_field`` is absent. ``None`` skips the presence check (the
             parameters are optional, e.g. dropNa).
-        persist: Whether a successful result is saved to disk and logged. Read-only
-            previews (advanced query, pivot, melt) set this to ``False``.
         build_args: Maps the full serialized details dict to the positional args
             passed to ``func`` after ``df``.
         replay_tolerant: When ``True``, a replay whose parameters are missing/
@@ -790,7 +788,6 @@ class TransformationSpec:
     func: str
     params_field: str | None
     missing_error: str | None
-    persist: bool
     build_args: Callable[[dict], tuple]
     replay_tolerant: bool = False
 
@@ -814,14 +811,12 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         func="apply_filter",
         params_field="parameters",
         missing_error="Filter parameters required",
-        persist=True,
         build_args=lambda d: (d["parameters"]["column"], d["parameters"]["condition"], d["parameters"]["value"]),
     ),
     OperationType.sort: TransformationSpec(
         func="apply_sort",
         params_field="sort_params",
         missing_error="Sort parameters required",
-        persist=True,
         build_args=lambda d: (
             d["sort_params"].get("column"),
             d["sort_params"].get("ascending", True),
@@ -832,21 +827,18 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         func="add_row",
         params_field="row_params",
         missing_error="Row parameters required",
-        persist=True,
         build_args=lambda d: (d["row_params"]["index"],),
     ),
     OperationType.delRow: TransformationSpec(
         func="delete_row",
         params_field="row_params",
         missing_error="Row parameters required",
-        persist=True,
         build_args=lambda d: (d["row_params"]["index"],),
     ),
     OperationType.addCol: TransformationSpec(
         func="add_column",
         params_field="add_col_params",
         missing_error="Column parameters required",
-        persist=True,
         build_args=lambda d: (
             _col_params(d, "add_col_params")["index"],
             _col_params(d, "add_col_params")["name"],
@@ -856,14 +848,12 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         func="delete_column",
         params_field="del_col_params",
         missing_error="Column index required",
-        persist=True,
         build_args=lambda d: (_col_params(d, "del_col_params")["index"],),
     ),
     OperationType.changeCellValue: TransformationSpec(
         func="change_cell_value",
         params_field="change_cell_value",
         missing_error="Cell value parameters required",
-        persist=True,
         build_args=lambda d: (
             d["change_cell_value"]["row_index"],
             d["change_cell_value"]["col_index"],
@@ -874,7 +864,6 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         func="fill_empty",
         params_field="fill_empty_params",
         missing_error="Fill parameters required",
-        persist=True,
         build_args=lambda d: (
             d["fill_empty_params"].get("fill_value"),
             d["fill_empty_params"].get("index"),
@@ -885,35 +874,30 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         func="rename_column",
         params_field="rename_col_params",
         missing_error="Rename column parameters required",
-        persist=True,
         build_args=lambda d: (d["rename_col_params"]["col_index"], d["rename_col_params"]["new_name"]),
     ),
     OperationType.castDataType: TransformationSpec(
         func="cast_data_type",
         params_field="cast_data_type_params",
         missing_error="Cast data type parameters required",
-        persist=True,
         build_args=lambda d: (d["cast_data_type_params"]["column"], d["cast_data_type_params"]["target_type"]),
     ),
     OperationType.trimWhitespace: TransformationSpec(
         func="trim_whitespace",
         params_field="trim_whitespace_params",
         missing_error="Trim whitespace parameters required",
-        persist=True,
         build_args=lambda d: (d["trim_whitespace_params"]["column"],),
     ),
     OperationType.sample: TransformationSpec(
         func="sample_rows",
         params_field="sample_params",
         missing_error="Sample parameters required",
-        persist=True,
         build_args=lambda d: (d["sample_params"]["sample_size"], d["sample_params"].get("random_seed")),
     ),
     OperationType.stringReplace: TransformationSpec(
         func="string_replace",
         params_field="string_replace_params",
         missing_error="String replace parameters required",
-        persist=True,
         build_args=lambda d: (
             d["string_replace_params"]["column"],
             d["string_replace_params"]["find_value"],
@@ -925,21 +909,18 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         func="drop_duplicates",
         params_field="drop_duplicate",
         missing_error="Drop duplicate parameters required",
-        persist=True,
         build_args=lambda d: (d["drop_duplicate"]["columns"], d["drop_duplicate"]["keep"]),
     ),
     OperationType.advQueryFilter: TransformationSpec(
         func="advanced_query",
         params_field="adv_query",
         missing_error="Query parameter required",
-        persist=False,
         build_args=lambda d: (d["adv_query"]["query"],),
     ),
     OperationType.pivotTables: TransformationSpec(
         func="pivot_table",
         params_field="pivot_query",
         missing_error="Pivot parameters required",
-        persist=False,
         build_args=lambda d: (
             d["pivot_query"]["index"],
             d["pivot_query"]["value"],
@@ -951,21 +932,18 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         func="drop_na",
         params_field="drop_na_params",
         missing_error=None,
-        persist=True,
         build_args=lambda d: ((d.get("drop_na_params") or {}).get("columns"),),
     ),
     OperationType.melt: TransformationSpec(
         func="melt_dataframe",
         params_field="melt_params",
         missing_error="Melt parameters required",
-        persist=False,
         build_args=lambda d: (d["melt_params"],),
     ),
     OperationType.groupby: TransformationSpec(
         func="group_by",
         params_field="groupby_params",
         missing_error="GroupBy parameters required",
-        persist=True,
         build_args=lambda d: (
             d["groupby_params"]["columns"],
             d["groupby_params"]["agg_column"],

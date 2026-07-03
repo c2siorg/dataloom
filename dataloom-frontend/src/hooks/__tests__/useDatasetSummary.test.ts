@@ -68,10 +68,9 @@ describe("useDatasetSummary", () => {
   it("consults the cache again after a refetch (bypass does not persist)", async () => {
     mockGet.mockResolvedValue({ row_count: 10 } as never);
 
-    const { result, rerender } = renderHook(
-      ({ enabled }) => useDatasetSummary("p1", enabled, 0),
-      { initialProps: { enabled: true } },
-    );
+    const { result, rerender } = renderHook(({ enabled }) => useDatasetSummary("p1", enabled, 0), {
+      initialProps: { enabled: true },
+    });
     await waitFor(() => expect(result.current.summary).not.toBeNull());
     expect(mockGet).toHaveBeenCalledTimes(1);
 
