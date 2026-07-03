@@ -74,6 +74,20 @@ class TestFilter:
         assert len(result) == 2  # Alice and Charlie
         assert "Bob" not in result["name"].values
 
+    def test_filter_contains_literal_metacharacters(self):
+        """contains should match values with regex metacharacters literally, not crash."""
+        df = pd.DataFrame({"c": ["price (USD)", "plain"]})
+        result = apply_filter(df, "c", "contains", "(")
+        assert len(result) == 1
+        assert result.iloc[0]["c"] == "price (USD)"
+
+    def test_filter_contains_dot_is_literal(self):
+        """A '.' in the search value should match a literal dot, not any character."""
+        df = pd.DataFrame({"c": ["a.b", "axb", "a+b"]})
+        result = apply_filter(df, "c", "contains", "a.b")
+        assert len(result) == 1
+        assert result.iloc[0]["c"] == "a.b"
+
     def test_filter_invalid_condition(self, sample_df):
         with pytest.raises(TransformationError, match="Unsupported"):
             apply_filter(sample_df, "name", "invalid", "Alice")

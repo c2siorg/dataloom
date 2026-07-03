@@ -92,7 +92,7 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
         "<": lambda col, val: df[col < val],
         ">=": lambda col, val: df[col >= val],
         "<=": lambda col, val: df[col <= val],
-        "contains": lambda col, val: df[col.astype(str).str.contains(val, na=False, case=False)],
+        "contains": lambda col, val: df[col.astype(str).str.contains(val, na=False, case=False, regex=False)],
     }
 
     condition_str = condition.value if hasattr(condition, "value") else str(condition)
