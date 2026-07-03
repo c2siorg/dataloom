@@ -2,8 +2,7 @@ import { useState } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
-import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
-import { useToast } from "../../context/ToastContext";
+import usePreviewSave from "../../hooks/usePreviewSave";
 import { STRING_REPLACE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
@@ -11,14 +10,14 @@ import ColumnSelect from "../common/ColumnSelect";
 import Button from "../common/Button";
 
 const StringReplaceForm = ({ projectId, onClose }) => {
-  const { updateData, refreshProject, pageSize } = useProjectContext();
-  const { refreshLogs } = useHistoryRefresh();
-  const { showToast } = useToast();
+  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
 
   const [column, setColumn] = useState("");
   const [findValue, setFindValue] = useState("");
   const [replaceValue, setReplaceValue] = useState("");
-  const { error, setError, clearError } = useError();
+  const [loading, setLoading] = useState(false);
+  const { error, setError, clearError, handleError } = useError();
+  const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,34 +29,30 @@ const StringReplaceForm = ({ projectId, onClose }) => {
       return;
     }
 
+    setLoading(true);
     try {
-      const response = await transformProject(projectId, {
+      const payload = {
         operation_type: STRING_REPLACE,
         string_replace_params: {
           column,
           find_value: findValue,
           replace_value: replaceValue,
         },
-      });
-
-      updateData(response.columns, response.rows, {
-        dtypes: response.dtypes,
-        resetColumnOrder: false,
-      });
-      await refreshProject(projectId, 1, pageSize);
-      refreshLogs();
-      onClose();
+      };
+      const response = await transformProject(projectId, payload, { preview: true });
+      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (error) {
-      console.error("Error replacing string:", error);
-      const detail = error.response?.data?.detail;
-      const message =
-        typeof detail === "string"
-          ? detail
-          : Array.isArray(detail)
-            ? detail.map((e) => e.msg ?? JSON.stringify(e)).join(", ")
-            : "Failed to replace string.";
+      handleError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      showToast(message, "error");
+  const handleCancel = () => {
+    if (isPreviewMode) {
+      cancelPreview();
+    } else {
+      onClose();
     }
   };
 
@@ -99,9 +94,18 @@ const StringReplaceForm = ({ projectId, onClose }) => {
         </div>
 
         <div className="flex justify-between">
-          <Button type="submit">Apply</Button>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={loading || saving || isPreviewMode}>
+              {loading ? "Applying..." : "Apply"}
+            </Button>
+            {isPreviewMode && (
+              <Button type="button" onClick={handleSave} disabled={saving} variant="success">
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
 
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={handleCancel}>
             Cancel
           </Button>
         </div>

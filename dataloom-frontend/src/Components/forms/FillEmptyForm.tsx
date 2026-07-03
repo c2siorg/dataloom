@@ -1,12 +1,13 @@
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
-import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
+import usePreviewSave from "../../hooks/usePreviewSave";
 import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import Select from "../common/Select";
+import Button from "../common/Button";
 
 const STRATEGIES = [
   { value: "custom", label: "Custom Value" },
@@ -18,10 +19,11 @@ const STRATEGIES = [
 ];
 
 const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
-  const { columns, refreshProject, pageSize } = useProjectContext();
-  const { refreshLogs } = useHistoryRefresh();
+  const { columns, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { showToast } = useToast();
   const { error, clearError, handleError } = useError();
+  const [loading, setLoading] = useState(false);
+  const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
 
   const [selectedColumn, setSelectedColumn] = useState("");
   const [strategy, setStrategy] = useState("custom");
@@ -41,19 +43,18 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
 
     const columnIndex = selectedColumn !== "" ? columns.indexOf(selectedColumn) : null;
 
+    setLoading(true);
     try {
-      await transformProject(projectId, {
+      const payload = {
         operation_type: "fillEmpty",
         fill_empty_params: {
           index: columnIndex,
           strategy,
           fill_value: strategy === "custom" ? fillValue : null,
         },
-      });
-
-      await refreshProject(projectId, 1, pageSize);
-      refreshLogs();
-      onClose();
+      };
+      const response = await transformProject(projectId, payload, { preview: true });
+      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
       handleError(err);
       showToast(
@@ -61,6 +62,16 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
           "Failed to fill empty cells.",
         "error",
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (isPreviewMode) {
+      cancelPreview();
+    } else {
+      onClose();
     }
   };
 
@@ -103,21 +114,32 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
         <FormErrorAlert message={error} />
 
         <div className="flex justify-between mt-2">
-          <button
-            type="submit"
-            disabled={isSubmitDisabled}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Apply
-          </button>
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              disabled={isSubmitDisabled || loading || saving || isPreviewMode}
+            >
+              {loading ? "Applying..." : "Apply"}
+            </Button>
+            {isPreviewMode && (
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                variant="success"
+              >
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
 
-          <button
+          <Button
             type="button"
-            onClick={onClose}
-            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150"
+            onClick={handleCancel}
+            variant="secondary"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>

@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import TransformResultPreview from "./TransformResultPreview";
 import { transformProject, getProjectDetails } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
-import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
+import usePreviewSave from "../../hooks/usePreviewSave";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Button from "../common/Button";
 
@@ -13,11 +12,14 @@ const MeltForm = ({ projectId, onClose }) => {
   const [valueVars, setValueVars] = useState([]);
   const [varName, setVarName] = useState("variable");
   const [valueName, setValueName] = useState("value");
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { updateData, refreshProject, pageSize } = useProjectContext();
-  const { refreshLogs } = useHistoryRefresh();
+  const [loading, setLoading] = useState(false);
+  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { saving, handleSave } = usePreviewSave({
+    clearError: () => setError(null),
+    handleError: (err) => setError(err.response?.data?.detail || err.message),
+    onClose,
+  });
 
   useEffect(() => {
     const fetchProjectDetails = async () => {
@@ -31,6 +33,14 @@ const MeltForm = ({ projectId, onClose }) => {
     };
     fetchProjectDetails();
   }, [projectId]);
+
+  const handleCancel = () => {
+    if (isPreviewMode) {
+      cancelPreview();
+    } else {
+      onClose();
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,7 +68,7 @@ const MeltForm = ({ projectId, onClose }) => {
       const finalVarName = varName.trim() || "variable";
       const finalValueName = valueName.trim() || "value";
 
-      const response = await transformProject(projectId, {
+      const payload = {
         operation_type: "melt",
         melt_params: {
           id_vars: idVars,
@@ -66,14 +76,9 @@ const MeltForm = ({ projectId, onClose }) => {
           var_name: finalVarName,
           value_name: finalValueName,
         },
-      });
-      setResult(response);
-      updateData(response.columns, response.rows, {
-        dtypes: response.dtypes,
-        resetColumnOrder: false,
-      });
-      await refreshProject(projectId, 1, pageSize);
-      refreshLogs();
+      };
+      const response = await transformProject(projectId, payload, { preview: true });
+      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
     } finally {
@@ -134,27 +139,21 @@ const MeltForm = ({ projectId, onClose }) => {
         </div>
 
         <div className="flex justify-between pt-2">
-          <Button type="submit" disabled={loading}>
-            {loading ? "Processing..." : "Apply Melt"}
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={loading || saving || isPreviewMode}>
+              {loading ? "Processing..." : "Apply Melt"}
+            </Button>
+            {isPreviewMode && (
+              <Button type="button" onClick={handleSave} disabled={saving} variant="success">
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
+          <Button type="button" variant="secondary" onClick={handleCancel}>
             Cancel
           </Button>
         </div>
       </form>
-      {result && (
-        <div className="mt-6 border-t border-gray-100 pt-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-              Transformation Result Preview
-            </h4>
-            <span className="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
-              {result.row_count} rows generated
-            </span>
-          </div>
-          <TransformResultPreview columns={result.columns} rows={result.rows} />
-        </div>
-      )}
     </div>
   );
 };

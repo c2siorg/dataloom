@@ -1,15 +1,14 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import TransformResultPreview from "./TransformResultPreview";
+import useError from "../../hooks/useError";
 import { transformProject } from "../../api";
 import { PIVOT_TABLES } from "../../constants/operationTypes";
-import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
-import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
+import usePreviewSave from "../../hooks/usePreviewSave";
 import Button from "../common/Button";
 import { AGG_FUNCTIONS } from "../../constants/aggregations";
 
@@ -18,11 +17,10 @@ const PivotTableForm = ({ projectId, onClose }) => {
   const [column, setColumn] = useState("");
   const [value, setValue] = useState("");
   const [aggfun, setAggfun] = useState("sum");
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
-  const { updateData, refreshProject, pageSize } = useProjectContext();
-  const { refreshLogs } = useHistoryRefresh();
+  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,22 +38,25 @@ const PivotTableForm = ({ projectId, onClose }) => {
 
     setLoading(true);
     try {
-      const response = await transformProject(projectId, {
+      const payload = {
         operation_type: PIVOT_TABLES,
         pivot_query: { index: index.join(","), column, value, aggfun },
-      });
-      setResult(response);
-      updateData(response.columns, response.rows, {
-        dtypes: response.dtypes,
-        resetColumnOrder: false,
-      });
-      await refreshProject(projectId, 1, pageSize);
-      refreshLogs();
+      };
+      const response = await transformProject(projectId, payload, { preview: true });
+      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
       console.error("Error applying pivot table:", err.message);
       handleError(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (isPreviewMode) {
+      cancelPreview();
+    } else {
+      onClose();
     }
   };
 
@@ -87,16 +88,22 @@ const PivotTableForm = ({ projectId, onClose }) => {
           <Select value={aggfun} onChange={setAggfun} options={AGG_FUNCTIONS} />
         </div>
         <div className="flex justify-between">
-          <Button type="submit" disabled={loading}>
-            {loading ? "Submitting..." : "Submit"}
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={loading || saving || isPreviewMode}>
+              {loading ? "Submitting..." : "Submit"}
+            </Button>
+            {isPreviewMode && (
+              <Button type="button" onClick={handleSave} disabled={saving} variant="success">
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
+          <Button type="button" variant="secondary" onClick={handleCancel}>
             Cancel
           </Button>
         </div>
         <FormErrorAlert message={error} />
       </form>
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };

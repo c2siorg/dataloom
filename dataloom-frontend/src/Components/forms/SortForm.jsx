@@ -2,13 +2,12 @@ import { useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { SORT } from "../../constants/operationTypes";
-import TransformResultPreview from "./TransformResultPreview";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import Select from "../common/Select";
 import { useProjectContext } from "../../context/ProjectContext";
-import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
+import usePreviewSave from "../../hooks/usePreviewSave";
 import Button from "../common/Button";
 
 const ORDER_OPTIONS = [
@@ -21,13 +20,12 @@ const ORDER_OPTIONS = [
  * Allows users to add, remove, and reorder multiple sort criteria.
  */
 const SortForm = ({ projectId, onClose }) => {
-  const { updateData, refreshProject, pageSize } = useProjectContext();
-  const { refreshLogs } = useHistoryRefresh();
+  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const [criteria, setCriteria] = useState([{ id: 1, column: "", ascending: true }]);
   const [nextId, setNextId] = useState(2);
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
+  const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
 
   const addCriterion = useCallback(() => {
     setCriteria((prev) => [...prev, { id: nextId, column: "", ascending: true }]);
@@ -91,23 +89,26 @@ const SortForm = ({ projectId, onClose }) => {
     setLoading(true);
     clearError();
     try {
-      const response = await transformProject(projectId, {
+      const payload = {
         operation_type: SORT,
         sort_params: {
           criteria: criteriaList,
         },
-      });
-      setResult(response);
-      updateData(response.columns, response.rows, {
-        dtypes: response.dtypes,
-        resetColumnOrder: false,
-      });
-      await refreshProject(projectId, 1, pageSize);
-      refreshLogs();
+      };
+      const response = await transformProject(projectId, payload, { preview: true });
+      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
       handleError(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (isPreviewMode) {
+      cancelPreview();
+    } else {
+      onClose();
     }
   };
 
@@ -202,16 +203,25 @@ const SortForm = ({ projectId, onClose }) => {
           Add Sort Criterion
         </button>
         <div className="flex justify-between pt-4 border-t border-gray-200">
-          <Button type="submit" disabled={loading || criteria.length === 0}>
-            {loading ? "Applying..." : "Apply Sort"}
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              disabled={loading || saving || isPreviewMode || criteria.length === 0}
+            >
+              {loading ? "Applying..." : "Apply Sort"}
+            </Button>
+            {isPreviewMode && (
+              <Button type="button" onClick={handleSave} disabled={saving} variant="success">
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            )}
+          </div>
+          <Button type="button" variant="secondary" onClick={handleCancel}>
             Cancel
           </Button>
         </div>
         <FormErrorAlert message={error} />
       </form>
-      {result && <TransformResultPreview columns={result.columns} rows={result.rows} />}
     </div>
   );
 };

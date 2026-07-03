@@ -85,7 +85,7 @@ def _dispatch_transform(df, transformation_input):
     (``apply_logged_transformation``), so the two cannot drift apart.
 
     Returns:
-        Tuple of (result_df, should_save).
+        result_df
     """
     op = transformation_input.operation_type
     spec = ts.TRANSFORMATION_REGISTRY.get(op)
@@ -97,7 +97,7 @@ def _dispatch_transform(df, transformation_input):
         raise HTTPException(status_code=400, detail=spec.missing_error)
 
     func = ts.resolve_transformation(spec.func)
-    return func(df, *spec.build_args(details)), spec.persist
+    return func(df, *spec.build_args(details))
 
 
 @router.post("/{project_id}/transform", response_model=schemas.BasicQueryResponse)
@@ -120,9 +120,9 @@ async def transform_project(
     try:
         df = read_table_safe(project.file_path)
 
-        result_df, should_save = _dispatch_transform(df, transformation_input)
+        result_df = _dispatch_transform(df, transformation_input)
 
-        if should_save and not preview:
+        if not preview:
             save_table_safe(result_df, project.file_path)
             try:
                 log_transformation(db, project_id, operation_type, transformation_input.dict())
