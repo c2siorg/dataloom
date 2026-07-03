@@ -439,6 +439,21 @@ class TestDropDuplicates:
         with pytest.raises(TransformationError):
             drop_duplicates(sample_df, "nonexistent", "first")
 
+    def test_schema_rejects_keep_true(self):
+        # keep=True is not a valid pandas option and would crash downstream;
+        # the schema must reject it instead of forwarding it to drop_duplicates.
+        from app import schemas
+
+        with pytest.raises(ValueError):
+            schemas.DropDuplicates(columns="name", keep=True)
+
+    @pytest.mark.parametrize("keep", ["first", "last", False])
+    def test_schema_accepts_valid_keep(self, keep):
+        from app import schemas
+
+        params = schemas.DropDuplicates(columns="name", keep=keep)
+        assert params.keep == keep
+
 
 class TestAdvancedQuery:
     def test_simple_query(self, sample_df):

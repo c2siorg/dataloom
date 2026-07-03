@@ -235,6 +235,16 @@ class DropDuplicates(BaseModel):
     columns: str
     keep: DropDup | bool
 
+    @field_validator("keep")
+    @classmethod
+    def keep_bool_must_be_false(cls, v):
+        # pandas.drop_duplicates only accepts "first", "last", or False.
+        # False means "drop all duplicates"; True is not a valid option, so
+        # reject it here instead of letting pandas raise a 500 downstream.
+        if v is True:
+            raise ValueError('keep must be "first", "last", or false')
+        return v
+
 
 class AdvQuery(BaseModel):
     """Parameters for an advanced pandas query filter."""
