@@ -102,8 +102,6 @@ async def reset_password(
     _rate_limit: None = Depends(rate_limit),
 ):
     """Reset password using a valid reset token."""
-    if len(payload.new_password) < 8:
-        raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
     try:
         reset_token = auth_service.validate_reset_token(db, payload.token)
         auth_service.reset_user_password(db, reset_token, payload.new_password)
@@ -133,9 +131,6 @@ def change_password(
     db: Session = Depends(database.get_db),
 ):
     """Change the currently authenticated user's password."""
-    if len(payload.new_password) < 8:
-        raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
-
     try:
         auth_service.change_user_password(
             db,

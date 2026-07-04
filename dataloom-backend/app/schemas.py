@@ -620,6 +620,16 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
 
+    @field_validator("new_password")
+    @classmethod
+    def password_length_ok(cls, v: str) -> str:
+        byte_len = len(v.encode("utf-8"))
+        if byte_len < 8:
+            raise ValueError("password must be at least 8 characters")
+        if byte_len > 72:
+            raise ValueError("password must be at most 72 bytes")
+        return v
+
 
 class UpdateEmailRequest(BaseModel):
     """Request body for updating the authenticated user's email."""
@@ -632,6 +642,16 @@ class ChangePasswordRequest(BaseModel):
 
     current_password: str
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_length_ok(cls, v: str) -> str:
+        byte_len = len(v.encode("utf-8"))
+        if byte_len < 8:
+            raise ValueError("password must be at least 8 characters")
+        if byte_len > 72:
+            raise ValueError("password must be at most 72 bytes")
+        return v
 
 
 class DeleteAccountRequest(BaseModel):
