@@ -170,6 +170,18 @@ class TestProfileManagement:
 
         assert response.status_code == 422
 
+    def test_change_password_long_password_returns_422(self, client):
+        """Should reject new passwords longer than bcrypt's 72-byte limit with a clean 422."""
+        response = client.patch(
+            "/auth/me/password",
+            json={
+                "current_password": "testpassword",
+                "new_password": "a" * 73,
+            },
+        )
+
+        assert response.status_code == 422
+
     def test_delete_account_success(self, client, test_user, db):
         response = client.request(
             "DELETE",
@@ -346,6 +358,26 @@ class TestPasswordReset:
         response = anon_client.post(
             "/auth/reset-password",
             json={"token": raw_token, "new_password": "short"},
+        )
+        assert response.status_code == 422
+
+    def test_reset_password_long_password(self, anon_client, db):
+        """Should reject passwords longer than bcrypt's 72-byte limit with a clean 422."""
+        user = create_user(db, "long@example.com", "oldpassword123")
+
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        reset_token = models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+        db.add(reset_token)
+        db.commit()
+
+        response = anon_client.post(
+            "/auth/reset-password",
+            json={"token": raw_token, "new_password": "a" * 73},
         )
         assert response.status_code == 422
 
