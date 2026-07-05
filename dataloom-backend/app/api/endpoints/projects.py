@@ -495,3 +495,16 @@ async def update_project_endpoint(
         "description": updated.description,
         "file_path": updated.file_path,
     }
+
+
+@router.get("/{project_id}/meta", response_model=schemas.ProjectMetaResponse)
+async def get_project_meta(
+    project: models.Project = Depends(get_project_or_404),
+):
+    """Fetch project metadata only — no row data."""
+    return schemas.ProjectMetaResponse(
+        project_id=project.project_id,
+        name=project.name,
+        description=project.description,
+        last_modified=project.last_modified,
+    )
