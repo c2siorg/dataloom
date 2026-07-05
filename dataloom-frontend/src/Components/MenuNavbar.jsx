@@ -29,7 +29,7 @@ const MenuNavbar = ({ projectId }) => {
 
   const { updateData, refreshProject, pageSize, projectName, isPreviewMode } = useProjectContext();
   const { activePanel, openPanel, togglePanel, closePanel } = usePanel();
-  const { openTab } = useWorkspaceTabs();
+  const { openTab, activeTabId } = useWorkspaceTabs();
   const { refreshLogs, refreshCheckpoints } = useHistoryRefresh();
   const { showColumnProfiles, toggleColumnProfiles } = useColumnProfilesView();
 
@@ -133,7 +133,11 @@ const MenuNavbar = ({ projectId }) => {
       if (toggle) togglePanel(toggle);
     },
     disabled: item.disabledInPreview ? isPreviewMode : false,
-    active: item.activePanel ? activePanel === item.activePanel : false,
+    active: item.activePanel
+      ? activePanel === item.activePanel
+      : item.action?.openTab
+        ? activeTabId === item.action.openTab.id
+        : false,
   }));
 
   const allItems = [...coreItems, ...featureItems];
