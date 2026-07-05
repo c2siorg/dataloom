@@ -9,6 +9,7 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
+  X,
 } from "lucide-react";
 import { getProjects, searchProjects } from "../../api/projects";
 import { ROUTES } from "../../constants/routes";
@@ -28,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function SettingsPage() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
@@ -40,7 +42,6 @@ export default function SettingsPage() {
     try {
       setIsProjectsLoading(true);
       const response = (await getProjects({ limit: PAGE_SIZE, offset })) as Project[];
-
       setProjects((prev) => (offset === 0 ? response : [...prev, ...response]));
       setHasMoreProjects(response.length === PAGE_SIZE);
     } catch (error) {
@@ -58,15 +59,12 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const query = searchQuery.trim();
-
     if (!query) {
       setSearchResults([]);
       setIsSearchLoading(false);
       return;
     }
-
     let cancelled = false;
-
     const timeoutId = setTimeout(async () => {
       try {
         setIsSearchLoading(true);
@@ -81,7 +79,6 @@ export default function SettingsPage() {
         if (!cancelled) setIsSearchLoading(false);
       }
     }, 300);
-
     return () => {
       cancelled = true;
       clearTimeout(timeoutId);
@@ -91,12 +88,51 @@ export default function SettingsPage() {
   const isSearching = searchQuery.trim().length > 0;
   const visibleProjects = isSearching ? searchResults : projects;
 
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <div className="flex min-h-full bg-slate-50">
-      <aside className="w-56 shrink-0 border-r border-gray-200 bg-white px-3 py-6 flex flex-col">
-        <div className="mb-6 flex items-center gap-2 px-3">
-          <Settings className="h-5 w-5 text-gray-700" />
-          <span className="text-sm font-semibold text-gray-900">Settings</span>
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-14 left-0 right-0 z-20 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setSidebarOpen((prev) => !prev)}
+          className="flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50"
+          aria-label="Toggle settings menu"
+        >
+          <Settings className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-semibold text-gray-900">Settings</span>
+      </div>
+
+      {/* Overlay */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-20 bg-black/30" onClick={closeSidebar} />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed md:static inset-y-0 left-0 z-30
+          w-56 shrink-0 border-r border-gray-200 bg-white px-3 py-6 flex flex-col
+          transform transition-transform duration-200
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          md:translate-x-0
+        `}
+      >
+        <div className="mb-6 flex items-center justify-between px-3">
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-gray-700" />
+            <span className="text-sm font-semibold text-gray-900">Settings</span>
+          </div>
+          <button
+            type="button"
+            onClick={closeSidebar}
+            className="md:hidden rounded-lg p-1 text-gray-400 hover:bg-gray-100"
+            aria-label="Close menu"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         <nav className="flex flex-col gap-1">
@@ -104,6 +140,7 @@ export default function SettingsPage() {
             <NavLink
               key={to}
               to={to}
+              onClick={closeSidebar}
               className={({ isActive }) =>
                 `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
@@ -158,6 +195,7 @@ export default function SettingsPage() {
                     <NavLink
                       key={project.project_id}
                       to={ROUTES.settingsProject(project.project_id)}
+                      onClick={closeSidebar}
                       className={({ isActive }) =>
                         `truncate rounded-lg px-3 py-2 flex items-center text-xs font-medium transition-colors ${
                           isActive
@@ -189,6 +227,7 @@ export default function SettingsPage() {
         <div className="mt-auto pt-6 px-3">
           <Link
             to={ROUTES.home}
+            onClick={closeSidebar}
             className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -197,7 +236,7 @@ export default function SettingsPage() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto px-8 py-10">
+      <main className="flex-1 overflow-y-auto px-4 md:px-8 py-10 mt-14 md:mt-0">
         <Outlet />
       </main>
     </div>
