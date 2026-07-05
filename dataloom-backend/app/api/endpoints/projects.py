@@ -24,6 +24,7 @@ from app.services.project_service import (
     delete_change_log,
     delete_project,
     get_last_change_log,
+    get_project_files,
     get_projects,
     get_recent_projects,
     rename_project,
@@ -383,6 +384,8 @@ async def delete_project_endpoint(
     project_id = project.project_id
     project_name = project.name
     file_path = project.file_path
+    # Snapshot inventory paths before the rows are deleted with the project.
+    inventory_paths = [f.file_path for f in get_project_files(db, project_id)]
 
     logger.info("Delete project request: id=%s, name=%s, file_path=%s", project_id, project_name, file_path)
 
@@ -401,6 +404,14 @@ async def delete_project_endpoint(
             project_name,
             file_path,
         )
+
+    for inventory_path in inventory_paths:
+        try:
+            Path(inventory_path).unlink()
+        except FileNotFoundError:
+            logger.warning("Inventory file already missing: %s", inventory_path)
+        except OSError:
+            logger.exception("Failed to delete inventory file: id=%s, path=%s", project_id, inventory_path)
 
     return {"success": True, "message": "Project deleted"}
 

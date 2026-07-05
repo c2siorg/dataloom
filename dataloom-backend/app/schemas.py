@@ -44,6 +44,7 @@ class OperationType(StrEnum):
     melt = "melt"
     sample = "sample"
     stringReplace = "stringReplace"
+    addFile = "addFile"
 
 
 class DropDup(StrEnum):
@@ -349,6 +350,36 @@ class ProjectResponse(BaseModel):
     row_count: int
     rows: list[list]
     dtypes: dict[str, str] = {}
+
+
+# --- Add-file (append) schemas ---
+
+
+class DtypeClash(BaseModel):
+    """A matched column whose simplified dtype differs between the two files."""
+
+    column: str
+    existing_dtype: str
+    incoming_dtype: str
+
+
+class AppendPreviewResponse(BaseModel):
+    """How an incoming file would align with the project's current data."""
+
+    matched_columns: list[str]
+    new_columns: list[str]
+    missing_columns: list[str]
+    dtype_clashes: list[DtypeClash]
+    current_row_count: int
+    incoming_row_count: int
+
+
+class ProjectFileResponse(BaseModel):
+    """An entry in a project's file inventory."""
+
+    id: uuid.UUID
+    original_filename: str
+    uploaded_at: datetime.datetime | None = None
 
 
 # --- Profiling response schemas ---

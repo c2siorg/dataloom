@@ -14,6 +14,7 @@ import "./workspace/features/transforms";
 import "./workspace/features/history";
 import "./workspace/features/profiling";
 import "./workspace/features/charts";
+import "./workspace/features/addFile";
 import WorkspaceTabBar from "./workspace/WorkspaceTabBar";
 import RightPanel from "./workspace/RightPanel";
 import MenuNavbar from "./MenuNavbar";

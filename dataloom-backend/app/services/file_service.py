@@ -16,21 +16,19 @@ def _copy_path_for(original_path: Path) -> Path:
     return original_path.with_name(f"{original_path.stem}_copy{original_path.suffix}")
 
 
-def store_upload(file) -> tuple[Path, Path]:
-    """Store an uploaded file and create a working copy in the same format.
+def _validated_write(file) -> Path:
+    """Validate an upload and write it to a sanitized path in the upload dir.
 
     Validates the file extension against the supported-format registry and
     enforces the configured ``max_upload_size_bytes`` limit via chunked
-    streaming before writing anything to disk. The working copy keeps the
-    native extension, so revert/undo can re-read the original in its own format.
-    The file pointer is reset to 0 after validation so ``shutil.copyfileobj``
-    writes a complete file.
+    streaming before writing anything to disk. The file pointer is reset to 0
+    after validation so ``shutil.copyfileobj`` writes a complete file.
 
     Args:
         file: The FastAPI UploadFile object.
 
     Returns:
-        Tuple of (original_path, copy_path).
+        Path the file was written to.
 
     Raises:
         ValueError: If the file format is unsupported or it exceeds
@@ -59,10 +57,54 @@ def store_upload(file) -> tuple[Path, Path]:
     file.file.seek(0)
 
     safe_name = sanitize_filename(file.filename)
-    original_path = resolve_upload_path(safe_name)
+    target_path = resolve_upload_path(safe_name)
 
-    with open(original_path, "wb+") as f:
+    with open(target_path, "wb+") as f:
         shutil.copyfileobj(file.file, f)
+
+    return target_path
+
+
+def store_added_file(file) -> Path:
+    """Store a file added to an existing project's inventory.
+
+    Same validation and sanitized-name storage as ``store_upload``, but writes
+    a single immutable file: inventory files are only ever read (append and
+    replay), so no ``_copy`` working twin is created.
+
+    Args:
+        file: The FastAPI UploadFile object.
+
+    Returns:
+        Path to the stored file.
+
+    Raises:
+        ValueError: If the file format is unsupported or it exceeds
+            ``settings.max_upload_size_bytes``.
+    """
+    stored_path = _validated_write(file)
+    logger.info("Stored added file: %s", stored_path)
+    return stored_path
+
+
+def store_upload(file) -> tuple[Path, Path]:
+    """Store an uploaded file and create a working copy in the same format.
+
+    The working copy keeps the native extension, so revert/undo can re-read
+    the original in its own format. Validation and sanitized-name storage are
+    shared with ``store_added_file`` via ``_validated_write``.
+
+    Args:
+        file: The FastAPI UploadFile object.
+
+    Returns:
+        Tuple of (original_path, copy_path).
+
+    Raises:
+        ValueError: If the file format is unsupported or it exceeds
+            ``settings.max_upload_size_bytes``.
+    """
+    original_path = _validated_write(file)
 
     copy_path = _copy_path_for(original_path)
     shutil.copy2(original_path, copy_path)

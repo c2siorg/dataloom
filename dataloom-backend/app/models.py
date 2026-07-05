@@ -85,6 +85,42 @@ class Project(SQLModel, table=True):
         back_populates="project",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+    files: list["ProjectFile"] = Relationship(
+        back_populates="project",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+
+class ProjectFile(SQLModel, table=True):
+    """An immutable source file added to a project after the initial upload.
+
+    Forms the project's file inventory: the stored file is never modified or
+    deleted by data operations, so an append that is later undone or reverted
+    away can always be re-applied from the inventory.
+    """
+
+    __tablename__ = "project_files"
+
+    id: uuid_mod.UUID = Field(
+        default_factory=uuid_mod.uuid4,
+        sa_column=Column(sa.Uuid, primary_key=True, default=uuid_mod.uuid4),
+    )
+    project_id: uuid_mod.UUID = Field(
+        sa_column=Column(
+            sa.Uuid,
+            sa.ForeignKey("projects.project_id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    file_path: str
+    original_filename: str
+    uploaded_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime, server_default=func.now(), nullable=False),
+    )
+
+    project: Project | None = Relationship(back_populates="files")
 
 
 class ProjectChangeLog(SQLModel, table=True):

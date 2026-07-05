@@ -16,7 +16,7 @@ import { getFeatureMenu } from "./workspace/featureRegistry";
 // Ribbon skeleton: the top tabs and the group order within each. Features and the
 // core items below slot their entries into these buckets; layout stays stable.
 const RIBBON_LAYOUT = {
-  File: ["Save", "History"],
+  File: ["Save", "Source", "History"],
   Data: ["Transform", "Query"],
   Profiling: ["Profiling"],
 };

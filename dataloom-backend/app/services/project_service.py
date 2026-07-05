@@ -41,6 +41,74 @@ def create_project(
     return project
 
 
+def create_project_file(
+    db: Session,
+    project_id: uuid.UUID,
+    file_path: str,
+    original_filename: str,
+) -> models.ProjectFile:
+    """Record an added file in a project's inventory.
+
+    Args:
+        db: Database session.
+        project_id: The project the file was added to.
+        file_path: Path to the stored immutable file.
+        original_filename: The filename as uploaded by the user.
+
+    Returns:
+        The created ProjectFile model instance.
+    """
+    project_file = models.ProjectFile(
+        project_id=project_id,
+        file_path=file_path,
+        original_filename=original_filename,
+    )
+    db.add(project_file)
+    db.commit()
+    db.refresh(project_file)
+    logger.info("Added project file: id=%s, project_id=%s, name=%s", project_file.id, project_id, original_filename)
+    return project_file
+
+
+def get_project_files(db: Session, project_id: uuid.UUID) -> list[models.ProjectFile]:
+    """Fetch a project's file inventory ordered by upload time ascending.
+
+    Args:
+        db: Database session.
+        project_id: The project to query.
+
+    Returns:
+        List of ProjectFile model instances.
+    """
+    return (
+        db.query(models.ProjectFile)
+        .filter(models.ProjectFile.project_id == project_id)
+        .order_by(models.ProjectFile.uploaded_at)
+        .all()
+    )
+
+
+def get_project_file(db: Session, file_id: uuid.UUID, project_id: uuid.UUID) -> models.ProjectFile | None:
+    """Fetch a single inventory file scoped to a project.
+
+    Args:
+        db: Database session.
+        file_id: The inventory file primary key.
+        project_id: The project the file must belong to.
+
+    Returns:
+        The ProjectFile model instance, or None if not found in this project.
+    """
+    return (
+        db.query(models.ProjectFile)
+        .filter(
+            models.ProjectFile.id == file_id,
+            models.ProjectFile.project_id == project_id,
+        )
+        .first()
+    )
+
+
 def get_recent_projects(db: Session, owner_id: uuid.UUID, limit: int = 3) -> list[models.Project]:
     """Fetch a user's most recently modified projects.
 
@@ -85,6 +153,11 @@ def delete_project(db: Session, project: models.Project) -> None:
             .filter(models.Checkpoint.project_id == project_id)
             .delete(synchronize_session=False)
         )
+        deleted_files = (
+            db.query(models.ProjectFile)
+            .filter(models.ProjectFile.project_id == project_id)
+            .delete(synchronize_session=False)
+        )
         deleted_projects = (
             db.query(models.Project).filter(models.Project.project_id == project_id).delete(synchronize_session=False)
         )
@@ -98,12 +171,13 @@ def delete_project(db: Session, project: models.Project) -> None:
         logger.warning("Project delete matched no project row: id=%s, name=%s", project_id, project_name)
 
     logger.info(
-        "Deleted project: id=%s, name=%s, projects=%d, logs=%d, checkpoints=%d",
+        "Deleted project: id=%s, name=%s, projects=%d, logs=%d, checkpoints=%d, files=%d",
         project_id,
         project_name,
         deleted_projects,
         deleted_logs,
         deleted_checkpoints,
+        deleted_files,
     )
 
 
