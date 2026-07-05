@@ -49,7 +49,7 @@ jobs:
       - name: Prettier
         id: prettier
         continue-on-error: true
-        run: npx prettier --check "src/**/*.{js,jsx,css,md}"
+        run: npx prettier --check "src/**/*.{js,jsx,ts,tsx,css,md}"
 
       - name: Fail if checks failed
         if: steps.eslint.outcome == 'failure' || steps.prettier.outcome == 'failure'
@@ -163,7 +163,7 @@ jobs:
             if (eslintFailed || prettierFailed) {
               let s = '### Frontend\n\n';
               if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix . --ext js,jsx` in `dataloom-frontend/`\n';
-              if (prettierFailed) s += '- **Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,css,md}"` in `dataloom-frontend/`\n';
+              if (prettierFailed) s += '- **Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,ts,tsx,css,md}"` in `dataloom-frontend/`\n';
               sections.push(s);
             }
 
