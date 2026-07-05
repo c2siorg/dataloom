@@ -635,3 +635,14 @@ class UpdateProjectResponse(BaseModel):
     file_path: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectMetaResponse(BaseModel):
+    """Metadata response for a single project."""
+
+    project_id: uuid.UUID
+    name: str
+    description: str | None
+    last_modified: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
