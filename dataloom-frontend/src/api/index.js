@@ -24,3 +24,9 @@ export {
   getCorrelationMatrix,
 } from "./profiling";
 export { getChartSuggestions, getChart } from "./visualizations";
+export {
+  previewAddFile,
+  addFileToProject,
+  getProjectFiles,
+  reappendProjectFile,
+} from "./projectFiles";

@@ -6,11 +6,14 @@ No side effects -- saving to disk is handled by the caller.
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
 
 from app.schemas import FillStrategy, MeltParams, OperationType
+from app.services.append_service import append_dataframes
 from app.utils.logging import get_logger
+from app.utils.pandas_helpers import read_table_safe
 from app.utils.security import validate_query_string
 
 logger = get_logger(__name__)
@@ -765,6 +768,32 @@ def sample_rows(df: pd.DataFrame, sample_size: int, random_seed: int | None = No
     return sampled.reset_index(drop=True)
 
 
+def apply_add_file(df: pd.DataFrame, file_path: str) -> pd.DataFrame:
+    """Append a stored inventory file's rows onto the DataFrame.
+
+    The one deliberately impure function in this module: replaying an append
+    requires reading the immutable stored file back from disk. The path always
+    comes from server-written ``addFile`` log entries (or the endpoint that
+    writes them), never from client input.
+
+    Args:
+        df: Source DataFrame.
+        file_path: Path to the stored inventory file (inside the upload dir).
+
+    Returns:
+        The combined DataFrame with columns unioned and a fresh index.
+
+    Raises:
+        TransformationError: If the stored file is missing or unreadable.
+    """
+    try:
+        new_df = read_table_safe(Path(file_path))
+    except Exception as e:
+        logger.warning("Could not read stored file for addFile replay: %s", file_path)
+        raise TransformationError("Stored file for this append is missing or unreadable") from e
+    return append_dataframes(df, new_df)
+
+
 @dataclass(frozen=True)
 class TransformationSpec:
     """Describes how to validate, dispatch, and persist one transformation.
@@ -949,6 +978,17 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             d["groupby_params"]["agg_column"],
             d["groupby_params"]["agg_function"],
         ),
+    ),
+    # addFile is executed by the /projects/{id}/files endpoint, never by
+    # /transform: TransformationInput has no add_file_params field, so a
+    # /transform request with this operation always 400s at the params check.
+    # The registry entry exists so save/revert/undo replay the append through
+    # the same dispatch seam as every other logged operation.
+    OperationType.addFile: TransformationSpec(
+        func="apply_add_file",
+        params_field="add_file_params",
+        missing_error="Add file operations must use the /files endpoint",
+        build_args=lambda d: (d["add_file_params"]["file_path"],),
     ),
 }
 
