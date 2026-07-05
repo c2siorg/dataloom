@@ -116,7 +116,7 @@ def _read_json(path: Path) -> pd.DataFrame:
     Raises:
         ValueError: If the JSON is not object-shaped or nests more than one level.
     """
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
 
     if isinstance(data, dict):

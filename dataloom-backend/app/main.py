@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.endpoints import auth, profiling, projects, transformations, user_logs
+from app.api.endpoints import auth, profiling, projects, transformations, user_logs, visualizations
 from app.config import get_settings
 from app.database import verify_database_connection
 from app.exceptions import AppException, app_exception_handler
@@ -101,6 +101,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(projects.router, prefix="/projects", tags=["projects"])
 app.include_router(transformations.router, prefix="/projects", tags=["transformations"])
 app.include_router(profiling.router, prefix="/projects", tags=["profiling"])
+app.include_router(visualizations.router, prefix="/projects", tags=["visualizations"])
 app.include_router(user_logs.router, prefix="/logs", tags=["user_logs"])
 
 if __name__ == "__main__":

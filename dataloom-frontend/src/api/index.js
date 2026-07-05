@@ -11,6 +11,8 @@ export {
   exportProject,
   deleteProject,
   searchProjects,
+  getProjectMeta,
+  getProjects,
 } from "./projects";
 export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
 export { transformProject, groupByTransform, undoLastTransformation } from "./transforms";
@@ -21,3 +23,4 @@ export {
   getColumnProfiles,
   getCorrelationMatrix,
 } from "./profiling";
+export { getChartSuggestions, getChart } from "./visualizations";
