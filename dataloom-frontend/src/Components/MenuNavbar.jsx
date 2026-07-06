@@ -77,6 +77,8 @@ const MenuNavbar = ({ projectId }) => {
     }
   };
 
+  const inPreview = isPreviewMode;
+
   // Core ribbon items — the ones that need component-local state/handlers and so
   // can't be declared as (declarative) feature menu items.
   const coreItems = [
@@ -87,7 +89,10 @@ const MenuNavbar = ({ projectId }) => {
       label: "Save",
       icon: LuSave,
       onClick: handleSave,
-      hover: "Save the current state of the project as a new checkpoint.",
+      disabled: inPreview,
+      hover: inPreview
+        ? "Save is unavailable while previewing a transformation."
+        : "Save the current state of the project as a new checkpoint.",
     },
     {
       ribbon: "File",
@@ -96,7 +101,10 @@ const MenuNavbar = ({ projectId }) => {
       label: "Export",
       icon: LuDownload,
       onClick: () => setShowExportModal(true),
-      hover: "Export the data to a file.",
+      disabled: inPreview,
+      hover: inPreview
+        ? "Export is unavailable while previewing a transformation."
+        : "Export the data to a file.",
     },
     {
       ribbon: "File",
@@ -105,7 +113,10 @@ const MenuNavbar = ({ projectId }) => {
       label: "Undo",
       icon: LuUndo2,
       onClick: handleUndo,
-      hover: "Undo the last transformation.",
+      disabled: inPreview,
+      hover: inPreview
+        ? "Undo is unavailable while previewing a transformation."
+        : "Undo the last transformation.",
     },
     {
       ribbon: "Profiling",
