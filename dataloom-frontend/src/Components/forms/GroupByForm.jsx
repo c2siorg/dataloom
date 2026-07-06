@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import PropTypes from "prop-types";
 import { transformProject } from "../../api";
 import { GROUPBY } from "../../constants/operationTypes";
@@ -25,6 +25,20 @@ const GroupByForm = ({ projectId, onClose }) => {
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
   const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
+  const cancelledRef = useRef(false);
+  const cancelPreviewRef = useRef(cancelPreview);
+  const isPreviewModeRef = useRef(isPreviewMode);
+  cancelPreviewRef.current = cancelPreview;
+  isPreviewModeRef.current = isPreviewMode;
+
+  useEffect(() => {
+    return () => {
+      cancelledRef.current = true;
+      if (isPreviewModeRef.current) {
+        cancelPreviewRef.current();
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,6 +57,7 @@ const GroupByForm = ({ projectId, onClose }) => {
         },
       };
       const response = await transformProject(projectId, payload, { preview: true });
+      if (cancelledRef.current) return;
       enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
       handleError(err);
@@ -60,7 +75,7 @@ const GroupByForm = ({ projectId, onClose }) => {
   };
 
   return (
-    <div>
+    <div data-testid="groupby-form">
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
           <label className="block mb-1 text-sm font-medium text-gray-700">Group By Columns:</label>
@@ -80,6 +95,7 @@ const GroupByForm = ({ projectId, onClose }) => {
             onChange={setAggColumn}
             options={availableColumns.filter((col) => !selectedColumns.includes(col))}
             required
+            data-testid="groupby-agg-column"
           />
         </div>
         <div className="mb-4">
@@ -102,7 +118,12 @@ const GroupByForm = ({ projectId, onClose }) => {
               </Button>
             )}
           </div>
-          <Button type="button" variant="secondary" onClick={handleCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleCancel}
+            disabled={loading || saving}
+          >
             Cancel
           </Button>
         </div>
