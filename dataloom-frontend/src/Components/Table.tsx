@@ -385,7 +385,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                         className={`align-top border-b border-r border-gray-200 ${
                           isSerialNumber
                             ? "w-16 sticky left-0 z-10 bg-gray-50"
-                            : "bg-white min-w-[140px]"
+                            : "bg-white min-w-35"
                         }`}
                       >
                         {!isSerialNumber && (
@@ -658,9 +658,8 @@ export function TablePagination({
   };
 
   return (
-    <div className="flex h-9 shrink-0 items-center justify-between gap-2 px-4 bg-white text-xs sm:px-6">
-      {/* Left: Total Rows + Page Size */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-gray-600">
+    <div className="flex min-h-9 shrink-0 flex-wrap items-center justify-center md:justify-between gap-x-4 gap-y-2 px-4 py-1.5 bg-white text-xs sm:px-6">
+  <div className="flex items-center gap-x-5 gap-y-1.5 text-gray-600 flex-wrap">
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500">Total Rows:</span>
           <span className="text-gray-900">{totalRows}</span>
@@ -670,12 +669,12 @@ export function TablePagination({
           <div className="relative inline-block">
             <button
               onClick={() => setPageSizeOpen(!pageSizeOpen)}
-              className="min-w-[34px] rounded border border-gray-300 px-2 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="min-w-8.5 rounded border border-gray-300 px-2 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {pageSize}
             </button>
             {pageSizeOpen && (
-              <div className="absolute bottom-full z-10 mb-1 min-w-[52px] rounded-md border border-gray-300 bg-white shadow-md">
+              <div className="absolute bottom-full z-10 mb-1 min-w-13 rounded-md border border-gray-300 bg-white shadow-md">
                 {pageSizeOptions.map((size) => (
                   <div
                     key={size}
@@ -695,7 +694,7 @@ export function TablePagination({
       </div>
 
       {/* Right: nav buttons + Page X of Y */}
-      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:flex-nowrap sm:justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
         <button
           onClick={handleFirst}
           disabled={page === 1}
