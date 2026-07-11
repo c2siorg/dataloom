@@ -8,8 +8,8 @@ import { useToast } from "../context/ToastContext";
 import { ROUTES } from "../constants/routes";
 
 const INPUT_CLASS =
-  "block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 " +
-  "placeholder-gray-400 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
+  "block w-full rounded-lg border border-app-border bg-surface px-3.5 py-2.5 text-sm text-foreground " +
+  "placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
 export default function SignUpPage() {
   const { user, signup } = useAuth();
@@ -64,12 +64,12 @@ export default function SignUpPage() {
       <div>
         <div className="flex items-center gap-2">
           <DataLoomLogo className="h-6 w-6" />
-          <span className="text-xl font-semibold text-slate-900">DataLoom</span>
+          <span className="text-xl font-semibold text-foreground">DataLoom</span>
         </div>
-        <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">
+        <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">
           Create your account
         </h2>
-        <p className="mt-1.5 text-sm text-gray-500">
+        <p className="mt-1.5 text-sm text-muted-foreground">
           Start transforming your CSV data with DataLoom.
         </p>
       </div>
@@ -77,7 +77,7 @@ export default function SignUpPage() {
       <form onSubmit={handleSubmit} className="mt-8">
         <div className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground">
               Email
             </label>
             <input
@@ -91,7 +91,7 @@ export default function SignUpPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-foreground">
               Password
             </label>
             <div className="relative">
@@ -107,12 +107,12 @@ export default function SignUpPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((visible) => !visible)}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-medium tracking-wide text-gray-400 transition-colors hover:text-gray-600"
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-medium tracking-wide text-muted-foreground transition-colors hover:text-foreground"
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-            <p className="mt-1.5 text-xs text-gray-400">At least 8 characters.</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">At least 8 characters.</p>
           </div>
         </div>
 
@@ -130,8 +130,8 @@ export default function SignUpPage() {
         </button>
       </form>
 
-      <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6 text-sm">
-        <span className="text-gray-500">Already have an account?</span>
+      <div className="mt-8 flex items-center justify-between border-t border-app-border pt-6 text-sm">
+        <span className="text-muted-foreground">Already have an account?</span>
         <Link
           to={signinHref}
           className="flex items-center gap-1 font-semibold text-accent-hover hover:text-blue-700 hover:underline"

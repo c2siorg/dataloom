@@ -141,16 +141,16 @@ export default function ExportModal({
                   className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-all duration-150 ${
                     on
                       ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500/30"
-                      : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                      : "border-app-border bg-surface hover:border-app-border-hover hover:bg-surface-hover"
                   }`}
                 >
                   <span
-                    className={`text-sm font-semibold ${on ? "text-blue-700" : "text-gray-800"}`}
+                    className={`text-sm font-semibold ${on ? "text-blue-700" : "text-foreground"}`}
                   >
                     {f.label}
                   </span>
                   <span
-                    className={`font-mono text-[11px] ${on ? "text-blue-500" : "text-gray-400"}`}
+                    className={`font-mono text-[11px] ${on ? "text-blue-500" : "text-secondary-foreground"}`}
                   >
                     .{f.ext}
                   </span>
@@ -165,7 +165,7 @@ export default function ExportModal({
           <Label step="2" htmlFor="export-filename">
             Name the file
           </Label>
-          <div className="flex items-stretch overflow-hidden rounded-lg border border-gray-300 transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/25">
+          <div className="flex items-stretch overflow-hidden rounded-lg border border-app-border transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/25">
             <input
               id="export-filename"
               data-testid="export-filename"
@@ -174,9 +174,9 @@ export default function ExportModal({
               onChange={(e) => setName(e.target.value)}
               onFocus={(e) => e.target.select()}
               placeholder="dataset"
-              className="min-w-0 flex-1 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none"
+              className="min-w-0 flex-1 bg-surface px-3 py-2 text-sm text-foreground focus:outline-none"
             />
-            <span className="flex items-center border-l border-gray-200 bg-gray-50 px-3 font-mono text-sm font-medium text-gray-400">
+            <span className="flex items-center border-l border-app-border bg-surface-hover px-3 font-mono text-sm font-medium text-secondary-foreground">
               .{format}
             </span>
           </div>
@@ -189,7 +189,7 @@ export default function ExportModal({
             <div className="space-y-4">
               {/* Separator */}
               <div>
-                <span className="mb-1.5 block text-xs text-gray-500">Column separator</span>
+                <span className="mb-1.5 block text-xs text-secondary-foreground">Column separator</span>
                 <div className="grid grid-cols-4 gap-1.5">
                   {DELIMITERS.map((d) => {
                     const on = effectiveDelimiter === d.value;
@@ -204,15 +204,15 @@ export default function ExportModal({
                         className={`flex flex-col items-center gap-0.5 rounded-lg border py-1.5 transition-colors ${
                           on
                             ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200 bg-white hover:border-gray-300"
+                            : "border-app-border bg-surface hover:border-app-border-hover"
                         }`}
                       >
                         <span
-                          className={`font-mono text-base leading-none ${on ? "text-blue-600" : "text-gray-600"}`}
+                          className={`font-mono text-base leading-none ${on ? "text-blue-600" : "text-foreground"}`}
                         >
                           {d.shown}
                         </span>
-                        <span className={`text-[10px] ${on ? "text-blue-500" : "text-gray-400"}`}>
+                        <span className={`text-[10px] ${on ? "text-blue-500" : "text-secondary-foreground"}`}>
                           {d.label}
                         </span>
                       </button>
@@ -227,11 +227,11 @@ export default function ExportModal({
                 role="switch"
                 aria-checked={includeHeader}
                 onClick={() => setIncludeHeader((v) => !v)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-left transition-colors hover:border-gray-300"
+                className="flex w-full items-center justify-between gap-3 rounded-lg border border-app-border bg-surface px-3 py-2 text-left transition-colors hover:border-app-border-hover"
               >
                 <span>
-                  <span className="block text-sm text-gray-800">Include header row</span>
-                  <span className="block text-[11px] text-gray-400">
+                  <span className="block text-sm text-foreground">Include header row</span>
+                  <span className="block text-[11px] text-secondary-foreground">
                     Column names as the first line
                   </span>
                 </span>
@@ -249,22 +249,22 @@ export default function ExportModal({
 
               {/* Encoding (secondary — quiet dropdown) */}
               <label className="block">
-                <span className="mb-1.5 block text-xs text-gray-500">Encoding</span>
+                <span className="mb-1.5 block text-xs text-secondary-foreground">Encoding</span>
                 <Select value={encoding} onChange={setEncoding} options={ENCODINGS} />
               </label>
             </div>
           ) : (
-            <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-xs leading-relaxed text-gray-500">
-              <span className="font-medium text-gray-600">{def.label}</span> keeps the original data
+            <p className="rounded-lg border border-dashed border-app-border bg-surface px-3 py-3 text-xs leading-relaxed text-secondary-foreground">
+              <span className="font-medium text-foreground">{def.label}</span> keeps the original data
               types and structure — no separator, header, or encoding settings needed.
             </p>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4">
-          <p className="truncate text-xs text-gray-500">
-            Downloads <span className="font-mono font-medium text-gray-700">{fileName}</span>
+        <div className="flex items-center justify-between gap-3 border-t border-app-border pt-4">
+          <p className="truncate text-xs text-secondary-foreground">
+            Downloads <span className="font-mono font-medium text-foreground">{fileName}</span>
           </p>
           <div className="flex shrink-0 gap-2">
             <Button variant="secondary" type="button" onClick={onClose}>
@@ -292,10 +292,10 @@ function Label({
 }) {
   return (
     <label htmlFor={htmlFor} className="mb-2 flex items-center gap-2">
-      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-[10px] font-semibold text-white">
+      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-[10px] font-semibold text-foreground">
         {step}
       </span>
-      <span className="text-sm font-medium text-gray-800">{children}</span>
+      <span className="text-sm font-medium text-foreground">{children}</span>
     </label>
   );
 }

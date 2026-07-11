@@ -8,11 +8,16 @@
  * @param {Object} [props.rest] - Additional props passed to the button element.
  */
 const VARIANT_CLASSES = {
-  primary: "bg-blue-500 hover:bg-blue-600 text-white focus:ring-blue-500",
-  secondary: "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-300",
-  danger: "bg-red-500 hover:bg-red-600 text-white focus:ring-red-500",
-  ghost: "text-gray-500 hover:text-gray-700 hover:bg-gray-100",
-  success: "bg-green-600 hover:bg-green-700 text-white focus:ring-green-600",
+  primary: "bg-accent text-white hover:bg-accent-hover focus:ring-accent",
+
+  secondary:
+    "border border-app-border bg-surface text-foreground hover:border-app-border-hover hover:bg-surface-hover focus:ring-app-border",
+
+  danger: "bg-danger text-white hover:bg-danger-hover focus:ring-danger",
+
+  ghost: "bg-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+
+  success: "bg-success text-white hover:bg-success-hover focus:ring-success",
 };
 
 const SIZE_CLASSES = {

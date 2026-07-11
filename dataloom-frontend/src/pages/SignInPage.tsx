@@ -8,8 +8,8 @@ import { useToast } from "../context/ToastContext";
 import { ROUTES } from "../constants/routes";
 
 const INPUT_CLASS =
-  "block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 " +
-  "placeholder-gray-400 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
+  "block w-full rounded-lg border border-app-border bg-surface px-3.5 py-2.5 text-sm text-foreground " +
+  "placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
 export default function SignInPage() {
   const { user, signin } = useAuth();
@@ -53,14 +53,14 @@ export default function SignInPage() {
       <div>
         <div className="flex items-center gap-2">
           <DataLoomLogo className="h-6 w-6" />
-          <span className="text-xl font-semibold text-slate-900">DataLoom</span>
+          <span className="text-xl font-semibold text-foreground">DataLoom</span>
         </div>
-        <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">Welcome back</h2>
-        <p className="mt-1.5 text-sm text-gray-500">Continue to your workspace.</p>
+        <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">Welcome back</h2>
+        <p className="mt-1.5 text-sm text-secondary-foreground">Continue to your workspace.</p>
       </div>
 
       {resetSuccess && (
-        <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+       <div className="my-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
           Password reset successfully. Please sign in with your new password.
         </div>
       )}
@@ -68,7 +68,7 @@ export default function SignInPage() {
       <form onSubmit={handleSubmit} className="mt-8">
         <div className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground">
               Email
             </label>
             <input
@@ -82,7 +82,7 @@ export default function SignInPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-foreground">
               Password
             </label>
             <div className="relative">
@@ -107,7 +107,7 @@ export default function SignInPage() {
             <div className="flex justify-end mt-2">
               <Link
                 to={ROUTES.forgotPassword}
-                className="text-xs text-gray-500 hover:text-accent hover:underline"
+                className="text-xs text-muted-foreground hover:text-accent hover:underline"
               >
                 Forgot password?
               </Link>
@@ -129,8 +129,8 @@ export default function SignInPage() {
         </button>
       </form>
 
-      <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6 text-sm">
-        <span className="text-gray-500">New to DataLoom?</span>
+      <div className="mt-8 flex items-center justify-between border-t border-app-border pt-6 text-sm">
+        <span className="text-muted-foreground">New to DataLoom?</span>
         <Link
           to={signupHref}
           className="flex items-center gap-1 font-semibold text-accent-hover hover:text-blue-700 hover:underline"

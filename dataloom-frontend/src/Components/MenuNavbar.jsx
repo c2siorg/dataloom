@@ -169,8 +169,8 @@ const MenuNavbar = ({ projectId }) => {
   );
 
   return (
-    <div className="bg-white border-b border-gray-200">
-      <div className="flex items-center gap-0 border-b border-gray-200 px-8">
+    <div className="bg-background border-b border-app-border">
+      <div className="flex items-center gap-0 border-b border-app-border px-8">
         {Object.keys(tabs).map((tabName) => (
           <button
             key={tabName}
@@ -178,8 +178,8 @@ const MenuNavbar = ({ projectId }) => {
             onClick={() => setActiveTab(tabName)}
             className={`px-4 py-1.5 text-sm font-medium ${
               activeTab === tabName
-                ? "text-blue-600 border-b-2 border-blue-500"
-                : "text-gray-500 hover:text-gray-700"
+                ? "text-blue-600 dark:text-blue-300 border-b-2 border-blue-500"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {tabName}
@@ -187,10 +187,10 @@ const MenuNavbar = ({ projectId }) => {
         ))}
       </div>
 
-      <div className="flex items-stretch gap-3 px-8 py-2 min-h-[64px] overflow-x-auto">
+      <div className="flex items-stretch gap-3 px-8 py-2 min-h-16 overflow-x-auto">
         {tabs[activeTab].map((section, sectionIdx) => (
           <div key={section.group} className="flex items-stretch gap-3">
-            {sectionIdx > 0 && <div className="w-px bg-gray-200 self-stretch" />}
+            {sectionIdx > 0 && <div className="w-px bg-app-border self-stretch" />}
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-1 flex-1">
                 {section.items.map((item) => {
@@ -204,14 +204,16 @@ const MenuNavbar = ({ projectId }) => {
                       title={item.hover}
                       className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md transition-colors ${
                         isActive
-                          ? "bg-blue-50 text-blue-600"
-                          : "hover:bg-gray-100 disabled:hover:bg-transparent"
+                          ? "bg-accent-subtle text-accent"
+                          : "hover:bg-surface-hover disabled:hover:bg-transparent"
                       } ${item.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       <item.icon
-                        className={`w-5 h-5 ${isActive ? "text-blue-600" : "text-gray-600"}`}
+                        className={`w-5 h-5 ${isActive ? "text-accent" : "text-muted-foreground"}`}
                       />
-                      <span className={`text-xs ${isActive ? "text-blue-600" : "text-gray-700"}`}>
+                      <span
+                        className={`text-xs ${isActive ? "text-accent" : "text-muted-foreground"}`}
+                      >
                         {item.label}
                       </span>
                     </button>
