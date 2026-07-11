@@ -64,11 +64,11 @@ const PivotTableForm = ({ projectId, onClose }) => {
     <div>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700">Index:</label>
+          <label className="block text-sm font-medium text-foreground">Index:</label>
           <ColumnMultiSelect value={index} onChange={setIndex} required />
         </div>
         <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700">Column:</label>
+          <label className="block text-sm font-medium text-foreground">Column:</label>
           <ColumnSelect
             value={column}
             onChange={(value) => setColumn(value)}
@@ -76,7 +76,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
           />
         </div>
         <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700">Value:</label>
+          <label className="block text-sm font-medium text-foreground">Value:</label>
           <ColumnSelect
             value={value}
             onChange={(value) => setValue(value)}
@@ -84,7 +84,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
           />
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">Aggregation Function:</label>
+          <label className="block text-sm font-medium text-foreground">Aggregation Function:</label>
           <Select value={aggfun} onChange={setAggfun} options={AGG_FUNCTIONS} />
         </div>
         <div className="flex justify-between">

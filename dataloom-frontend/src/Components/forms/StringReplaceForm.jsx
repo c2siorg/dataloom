@@ -60,12 +60,12 @@ const StringReplaceForm = ({ projectId, onClose }) => {
     <div>
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">Column:</label>
+          <label className="block text-sm font-medium text-foreground">Column:</label>
           <ColumnSelect value={column} onChange={setColumn} required />
         </div>
 
         <div className="mb-4">
-          <label htmlFor="find-value" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="find-value" className="block text-sm font-medium text-foreground">
             Find:
           </label>
           <input
@@ -74,13 +74,13 @@ const StringReplaceForm = ({ projectId, onClose }) => {
             placeholder="Text to find"
             value={findValue}
             onChange={(e) => setFindValue(e.target.value)}
-            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             required
           />
         </div>
 
         <div className="mb-4">
-          <label htmlFor="replace-value" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="replace-value" className="block text-sm font-medium text-foreground">
             Replace with:
           </label>
           <input
@@ -89,7 +89,7 @@ const StringReplaceForm = ({ projectId, onClose }) => {
             placeholder="Replacement text"
             value={replaceValue}
             onChange={(e) => setReplaceValue(e.target.value)}
-            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
           />
         </div>
 

@@ -84,7 +84,7 @@ const FilterForm = ({ projectId, onClose }) => {
     <div data-testid="filter-form">
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label className="block mb-1 text-sm font-medium text-gray-700">Column:</label>
+          <label className="block mb-1 text-sm font-medium text-foreground">Column:</label>
           <ColumnSelect
             name="column"
             data-testid="filter-column"
@@ -94,7 +94,7 @@ const FilterForm = ({ projectId, onClose }) => {
           />
         </div>
         <div className="mb-3">
-          <label className="block mb-1 text-sm font-medium text-gray-700">Condition:</label>
+          <label className="block mb-1 text-sm font-medium text-foreground">Condition:</label>
           <Select
             value={filterParams.condition}
             onChange={(value) => setFilterParams((p) => ({ ...p, condition: value }))}
@@ -102,14 +102,14 @@ const FilterForm = ({ projectId, onClose }) => {
           />
         </div>
         <div className="mb-4">
-          <label className="block mb-1 text-sm font-medium text-gray-700">Value:</label>
+          <label className="block mb-1 text-sm font-medium text-foreground">Value:</label>
           <input
             type="text"
             name="value"
             data-testid="filter-value"
             value={filterParams.value}
             onChange={handleInputChange}
-            className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            className="border border-app-border rounded-md px-3 py-2 w-full bg-surface text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             required
           />
         </div>

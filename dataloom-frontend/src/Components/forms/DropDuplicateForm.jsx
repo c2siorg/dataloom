@@ -67,11 +67,11 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
     <div>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700">Columns:</label>
+          <label className="block text-sm font-medium text-foreground">Columns:</label>
           <ColumnMultiSelect value={columns} onChange={setColumns} required />
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">Keep:</label>
+          <label className="block text-sm font-medium text-foreground">Keep:</label>
           <Select value={keep} onChange={setKeep} options={KEEP_OPTIONS} />
         </div>
         <div className="flex justify-between">

@@ -79,7 +79,7 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
     <div>
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Column:</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Column:</label>
           <ColumnSelect
             value={selectedColumn}
             onChange={setSelectedColumn}
@@ -87,25 +87,25 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
             emptyLabel="All columns"
             required={false}
           />
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Note: Mean, median, and mode require a specific column.
           </p>
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Strategy:</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Strategy:</label>
           <Select value={strategy} onChange={setStrategy} options={STRATEGIES} />
         </div>
 
         {strategy === "custom" && (
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Fill Value:</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Fill Value:</label>
             <input
               type="text"
               value={fillValue}
               onChange={(e) => setFillValue(e.target.value)}
               placeholder="Enter value"
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900"
+              className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-foreground"
               required
             />
           </div>

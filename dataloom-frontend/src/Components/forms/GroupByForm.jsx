@@ -78,7 +78,9 @@ const GroupByForm = ({ projectId, onClose }) => {
     <div data-testid="groupby-form">
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label className="block mb-1 text-sm font-medium text-gray-700">Group By Columns:</label>
+          <label className="block mb-1 text-sm font-medium text-foreground">
+            Group By Columns:
+          </label>
           <ColumnMultiSelect
             value={selectedColumns}
             onChange={setSelectedColumns}
@@ -87,7 +89,7 @@ const GroupByForm = ({ projectId, onClose }) => {
           />
         </div>
         <div className="mb-3">
-          <label className="block mb-1 text-sm font-medium text-gray-700">
+          <label className="block mb-1 text-sm font-medium text-foreground">
             Aggregation Column:
           </label>
           <ColumnSelect
@@ -99,7 +101,7 @@ const GroupByForm = ({ projectId, onClose }) => {
           />
         </div>
         <div className="mb-4">
-          <label className="block mb-1 text-sm font-medium text-gray-700">Function:</label>
+          <label className="block mb-1 text-sm font-medium text-foreground">Function:</label>
           <Select value={aggFunction} onChange={setAggFunction} options={AGG_FUNCTIONS} />
         </div>
         <div className="flex justify-between">

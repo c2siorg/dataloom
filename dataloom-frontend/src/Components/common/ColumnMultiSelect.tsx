@@ -48,16 +48,16 @@ const ColumnMultiSelect = ({
         placeholder="Search columns..."
         aria-label="Search columns"
         aria-required={required}
-        className="border border-gray-300 rounded-md w-full px-3 py-2 mb-1 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+        className="border border-app-border rounded-md w-full px-3 py-2 mb-1 text-sm bg-surface text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
       />
-      <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto p-2 bg-gray-50">
+      <div className="border border-app-border rounded-md max-h-40 overflow-y-auto p-2 bg-surface">
         {filtered.length === 0 && (
-          <p className="px-1 py-1 text-sm text-gray-400">No columns found</p>
+          <p className="px-1 py-1 text-sm text-muted-foreground">No columns found</p>
         )}
         {filtered.map((col) => (
           <label
             key={col}
-            className="flex items-center gap-2 py-1 px-1 hover:bg-gray-200 rounded cursor-pointer text-sm"
+            className="flex items-center gap-2 py-1 px-1 hover:bg-surface-hover rounded cursor-pointer text-sm"
           >
             <input
               type="checkbox"
@@ -66,13 +66,13 @@ const ColumnMultiSelect = ({
               onChange={() => toggle(col)}
               className="rounded text-blue-600"
             />
-            <span className="text-gray-900">{col}</span>
+            <span className="text-foreground">{col}</span>
             <DtypeBadge dtype={dtypes?.[col]} />
           </label>
         ))}
       </div>
       {value.length > 0 && (
-        <p className="text-[10px] text-gray-400 mt-1">{value.length} selected</p>
+        <p className="text-[10px] text-muted-foreground mt-1">{value.length} selected</p>
       )}
     </div>
   );

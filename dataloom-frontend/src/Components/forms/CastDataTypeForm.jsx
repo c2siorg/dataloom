@@ -80,7 +80,7 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
     <div>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700">Column:</label>
+          <label className="block text-sm font-medium text-foreground">Column:</label>
           <ColumnSelect
             value={column}
             onChange={(value) => setColumn(value)}
@@ -89,7 +89,7 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">Target Type:</label>
+          <label className="block text-sm font-medium text-foreground">Target Type:</label>
           <Select value={targetType} onChange={setTargetType} options={TARGET_TYPES} />
         </div>
 

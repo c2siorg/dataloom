@@ -90,14 +90,14 @@ const MeltForm = ({ projectId, onClose }) => {
     <div>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="bg-red-50 text-red-600 p-2 rounded text-sm border border-red-100">
+          <div className="bg-danger-bg text-danger p-2 rounded text-sm border border-danger-border">
             {typeof error === "string" ? error : JSON.stringify(error, null, 2)}
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               ID Variables (Keep as columns):
             </label>
             <ColumnMultiSelect value={idVars} onChange={setIdVars} options={columns} />
@@ -105,7 +105,7 @@ const MeltForm = ({ projectId, onClose }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Value Variables (to unpivot):
             </label>
             <ColumnMultiSelect value={valueVars} onChange={setValueVars} options={columns} />
@@ -117,22 +117,22 @@ const MeltForm = ({ projectId, onClose }) => {
 
         <div className="grid grid-cols-1 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Variable Name:</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Variable Name:</label>
             <input
               type="text"
               value={varName}
               onChange={(e) => setVarName(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 text-sm"
+              className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-gray-900 focus:ring-2 focus:ring-blue-500 text-sm"
               placeholder="default: variable"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Value Name:</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Value Name:</label>
             <input
               type="text"
               value={valueName}
               onChange={(e) => setValueName(e.target.value)}
-              className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 text-sm"
+              className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-foreground focus:ring-2 focus:ring-blue-500 text-sm"
               placeholder="default: value"
             />
           </div>

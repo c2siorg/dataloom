@@ -50,12 +50,12 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
     <div>
       <form onSubmit={handleSubmit}>
         <div className="mb-2">
-          <label className="block text-sm font-medium text-gray-700">Query:</label>
+          <label className="block text-sm font-medium text-foreground">Query:</label>
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="border border-gray-300 rounded-md w-full px-3 py-2 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             placeholder="e.g., col1 > 10 and col2 < 5"
             required
           />
