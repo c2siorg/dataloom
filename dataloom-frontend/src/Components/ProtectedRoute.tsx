@@ -14,7 +14,7 @@ export default function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex min-h-screen items-center justify-center bg-surface">
         <LoadingSpinner message="Loading…" />
       </div>
     );

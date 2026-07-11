@@ -27,7 +27,7 @@ export default function InputDialog({
     <Modal isOpen={isOpen} onClose={onCancel} title="Input Required">
       <form onSubmit={handleSubmit}>
         <p className="mb-3 text-foreground">
-          {message} {required && <span className="text-red-500">*</span>}
+          {message} {required && <span className="text-danger">*</span>}
         </p>
         <input
           type="text"

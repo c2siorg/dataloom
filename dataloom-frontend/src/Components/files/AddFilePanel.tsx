@@ -14,6 +14,7 @@ import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import { ACCEPTED_EXTENSIONS } from "../../utils/fileUtils";
+import Button from "../common/Button";
 
 const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.join(",");
 
@@ -133,7 +134,7 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
   return (
     <div>
       <div className="mb-4">
-        <label htmlFor="add-file-input" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="add-file-input" className="block text-sm font-medium text-foreground mb-1">
           File:
         </label>
         <input
@@ -144,19 +145,19 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
           accept={ACCEPT_ATTR}
           disabled={previewing || submitting}
           onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-          className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+          className="block w-full text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
         />
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Rows are appended below the current data. Matching columns line up; new columns are added
           with empty cells.
         </p>
       </div>
 
-      {previewing && <p className="text-sm text-gray-500 mb-4">Analyzing file…</p>}
+      {previewing && <p className="text-sm text-muted-foreground mb-4">Analyzing file…</p>}
 
       {preview && (
-        <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm">
-          <p className="font-medium text-gray-800 mb-2">
+        <div className="mb-4 rounded-md border border-app-border bg-elevated p-3 text-sm">
+          <p className="font-medium text-foreground mb-2">
             {preview.incoming_row_count} row(s) will be appended to {preview.current_row_count}.
           </p>
           <ul className="space-y-1">
@@ -166,23 +167,23 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
             {preview.new_columns.length > 0 && (
               <li className="text-blue-700">
                 + New column(s): {preview.new_columns.join(", ")}
-                <span className="text-gray-500"> (empty for existing rows)</span>
+                <span className="text-muted-foreground"> (empty for existing rows)</span>
               </li>
             )}
             {preview.missing_columns.length > 0 && (
-              <li className="text-amber-700">
+              <li className="text-danger">
                 ⚠ Not in this file: {preview.missing_columns.join(", ")}
-                <span className="text-gray-500"> (empty for new rows)</span>
+                <span className="text-muted-foreground"> (empty for new rows)</span>
               </li>
             )}
             {preview.dtype_clashes.map((clash) => (
-              <li key={clash.column} className="text-amber-700">
+              <li key={clash.column} className="text-danger">
                 ⚠ &quot;{clash.column}&quot; type differs: {clash.existing_dtype} vs{" "}
                 {clash.incoming_dtype}
               </li>
             ))}
             {duplicateName && (
-              <li className="text-amber-700">
+              <li className="text-danger">
                 ⚠ &quot;{duplicateName}&quot; was already added to this project — appending again
                 will duplicate its rows.
               </li>
@@ -205,25 +206,21 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
             {preview ? `Append ${preview.incoming_row_count} row(s)` : "Append"}
           </span>
         </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium transition-colors duration-150"
-        >
+        <Button variant="secondary" type="button" onClick={onClose}>
           Close
-        </button>
+        </Button>
       </div>
 
       {inventory.length > 0 && (
-        <div className="mt-6 border-t border-gray-200 pt-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Files added to this project</h3>
+        <div className="mt-6 border-t border-app-border pt-4">
+          <h3 className="text-sm font-medium text-foreground mb-2">Files added to this project</h3>
           <ul className="space-y-2">
             {inventory.map((entry) => (
               <li
                 key={entry.id}
-                className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-md border border-app-border px-3 py-2 text-sm"
               >
-                <span className="truncate text-gray-800" title={entry.original_filename}>
+                <span className="truncate text-foreground" title={entry.original_filename}>
                   {entry.original_filename}
                 </span>
                 <button
@@ -238,7 +235,7 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
               </li>
             ))}
           </ul>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-muted-foreground mt-2">
             Added files are kept even if their rows are removed by undo or revert.
           </p>
         </div>
