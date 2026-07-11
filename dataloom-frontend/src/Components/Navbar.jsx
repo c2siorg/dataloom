@@ -7,7 +7,6 @@ import { ROUTES } from "../constants/routes";
 import { renameProject } from "../api/projects";
 import DataLoomLogo from "./common/DataLoomLogo";
 import { LuCircleUserRound, LuCheck, LuX, LuLogOut } from "react-icons/lu";
-import ThemeToggle from "./ThemeToggle";
 
 const Navbar = () => {
   const location = useLocation();
@@ -97,7 +96,6 @@ const Navbar = () => {
             <span className="text-base font-semibold">DataLoom</span>
           </Link>
         </div>
-        <ThemeToggle />
         <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
           {isWorkspacePage &&
             (isEditingName ? (

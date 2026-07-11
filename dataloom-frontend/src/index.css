@@ -30,9 +30,12 @@
   /* Responses */
   --app-success: #16a34a;
   --app-success-hover: #15803d;
-
+  --app-success-bg: #f0fdf4;
+  --app-success-border: #bbf7d0;
   --app-danger: #ef4444;
   --app-danger-hover: #dc2626;
+  --app-danger-bg: #fef2f2;
+  --app-danger-border: #fecaca;
 }
 
 .dark {
