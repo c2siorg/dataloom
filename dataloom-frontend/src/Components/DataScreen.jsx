@@ -28,7 +28,7 @@ function WorkspaceContent({ projectId }) {
     if (!activeTab) {
       return (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-          <p className="text-sm text-gray-500">No table open.</p>
+          <p className="text-sm text-muted-foreground">No table open.</p>
           <button
             type="button"
             onClick={() => openTab(DATASET_TAB)}
@@ -44,7 +44,7 @@ function WorkspaceContent({ projectId }) {
     const TabComponent = getTabComponent(activeTab.type);
     if (!TabComponent) {
       return (
-        <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Unknown tab type: {activeTab.type}
         </div>
       );
