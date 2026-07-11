@@ -156,9 +156,7 @@ const Select = ({
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => selectItem(item.value)}
                 className={`px-2 py-1.5 rounded cursor-pointer text-sm ${
-                  index === activeIndex
-                    ? "bg-gray-200 dark:bg-surface"
-                    : "hover:bg-gray-100 dark:hover:bg-surface-hover"
+                  index === activeIndex ? "bg-surface-hover" : "bg-surface"
                 } ${value === item.value ? "font-medium" : ""}`}
               >
                 {item.label}

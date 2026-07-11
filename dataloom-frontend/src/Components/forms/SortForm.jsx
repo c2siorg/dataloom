@@ -115,88 +115,79 @@ const SortForm = ({ projectId, onClose }) => {
   return (
     <div data-testid="sort-form">
       <form onSubmit={handleSubmit}>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-foreground mb-4">
           Add multiple sort criteria. Priority is determined by order (top = primary sort).
         </p>
         <div className="space-y-3 mb-4">
           {criteria.map((criterion, index) => (
-            <div key={criterion.id} className="rounded-md border border-gray-200 bg-gray-50 p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-gray-500">Criterion {index + 1}</span>
-
-                <div className="flex shrink-0 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => moveUp(index)}
-                    disabled={index === 0}
-                    className="rounded p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-30"
-                    title="Move up in priority"
-                    aria-label={`Move criterion ${index + 1} up`}
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 15l7-7 7 7"
-                      />
-                    </svg>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => moveDown(index)}
-                    disabled={index === criteria.length - 1}
-                    className="rounded p-2 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-30"
-                    title="Move down in priority"
-                    aria-label={`Move criterion ${index + 1} down`}
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => removeCriterion(criterion.id)}
-                    className="rounded p-2 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
-                    title="Remove criterion"
-                    aria-label={`Remove criterion ${index + 1}`}
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
-                <div className="min-w-0 flex-1">
-                  <ColumnSelect
-                    value={criterion.column}
-                    onChange={(value) => updateCriterionColumn(criterion.id, value)}
-                    placeholder="Select column..."
-                    required
-                    data-testid={index === 0 ? "sort-column" : undefined}
-                  />
-                </div>
-
-                <Select
-                  value={String(criterion.ascending)}
-                  onChange={(value) => updateCriterionOrder(criterion.id, value === "true")}
-                  options={ORDER_OPTIONS}
-                  className="w-full shrink-0 sm:w-36"
+            <div
+              key={criterion.id}
+              className="flex items-center gap-2 p-3 bg-elevated rounded-md border border-app-border"
+            >
+              <span className="text-sm font-medium text-muted-foreground w-6">{index + 1}.</span>
+              <div className="flex-1">
+                <ColumnSelect
+                  value={criterion.column}
+                  onChange={(value) => updateCriterionColumn(criterion.id, value)}
+                  placeholder="Select column..."
+                  required
+                  data-testid={index === 0 ? "sort-column" : undefined}
                 />
+              </div>
+              <Select
+                value={String(criterion.ascending)}
+                onChange={(value) => updateCriterionOrder(criterion.id, value === "true")}
+                options={ORDER_OPTIONS}
+                className="w-32 shrink-0"
+              />
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => moveUp(index)}
+                  disabled={index === 0}
+                  className="p-2 text-muted-foreground hover:text-blue-600 hover:bg-surface-hover rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Move up in priority"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 15l7-7 7 7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveDown(index)}
+                  disabled={index === criteria.length - 1}
+                  className="p-2 text-muted-foreground hover:text-blue-600 hover:bg-surface-hover rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Move down in priority"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeCriterion(criterion.id)}
+                  className="p-2 text-muted-foreground hover:text-danger hover:bg-danger-hover rounded transition-colors"
+                  title="Remove criterion"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
           ))}
@@ -204,7 +195,7 @@ const SortForm = ({ projectId, onClose }) => {
         <button
           type="button"
           onClick={addCriterion}
-          className="mb-4 flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-2 rounded-md transition-colors"
+          className="mb-4 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-surface-hover px-3 py-2 rounded-md transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

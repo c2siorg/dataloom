@@ -26,6 +26,13 @@
 
   /* Grid */
   --app-grid: #eceef2;
+
+  /* Responses */
+  --app-success: #16a34a;
+  --app-success-hover: #15803d;
+
+  --app-danger: #ef4444;
+  --app-danger-hover: #dc2626;
 }
 
 .dark {
@@ -51,6 +58,16 @@
 
   /* Grid */
   --app-grid: #1f1f23;
+
+  /* Responses */
+  --app-success: #4ade80;
+  --app-success-hover: #22c55e;
+  --app-success-bg: rgb(20 83 45 / 0.25);
+  --app-success-border: #166534;
+  --app-danger: #f87171;
+  --app-danger-hover: #ef4444;
+  --app-danger-bg: rgb(127 29 29 / 0.25);
+  --app-danger-border: #991b1b;
 }
 
 @theme inline {
@@ -76,13 +93,15 @@
   --color-accent-hover: #2563eb;
   --color-accent-subtle: var(--app-accent-subtle);
 
-  /* Success */
-  --color-success: #16a34a;
-  --color-success-hover: #15803d;
-
-  /* Danger */
-  --color-danger: #ef4444;
-  --color-danger-hover: #dc2626;
+  /* Responses */
+  --color-success: var(--app-success);
+  --color-success-hover: var(--app-success-hover);
+  --color-success-bg: var(--app-success-bg);
+  --color-success-border: var(--app-success-border);
+  --color-danger: var(--app-danger);
+  --color-danger-hover: var(--app-danger-hover);
+  --color-danger-bg: var(--app-danger-bg);
+  --color-danger-border: var(--app-danger-border);
 
   /* Grid */
   --color-grid: var(--app-grid);

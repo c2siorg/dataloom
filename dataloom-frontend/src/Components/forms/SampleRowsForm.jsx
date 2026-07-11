@@ -76,7 +76,7 @@ const SampleRowsForm = ({ projectId, onClose }) => {
     <div>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label className="block mb-1 text-sm font-medium text-gray-700">Sample Size:</label>
+          <label className="block mb-1 text-sm font-medium text-foreground">Sample Size:</label>
           <input
             type="number"
             min="1"
@@ -84,12 +84,12 @@ const SampleRowsForm = ({ projectId, onClose }) => {
             value={sampleSize}
             onChange={(e) => setSampleSize(e.target.value)}
             placeholder="e.g., 100"
-            className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            className="border border-app-border rounded-md px-3 py-2 w-full bg-surface text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             required
           />
         </div>
         <div className="mb-4">
-          <label className="block mb-1 text-sm font-medium text-gray-700">
+          <label className="block mb-1 text-sm font-medium text-foreground">
             Random Seed (Optional):
           </label>
           <input
@@ -100,7 +100,7 @@ const SampleRowsForm = ({ projectId, onClose }) => {
             value={randomSeed}
             onChange={(e) => setRandomSeed(e.target.value)}
             placeholder="e.g., 42"
-            className="border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+            className="border border-app-border rounded-md px-3 py-2 w-full bg-surface text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
           />
         </div>
         <div className="flex justify-between">
