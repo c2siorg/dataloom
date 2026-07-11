@@ -24,9 +24,9 @@ function formatBytes(bytes: number): string {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="mt-0.5 text-lg font-semibold text-gray-900">{value}</div>
+    <div className="rounded-md border border-app-border bg-surface px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-lg font-semibold text-foreground">{value}</div>
     </div>
   );
 }
@@ -44,14 +44,14 @@ export default function DatasetSummaryPanel({
   return (
     <div
       data-testid="dataset-summary-panel"
-      className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm mx-auto relative group"
+      className="p-4 bg-surface border border-app-border rounded-lg shadow-sm mx-auto relative group"
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Overview</h3>
+        <h3 className="text-lg font-semibold text-foreground">Overview</h3>
         <button
           type="button"
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 font-medium opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          className="text-muted-foreground hover:text-foreground font-medium opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
           style={{
             transition: "opacity 0.3s",
             background: "transparent",
@@ -64,7 +64,7 @@ export default function DatasetSummaryPanel({
       </div>
 
       {error ? (
-        <div className="py-4 text-center text-sm text-gray-500">
+        <div className="py-4 text-center text-sm text-muted-foreground">
           <p>Couldn’t load the dataset summary.</p>
           {onRetry && (
             <button
@@ -78,7 +78,7 @@ export default function DatasetSummaryPanel({
           )}
         </div>
       ) : !summary ? (
-        <div className="py-4 text-center text-sm text-gray-500">Loading summary…</div>
+        <div className="py-4 text-center text-sm text-muted-foreground">Loading summary…</div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -99,13 +99,13 @@ export default function DatasetSummaryPanel({
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Column types
             </span>
             {Object.entries(summary.dtype_counts).map(([dtype, count]) => (
               <span key={dtype} className="inline-flex items-center gap-1">
                 <DtypeBadge dtype={dtype} className="" />
-                <span className="text-sm text-gray-700">{count}</span>
+                <span className="text-sm text-foreground">{count}</span>
               </span>
             ))}
           </div>

@@ -23,6 +23,9 @@
 
   /* Accent */
   --app-accent-subtle: #eff6ff;
+
+  /* Grid */
+  --app-grid: #eceef2;
 }
 
 .dark {
@@ -45,6 +48,9 @@
 
   /* Accent */
   --app-accent-subtle: #172554;
+
+  /* Grid */
+  --app-grid: #1f1f23;
 }
 
 @theme inline {
@@ -77,6 +83,9 @@
   /* Danger */
   --color-danger: #ef4444;
   --color-danger-hover: #dc2626;
+
+  /* Grid */
+  --color-grid: var(--app-grid);
 }
 
 @layer base {

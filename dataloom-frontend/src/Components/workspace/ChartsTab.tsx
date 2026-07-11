@@ -25,8 +25,10 @@ const TYPE_LABEL: Record<ChartType, string> = {
 
 // Subtle graph-paper backdrop for the empty canvas.
 const GRID_BG = {
-  backgroundImage:
-    "linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)",
+  backgroundImage: `
+    linear-gradient(var(--color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px)
+  `,
   backgroundSize: "22px 22px",
 };
 
@@ -84,7 +86,7 @@ export function ChartsTab() {
       {/* Suggestions strip */}
       {(hasCorrelation || (suggestions && suggestions.length > 0)) && (
         <div className="mb-4">
-          <div className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-gray-400">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             <LuSparkles className="h-3.5 w-3.5" />
             Suggestions
           </div>
@@ -93,7 +95,7 @@ export function ChartsTab() {
       )}
 
       {/* Canvas */}
-      <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-app-border bg-surface p-4">
         {mode === "heatmap" ? (
           <CorrelationHeatmap
             correlation={correlation.correlation}
@@ -101,19 +103,19 @@ export function ChartsTab() {
             onRetry={correlation.refetch}
           />
         ) : error ? (
-          <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             Couldn’t build that chart.
           </div>
         ) : loading ? (
-          <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             Building chart…
           </div>
         ) : mode === "chart" && spec ? (
           <div>
-            <h3 className="mb-1 text-center text-sm font-medium text-gray-700">{spec.title}</h3>
+            <h3 className="mb-1 text-center text-sm font-medium text-foreground">{spec.title}</h3>
             <Suspense
               fallback={
-                <div className="flex h-80 items-center justify-center text-sm text-gray-400">
+                <div className="flex h-80 items-center justify-center text-sm text-muted-foreground">
                   Loading chart…
                 </div>
               }
@@ -134,7 +136,7 @@ export function ChartsTab() {
 function EmptyState() {
   return (
     <div style={GRID_BG} className="flex flex-1 items-center justify-center rounded-md">
-      <LuChartColumnBig className="h-10 w-10 text-gray-200" />
+      <LuChartColumnBig className="h-10 w-10 text-muted-foreground" />
     </div>
   );
 }

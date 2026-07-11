@@ -189,7 +189,9 @@ export default function ExportModal({
             <div className="space-y-4">
               {/* Separator */}
               <div>
-                <span className="mb-1.5 block text-xs text-secondary-foreground">Column separator</span>
+                <span className="mb-1.5 block text-xs text-secondary-foreground">
+                  Column separator
+                </span>
                 <div className="grid grid-cols-4 gap-1.5">
                   {DELIMITERS.map((d) => {
                     const on = effectiveDelimiter === d.value;
@@ -212,7 +214,9 @@ export default function ExportModal({
                         >
                           {d.shown}
                         </span>
-                        <span className={`text-[10px] ${on ? "text-blue-500" : "text-secondary-foreground"}`}>
+                        <span
+                          className={`text-[10px] ${on ? "text-blue-500" : "text-secondary-foreground"}`}
+                        >
                           {d.label}
                         </span>
                       </button>
@@ -255,8 +259,8 @@ export default function ExportModal({
             </div>
           ) : (
             <p className="rounded-lg border border-dashed border-app-border bg-surface px-3 py-3 text-xs leading-relaxed text-secondary-foreground">
-              <span className="font-medium text-foreground">{def.label}</span> keeps the original data
-              types and structure — no separator, header, or encoding settings needed.
+              <span className="font-medium text-foreground">{def.label}</span> keeps the original
+              data types and structure — no separator, header, or encoding settings needed.
             </p>
           )}
         </div>

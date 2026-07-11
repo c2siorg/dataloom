@@ -18,16 +18,16 @@ export default function SuggestionCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`flex min-w-[180px] flex-col items-start gap-1 rounded-md border px-3 py-2 text-left transition-colors ${
+      className={`flex min-w-45 flex-col items-start gap-1 rounded-md border px-3 py-2 text-left transition-colors ${
         active
-          ? "border-blue-500 bg-blue-50"
-          : "border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50"
+          ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900"
+          : "border-app-border bg-surface hover:border-blue-300 hover:bg-surface-hover"
       }`}
     >
-      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-500">
+      <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         {typeLabel}
       </span>
-      <span className="text-sm font-medium text-gray-900">{title}</span>
+      <span className="text-sm font-medium text-foreground">{title}</span>
     </button>
   );
 }

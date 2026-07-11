@@ -21,8 +21,8 @@ function fmtPct(value: number | null): string {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-1">
-      <span className="text-gray-400">{label}</span>
-      <span className="text-gray-700 font-medium truncate" title={value}>
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-foreground font-medium truncate" title={value}>
         {value}
       </span>
     </div>
@@ -38,9 +38,9 @@ export default function ColumnProfileCard({ profile, loading }: ColumnProfileCar
   if (loading) {
     return (
       <div className="p-1.5 space-y-1 animate-pulse" data-testid="column-profile-skeleton">
-        <div className="h-2 bg-gray-200 rounded" />
-        <div className="h-2 bg-gray-200 rounded w-3/4" />
-        <div className="h-2 bg-gray-200 rounded w-1/2" />
+        <div className="h-2 bg-surface rounded" />
+        <div className="h-2 bg-surface-hover rounded w-3/4" />
+        <div className="h-2 bg-surface-hover rounded w-1/2" />
       </div>
     );
   }
@@ -55,7 +55,7 @@ export default function ColumnProfileCard({ profile, loading }: ColumnProfileCar
     >
       <div className="flex items-center justify-between gap-1">
         <DtypeBadge dtype={profile.dtype} className="" />
-        <span className="text-gray-400 truncate" title={profile.distribution}>
+        <span className="text-muted-foreground truncate" title={profile.distribution}>
           {profile.distribution}
         </span>
       </div>

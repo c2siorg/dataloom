@@ -500,7 +500,10 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
 
             <tbody>
               {data.map((row, rowIndex) => (
-                <tr key={rowIndex} className="hover:bg-surface-hover transition-colors duration-150">
+                <tr
+                  key={rowIndex}
+                  className="hover:bg-surface-hover transition-colors duration-150"
+                >
                   {row.map((cell, cellIndex) => (
                     <td
                       key={cellIndex}
