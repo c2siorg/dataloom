@@ -33,7 +33,9 @@ const LogsPanel = ({ logs }) => {
                     {new Date(log.timestamp).toLocaleString()}
                   </td>
                   <td className="py-3 px-4 text-sm text-foreground">{log.checkpoint_id || "-"}</td>
-                  <td className="py-3 px-4 text-sm text-foreground">{log.applied ? "Yes" : "No"}</td>
+                  <td className="py-3 px-4 text-sm text-foreground">
+                    {log.applied ? "Yes" : "No"}
+                  </td>
                 </tr>
               ))
             ) : (

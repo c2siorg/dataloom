@@ -60,7 +60,7 @@ export default function SignInPage() {
       </div>
 
       {resetSuccess && (
-       <div className="my-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
+        <div className="my-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
           Password reset successfully. Please sign in with your new password.
         </div>
       )}

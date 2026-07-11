@@ -27,7 +27,7 @@ const AGG_OPTIONS: SelectOption[] = (
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3">
-      <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+      <label className="mb-1 block text-sm font-medium text-foreground">{label}</label>
       {children}
     </div>
   );

@@ -126,7 +126,9 @@ const Select = ({
         onKeyDown={handleKeyDown}
         className="flex items-center justify-between gap-2 border border-app-border rounded-md px-3 py-2 w-full bg-surface text-left text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <span className={`truncate ${selectedLabel ? "text-foreground" : "text-secondary-foreground"}`}>
+        <span
+          className={`truncate ${selectedLabel ? "text-foreground" : "text-secondary-foreground"}`}
+        >
           {selectedLabel || placeholder}
         </span>
         <svg
@@ -154,7 +156,9 @@ const Select = ({
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => selectItem(item.value)}
                 className={`px-2 py-1.5 rounded cursor-pointer text-sm ${
-                  index === activeIndex ? "bg-gray-200 dark:bg-surface" : "hover:bg-gray-100 dark:hover:bg-surface-hover"
+                  index === activeIndex
+                    ? "bg-gray-200 dark:bg-surface"
+                    : "hover:bg-gray-100 dark:hover:bg-surface-hover"
                 } ${value === item.value ? "font-medium" : ""}`}
               >
                 {item.label}

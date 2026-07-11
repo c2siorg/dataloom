@@ -17,16 +17,16 @@ const SidePanel = ({ title, onClose, children }: SidePanelProps) => {
     <aside
       data-testid="side-panel"
       aria-label={title}
-      className="flex w-96 shrink-0 flex-col border-l border-gray-200 bg-white"
+      className="flex w-96 shrink-0 flex-col border-l border-app-border bg-surface"
     >
-      <div className="flex items-center justify-between border-b bg-gray-50 border-gray-200 h-9 px-4">
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+      <div className="flex items-center justify-between border-b bg-elevated border-app-border h-9 px-4">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close panel"
           data-testid="side-panel-close"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>

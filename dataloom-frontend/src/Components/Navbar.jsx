@@ -107,7 +107,7 @@ const Navbar = () => {
                   value={editedName}
                   onChange={(event) => setEditedName(event.target.value)}
                   onKeyDown={handleNameKeyDown}
-                  className="h-9 w-21.5 min-w-0 rounded-md border border-gray-300 px-2 text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-56 md:w-80"
+                  className="h-9 w-21.5 min-w-0 rounded-md border border-app-border px-2 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-56 md:w-80"
                   autoFocus
                   disabled={savingName}
                   aria-label="Project name"
@@ -117,7 +117,7 @@ const Navbar = () => {
                   type="button"
                   onClick={handleSaveName}
                   disabled={savingName}
-                  className="flex shrink-0 p-1 items-center justify-center rounded-md text-green-600 transition-colors hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex shrink-0 p-1 items-center justify-center rounded-md text-green-600 transition-colors hover:bg-green-50 dark:hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label="Save project name"
                 >
                   <LuCheck className="h-4 w-4" />
@@ -127,7 +127,7 @@ const Navbar = () => {
                   type="button"
                   onClick={handleCancelEdit}
                   disabled={savingName}
-                  className="flex shrink-0 p-1 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex shrink-0 p-1 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-red-50 dark:hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label="Cancel rename"
                 >
                   <LuX className="h-4 w-4 text-red-500" />
