@@ -55,7 +55,7 @@ const NewProjectCard = ({ onClick }) => (
   <button
     data-testid="new-project-card"
     onClick={onClick}
-    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 dark:border-app-border bg-blue-50 dark:bg-black p-5 text-center transition-all duration-200 hover:border-blue-00 hover:bg-blue-100 dark:hover:bg-surface"
+    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 dark:border-app-border bg-blue-50 dark:bg-black p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100 dark:hover:bg-surface"
   >
     <span className="text-3xl leading-none text-blue-500">+</span>
     <span className="text-sm font-medium text-blue-600">New Project</span>
@@ -84,8 +84,8 @@ const EmptyState = ({ onClick }) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v4m-2-2h4" />
       </svg>
     </div>
-    <h3 className="text-lg font-semibold text-gray-800 mb-1">No projects yet</h3>
-    <p className="text-sm text-gray-500 mb-6 max-w-xs">
+    <h3 className="text-lg font-semibold text-foreground mb-1">No projects yet</h3>
+    <p className="text-sm text-muted-foreground mb-6 max-w-xs">
       Upload a dataset to get started. Your recent projects will appear here.
     </p>
     <button

@@ -296,7 +296,7 @@ function Label({
 }) {
   return (
     <label htmlFor={htmlFor} className="mb-2 flex items-center gap-2">
-      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-900 text-[10px] font-semibold text-foreground">
+      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-surface text-[10px] font-semibold text-foreground">
         {step}
       </span>
       <span className="text-sm font-medium text-foreground">{children}</span>

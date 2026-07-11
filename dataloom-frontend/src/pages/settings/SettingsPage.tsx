@@ -91,7 +91,7 @@ export default function SettingsPage() {
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
-    <div className="flex min-h-full bg-surface">
+    <div className="flex min-h-full bg-background">
       {/* Mobile top bar */}
       <div className="md:hidden fixed top-14 left-0 right-0 z-20 flex items-center gap-3 border-b border-app-border bg-surface px-4 py-3">
         <button
@@ -114,7 +114,7 @@ export default function SettingsPage() {
       <aside
         className={`
           fixed md:static inset-y-0 left-0 z-30
-          w-56 shrink-0 border-r border-app-border bg-surface px-3 py-6 flex flex-col
+          w-56 shrink-0 border-r border-app-border bg-background px-3 py-6 flex flex-col
           transform transition-transform duration-200
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0

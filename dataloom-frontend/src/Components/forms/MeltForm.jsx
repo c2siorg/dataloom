@@ -122,7 +122,7 @@ const MeltForm = ({ projectId, onClose }) => {
               type="text"
               value={varName}
               onChange={(e) => setVarName(e.target.value)}
-              className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-gray-900 focus:ring-2 focus:ring-blue-500 text-sm"
+              className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-foreground focus:ring-2 focus:ring-blue-500 text-sm"
               placeholder="default: variable"
             />
           </div>

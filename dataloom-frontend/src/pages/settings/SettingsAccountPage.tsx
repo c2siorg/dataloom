@@ -19,7 +19,7 @@ import type { User } from "./types";
 import Button from "../../Components/common/Button";
 
 const INPUT_CLASS =
-  "block w-full rounded-lg border border-app-border bg-surface px-3.5 py-2.5 text-sm text-foreground " +
+  "block w-full rounded-lg border border-app-border bg-background px-3.5 py-2.5 text-sm text-foreground " +
   "placeholder-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -158,7 +158,7 @@ export default function SettingsAccountPage() {
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-        <section className="rounded-2xl border border-app-border bg-elevated p-6 shadow-sm">
+        <section className="rounded-2xl border border-app-border bg-surface p-6 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
               <UserRound className="h-7 w-7" />
@@ -169,7 +169,7 @@ export default function SettingsAccountPage() {
             </div>
           </div>
           <div className="mt-6 space-y-4">
-            <div className="rounded-xl border border-app-border bg-surface p-4">
+            <div className="rounded-xl border border-app-border bg-elevated p-4">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <Mail className="h-4 w-4" />
                 Email
@@ -231,7 +231,7 @@ export default function SettingsAccountPage() {
                 </div>
               )}
             </div>
-            <div className="rounded-xl border border-app-border bg-surface p-4">
+            <div className="rounded-xl border border-app-border bg-elevated p-4">
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <CalendarDays className="h-4 w-4" />
                 Joined
@@ -243,7 +243,7 @@ export default function SettingsAccountPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-app-border bg-elevated p-6 shadow-sm">
+        <section className="rounded-2xl border border-app-border bg-surface p-6 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
               <KeyRound className="h-7 w-7" />
