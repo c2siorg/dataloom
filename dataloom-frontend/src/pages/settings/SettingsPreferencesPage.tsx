@@ -87,7 +87,7 @@ export default function SettingsPreferencesPage() {
         Manage default settings for your DataLoom experience.
       </p>
 
-      <section className="max-w-lg rounded-2xl border border-app-border bg-elevated p-6 shadow-sm">
+      <section className="max-w-lg rounded-2xl border border-app-border bg-surface p-6 shadow-sm">
         <div className="divide-y divide-app-border">
           <div className="space-y-6 pb-6">
             <div>

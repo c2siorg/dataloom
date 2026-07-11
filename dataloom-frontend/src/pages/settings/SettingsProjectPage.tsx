@@ -100,7 +100,7 @@ export default function SettingsProjectPage() {
       <p className="text-sm text-muted-foreground mb-8">Manage settings for this project.</p>
 
       <div className="space-y-6 max-w-lg">
-        <section className="rounded-2xl border border-app-border bg-elevated p-6 shadow-sm">
+        <section className="rounded-2xl border border-app-border bg-surface p-6 shadow-sm">
           <h2 className="text-base font-semibold text-foreground mb-4">Project name</h2>
           <input
             type="text"
@@ -119,7 +119,7 @@ export default function SettingsProjectPage() {
           </button>
         </section>
 
-        <section className="rounded-2xl border border-app-border bg-elevated p-6 shadow-sm">
+        <section className="rounded-2xl border border-app-border bg-surface p-6 shadow-sm">
           <h2 className="text-base font-semibold text-foreground mb-4">Description</h2>
           <textarea
             value={description}
