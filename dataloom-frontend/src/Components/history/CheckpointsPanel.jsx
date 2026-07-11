@@ -26,16 +26,16 @@ const CheckpointsPanel = ({ projectId, checkpoints, onRevert, onCheckpointDelete
   return (
     <div data-testid="checkpoints-panel">
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white rounded-lg overflow-hidden">
-          <thead className="bg-gray-50 sticky top-0">
+        <table className="min-w-full bg-surface rounded-lg overflow-hidden">
+          <thead className="bg-surface border-b border-app-border sticky top-0">
             <tr>
-              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Message
               </th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="py-3 px-4 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Created At
               </th>
-              <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="py-3 px-4 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -45,10 +45,10 @@ const CheckpointsPanel = ({ projectId, checkpoints, onRevert, onCheckpointDelete
               checkpoints.map((checkpoint) => (
                 <tr
                   key={checkpoint.id}
-                  className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150"
+                  className="border-b border-app-border hover:bg-surface-hover transition-colors duration-150"
                 >
-                  <td className="py-3 px-4 text-sm text-gray-700">{checkpoint.message}</td>
-                  <td className="py-3 px-4 text-sm text-gray-500">
+                  <td className="py-3 px-4 text-sm text-foreground">{checkpoint.message}</td>
+                  <td className="py-3 px-4 text-sm text-muted-foreground">
                     {new Date(checkpoint.created_at).toLocaleString()}
                   </td>
                   <td className="py-3 px-4 text-center">
@@ -69,7 +69,7 @@ const CheckpointsPanel = ({ projectId, checkpoints, onRevert, onCheckpointDelete
               ))
             ) : (
               <tr>
-                <td colSpan="3" className="py-4 px-4 text-center text-sm text-gray-500">
+                <td colSpan="3" className="py-4 px-4 text-center text-sm text-muted-foreground">
                   No checkpoints available
                 </td>
               </tr>
@@ -83,7 +83,7 @@ const CheckpointsPanel = ({ projectId, checkpoints, onRevert, onCheckpointDelete
         onClose={() => setConfirmDeleteId(null)}
         title="Delete Checkpoint"
       >
-        <p className="text-gray-700 text-sm mb-6">
+        <p className="text-foreground text-sm mb-6">
           Are you sure you want to delete this checkpoint? This action cannot be undone.
         </p>
         <div className="flex justify-end gap-2">

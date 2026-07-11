@@ -85,7 +85,7 @@ interface MenuButtonProps {
 const MenuButton = ({ children, onClick }: MenuButtonProps) => (
   <button
     role="menuitem"
-    className="block w-full text-left text-sm text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-md transition-colors duration-150 whitespace-nowrap"
+    className="block w-full text-left text-sm text-foreground px-3 py-1.5 hover:bg-surface rounded-md transition-colors duration-150 whitespace-nowrap"
     onClick={onClick}
   >
     {children}
@@ -386,13 +386,13 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="flex-1 min-h-0 overflow-hidden border-x border-b border-gray-200 shadow-sm">
+      <div className="flex-1 min-h-0 overflow-hidden border-x border-b border-app-border shadow-sm">
         <div className="h-full overflow-auto">
           <table
             data-testid="data-table"
-            className="min-w-full bg-white border-separate border-spacing-0"
+            className="min-w-full bg-surface border-separate border-spacing-0"
           >
-            <thead className="sticky top-0 z-20 bg-gray-50">
+            <thead className="sticky top-0 z-20 bg-surface">
               {showColumnProfiles && (
                 <tr>
                   {columns.map((column, columnIndex) => {
@@ -400,10 +400,10 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                     return (
                       <th
                         key={columnIndex}
-                        className={`align-top border-b border-r border-gray-200 ${
+                        className={`align-top border-b border-r border-app-border ${
                           isSerialNumber
-                            ? "w-16 sticky left-0 z-10 bg-gray-50"
-                            : "bg-white min-w-35"
+                            ? "w-16 sticky left-0 z-10 bg-surface"
+                            : "bg-surface min-w-35"
                         }`}
                       >
                         {!isSerialNumber && (
@@ -425,14 +425,14 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                   return (
                     <th
                       key={columnIndex}
-                      className={`h-6 px-0.5 py-0 border-r border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                      className={`h-6 px-0.5 py-0 border-r border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
                         isDropTarget ? "ring-2 ring-blue-400" : ""
-                      } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-gray-50" : "bg-gray-50"}`}
+                      } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
                       onContextMenu={(e) => open(e, { type: "column", columnIndex })}
                     >
                       <button
                         type="button"
-                        className={`w-full text-left text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-150 ${
+                        className={`w-full text-left text-muted-foreground hover:text-foreground hover:bg-surface-hover rounded-md transition-colors duration-150 ${
                           isSerialNumber ? "" : "cursor-grab active:cursor-grabbing"
                         } ${isDragged ? "opacity-50" : ""}`}
                         draggable={!isSerialNumber}
@@ -482,9 +482,9 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                   return (
                     <th
                       key={columnIndex}
-                      className={`h-5 px-0.5 py-0 border-b border-r border-gray-200 text-left text-[10px] leading-none ${
+                      className={`h-5 px-0.5 py-0 border-b border-r border-app-border text-left text-[10px] leading-none ${
                         isDropTarget ? "ring-2 ring-blue-400" : ""
-                      } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-gray-50" : "bg-gray-50"}`}
+                      } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
                       onContextMenu={(e) => open(e, { type: "column", columnIndex })}
                     >
                       {!isSerialNumber && dtypes[column] ? (
@@ -500,14 +500,14 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
 
             <tbody>
               {data.map((row, rowIndex) => (
-                <tr key={rowIndex} className="hover:bg-gray-50 transition-colors duration-150">
+                <tr key={rowIndex} className="hover:bg-surface-hover transition-colors duration-150">
                   {row.map((cell, cellIndex) => (
                     <td
                       key={cellIndex}
-                      className={`h-6 px-0.5 py-0 text-xs border-b border-r border-gray-200 ${
+                      className={`h-6 px-0.5 py-0 text-xs border-b border-r border-app-border ${
                         cellIndex === 0
-                          ? "w-16 sticky left-0 z-10 bg-gray-50 text-center font-medium text-gray-500"
-                          : "text-gray-700"
+                          ? "w-16 sticky left-0 z-10 bg-surface text-center font-medium text-muted-foreground"
+                          : "text-foreground"
                       }`}
                       onContextMenu={(e) => open(e, { type: "row", rowIndex })}
                     >
@@ -519,7 +519,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
                           onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
-                          className="w-full p-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                          className="w-full p-1 border border-app-border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                           onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
                         />
                       ) : (
@@ -527,7 +527,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                           onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
                           className={
                             cellIndex !== 0
-                              ? "cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded"
+                              ? "cursor-pointer hover:bg-elevated px-1 py-0.5 rounded"
                               : ""
                           }
                         >
@@ -543,7 +543,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
         </div>
       </div>
 
-      <div className="mt-auto bg-white border-t border-gray-200 z-10">
+      <div className="mt-auto bg-surface border-t border-app-border z-10">
         <TablePagination
           totalRows={totalRows}
           totalPages={totalPages}
@@ -676,23 +676,24 @@ export function TablePagination({
   };
 
   return (
-    <div className="flex min-h-9 shrink-0 flex-wrap items-center justify-center md:justify-between gap-x-4 gap-y-2 px-4 py-1.5 bg-white text-xs sm:px-6">
-      <div className="flex items-center gap-x-5 gap-y-1.5 text-gray-600 flex-wrap">
+    <div className="flex h-9 shrink-0 items-center justify-between gap-2 px-4 bg-surface text-xs sm:px-6">
+      {/* Left: Total Rows + Page Size */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <span className="text-gray-500">Total Rows:</span>
-          <span className="text-gray-900">{totalRows}</span>
+          <span className="text-muted-foreground">Total Rows:</span>
+          <span className="text-foreground">{totalRows}</span>
         </div>
         <div className="relative flex items-center gap-1.5">
-          <span className="text-gray-500">Page Size:</span>
+          <span className="text-muted-foreground">Page Size:</span>
           <div className="relative inline-block">
             <button
               onClick={() => setPageSizeOpen(!pageSizeOpen)}
-              className="min-w-8.5 rounded border border-gray-300 px-2 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="min-w-8.5 rounded border border-app-border px-2 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {pageSize}
             </button>
             {pageSizeOpen && (
-              <div className="absolute bottom-full z-10 mb-1 min-w-13 rounded-md border border-gray-300 bg-white shadow-md">
+              <div className="absolute bottom-full z-10 mb-1 min-w-13 rounded-md border border-app-border bg-surface shadow-md">
                 {pageSizeOptions.map((size) => (
                   <div
                     key={size}
@@ -700,7 +701,7 @@ export function TablePagination({
                       onPageSizeChange(size);
                       setPageSizeOpen(false);
                     }}
-                    className="cursor-pointer rounded px-3 py-1 hover:bg-blue-50 hover:text-blue-700"
+                    className="cursor-pointer rounded px-3 py-1 hover:bg-surface-hover hover:text-blue-700"
                   >
                     {size}
                   </div>
@@ -716,23 +717,23 @@ export function TablePagination({
         <button
           onClick={handleFirst}
           disabled={page === 1}
-          className="rounded border border-gray-300 p-1 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded border border-app-border p-1 transition-colors hover:bg-surface-hover focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="First page"
         >
-          <ChevronsLeft className="h-3.5 w-3.5 text-gray-700" />
+          <ChevronsLeft className="h-3.5 w-3.5 text-foreground" />
         </button>
         <button
           onClick={handlePrevious}
           disabled={page === 1}
-          className="rounded border border-gray-300 p-1 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded border border-app-border p-1 transition-colors hover:bg-surface-hover focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Previous page"
         >
-          <ChevronLeft className="h-3.5 w-3.5 text-gray-700" />
+          <ChevronLeft className="h-3.5 w-3.5 text-foreground" />
         </button>
 
         {/* Page X of Y — X always editable */}
-        <div className="flex items-center gap-1 text-gray-600 select-none">
-          <span className="text-gray-500">Page</span>
+        <div className="flex items-center gap-1 text-muted-foreground select-none">
+          <span className="text-muted-foreground">Page</span>
           <input
             ref={pageInputRef}
             type="number"
@@ -744,27 +745,27 @@ export function TablePagination({
             onKeyDown={handlePageInputKeyDown}
             onBlur={commitPageInput}
             title={`Enter a page between 1 and ${totalPages}`}
-            className="h-6 w-11 rounded border border-gray-300 px-1 text-center text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            className="h-6 w-11 rounded border border-app-border px-1 text-center text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             aria-label="Current page"
           />
-          <span className="text-gray-500">of {totalPages}</span>
+          <span className="text-muted-foreground">of {totalPages}</span>
         </div>
 
         <button
           onClick={handleNext}
           disabled={page === totalPages}
-          className="rounded border border-gray-300 p-1 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded border border-app-border p-1 transition-colors hover:bg-surface-hover focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Next page"
         >
-          <ChevronRight className="h-3.5 w-3.5 text-gray-700" />
+          <ChevronRight className="h-3.5 w-3.5 text-foreground" />
         </button>
         <button
           onClick={handleLast}
           disabled={page === totalPages}
-          className="rounded border border-gray-300 p-1 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded border border-app-border p-1 transition-colors hover:bg-surface-hover focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Last page"
         >
-          <ChevronsRight className="h-3.5 w-3.5 text-gray-700" />
+          <ChevronsRight className="h-3.5 w-3.5 text-foreground" />
         </button>
       </div>
     </div>

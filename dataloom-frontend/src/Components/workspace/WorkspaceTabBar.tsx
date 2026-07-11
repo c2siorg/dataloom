@@ -17,7 +17,7 @@ const WorkspaceTabBar = ({ onAddTab }: WorkspaceTabBarProps) => {
     <div
       role="tablist"
       aria-label="Open tables"
-      className="flex h-9 shrink-0 items-stretch overflow-hidden border-b border-gray-200 bg-gray-50"
+      className="flex h-9 shrink-0 items-stretch overflow-hidden border-b border-app-border bg-surface"
     >
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId;
@@ -36,10 +36,10 @@ const WorkspaceTabBar = ({ onAddTab }: WorkspaceTabBarProps) => {
               }
             }}
             data-testid={`workspace-tab-${tab.id}`}
-            className={`group flex shrink-0 cursor-pointer items-center gap-2 border-r border-gray-200 px-3 py-1.5 text-sm transition-colors ${
+            className={`group flex shrink-0 cursor-pointer items-center gap-2 border-r border-app-border px-3 py-1.5 text-sm transition-colors ${
               isActive
-                ? "-mb-px border-b-2 border-b-blue-500 bg-white font-medium text-blue-600"
-                : "text-gray-500 hover:bg-gray-100"
+                ? "-mb-px border-b-2 border-b-blue-500 bg-surface font-medium text-blue-600"
+                : "text-muted-foreground hover:bg-surface-hover"
             }`}
           >
             <span className="max-w-45 truncate">{tab.title}</span>
@@ -52,7 +52,7 @@ const WorkspaceTabBar = ({ onAddTab }: WorkspaceTabBarProps) => {
                 }}
                 aria-label={`Close ${tab.title}`}
                 data-testid={`workspace-tab-close-${tab.id}`}
-                className="flex h-4 w-4 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+                className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:bg-surface hover:text-gray-700"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -67,7 +67,7 @@ const WorkspaceTabBar = ({ onAddTab }: WorkspaceTabBarProps) => {
           onClick={onAddTab}
           aria-label="New tab"
           data-testid="workspace-tab-add"
-          className="flex shrink-0 items-center px-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          className="flex shrink-0 items-center px-2 text-muted-foreground hover:bg-surface hover:text-gray-700"
         >
           <Plus className="h-4 w-4" />
         </button>
