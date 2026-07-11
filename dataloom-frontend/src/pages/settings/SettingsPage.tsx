@@ -91,18 +91,18 @@ export default function SettingsPage() {
   const closeSidebar = () => setSidebarOpen(false);
 
   return (
-    <div className="flex min-h-full bg-slate-50">
+    <div className="flex min-h-full bg-surface">
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-14 left-0 right-0 z-20 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
+      <div className="md:hidden fixed top-14 left-0 right-0 z-20 flex items-center gap-3 border-b border-app-border bg-surface px-4 py-3">
         <button
           type="button"
           onClick={() => setSidebarOpen((prev) => !prev)}
-          className="flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50"
+          className="flex items-center justify-center rounded-lg border border-app-border p-2 text-secondary-foreground hover:bg-surface-hover"
           aria-label="Toggle settings menu"
         >
           <Settings className="h-4 w-4" />
         </button>
-        <span className="text-sm font-semibold text-gray-900">Settings</span>
+        <span className="text-sm font-semibold text-foreground">Settings</span>
       </div>
 
       {/* Overlay */}
@@ -114,7 +114,7 @@ export default function SettingsPage() {
       <aside
         className={`
           fixed md:static inset-y-0 left-0 z-30
-          w-56 shrink-0 border-r border-gray-200 bg-white px-3 py-6 flex flex-col
+          w-56 shrink-0 border-r border-app-border bg-surface px-3 py-6 flex flex-col
           transform transition-transform duration-200
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0
@@ -122,13 +122,13 @@ export default function SettingsPage() {
       >
         <div className="mb-6 flex items-center justify-between px-3">
           <div className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-gray-700" />
-            <span className="text-sm font-semibold text-gray-900">Settings</span>
+            <Settings className="h-5 w-5 text-foreground" />
+            <span className="text-sm font-semibold text-foreground">Settings</span>
           </div>
           <button
             type="button"
             onClick={closeSidebar}
-            className="md:hidden rounded-lg p-1 text-gray-400 hover:bg-gray-100"
+            className="md:hidden rounded-lg p-1 text-muted-foreground hover:bg-surface-hover"
             aria-label="Close menu"
           >
             <X className="h-4 w-4" />
@@ -145,7 +145,7 @@ export default function SettingsPage() {
                 `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-blue-50 text-blue-600"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    : "text-muted-foreground hover:bg-surface-hover hover:text-secondary-foreground"
                 }`
               }
             >
@@ -157,36 +157,36 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={() => setProjectsOpen((prev) => !prev)}
-            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors w-full text-left"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-surface-hover hover:text-secondary-foreground transition-colors w-full text-left"
           >
             <FolderOpen className="h-4 w-4 shrink-0" />
             <span className="flex-1">Projects</span>
             {projectsOpen ? (
-              <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             ) : (
-              <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             )}
           </button>
 
           {projectsOpen && (
             <div className="ml-2 mt-1 flex flex-col gap-1">
               <div className="relative px-1 mb-1">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground'" />
                 <input
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search projects..."
-                  className="w-full rounded-md border border-gray-200 bg-gray-50 py-1.5 pl-8 pr-2 text-xs text-gray-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                  className="w-full rounded-md border border-app-border bg-surface py-1.5 pl-8 pr-2 text-xs text-foreground outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                 />
               </div>
 
               {isSearchLoading || (isProjectsLoading && visibleProjects.length === 0) ? (
-                <p className="px-3 py-1 text-xs text-gray-400">
+                <p className="px-3 py-1 text-xs text-muted-foreground">
                   {isSearching ? "Searching..." : "Loading projects..."}
                 </p>
               ) : visibleProjects.length === 0 ? (
-                <p className="px-3 py-1 text-xs text-gray-400">
+                <p className="px-3 py-1 text-xs text-muted-foreground">
                   {isSearching ? "No projects found" : "No projects yet"}
                 </p>
               ) : (
@@ -200,7 +200,7 @@ export default function SettingsPage() {
                         `truncate rounded-lg px-3 py-2 flex items-center text-xs font-medium transition-colors ${
                           isActive
                             ? "bg-blue-50 text-blue-600"
-                            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                            : "text-muted-foreground hover:bg-surface-hover hover:text-secondary-foreground"
                         }`
                       }
                     >
@@ -228,7 +228,7 @@ export default function SettingsPage() {
           <Link
             to={ROUTES.home}
             onClick={closeSidebar}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-secondary-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard

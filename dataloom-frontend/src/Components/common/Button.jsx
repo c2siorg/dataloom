@@ -13,7 +13,7 @@ const VARIANT_CLASSES = {
   secondary:
     "border border-app-border bg-surface text-foreground hover:border-app-border-hover hover:bg-surface-hover focus:ring-app-border",
 
-  danger: "bg-danger text-white hover:bg-danger-hover focus:ring-danger",
+  danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-danger",
 
   ghost: "bg-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground",
 

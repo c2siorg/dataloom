@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import Modal from "../../Components/common/Modal";
 import { useToast } from "../../context/ToastContext";
 import type { Project, ProjectDetails } from "./types";
+import Button from "../../Components/common/Button";
 
 export default function SettingsProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -90,22 +91,22 @@ export default function SettingsProjectPage() {
     }
   };
 
-  if (loading) return <p className="text-sm text-gray-500">Loading...</p>;
-  if (!project) return <p className="text-sm text-gray-500">Project not found.</p>;
+  if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  if (!project) return <p className="text-sm text-muted-foreground">Project not found.</p>;
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-1">{project.name}</h1>
-      <p className="text-sm text-gray-500 mb-8">Manage settings for this project.</p>
+      <h1 className="text-2xl font-bold tracking-tight text-foreground mb-1">{project.name}</h1>
+      <p className="text-sm text-muted-foreground mb-8">Manage settings for this project.</p>
 
       <div className="space-y-6 max-w-lg">
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-900 mb-4">Project name</h2>
+        <section className="rounded-2xl border border-app-border bg-elevated p-6 shadow-sm">
+          <h2 className="text-base font-semibold text-foreground mb-4">Project name</h2>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 mb-3"
+            className="block w-full rounded-lg border border-app-border bg-surface px-3.5 py-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 mb-3"
             placeholder="Project name"
           />
           <button
@@ -118,13 +119,13 @@ export default function SettingsProjectPage() {
           </button>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-900 mb-4">Description</h2>
+        <section className="rounded-2xl border border-app-border bg-elevated p-6 shadow-sm">
+          <h2 className="text-base font-semibold text-foreground mb-4">Description</h2>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-y mb-3"
+            className="block w-full rounded-lg border border-app-border bg-surface px-3.5 py-2.5 text-sm text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-y mb-3"
             placeholder="Brief description of this dataset"
           />
           <button
@@ -137,25 +138,22 @@ export default function SettingsProjectPage() {
           </button>
         </section>
 
-        <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+        <section className="rounded-2xl border border-danger-border bg-danger-bg p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-slate-900">Danger zone</h2>
-              <p className="text-xs text-gray-500">
+              <h2 className="text-base font-semibold text-danger">Danger zone</h2>
+              <p className="text-xs text-danger/60">
                 Permanently delete this project and all its data.
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowDeleteModal(true)}
-            className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600"
-          >
+
+          <Button type="button" onClick={() => setShowDeleteModal(true)} variant="danger">
             Delete project
-          </button>
+          </Button>
         </section>
       </div>
 
@@ -164,27 +162,28 @@ export default function SettingsProjectPage() {
         onClose={() => setShowDeleteModal(false)}
         title="Delete Project"
       >
-        <p className="text-sm text-gray-700 mb-6">
+        <p className="text-sm text-danger mb-6">
           Are you sure you want to delete <strong>{project.name}</strong>? This will permanently
           remove all checkpoints, logs, and data. This action cannot be undone.
         </p>
         <div className="flex justify-end gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => setShowDeleteModal(false)}
             disabled={deletingProject}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-60"
+            variant="secondary"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+
+          <Button
+            variant="danger"
             type="button"
             onClick={handleDeleteProject}
             disabled={deletingProject}
-            className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-md disabled:opacity-60"
           >
             {deletingProject ? "Deleting..." : "Delete project"}
-          </button>
+          </Button>
         </div>
       </Modal>
     </div>
