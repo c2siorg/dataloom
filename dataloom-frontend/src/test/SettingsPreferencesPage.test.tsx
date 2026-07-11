@@ -1,9 +1,11 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import SettingsPreferencesPage from "../pages/settings/SettingsPreferencesPage";
 
 const updatePageSizePreference = vi.fn();
 const showToast = vi.fn();
+const toggleTheme = vi.fn();
 
 vi.mock("../context/ProjectContext", () => ({
   useProjectContext: () => ({
@@ -18,6 +20,15 @@ vi.mock("../context/ToastContext", () => ({
   }),
 }));
 
+vi.mock("../context/ThemeContext", () => ({
+  useTheme: () => ({
+    theme: "light",
+    isDarkMode: false,
+    setTheme: vi.fn(),
+    toggleTheme,
+  }),
+}));
+
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
@@ -29,6 +40,13 @@ describe("SettingsPreferencesPage", () => {
 
     expect(screen.getByText("Default page size")).toBeInTheDocument();
     expect(screen.getByText("Default export format")).toBeInTheDocument();
+  });
+
+  it("renders the appearance setting", () => {
+    render(<SettingsPreferencesPage />);
+
+    expect(screen.getByText("Appearance")).toBeInTheDocument();
+    expect(screen.getByText("Currently using light mode.")).toBeInTheDocument();
   });
 
   it("saves page size preference on save", () => {
@@ -71,5 +89,17 @@ describe("SettingsPreferencesPage", () => {
     render(<SettingsPreferencesPage />);
 
     expect(screen.getAllByRole("combobox")[1]).toHaveValue("xlsx");
+  });
+
+  it("toggles the theme", () => {
+    render(<SettingsPreferencesPage />);
+
+    fireEvent.click(
+      screen.getByRole("switch", {
+        name: /switch to dark mode/i,
+      }),
+    );
+
+    expect(toggleTheme).toHaveBeenCalledOnce();
   });
 });
