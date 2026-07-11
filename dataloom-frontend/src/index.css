@@ -1,14 +1,94 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@theme {
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Backgrounds */
+  --app-background: #ffffff;
+  --app-surface: #fafafa;
+  --app-surface-hover: #f4f4f5;
+  --app-elevated: #ffffff;
+
+  /* Borders */
+  --app-border: #dee2e6;
+  --app-border-subtle: #98c4f4;
+  --app-border-hover: #8bb1da;
+
+  /* Text */
+  --app-foreground: #18181b;
+  --app-secondary-foreground: #52525b;
+  --app-muted-foreground: #71717a;
+  --app-disabled-foreground: #a1a1aa;
+
+  /* Accent */
+  --app-accent-subtle: #eff6ff;
+}
+
+.dark {
+  /* Backgrounds */
+  --app-background: #09090b;
+  --app-surface: #18181b;
+  --app-surface-hover: #27272a;
+  --app-elevated: #202024;
+
+  /* Borders */
+  --app-border: #38383a;
+  --app-border-subtle: #1f1f23;
+  --app-border-hover: #5f5f67;
+
+  /* Text */
+  --app-foreground: #fafafa;
+  --app-secondary-foreground: #d4d4d8;
+  --app-muted-foreground: #a1a1aa;
+  --app-disabled-foreground: #71717a;
+
+  /* Accent */
+  --app-accent-subtle: #172554;
+}
+
+@theme inline {
+  /* Backgrounds */
+  --color-background: var(--app-background);
+  --color-surface: var(--app-surface);
+  --color-surface-hover: var(--app-surface-hover);
+  --color-elevated: var(--app-elevated);
+
+  /* Borders */
+  --color-app-border: var(--app-border);
+  --color-app-border-subtle: var(--app-border-subtle);
+  --color-app-border-hover: var(--app-border-hover);
+
+  /* Text */
+  --color-foreground: var(--app-foreground);
+  --color-secondary-foreground: var(--app-secondary-foreground);
+  --color-muted-foreground: var(--app-muted-foreground);
+  --color-disabled-foreground: var(--app-disabled-foreground);
+
+  /* Accent */
   --color-accent: #3b82f6;
   --color-accent-hover: #2563eb;
-  --color-accent-subtle: #eff6ff;
+  --color-accent-subtle: var(--app-accent-subtle);
+
+  /* Success */
+  --color-success: #16a34a;
+  --color-success-hover: #15803d;
+
+  /* Danger */
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
 }
 
 @layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-white text-gray-900 antialiased;
+    @apply bg-background text-foreground antialiased transition-colors;
   }
 }

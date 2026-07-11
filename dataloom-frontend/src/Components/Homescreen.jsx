@@ -19,14 +19,14 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
       data-testid="project-card"
       data-project-id={project.project_id}
       onClick={onClick}
-      className="relative flex flex-col items-start gap-2 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:border-blue-300 hover:shadow-md"
+      className="relative flex flex-col items-start gap-2 rounded-lg border border-app-border bg-surface p-5 text-left shadow-sm transition-all duration-200 hover:border-app-border-hover hover:shadow-md"
     >
       <button
         onClick={(e) => {
           e.stopPropagation();
           onDelete(project.project_id);
         }}
-        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors duration-150 p-1 rounded-md hover:bg-red-50"
+        className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 transition-colors duration-150 p-1 rounded-md hover:bg-red-50"
         aria-label="Delete project"
       >
         <svg
@@ -42,11 +42,11 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
           />
         </svg>
       </button>
-      <h3 className="text-lg font-semibold text-gray-900 truncate w-full pr-6">{project.name}</h3>
+      <h3 className="text-lg font-semibold text-foreground truncate w-full pr-6">{project.name}</h3>
       {project.description && (
-        <p className="text-sm text-gray-500 line-clamp-2">{project.description}</p>
+        <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
       )}
-      <span className="mt-auto text-xs text-gray-400">{modified}</span>
+      <span className="mt-auto text-xs text-muted-foreground">{modified}</span>
     </button>
   );
 };
@@ -55,7 +55,7 @@ const NewProjectCard = ({ onClick }) => (
   <button
     data-testid="new-project-card"
     onClick={onClick}
-    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 p-5 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-100"
+    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-300 dark:border-app-border bg-blue-50 dark:bg-black p-5 text-center transition-all duration-200 hover:border-blue-00 hover:bg-blue-100 dark:hover:bg-surface"
   >
     <span className="text-3xl leading-none text-blue-500">+</span>
     <span className="text-sm font-medium text-blue-600">New Project</span>
@@ -65,7 +65,7 @@ const NewProjectCard = ({ onClick }) => (
 const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.join(",");
 
 const EmptyState = ({ onClick }) => (
-  <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
+  <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-app-border bg-surface text-center">
     <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-50">
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -300,7 +300,7 @@ const HomeScreen = () => {
       return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <NewProjectCard onClick={handleNewProjectClick} />
-          <div className="col-span-2 md:col-span-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+          <div className="col-span-2 md:col-span-3 rounded-lg border border-app-border bg-surface px-4 py-8 text-center text-sm text-secondary-foreground">
             Searching projects...
           </div>
         </div>
@@ -311,7 +311,7 @@ const HomeScreen = () => {
       return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <NewProjectCard onClick={handleNewProjectClick} />
-          <div className="col-span-2 md:col-span-3 flex items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+          <div className="col-span-2 md:col-span-3 flex items-center justify-center rounded-lg border border-dashed border-app-border bg-surface p-8 text-center text-sm text-secondary-foreground">
             No projects found for &quot;{searchQuery.trim()}&quot;
           </div>
         </div>
@@ -334,15 +334,17 @@ const HomeScreen = () => {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-white px-6 pt-24">
+    <div className="flex flex-col items-center min-h-screen bg-background px-6 pt-24">
       <div className="w-full max-w-4xl">
-        <h1 className="text-5xl text-gray-900">
+        <h1 className="text-5xl text-foreground">
           Welcome to <span className="text-blue-500 font-bold">DataLoom</span>,
         </h1>
-        <p className="text-xl mt-2 text-gray-600">your one-stop for Dataset Transformations.</p>
+        <p className="text-xl mt-2 text-secondary-foreground">
+          your one-stop for Dataset Transformations.
+        </p>
 
         <div className="flex items-center justify-between mt-12 mb-4">
-          <h2 className="text-lg font-medium text-gray-700">Recent Projects</h2>
+          <h2 className="text-lg font-medium text-foreground">Recent Projects</h2>
           {recentProjects.length > 0 && (
             <button
               type="button"
@@ -373,7 +375,7 @@ const HomeScreen = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search projects..."
-            className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm text-gray-900 shadow-sm outline-none transition-all duration-150 placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded-lg border border-app-border bg-surface py-2.5 pl-10 pr-3 text-sm text-foreground shadow-sm outline-none transition-all duration-150 placeholder:text-muted-foreground focus:border-blue-400 dark:focus:border-gray-800 focus:ring-2 focus:ring-blue-100 dark:focus:ring-gray-700"
           />
         </div>
 
@@ -404,15 +406,15 @@ const HomeScreen = () => {
             onClick={isSubmitting ? undefined : handleCloseModal}
             aria-hidden="true"
           ></div>
-          <div className="bg-white rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
-            <h2 id="modal-title" className="text-xl font-semibold text-gray-900 mb-6">
+          <div className="bg-surface rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
+            <h2 id="modal-title" className="text-xl font-semibold text-foreground mb-6">
               New Project
             </h2>
             <div className="flex flex-col gap-4">
               <div>
                 <label
                   htmlFor="project-name"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-secondary-foreground mb-1"
                 >
                   Project Name<span className="text-red-500">*</span>
                 </label>
@@ -421,7 +423,7 @@ const HomeScreen = () => {
                   data-testid="project-name-input"
                   type="text"
                   placeholder="e.g. Sales Analysis Q1"
-                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full text-sm text-foreground border border-app-border rounded-md px-3 py-2 bg-surface focus:outline-none dark:focus:border-gray-800 focus:ring-2 focus:ring-blue-100 dark:focus:ring-gray-700"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   required
@@ -431,7 +433,7 @@ const HomeScreen = () => {
               <div>
                 <label
                   htmlFor="project-description"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-secondary-foreground mb-1"
                 >
                   Description<span className="text-red-500">*</span>
                 </label>
@@ -440,13 +442,13 @@ const HomeScreen = () => {
                   data-testid="project-description-input"
                   rows={3}
                   placeholder="Brief description of this dataset"
-                  className="block w-full text-sm text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                  className="block w-full text-sm text-foreground border border-app-border rounded-md px-3 py-2 bg-surface focus:outline-none dark:focus:border-gray-800 focus:ring-2 focus:ring-blue-100 dark:focus:ring-gray-700 resize-y"
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-secondary-foreground mb-2">
                   Upload Dataset{" "}
                   <span className="text-gray-400 font-normal">(CSV, TSV, JSON, XLSX, Parquet)</span>
                   <span className="text-red-500">*</span>
@@ -457,7 +459,7 @@ const HomeScreen = () => {
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     onClick={() => fileInputRef.current?.click()}
-                    className="group border-2 border-dashed border-gray-300 hover:border-blue-500 transition-all rounded-2xl p-8 bg-gray-50 hover:bg-blue-50 cursor-pointer text-center"
+                    className="group border-2 border-dashed border-app-border hover:border-app-border-hover transition-all rounded-2xl p-8 bg-elevated hover:bg-surface-hover cursor-pointer text-center"
                   >
                     <input
                       id="project-file"
@@ -472,25 +474,28 @@ const HomeScreen = () => {
                     />
 
                     <div className="flex flex-col items-center gap-3">
-                      <div className="p-4 rounded-full bg-white shadow-sm border border-gray-200 group-hover:border-blue-200">
-                        <UploadCloud className="w-8 h-8 text-gray-500 group-hover:text-blue-600" />
+                      <div className="p-4 rounded-full bg-surface shadow-sm border border-app-border-subtle group-hover:border-app-border-hover">
+                        <UploadCloud className="w-8 h-8 text-muted-foreground group-hover:text-blue-600" />
                       </div>
 
                       <div>
-                        <p className="text-sm font-semibold text-gray-800">
+                        <p className="text-sm font-semibold text-foreground">
                           Drag & drop your dataset here
                         </p>
 
-                        <p className="text-sm text-gray-500 mt-1">
-                          or <span className="text-blue-600 font-medium">browse files</span>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          or{" "}
+                          <span className="text-blue-600 dark:text-blue-300 font-medium">
+                            browse files
+                          </span>
                         </p>
                       </div>
 
-                      <p className="text-xs text-gray-400">Maximum file size: 10 MB</p>
+                      <p className="text-xs text-muted-foreground">Maximum file size: 10 MB</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="border border-gray-300 bg-white hover:bg-slate-50 transition-all duration-150 rounded-2xl p-4">
+                  <div className="border border-app-border bg-surface hover:bg-surface-hover transition-all duration-150 rounded-2xl p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="p-3 rounded-xl bg-white border border-green-100 shadow-sm">
@@ -498,11 +503,11 @@ const HomeScreen = () => {
                         </div>
 
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-800 truncate">
+                          <p className="text-sm font-semibold text-foreground truncate">
                             {fileUpload.name}
                           </p>
 
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             {formatFileSize(fileUpload.size)} •{" "}
                             {fileUpload.name.split(".").pop().toUpperCase()} File
                           </p>
@@ -513,7 +518,7 @@ const HomeScreen = () => {
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-100 rounded-lg transition"
+                          className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-elevated rounded-lg transition"
                         >
                           <Pencil className="w-4 h-4" />
                           Change
@@ -522,7 +527,7 @@ const HomeScreen = () => {
                         <button
                           type="button"
                           onClick={removeFile}
-                          className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition"
+                          className="p-2 text-red-500 dark: dark:text-red-400 hover:bg-red-100 dark:hover:bg-elevated rounded-lg transition"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -543,7 +548,7 @@ const HomeScreen = () => {
             </div>
             <div className="flex flex-row justify-end gap-3 mt-6">
               <button
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-surface border border-app-border text-foreground hover:bg-surface-hover rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleCloseModal}
                 disabled={isSubmitting}
               >

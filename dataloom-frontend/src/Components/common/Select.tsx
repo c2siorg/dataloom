@@ -124,13 +124,13 @@ const Select = ({
         aria-expanded={open}
         onClick={toggle}
         onKeyDown={handleKeyDown}
-        className="flex items-center justify-between gap-2 border border-gray-300 rounded-md px-3 py-2 w-full bg-white text-left text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center justify-between gap-2 border border-app-border rounded-md px-3 py-2 w-full bg-surface text-left text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <span className={`truncate ${selectedLabel ? "text-gray-900" : "text-gray-400"}`}>
+        <span className={`truncate ${selectedLabel ? "text-foreground" : "text-secondary-foreground"}`}>
           {selectedLabel || placeholder}
         </span>
         <svg
-          className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-secondary-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -143,7 +143,7 @@ const Select = ({
         <div
           data-state={open ? "open" : "closed"}
           onAnimationEnd={handleAnimationEnd}
-          className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg origin-top data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fill-mode-forwards data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-top-2 data-[state=closed]:slide-out-to-top-2"
+          className="absolute z-50 mt-1 w-full bg-surface border border-app-border rounded-md shadow-lg origin-top data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fill-mode-forwards data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-top-2 data-[state=closed]:slide-out-to-top-2"
         >
           <ul ref={listRef} role="listbox" className="max-h-48 overflow-y-auto p-1">
             {options.map((item, index) => (
@@ -154,7 +154,7 @@ const Select = ({
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => selectItem(item.value)}
                 className={`px-2 py-1.5 rounded cursor-pointer text-sm ${
-                  index === activeIndex ? "bg-gray-200" : "hover:bg-gray-100"
+                  index === activeIndex ? "bg-gray-200 dark:bg-surface" : "hover:bg-gray-100 dark:hover:bg-surface-hover"
                 } ${value === item.value ? "font-medium" : ""}`}
               >
                 {item.label}

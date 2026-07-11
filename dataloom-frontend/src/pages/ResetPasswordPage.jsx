@@ -8,8 +8,8 @@ import { ROUTES } from "../constants/routes";
 import { useAuth } from "../context/AuthContext";
 
 const INPUT_CLASS =
-  "block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 " +
-  "placeholder-gray-400 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
+  "block w-full rounded-lg border border-app-border bg-surface px-3.5 py-2.5 text-sm text-foreground " +
+  "placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -62,16 +62,16 @@ export default function ResetPasswordPage() {
       <div>
         <div className="flex items-center gap-2">
           <DataLoomLogo className="h-6 w-6" />
-          <span className="text-xl font-semibold text-slate-900">DataLoom</span>
+          <span className="text-xl font-semibold text-foreground">DataLoom</span>
         </div>
-        <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">Reset password</h2>
-        <p className="mt-1.5 text-sm text-gray-500">Enter your new password below.</p>
+        <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">Reset password</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">Enter your new password below.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="mt-8">
         <div className="space-y-4">
           <div>
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-foreground">
               New password
             </label>
             <div className="relative">
@@ -95,7 +95,7 @@ export default function ResetPasswordPage() {
             </div>
           </div>
           <div>
-            <label htmlFor="confirm" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="confirm" className="mb-1.5 block text-sm font-medium text-foreground">
               Confirm password
             </label>
             <input

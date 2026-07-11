@@ -17,6 +17,7 @@ import SettingsAccountPage from "./pages/settings/SettingsAccountPage";
 import SettingsPreferencesPage from "./pages/settings/SettingsPreferencesPage";
 import SettingsProjectPage from "./pages/settings/SettingsProjectPage";
 import { ROUTES } from "./constants/routes";
+import { ThemeProvider } from "./context/ThemeContext";
 
 /**
  * Root application component with routing, providers, and error boundary.
@@ -27,35 +28,37 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <ProjectProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path={ROUTES.signin} element={<SignInPage />} />
-                <Route path={ROUTES.signup} element={<SignUpPage />} />
-                <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
-                <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
+            <ThemeProvider>
+              <BrowserRouter>
+                <Routes>
+                  <Route path={ROUTES.signin} element={<SignInPage />} />
+                  <Route path={ROUTES.signup} element={<SignUpPage />} />
+                  <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
+                  <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
 
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<AppLayout />}>
-                    <Route path="/" element={<Navigate to={ROUTES.home} replace />} />
-                    <Route path={ROUTES.home} element={<Homescreen />} />
-                    <Route path={ROUTES.workspace} element={<DataScreen />} />
-                    <Route
-                      path="/profile"
-                      element={<Navigate to={ROUTES.settingsAccount} replace />}
-                    />
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<AppLayout />}>
+                      <Route path="/" element={<Navigate to={ROUTES.home} replace />} />
+                      <Route path={ROUTES.home} element={<Homescreen />} />
+                      <Route path={ROUTES.workspace} element={<DataScreen />} />
+                      <Route
+                        path="/profile"
+                        element={<Navigate to={ROUTES.settingsAccount} replace />}
+                      />
 
-                    <Route path={ROUTES.settings} element={<SettingsPage />}>
-                      <Route index element={<Navigate to={ROUTES.settingsAccount} replace />} />
-                      <Route path="account" element={<SettingsAccountPage />} />
-                      <Route path="preferences" element={<SettingsPreferencesPage />} />
-                      <Route path="projects/:projectId" element={<SettingsProjectPage />} />
+                      <Route path={ROUTES.settings} element={<SettingsPage />}>
+                        <Route index element={<Navigate to={ROUTES.settingsAccount} replace />} />
+                        <Route path="account" element={<SettingsAccountPage />} />
+                        <Route path="preferences" element={<SettingsPreferencesPage />} />
+                        <Route path="projects/:projectId" element={<SettingsProjectPage />} />
+                      </Route>
+
+                      <Route path="*" element={<NotFoundPage />} />
                     </Route>
-
-                    <Route path="*" element={<NotFoundPage />} />
                   </Route>
-                </Route>
-              </Routes>
-            </BrowserRouter>
+                </Routes>
+              </BrowserRouter>
+            </ThemeProvider>
           </ProjectProvider>
         </AuthProvider>
       </ToastProvider>

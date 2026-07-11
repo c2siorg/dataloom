@@ -26,7 +26,7 @@ export default function InputDialog({
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title="Input Required">
       <form onSubmit={handleSubmit}>
-        <p className="mb-3 text-gray-700">
+        <p className="mb-3 text-foreground">
           {message} {required && <span className="text-red-500">*</span>}
         </p>
         <input
@@ -34,7 +34,7 @@ export default function InputDialog({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={required ? "Required" : ""}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+          className="w-full px-3 py-2 border border-app-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent dark:focus:ring-gray-700 dark:focus:border-gray-800 focus:border-accent mb-4"
           autoFocus
         />
         <div className="flex justify-end gap-3">

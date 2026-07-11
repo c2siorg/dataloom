@@ -8,8 +8,8 @@ import { ROUTES } from "../constants/routes";
 import { useAuth } from "../context/AuthContext";
 
 const INPUT_CLASS =
-  "block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-900 " +
-  "placeholder-gray-400 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
+  "block w-full rounded-lg border border-app-border bg-surface px-3.5 py-2.5 text-sm text-foreground " +
+  "placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -42,17 +42,17 @@ export default function ForgotPasswordPage() {
         <div>
           <div className="flex items-center gap-2">
             <DataLoomLogo className="h-6 w-6" />
-            <span className="text-xl font-semibold text-slate-900">DataLoom</span>
+            <span className="text-xl font-semibold text-foreground">DataLoom</span>
           </div>
-          <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">
+          <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">
             Check your email
           </h2>
-          <p className="mt-1.5 text-sm text-gray-500">
+          <p className="mt-1.5 text-sm text-muted-foreground">
             If that email exists, we&apos;ve sent a password reset link. Check your inbox.
           </p>
         </div>
-        <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6 text-sm">
-          <span className="text-gray-500">Ready to sign in?</span>
+        <div className="mt-8 flex items-center justify-between border-t border-app-border pt-6 text-sm">
+          <span className="text-muted-foreground">Ready to sign in?</span>
           <Link
             to={ROUTES.signin}
             className="flex items-center gap-1 font-semibold text-accent-hover hover:text-blue-700 hover:underline"
@@ -69,10 +69,10 @@ export default function ForgotPasswordPage() {
       <div>
         <div className="flex items-center gap-2">
           <DataLoomLogo className="h-6 w-6" />
-          <span className="text-xl font-semibold text-slate-900">DataLoom</span>
+          <span className="text-xl font-semibold text-foreground">DataLoom</span>
         </div>
-        <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">Forgot password</h2>
-        <p className="mt-1.5 text-sm text-gray-500">
+        <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">Forgot password</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
           Enter your email and we&apos;ll send you a reset link.
         </p>
       </div>
@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
       <form onSubmit={handleSubmit} className="mt-8">
         <div className="space-y-4">
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground">
               Email
             </label>
             <input
@@ -112,8 +112,8 @@ export default function ForgotPasswordPage() {
         </button>
       </form>
 
-      <div className="mt-8 flex items-center justify-between border-t border-gray-200 pt-6 text-sm">
-        <span className="text-gray-500">Remember your password?</span>
+      <div className="mt-8 flex items-center justify-between border-t border-app-border pt-6 text-sm">
+        <span className="text-muted-foreground">Remember your password?</span>
         <Link
           to={ROUTES.signin}
           className="flex items-center gap-1 font-semibold text-accent-hover hover:text-blue-700 hover:underline"
