@@ -173,9 +173,10 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
 
   const handleAddRow = async (index: number) => {
     try {
+      const globalIndex = (page - 1) * pageSize + index;
       const response = await applyTransform({
         operation_type: ADD_ROW,
-        row_params: { index },
+        row_params: { index: globalIndex },
       });
       updateTableData(response);
       refreshProject(projectId, 1, pageSize);
@@ -226,9 +227,10 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
 
   const handleDeleteRow = async (index: number) => {
     try {
+      const globalIndex = (page - 1) * pageSize + index;
       const response = await applyTransform({
         operation_type: DELETE_ROW,
-        row_params: { index },
+        row_params: { index: globalIndex },
       });
       updateTableData(response);
       refreshProject(projectId, 1, pageSize);
@@ -328,11 +330,12 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
             ? (columnOrder[cellIndex - 1] as number) + 1
             : cellIndex;
 
+      const globalRowIndex = (page - 1) * pageSize + rowIndex;
       const response = await applyTransform({
         operation_type: CHANGE_CELL_VALUE,
         change_cell_value: {
           col_index: backendColIndex,
-          row_index: rowIndex,
+          row_index: globalRowIndex,
           fill_value: newValue,
         },
       });
