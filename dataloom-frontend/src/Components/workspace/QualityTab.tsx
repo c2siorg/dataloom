@@ -60,6 +60,7 @@ export function QualityTab() {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const QUALITY_TAB: WorkspaceTab = {
   id: "quality",
   title: "Quality",
