@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 const useError = () => {
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(/** @type {string | null} */ (null));
 
   const clearError = () => setError(null);
 

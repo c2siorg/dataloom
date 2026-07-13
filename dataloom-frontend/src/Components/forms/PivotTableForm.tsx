@@ -1,5 +1,4 @@
-import { useState } from "react";
-import PropTypes from "prop-types";
+import { useState, FormEvent } from "react";
 import useError from "../../hooks/useError";
 import { transformProject } from "../../api";
 import { PIVOT_TABLES } from "../../constants/operationTypes";
@@ -12,8 +11,8 @@ import usePreviewSave from "../../hooks/usePreviewSave";
 import Button from "../common/Button";
 import { AGG_FUNCTIONS } from "../../constants/aggregations";
 
-const PivotTableForm = ({ projectId, onClose }) => {
-  const [index, setIndex] = useState([]);
+const PivotTableForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+  const [index, setIndex] = useState<string[]>([]);
   const [column, setColumn] = useState("");
   const [value, setValue] = useState("");
   const [aggfun, setAggfun] = useState("sum");
@@ -22,7 +21,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
   const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     clearError();
 
@@ -45,7 +44,7 @@ const PivotTableForm = ({ projectId, onClose }) => {
       const response = await transformProject(projectId, payload, { preview: true });
       enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
-      console.error("Error applying pivot table:", err.message);
+      console.error("Error applying pivot table:", (err as Error).message);
       handleError(err);
     } finally {
       setLoading(false);
@@ -106,11 +105,6 @@ const PivotTableForm = ({ projectId, onClose }) => {
       </form>
     </div>
   );
-};
-
-PivotTableForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default PivotTableForm;

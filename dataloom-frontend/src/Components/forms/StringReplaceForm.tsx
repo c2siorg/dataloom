@@ -1,22 +1,24 @@
-import { useState } from "react";
-import PropTypes from "prop-types";
+import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
-import { TRIM_WHITESPACE } from "../../constants/operationTypes";
 import { useProjectContext } from "../../context/ProjectContext";
 import usePreviewSave from "../../hooks/usePreviewSave";
+import { STRING_REPLACE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import Button from "../common/Button";
-const TrimWhitespaceForm = ({ projectId, onClose }) => {
-  const { columns, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+
+const StringReplaceForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
 
   const [column, setColumn] = useState("");
+  const [findValue, setFindValue] = useState("");
+  const [replaceValue, setReplaceValue] = useState("");
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
   const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     clearError();
@@ -27,12 +29,13 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
     }
 
     setLoading(true);
-
     try {
       const payload = {
-        operation_type: TRIM_WHITESPACE,
-        trim_whitespace_params: {
+        operation_type: STRING_REPLACE,
+        string_replace_params: {
           column,
+          find_value: findValue,
+          replace_value: replaceValue,
         },
       };
       const response = await transformProject(projectId, payload, { preview: true });
@@ -57,11 +60,35 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label className="block text-sm font-medium text-foreground">Column:</label>
-          <ColumnSelect
-            value={column}
-            onChange={setColumn}
-            options={["All string columns", ...columns]}
+          <ColumnSelect value={column} onChange={setColumn} required />
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="find-value" className="block text-sm font-medium text-foreground">
+            Find:
+          </label>
+          <input
+            id="find-value"
+            type="text"
+            placeholder="Text to find"
+            value={findValue}
+            onChange={(e) => setFindValue(e.target.value)}
+            className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             required
+          />
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="replace-value" className="block text-sm font-medium text-foreground">
+            Replace with:
+          </label>
+          <input
+            id="replace-value"
+            type="text"
+            placeholder="Replacement text"
+            value={replaceValue}
+            onChange={(e) => setReplaceValue(e.target.value)}
+            className="border border-app-border rounded-md w-full px-3 py-2 bg-surface text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
           />
         </div>
 
@@ -87,9 +114,4 @@ const TrimWhitespaceForm = ({ projectId, onClose }) => {
   );
 };
 
-TrimWhitespaceForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
-};
-
-export default TrimWhitespaceForm;
+export default StringReplaceForm;

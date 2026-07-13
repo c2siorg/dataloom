@@ -5,12 +5,19 @@
 import client from "./client";
 
 /**
+ * @typedef {Object} TransformResult
+ * @property {string[]} columns - Column names after the transformation.
+ * @property {Array<Array<*>>} rows - Row data after the transformation.
+ * @property {Object.<string, string>} dtypes - Column name to pandas dtype mapping.
+ */
+
+/**
  * Apply a transformation (filter, sort, add/delete row/column, pivot, etc).
  * @param {string} projectId - The project ID.
  * @param {Object} transformationInput - The transformation parameters including operation_type.
  * @param {Object} options - Request options.
  * @param {boolean} options.preview - If true, return transformed data without persisting.
- * @returns {Promise<Object>} Transformation result with updated rows and columns.
+ * @returns {Promise<TransformResult>} Transformation result with updated rows and columns.
  */
 export const transformProject = async (
   projectId,

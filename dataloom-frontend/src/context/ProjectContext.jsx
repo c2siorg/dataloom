@@ -5,7 +5,7 @@ const ProjectContext = createContext(null);
 
 /**
  * Hook to access project state and actions.
- * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, loading: boolean, error: string|null, dataVersion: number, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function, updatePageSizePreference: Function }}
+ * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, columnOrder: number[], setColumnOrder: Function, deleteProjectOrder: Function, loading: boolean, error: string|null, dataVersion: number, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function, updatePageSizePreference: Function, isPreviewMode: boolean, previewSnapshot: Object|null, pendingTransform: Object|null, setIsPreviewMode: Function, setPreviewSnapshot: Function, setPendingTransform: Function, enterPreviewMode: Function, cancelPreview: Function, confirmPreview: Function }}
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useProjectContext() {
