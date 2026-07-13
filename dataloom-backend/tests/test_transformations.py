@@ -595,6 +595,81 @@ class TestFillEmpty:
         result = fill_empty(df, column_index=0, strategy="median")
         assert result["score"].iloc[1] == 15.33
 
+        # datetime column
+
+    def test_datetime_cell_with_valid_date_preserves_dtype(self):
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B"],
+                "created_at": pd.to_datetime(["2024-01-01", "2024-02-01"]),
+            }
+        )
+
+        result = change_cell_value(df, 0, 2, "2024-05-22")
+
+        assert result.iloc[0]["created_at"] == pd.Timestamp("2024-05-22")
+        assert pd.api.types.is_datetime64_any_dtype(result["created_at"].dtype)
+
+    def test_datetime_cell_with_valid_timestamp_preserves_dtype(self):
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B"],
+                "created_at": pd.to_datetime(["2024-01-01", "2024-02-01"]),
+            }
+        )
+
+        result = change_cell_value(df, 0, 2, "2024-05-22 14:30:15")
+
+        assert result.iloc[0]["created_at"] == pd.Timestamp("2024-05-22 14:30:15")
+        assert pd.api.types.is_datetime64_any_dtype(result["created_at"].dtype)
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "2024-05",
+            "2024",
+            "2024-05.",
+            "22-05-2024",
+            "2024/05/22",
+            "not-a-date",
+        ],
+    )
+    def test_datetime_cell_rejects_incomplete_or_invalid_values(self, raw):
+        df = pd.DataFrame(
+            {
+                "name": ["A"],
+                "created_at": pd.to_datetime(["2024-01-01"]),
+            }
+        )
+
+        with pytest.raises(TransformationError, match="Invalid datetime"):
+            change_cell_value(df, 0, 2, raw)
+
+    def test_invalid_datetime_edit_does_not_modify_original_dataframe(self):
+        df = pd.DataFrame(
+            {
+                "created_at": pd.to_datetime(["2024-01-01"]),
+            }
+        )
+
+        with pytest.raises(TransformationError):
+            change_cell_value(df, 0, 1, "2024-05")
+
+        assert df.iloc[0]["created_at"] == pd.Timestamp("2024-01-01")
+        assert pd.api.types.is_datetime64_any_dtype(df["created_at"].dtype)
+
+    def test_clear_datetime_cell_stores_missing_value_and_preserves_dtype(self):
+        df = pd.DataFrame(
+            {
+                "created_at": pd.to_datetime(["2024-01-01", "2024-02-01"]),
+            }
+        )
+
+        result = change_cell_value(df, 0, 1, "")
+
+        assert pd.isna(result.iloc[0]["created_at"])
+        assert pd.api.types.is_datetime64_any_dtype(result["created_at"].dtype)
+
 
 class TestDropDuplicates:
     def test_drop_duplicates(self):
