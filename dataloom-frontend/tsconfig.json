@@ -10,15 +10,15 @@
     "moduleDetection": "force",
     "moduleResolution": "Bundler",
     "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
     "jsx": "react-jsx",
     "allowJs": true,
-    "noEmit": true,
-    "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "noEmit": true
   },
   "include": ["src"]
 }

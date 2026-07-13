@@ -19,9 +19,23 @@ module.exports = {
   },
   overrides: [
     {
-      files: ["**/__tests__/**/*.{js,jsx}", "**/*.test.{js,jsx}"],
+      files: ["**/*.{ts,tsx}"],
+      parser: "@typescript-eslint/parser",
+      rules: {
+        // Covered by tsc (noUnusedLocals); the core rule false-positives on
+        // type-only constructs like interface members and type imports.
+        "no-unused-vars": "off",
+        "no-undef": "off",
+      },
+    },
+    {
+      files: ["**/__tests__/**/*.{js,jsx,ts,tsx}", "**/*.test.{js,jsx,ts,tsx}"],
       env: { jest: true },
       globals: { vi: "readonly" },
+      rules: {
+        // Anonymous wrapper components (testing-library `wrapper:`) don't need names.
+        "react/display-name": "off",
+      },
     },
   ],
 };

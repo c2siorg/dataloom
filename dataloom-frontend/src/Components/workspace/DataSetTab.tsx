@@ -8,6 +8,7 @@ import Table from "../Table";
  * here next to the component so both DataScreen (initial tab, "+") and the
  * Profiling menu (focusing the table) share one definition.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const DATASET_TAB: WorkspaceTab = {
   id: "dataset",
   title: "DataSet",

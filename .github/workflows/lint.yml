@@ -26,6 +26,7 @@ jobs:
     outputs:
       eslint: ${{ steps.eslint.outcome }}
       prettier: ${{ steps.prettier.outcome }}
+      typecheck: ${{ steps.typecheck.outcome }}
     defaults:
       run:
         working-directory: dataloom-frontend
@@ -44,15 +45,20 @@ jobs:
       - name: ESLint
         id: eslint
         continue-on-error: true
-        run: npx eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0
+        run: npx eslint . --ext js,jsx,ts,tsx --report-unused-disable-directives --max-warnings 0
 
       - name: Prettier
         id: prettier
         continue-on-error: true
         run: npx prettier --check "src/**/*.{js,jsx,ts,tsx,css,md}"
 
+      - name: TypeScript
+        id: typecheck
+        continue-on-error: true
+        run: npx tsc --noEmit
+
       - name: Fail if checks failed
-        if: steps.eslint.outcome == 'failure' || steps.prettier.outcome == 'failure'
+        if: steps.eslint.outcome == 'failure' || steps.prettier.outcome == 'failure' || steps.typecheck.outcome == 'failure'
         run: exit 1
 
   backend-lint:
@@ -128,6 +134,7 @@ jobs:
         env:
           ESLINT: ${{ needs.frontend-lint.outputs.eslint }}
           PRETTIER: ${{ needs.frontend-lint.outputs.prettier }}
+          TYPECHECK: ${{ needs.frontend-lint.outputs.typecheck }}
           RUFF_LINT: ${{ needs.backend-lint.outputs.ruff-lint }}
           RUFF_FORMAT: ${{ needs.backend-lint.outputs.ruff-format }}
           BEHIND_COUNT: ${{ needs.rebase-check.outputs.behind_count }}
@@ -160,10 +167,12 @@ jobs:
 
             const eslintFailed = process.env.ESLINT === 'failure';
             const prettierFailed = process.env.PRETTIER === 'failure';
-            if (eslintFailed || prettierFailed) {
+            const typecheckFailed = process.env.TYPECHECK === 'failure';
+            if (eslintFailed || prettierFailed || typecheckFailed) {
               let s = '### Frontend\n\n';
-              if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix . --ext js,jsx` in `dataloom-frontend/`\n';
+              if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix . --ext js,jsx,ts,tsx` in `dataloom-frontend/`\n';
               if (prettierFailed) s += '- **Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,ts,tsx,css,md}"` in `dataloom-frontend/`\n';
+              if (typecheckFailed) s += '- **TypeScript:** Run `npx tsc --noEmit` in `dataloom-frontend/` and fix the reported errors\n';
               sections.push(s);
             }
 

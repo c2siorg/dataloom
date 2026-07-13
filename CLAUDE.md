@@ -29,7 +29,7 @@ npm install                        # Install dependencies
 npm run dev                        # Start dev server (port 3200)
 npm run build                      # Production build
 npm run test                       # Run all tests (vitest)
-npm run lint                       # ESLint
+npm run lint                       # ESLint (js/jsx/ts/tsx) + TypeScript (tsc --noEmit)
 npm run format                     # Prettier
 ```
 
