@@ -1,5 +1,4 @@
-import { useState } from "react";
-import PropTypes from "prop-types";
+import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { CAST_DATA_TYPE } from "../../constants/operationTypes";
 import { useToast } from "../../context/ToastContext";
@@ -19,7 +18,7 @@ const TARGET_TYPES = [
   { value: "datetime", label: "DateTime" },
 ];
 
-const CastDataTypeForm = ({ projectId, onClose }) => {
+const CastDataTypeForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -32,7 +31,7 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
     handleError,
     onClose,
   });
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     clearError();
@@ -61,7 +60,11 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
       });
     } catch (err) {
       console.error("Error casting data type:", err);
-      showToast(err.response?.data?.detail || "Failed to cast data type.", "error");
+      showToast(
+        (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+          "Failed to cast data type.",
+        "error",
+      );
       handleError(err);
     } finally {
       setLoading(false);
@@ -113,11 +116,6 @@ const CastDataTypeForm = ({ projectId, onClose }) => {
       </form>
     </div>
   );
-};
-
-CastDataTypeForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default CastDataTypeForm;

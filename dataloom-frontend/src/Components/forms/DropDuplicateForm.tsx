@@ -1,5 +1,4 @@
-import { useState } from "react";
-import PropTypes from "prop-types";
+import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { DROP_DUPLICATE } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
@@ -15,8 +14,8 @@ const KEEP_OPTIONS = [
   { value: "last", label: "Last" },
 ];
 
-const DropDuplicateForm = ({ projectId, onClose }) => {
-  const [columns, setColumns] = useState([]);
+const DropDuplicateForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+  const [columns, setColumns] = useState<string[]>([]);
   const [keep, setKeep] = useState("first");
   const { error, setError, clearError, handleError } = useError();
   const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
@@ -26,7 +25,7 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
     onClose,
   });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     clearError();
 
@@ -93,11 +92,6 @@ const DropDuplicateForm = ({ projectId, onClose }) => {
       </form>
     </div>
   );
-};
-
-DropDuplicateForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default DropDuplicateForm;

@@ -1,5 +1,4 @@
-import { useState, useCallback } from "react";
-import PropTypes from "prop-types";
+import { useState, useCallback, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { SORT } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
@@ -15,13 +14,21 @@ const ORDER_OPTIONS = [
   { value: "false", label: "Descending" },
 ];
 
+interface SortCriterion {
+  id: number;
+  column: string;
+  ascending: boolean;
+}
+
 /**
  * SortForm component for multi-column sorting.
  * Allows users to add, remove, and reorder multiple sort criteria.
  */
-const SortForm = ({ projectId, onClose }) => {
+const SortForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
   const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
-  const [criteria, setCriteria] = useState([{ id: 1, column: "", ascending: true }]);
+  const [criteria, setCriteria] = useState<SortCriterion[]>([
+    { id: 1, column: "", ascending: true },
+  ]);
   const [nextId, setNextId] = useState(2);
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
@@ -32,7 +39,7 @@ const SortForm = ({ projectId, onClose }) => {
     setNextId((prev) => prev + 1);
   }, [nextId]);
 
-  const removeCriterion = useCallback((id) => {
+  const removeCriterion = useCallback((id: number) => {
     setCriteria((prev) => {
       if (prev.length <= 1) {
         return prev.map((c) => (c.id === id ? { ...c, column: "" } : c));
@@ -41,28 +48,36 @@ const SortForm = ({ projectId, onClose }) => {
     });
   }, []);
 
-  const updateCriterionColumn = useCallback((id, column) => {
+  const updateCriterionColumn = useCallback((id: number, column: string) => {
     setCriteria((prev) => prev.map((c) => (c.id === id ? { ...c, column } : c)));
   }, []);
 
-  const updateCriterionOrder = useCallback((id, ascending) => {
+  const updateCriterionOrder = useCallback((id: number, ascending: boolean) => {
     setCriteria((prev) => prev.map((c) => (c.id === id ? { ...c, ascending } : c)));
   }, []);
 
-  const moveUp = useCallback((index) => {
+  const moveUp = useCallback((index: number) => {
     if (index === 0) return;
     setCriteria((prev) => {
+      const above = prev[index - 1];
+      const current = prev[index];
+      if (above === undefined || current === undefined) return prev;
       const newCriteria = [...prev];
-      [newCriteria[index - 1], newCriteria[index]] = [newCriteria[index], newCriteria[index - 1]];
+      newCriteria[index - 1] = current;
+      newCriteria[index] = above;
       return newCriteria;
     });
   }, []);
 
-  const moveDown = useCallback((index) => {
+  const moveDown = useCallback((index: number) => {
     setCriteria((prev) => {
       if (index >= prev.length - 1) return prev;
+      const current = prev[index];
+      const below = prev[index + 1];
+      if (current === undefined || below === undefined) return prev;
       const newCriteria = [...prev];
-      [newCriteria[index], newCriteria[index + 1]] = [newCriteria[index + 1], newCriteria[index]];
+      newCriteria[index] = below;
+      newCriteria[index + 1] = current;
       return newCriteria;
     });
   }, []);
@@ -75,7 +90,7 @@ const SortForm = ({ projectId, onClose }) => {
     return null;
   }, [criteria]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const validationError = validateCriteria();
     if (validationError) {
@@ -224,11 +239,6 @@ const SortForm = ({ projectId, onClose }) => {
       </form>
     </div>
   );
-};
-
-SortForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default SortForm;

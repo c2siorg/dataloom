@@ -1,5 +1,4 @@
-import { useState } from "react";
-import PropTypes from "prop-types";
+import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { SAMPLE_ROWS } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
@@ -8,7 +7,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
 
-const SampleRowsForm = ({ projectId, onClose }) => {
+const SampleRowsForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
   const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const [sampleSize, setSampleSize] = useState("");
   const [randomSeed, setRandomSeed] = useState("");
@@ -20,7 +19,7 @@ const SampleRowsForm = ({ projectId, onClose }) => {
     onClose,
   });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const size = parseInt(sampleSize, 10);
 
@@ -32,7 +31,7 @@ const SampleRowsForm = ({ projectId, onClose }) => {
     setLoading(true);
     clearError();
     try {
-      const params = { sample_size: size };
+      const params: { sample_size: number; random_seed?: number } = { sample_size: size };
 
       if (randomSeed) {
         const seed = parseInt(randomSeed, 10);
@@ -122,11 +121,6 @@ const SampleRowsForm = ({ projectId, onClose }) => {
       </form>
     </div>
   );
-};
-
-SampleRowsForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default SampleRowsForm;

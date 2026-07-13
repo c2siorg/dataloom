@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from "react";
-import PropTypes from "prop-types";
+import { useState, useRef, useEffect, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { GROUPBY } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
@@ -12,14 +11,14 @@ import Select from "../common/Select";
 import Button from "../common/Button";
 import { AGG_FUNCTIONS } from "../../constants/aggregations";
 
-const GroupByForm = ({ projectId, onClose }) => {
+const GroupByForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
   const {
     columns: availableColumns,
     isPreviewMode,
     enterPreviewMode,
     cancelPreview,
   } = useProjectContext();
-  const [selectedColumns, setSelectedColumns] = useState([]);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [aggColumn, setAggColumn] = useState("");
   const [aggFunction, setAggFunction] = useState("sum");
   const [loading, setLoading] = useState(false);
@@ -40,7 +39,7 @@ const GroupByForm = ({ projectId, onClose }) => {
     };
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (selectedColumns.length === 0) return;
     if (!aggColumn) return;
@@ -95,7 +94,7 @@ const GroupByForm = ({ projectId, onClose }) => {
           <ColumnSelect
             value={aggColumn}
             onChange={setAggColumn}
-            options={availableColumns.filter((col) => !selectedColumns.includes(col))}
+            options={availableColumns.filter((col: string) => !selectedColumns.includes(col))}
             required
             data-testid="groupby-agg-column"
           />
@@ -133,11 +132,6 @@ const GroupByForm = ({ projectId, onClose }) => {
       </form>
     </div>
   );
-};
-
-GroupByForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default GroupByForm;

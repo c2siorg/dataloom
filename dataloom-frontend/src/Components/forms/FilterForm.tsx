@@ -1,5 +1,4 @@
-import { useState } from "react";
-import PropTypes from "prop-types";
+import { useState, ChangeEvent, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { FILTER } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
@@ -20,7 +19,7 @@ const CONDITIONS = [
   { value: "contains", label: "contains" },
 ];
 
-const FilterForm = ({ projectId, onClose }) => {
+const FilterForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
   const [filterParams, setFilterParams] = useState({
     column: "",
     condition: "=",
@@ -35,14 +34,14 @@ const FilterForm = ({ projectId, onClose }) => {
     onClose,
   });
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFilterParams({
       ...filterParams,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     clearError();
 
@@ -65,7 +64,8 @@ const FilterForm = ({ projectId, onClose }) => {
         payload,
       });
     } catch (err) {
-      console.error("Error applying filter:", err.response?.data || err.message);
+      const e = err as { response?: { data?: unknown }; message?: string };
+      console.error("Error applying filter:", e.response?.data || e.message);
       handleError(err);
     } finally {
       setLoading(false);
@@ -132,11 +132,6 @@ const FilterForm = ({ projectId, onClose }) => {
       </form>
     </div>
   );
-};
-
-FilterForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default FilterForm;

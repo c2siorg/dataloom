@@ -1,5 +1,4 @@
-import { useState } from "react";
-import PropTypes from "prop-types";
+import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { ADV_QUERY_FILTER } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
@@ -8,7 +7,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
 
-const AdvQueryFilterForm = ({ projectId, onClose }) => {
+const AdvQueryFilterForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
@@ -19,7 +18,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
     onClose,
   });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     clearError();
@@ -31,7 +30,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
       const response = await transformProject(projectId, payload, { preview: true });
       enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
-      console.error("Error applying query:", err.message);
+      console.error("Error applying query:", (err as Error).message);
       handleError(err);
     } finally {
       setLoading(false);
@@ -80,11 +79,6 @@ const AdvQueryFilterForm = ({ projectId, onClose }) => {
       </form>
     </div>
   );
-};
-
-AdvQueryFilterForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default AdvQueryFilterForm;

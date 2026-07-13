@@ -1,23 +1,23 @@
-import { useState, useEffect } from "react";
-import PropTypes from "prop-types";
+import { useState, useEffect, FormEvent } from "react";
 import { transformProject, getProjectDetails } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
 import usePreviewSave from "../../hooks/usePreviewSave";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Button from "../common/Button";
 
-const MeltForm = ({ projectId, onClose }) => {
-  const [columns, setColumns] = useState([]);
-  const [idVars, setIdVars] = useState([]);
-  const [valueVars, setValueVars] = useState([]);
+const MeltForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+  const [columns, setColumns] = useState<string[]>([]);
+  const [idVars, setIdVars] = useState<string[]>([]);
+  const [valueVars, setValueVars] = useState<string[]>([]);
   const [varName, setVarName] = useState("variable");
   const [valueName, setValueName] = useState("value");
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { saving, handleSave } = usePreviewSave({
     clearError: () => setError(null),
-    handleError: (err) => setError(err.response?.data?.detail || err.message),
+    handleError: (err: { response?: { data?: { detail?: string } }; message?: string }) =>
+      setError(err.response?.data?.detail || err.message || null),
     onClose,
   });
 
@@ -42,7 +42,7 @@ const MeltForm = ({ projectId, onClose }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -80,7 +80,8 @@ const MeltForm = ({ projectId, onClose }) => {
       const response = await transformProject(projectId, payload, { preview: true });
       enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
     } catch (err) {
-      setError(err.response?.data?.detail || err.message);
+      const e = err as { response?: { data?: { detail?: string } }; message?: string };
+      setError(e.response?.data?.detail || e.message || null);
     } finally {
       setLoading(false);
     }
@@ -156,11 +157,6 @@ const MeltForm = ({ projectId, onClose }) => {
       </form>
     </div>
   );
-};
-
-MeltForm.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default MeltForm;
