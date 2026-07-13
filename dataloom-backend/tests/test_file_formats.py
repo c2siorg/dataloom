@@ -123,6 +123,48 @@ class TestRoundTrip:
 
         assert result["age"].dtype == df["age"].dtype
 
+    def test_read_table_safe_infers_datetime_column(self, tmp_path):
+        path = tmp_path / "dates.csv"
+        path.write_text("created_at,value\n2024-01-01,10\n2024-02-01,20\n2024-03-01,30\n")
+
+        result = read_table_safe(path)
+
+        assert pd.api.types.is_datetime64_any_dtype(result["created_at"])
+        assert pd.api.types.is_integer_dtype(result["value"])
+        assert result["created_at"].tolist() == [
+            pd.Timestamp("2024-01-01"),
+            pd.Timestamp("2024-02-01"),
+            pd.Timestamp("2024-03-01"),
+        ]
+
+    def test_read_table_safe_does_not_infer_string_years_as_datetime(
+        self,
+        tmp_path,
+    ):
+        # JSON preserves these values as strings, unlike CSV, which may infer
+        # an integer dtype before datetime inference runs.
+        path = tmp_path / "years.json"
+        path.write_text(
+            json.dumps(
+                [
+                    {"grad_year": "2024"},
+                    {"grad_year": "2025"},
+                    {"grad_year": "2023"},
+                    {"grad_year": "2022"},
+                ]
+            )
+        )
+
+        result = read_table_safe(path)
+
+        assert not pd.api.types.is_datetime64_any_dtype(result["grad_year"])
+        assert result["grad_year"].tolist() == [
+            "2024",
+            "2025",
+            "2023",
+            "2022",
+        ]
+
 
 class TestJson:
     def test_flat_records(self, tmp_path):
