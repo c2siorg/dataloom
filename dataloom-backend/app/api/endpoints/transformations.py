@@ -122,7 +122,13 @@ async def transform_project(
 
         result_df = _dispatch_transform(df, transformation_input)
 
-        if not preview:
+        # A cell edit that produces the same DataFrame is a no-op. Return the current
+        # data without rewriting the file or creating a transformation log.
+        is_noop_cell_edit = (
+            transformation_input.operation_type == schemas.OperationType.changeCellValue and result_df.equals(df)
+        )
+
+        if not preview and not is_noop_cell_edit:
             save_table_safe(result_df, project.file_path)
             try:
                 log_transformation(db, project_id, operation_type, transformation_input.dict())

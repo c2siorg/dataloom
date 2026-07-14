@@ -305,7 +305,21 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     }
   };
 
+  const stopEditing = () => {
+    setEditingCell(null);
+    setEditValue("");
+  };
+
   const handleEditCell = async (rowIndex: number, cellIndex: number, newValue: string) => {
+    const currentValue = data[rowIndex]?.[cellIndex];
+    const normalizedCurrentValue = currentValue == null ? "" : String(currentValue);
+
+    // Do not send a transformation request when the value was not changed.
+    if (newValue === normalizedCurrentValue) {
+      stopEditing();
+      return;
+    }
+
     try {
       const backendColIndex =
         cellIndex === 0
@@ -322,10 +336,10 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
           fill_value: newValue,
         },
       });
+
       updateTableData(response);
       refreshProject(projectId, 1, pageSize);
-      setEditingCell(null);
-      setEditValue("");
+      stopEditing();
     } catch {
       setToast({
         message: "Failed to edit cell. Please try again.",
@@ -344,6 +358,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     } else if (e.key === "Escape") {
       setEditingCell(null);
       setEditValue("");
+      stopEditing();
     }
   };
 
@@ -659,7 +674,7 @@ export function TablePagination({
 
   return (
     <div className="flex min-h-9 shrink-0 flex-wrap items-center justify-center md:justify-between gap-x-4 gap-y-2 px-4 py-1.5 bg-white text-xs sm:px-6">
-  <div className="flex items-center gap-x-5 gap-y-1.5 text-gray-600 flex-wrap">
+      <div className="flex items-center gap-x-5 gap-y-1.5 text-gray-600 flex-wrap">
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500">Total Rows:</span>
           <span className="text-gray-900">{totalRows}</span>
