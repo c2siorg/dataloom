@@ -18,6 +18,7 @@ dependencies = [
     "pydantic[email]>=2.12.5",
     "openpyxl>=3.1.5",
     "pyarrow>=24.0.0",
+    "regex>=2026.7.19",
 ]
 
 [tool.ruff]

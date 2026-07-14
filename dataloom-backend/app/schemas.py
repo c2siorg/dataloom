@@ -478,6 +478,75 @@ class CorrelationResponse(BaseModel):
     matrix: list[list[float | None]]
 
 
+# --- Quality assessment schemas ---
+
+
+class IssueSeverity(StrEnum):
+    """Severity levels for detected quality issues."""
+
+    low = "low"
+    medium = "medium"
+    high = "high"
+    critical = "critical"
+
+
+class OutlierMethod(StrEnum):
+    """Supported outlier detection methods."""
+
+    iqr = "iqr"
+    zscore = "zscore"
+
+
+class PatternRule(BaseModel):
+    """A user-defined validity rule: values in ``column`` must fully match ``pattern``."""
+
+    column: str
+    pattern: str = Field(min_length=1, max_length=500)
+    severity: IssueSeverity = IssueSeverity.medium
+
+
+class QualityAssessRequest(BaseModel):
+    """Configuration for a quality assessment run. All fields have safe defaults."""
+
+    outlier_method: OutlierMethod = OutlierMethod.iqr
+    outlier_sensitivity: float | None = Field(default=None, gt=0, le=100)
+    pattern_rules: list[PatternRule] = Field(default_factory=list, max_length=50)
+
+
+class QualityIssue(BaseModel):
+    """A single detected quality issue."""
+
+    issue_type: str
+    severity: IssueSeverity
+    column: str | None
+    count: int
+    detail: str
+    sample_rows: list[int]
+
+
+class QualityRemediation(BaseModel):
+    """A suggested fix for a detected issue.
+
+    ``operation`` names the existing OperationType that applies the fix, or None
+    where a human has to judge or edit values.
+    """
+
+    issue_type: str
+    column: str | None
+    suggestion: str
+    operation: str | None
+
+
+class QualityReportResponse(BaseModel):
+    """A full quality assessment report. Computed on demand, never persisted."""
+
+    overall_score: float
+    issue_count: int
+    issues: list[QualityIssue]
+    remediations: list[QualityRemediation]
+    column_scores: dict[str, float]
+
+
 # --- Visualization response schemas ---
 #
 # One ChartSpec shape for every chart type: the backend computes aggregated data,
