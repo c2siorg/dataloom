@@ -1,5 +1,6 @@
 """Unit tests for transformation service functions."""
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -225,9 +226,10 @@ class TestDeleteColumn:
 class TestChangeCellValue:
     def test_change_cell(self, sample_df):
         result = change_cell_value(sample_df, 0, 1, "Alice Updated")
+
         assert result.iloc[0]["name"] == "Alice Updated"
 
-    # out-of-bounds indices — col_index is 1-based, row_index 0-based
+    # out-of-bounds indices — col_index is 1-based, row_index is 0-based
     def test_negative_row_index_raises(self, sample_df):
         with pytest.raises(TransformationError, match="out of bounds"):
             change_cell_value(sample_df, -1, 1, "x")
@@ -243,45 +245,178 @@ class TestChangeCellValue:
 
     def test_col_index_past_end_raises(self, sample_df):
         with pytest.raises(TransformationError, match="out of bounds"):
-            change_cell_value(sample_df, 0, len(sample_df.columns) + 1, "x")
+            change_cell_value(
+                sample_df,
+                0,
+                len(sample_df.columns) + 1,
+                "x",
+            )
 
     # int column — frontend always sends strings
     def test_int_cell_with_numeric_string_preserves_dtype(self, sample_df):
         result = change_cell_value(sample_df, 0, 2, "31")
+
         assert result.iloc[0]["age"] == 31
         assert pd.api.types.is_integer_dtype(result["age"].dtype)
 
-    def test_int_cell_with_fractional_string_truncates(self, sample_df):
-        # Documented behavior: int columns silently truncate fractional input.
+    def test_int_cell_with_fractional_string_promotes_column_to_object(
+        self,
+        sample_df,
+    ):
+        # A fractional value cannot be represented by an integer dtype. The
+        # column is promoted to object instead of float64 so existing large
+        # integers retain their exact values.
         result = change_cell_value(sample_df, 0, 2, "31.7")
-        assert result.iloc[0]["age"] == 31
-        assert pd.api.types.is_integer_dtype(result["age"].dtype)
 
-    def test_int_cell_preserves_precision_for_large_integer_string(self, sample_df):
-        # 2^53 + 1 cannot be represented exactly as a float64, so a naive
-        # int(float(...)) would lose the trailing bit. int() handles it.
-        result = change_cell_value(sample_df, 0, 2, "9007199254740993")
+        assert result.iloc[0]["age"] == pytest.approx(31.7)
+        assert result["age"].dtype == object
+
+        # Existing integer values remain integers instead of being coerced to
+        # float64.
+        assert result.iloc[1]["age"] == sample_df.iloc[1]["age"]
+        assert isinstance(result.iloc[1]["age"], (int, np.integer))
+
+    def test_int_cell_with_decimal_whole_number_promotes_column_to_object(
+        self,
+        sample_df,
+    ):
+        # Decimal-formatted input follows the decimal parsing path even when
+        # its fractional component is zero.
+        result = change_cell_value(sample_df, 0, 2, "31.0")
+
+        assert result.iloc[0]["age"] == pytest.approx(31.0)
+        assert result["age"].dtype == object
+
+        # Existing integer values remain exact and are not converted to
+        # float64.
+        assert result.iloc[1]["age"] == sample_df.iloc[1]["age"]
+        assert isinstance(result.iloc[1]["age"], (int, np.integer))
+
+    def test_int_cell_preserves_precision_for_large_integer_string(
+        self,
+        sample_df,
+    ):
+        # 2^53 + 1 cannot be represented exactly as float64. Parsing valid
+        # integer strings directly with int() preserves the value.
+        result = change_cell_value(
+            sample_df,
+            0,
+            2,
+            "9007199254740993",
+        )
+
         assert result.iloc[0]["age"] == 9007199254740993
         assert pd.api.types.is_integer_dtype(result["age"].dtype)
 
-    def test_int_cell_with_overflowing_exponent_upcasts_column(self, sample_df):
-        # int(float("1e500")) raises OverflowError (float is inf); should
-        # upcast to object instead of bubbling up as a 500.
-        result = change_cell_value(sample_df, 0, 2, "1e500")
-        assert result["age"].dtype == object
-        assert result.iloc[0]["age"] == "1e500"
+    def test_int_cell_with_overflowing_exponent_raises(self, sample_df):
+        # Non-finite numeric values must be rejected rather than converting the
+        # column to object and preserving the invalid string.
+        with pytest.raises(
+            TransformationError,
+            match="finite number",
+        ):
+            change_cell_value(sample_df, 0, 2, "1e500")
 
-    def test_int_cell_with_non_numeric_string_upcasts_column(self, sample_df):
-        result = change_cell_value(sample_df, 0, 2, "hello")
-        assert result.iloc[0]["age"] == "hello"
-        assert result["age"].dtype == object
+    def test_int_cell_with_non_numeric_string_raises(self, sample_df):
+        with pytest.raises(
+            TransformationError,
+            match="Expected an integer or decimal value",
+        ):
+            change_cell_value(sample_df, 0, 2, "hello")
+
+    def test_invalid_int_edit_does_not_modify_original_dataframe(
+        self,
+        sample_df,
+    ):
+        original = sample_df.copy(deep=True)
+
+        with pytest.raises(TransformationError):
+            change_cell_value(sample_df, 0, 2, "hello")
+
+        pd.testing.assert_frame_equal(sample_df, original)
+        assert pd.api.types.is_integer_dtype(sample_df["age"].dtype)
 
     # float column
     def test_float_cell_with_decimal_string(self):
-        df = pd.DataFrame({"name": ["A", "B"], "score": [1.0, 2.0]})
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B"],
+                "score": [1.0, 2.0],
+            }
+        )
+
         result = change_cell_value(df, 0, 2, "3.14")
+
         assert result.iloc[0]["score"] == pytest.approx(3.14)
         assert pd.api.types.is_float_dtype(result["score"].dtype)
+
+    def test_float_cell_with_integer_string_preserves_float_dtype(self):
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B"],
+                "score": [1.0, 2.0],
+            }
+        )
+
+        result = change_cell_value(df, 0, 2, "1200")
+
+        assert result.iloc[0]["score"] == pytest.approx(1200.0)
+        assert pd.api.types.is_float_dtype(result["score"].dtype)
+
+    def test_float_cell_rejects_invalid_numeric_string(self):
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B"],
+                "score": [1200.0, 1400.0],
+            }
+        )
+
+        with pytest.raises(
+            TransformationError,
+            match="Expected a numeric value",
+        ):
+            change_cell_value(df, 0, 2, "1200 05")
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "nan",
+            "NaN",
+            "inf",
+            "-inf",
+            "Infinity",
+            "-Infinity",
+            "1e500",
+        ],
+    )
+    def test_float_cell_rejects_non_finite_values(self, raw):
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B"],
+                "score": [1.0, 2.0],
+            }
+        )
+
+        with pytest.raises(
+            TransformationError,
+            match="finite number",
+        ):
+            change_cell_value(df, 0, 2, raw)
+
+    def test_invalid_float_edit_does_not_modify_original_dataframe(self):
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B"],
+                "score": [1200.0, 1400.0],
+            }
+        )
+        original = df.copy(deep=True)
+
+        with pytest.raises(TransformationError):
+            change_cell_value(df, 0, 2, "1200 05")
+
+        pd.testing.assert_frame_equal(df, original)
+        assert pd.api.types.is_float_dtype(df["score"].dtype)
 
     # bool column — explicit truthy/falsy matrix, raise on unknown
     @pytest.mark.parametrize(
@@ -304,23 +439,60 @@ class TestChangeCellValue:
         ],
     )
     def test_bool_cell_truthy_falsy_matrix(self, raw, expected):
-        df = pd.DataFrame({"name": ["A"], "active": [True]})
+        df = pd.DataFrame(
+            {
+                "name": ["A"],
+                "active": [True],
+            }
+        )
+
         result = change_cell_value(df, 0, 2, raw)
+
         # pandas stores booleans as np.bool_; compare by value, not identity.
         assert bool(result.iloc[0]["active"]) == expected
         assert pd.api.types.is_bool_dtype(result["active"].dtype)
 
     def test_bool_cell_rejects_unknown_token(self):
-        df = pd.DataFrame({"name": ["A"], "active": [True]})
+        df = pd.DataFrame(
+            {
+                "name": ["A"],
+                "active": [True],
+            }
+        )
+
         with pytest.raises(TransformationError, match="as boolean"):
             change_cell_value(df, 0, 2, "foo")
 
     # empty-string clears numeric cell and upcasts the column
     def test_clear_numeric_cell_stores_none(self, sample_df):
         result = change_cell_value(sample_df, 0, 2, "")
+
         assert result.iloc[0]["age"] is None
-        # column was upcast to object so None can coexist with remaining ints
+
+        # Column is upcast to object so None can coexist with remaining ints.
         assert result["age"].dtype == object
+
+    def test_decimal_edit_preserves_large_integers(self):
+        df = pd.DataFrame(
+            {
+                "value": pd.Series(
+                    [9007199254740993, 10],
+                    dtype="int64",
+                )
+            }
+        )
+
+        result = change_cell_value(
+            df=df,
+            row_index=1,
+            col_index=1,
+            value="10.5",
+        )
+
+        assert result.at[0, "value"] == 9007199254740993
+        assert isinstance(result.at[0, "value"], (int, np.integer))
+        assert result.at[1, "value"] == pytest.approx(10.5)
+        assert result["value"].dtype == object
 
 
 class TestFillEmpty:
