@@ -1,7 +1,7 @@
 name: Lint
 
 on:
-  pull_request_target:
+  pull_request:
     branches: [main]
   push:
     branches: [main]
@@ -9,15 +9,18 @@ on:
 concurrency:
   group: >-
     ci-${{
-      github.event_name == 'pull_request_target'
+      github.event_name == 'pull_request'
         && format('pr-{0}', github.event.pull_request.number)
         || github.ref
     }}
   cancel-in-progress: true
 
+# Fork code is checked out and executed here (npm ci lifecycle scripts, the
+# eslint config, uv build backends), so this workflow runs on `pull_request`
+# with a read-only token and no secrets. Commenting needs write access and
+# therefore lives in lint-comment.yml, which never checks out PR code.
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   frontend-lint:
@@ -32,9 +35,6 @@ jobs:
         working-directory: dataloom-frontend
     steps:
       - uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.sha || '' }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -72,9 +72,6 @@ jobs:
         working-directory: dataloom-backend
     steps:
       - uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event.pull_request.head.sha || '' }}
       - uses: astral-sh/setup-uv@v4
       - uses: actions/setup-python@v5
         with:
@@ -97,7 +94,7 @@ jobs:
 
   rebase-check:
     name: Rebase Check
-    if: github.event_name == 'pull_request_target'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       behind_count: ${{ steps.rebase.outputs.behind_count }}
@@ -123,15 +120,18 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
           echo "behind_count=$BEHIND_COUNT" >> "$GITHUB_OUTPUT"
 
-  pr-comment:
-    name: PR Comment
+  report:
+    name: Report
     needs: [frontend-lint, backend-lint, rebase-check]
-    if: always() && github.event_name == 'pull_request_target'
+    if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Post or delete combined comment
-        uses: actions/github-script@v7
+      # Results are handed to lint-comment.yml as a data-only artifact. That
+      # workflow holds the write permission this one deliberately lacks.
+      - name: Write report
         env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_COMMITS: ${{ github.event.pull_request.commits }}
           ESLINT: ${{ needs.frontend-lint.outputs.eslint }}
           PRETTIER: ${{ needs.frontend-lint.outputs.prettier }}
           TYPECHECK: ${{ needs.frontend-lint.outputs.typecheck }}
@@ -139,95 +139,31 @@ jobs:
           RUFF_FORMAT: ${{ needs.backend-lint.outputs.ruff-format }}
           BEHIND_COUNT: ${{ needs.rebase-check.outputs.behind_count }}
           MERGE_COMMITS: ${{ needs.rebase-check.outputs.merge_commits }}
-          PR_COMMITS: ${{ github.event.pull_request.commits }}
+        run: |
+          jq -n \
+            --arg pr "$PR_NUMBER" \
+            --arg pr_commits "$PR_COMMITS" \
+            --arg eslint "$ESLINT" \
+            --arg prettier "$PRETTIER" \
+            --arg typecheck "$TYPECHECK" \
+            --arg ruff_lint "$RUFF_LINT" \
+            --arg ruff_format "$RUFF_FORMAT" \
+            --arg behind_count "$BEHIND_COUNT" \
+            --arg merge_commits "$MERGE_COMMITS" \
+            '{
+              pr: $pr,
+              pr_commits: $pr_commits,
+              eslint: $eslint,
+              prettier: $prettier,
+              typecheck: $typecheck,
+              ruff_lint: $ruff_lint,
+              ruff_format: $ruff_format,
+              behind_count: $behind_count,
+              merge_commits: $merge_commits
+            }' > report.json
+
+      - uses: actions/upload-artifact@v4
         with:
-          script: |
-            const marker = '<!-- ci-bot -->';
-            const oldMarkers = ['<!-- lint-frontend-bot -->', '<!-- lint-backend-bot -->', '<!-- rebase-bot -->'];
-            const prNumber = context.payload.pull_request.number;
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: prNumber,
-            });
-
-            // Clean up old individual comments from previous workflow version
-            for (const old of oldMarkers) {
-              const c = comments.find(c => c.body.includes(old));
-              if (c) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner, repo: context.repo.repo,
-                  comment_id: c.id,
-                });
-              }
-            }
-
-            // Build combined comment sections
-            const sections = [];
-
-            const eslintFailed = process.env.ESLINT === 'failure';
-            const prettierFailed = process.env.PRETTIER === 'failure';
-            const typecheckFailed = process.env.TYPECHECK === 'failure';
-            if (eslintFailed || prettierFailed || typecheckFailed) {
-              let s = '### Frontend\n\n';
-              if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix . --ext js,jsx,ts,tsx` in `dataloom-frontend/`\n';
-              if (prettierFailed) s += '- **Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,ts,tsx,css,md}"` in `dataloom-frontend/`\n';
-              if (typecheckFailed) s += '- **TypeScript:** Run `npx tsc --noEmit` in `dataloom-frontend/` and fix the reported errors\n';
-              sections.push(s);
-            }
-
-            const ruffLintFailed = process.env.RUFF_LINT === 'failure';
-            const ruffFormatFailed = process.env.RUFF_FORMAT === 'failure';
-            if (ruffLintFailed || ruffFormatFailed) {
-              let s = '### Backend\n\n';
-              if (ruffLintFailed) s += '- **Ruff lint:** Run `uv run ruff check --fix .` in `dataloom-backend/`\n';
-              if (ruffFormatFailed) s += '- **Ruff format:** Run `uv run ruff format .` in `dataloom-backend/`\n';
-              sections.push(s);
-            }
-
-            const behind = parseInt(process.env.BEHIND_COUNT || '0');
-            const mergeCommits = (process.env.MERGE_COMMITS || '').trim();
-            if (behind > 0 || mergeCommits) {
-              let s = '### Rebase\n\n';
-              if (behind > 0) s += `Your branch is **${behind} commit(s) behind \`main\`**. Please rebase.\n\n`;
-              if (mergeCommits) s += '**Merge commits detected** — please use rebase instead of merge:\n\n```\n' + mergeCommits + '\n```\n\n';
-              sections.push(s);
-            }
-
-            const prCommits = parseInt(process.env.PR_COMMITS || '1');
-            if (prCommits > 1) {
-              sections.push(`### Squash\n\nYour PR has **${prCommits} commits**. Please squash into a single commit.\n`);
-            }
-
-            const existing = comments.find(c => c.body.includes(marker));
-
-            if (sections.length === 0) {
-              if (existing) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner, repo: context.repo.repo,
-                  comment_id: existing.id,
-                });
-              }
-              return;
-            }
-
-            let body = marker + '\n## PR Review\n\n';
-            body += sections.join('\n');
-
-            if (behind > 0 || mergeCommits || prCommits > 1) {
-              body += '\n### How to fix\n```bash\ngit fetch origin\ngit rebase -i origin/main   # mark all but first commit as "squash"\ngit push --force-with-lease\n```\n';
-            }
-
-            body += '\n---\n*This comment updates automatically on each push.*\n';
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: existing.id, body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: prNumber, body,
-              });
-            }
+          name: pr-lint-report
+          path: report.json
+          retention-days: 1
