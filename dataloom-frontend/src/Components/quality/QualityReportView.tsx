@@ -23,25 +23,45 @@ const OPERATION_ACTION: Record<string, { panel: string; label: string }> = {
 };
 
 const SEVERITY_STYLE: Record<IssueSeverity, { label: string; dot: string; badge: string }> = {
-  critical: { label: "Critical", dot: "bg-red-600", badge: "bg-red-50 text-red-700" },
-  high: { label: "High", dot: "bg-orange-500", badge: "bg-orange-50 text-orange-700" },
-  medium: { label: "Medium", dot: "bg-amber-400", badge: "bg-amber-50 text-amber-700" },
-  low: { label: "Low", dot: "bg-gray-300", badge: "bg-gray-100 text-gray-600" },
+  critical: {
+    label: "Critical",
+    dot: "bg-red-600",
+    badge: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400",
+  },
+  high: {
+    label: "High",
+    dot: "bg-orange-500",
+    badge: "bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400",
+  },
+  medium: {
+    label: "Medium",
+    dot: "bg-amber-400",
+    badge: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+  },
+  low: {
+    label: "Low",
+    dot: "bg-gray-300 dark:bg-gray-600",
+    badge: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  },
 };
 
 /** Proposal §9.4 score bands: excellent → critical. */
 function scoreBand(score: number): { label: string; text: string; bar: string } {
-  if (score >= 90) return { label: "Excellent", text: "text-green-600", bar: "bg-green-500" };
-  if (score >= 70) return { label: "Good", text: "text-lime-600", bar: "bg-lime-500" };
-  if (score >= 50) return { label: "Fair", text: "text-amber-500", bar: "bg-amber-400" };
-  if (score >= 30) return { label: "Poor", text: "text-orange-500", bar: "bg-orange-500" };
-  return { label: "Critical", text: "text-red-600", bar: "bg-red-500" };
+  if (score >= 90)
+    return { label: "Excellent", text: "text-green-600 dark:text-green-400", bar: "bg-green-500" };
+  if (score >= 70)
+    return { label: "Good", text: "text-lime-600 dark:text-lime-400", bar: "bg-lime-500" };
+  if (score >= 50)
+    return { label: "Fair", text: "text-amber-500 dark:text-amber-400", bar: "bg-amber-400" };
+  if (score >= 30)
+    return { label: "Poor", text: "text-orange-500 dark:text-orange-400", bar: "bg-orange-500" };
+  return { label: "Critical", text: "text-red-600 dark:text-red-400", bar: "bg-red-500" };
 }
 
 function ScoreCard({ report }: { report: QualityReport }) {
   const band = scoreBand(report.overall_score);
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-gray-200 bg-white p-4">
+    <div className="flex items-center gap-4 rounded-lg border border-app-border bg-surface p-4 shadow-xs">
       <div className="text-center">
         <div data-testid="overall-score" className={`text-4xl font-semibold ${band.text}`}>
           {Math.round(report.overall_score)}
@@ -50,7 +70,7 @@ function ScoreCard({ report }: { report: QualityReport }) {
           {band.label}
         </div>
       </div>
-      <div className="min-w-0 text-sm text-gray-500">
+      <div className="min-w-0 text-sm text-muted-foreground">
         <p>
           {report.issue_count === 0
             ? "No issues detected."
@@ -66,22 +86,22 @@ function ColumnHealth({ scores }: { scores: Record<string, number> }) {
   if (entries.length === 0) return null;
   return (
     <section>
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+      <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         Column health
       </h3>
       <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
         {entries.map(([column, score]) => (
           <div key={column} className="flex items-center gap-2 text-sm">
-            <span className="w-32 shrink-0 truncate text-gray-600" title={column}>
+            <span className="w-32 shrink-0 truncate text-foreground font-medium" title={column}>
               {column}
             </span>
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-hover">
               <div
                 className={`h-full rounded-full ${scoreBand(score).bar}`}
                 style={{ width: `${score}%` }}
               />
             </div>
-            <span className="w-8 shrink-0 text-right text-xs text-gray-400">
+            <span className="w-8 shrink-0 text-right text-xs text-muted-foreground">
               {Math.round(score)}
             </span>
           </div>
@@ -95,7 +115,9 @@ function IssueList({ issues }: { issues: QualityIssue[] }) {
   if (issues.length === 0) return null;
   return (
     <section>
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">Issues</h3>
+      <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Issues
+      </h3>
       <div className="space-y-3">
         {SEVERITY_ORDER.map((severity) => {
           const group = issues.filter((issue) => issue.severity === severity);
@@ -103,7 +125,7 @@ function IssueList({ issues }: { issues: QualityIssue[] }) {
           const style = SEVERITY_STYLE[severity];
           return (
             <div key={severity}>
-              <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+              <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <span className={`h-2 w-2 rounded-full ${style.dot}`} />
                 {style.label} ({group.length})
               </div>
@@ -112,7 +134,7 @@ function IssueList({ issues }: { issues: QualityIssue[] }) {
                 {group.map((issue) => (
                   <li
                     key={issue.detail}
-                    className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+                    className="rounded-md border border-app-border bg-surface px-3 py-2 text-sm text-foreground shadow-xs"
                   >
                     {issue.detail}
                   </li>
@@ -131,7 +153,7 @@ function RemediationList({ remediations }: { remediations: QualityRemediation[] 
   if (remediations.length === 0) return null;
   return (
     <section>
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+      <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         Suggested fixes
       </h3>
       <ul className="space-y-1">
@@ -143,14 +165,14 @@ function RemediationList({ remediations }: { remediations: QualityRemediation[] 
           return (
             <li
               key={remediation.suggestion}
-              className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+              className="flex items-center justify-between gap-2 rounded-md border border-app-border bg-surface px-3 py-2 text-sm text-foreground shadow-xs"
             >
               <span className="min-w-0">{remediation.suggestion}</span>
               {action && (
                 <button
                   type="button"
                   onClick={() => openPanel(action.panel)}
-                  className="shrink-0 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:border-blue-200 hover:bg-accent-subtle"
+                  className="shrink-0 rounded-md border border-app-border px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 transition-colors hover:border-blue-300 dark:hover:border-blue-500 hover:bg-accent-subtle"
                 >
                   {action.label}
                 </button>
@@ -167,7 +189,7 @@ function HistoryStrip({ history }: { history: QualityRunEntry[] }) {
   if (history.length < 2) return null; // a trend needs at least two points
   return (
     <section>
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+      <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         Score this session
       </h3>
       <div className="flex flex-wrap gap-1.5">
@@ -175,7 +197,7 @@ function HistoryStrip({ history }: { history: QualityRunEntry[] }) {
           <span
             key={entry.at}
             title={new Date(entry.at).toLocaleTimeString()}
-            className={`rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium ${scoreBand(entry.score).text}`}
+            className={`rounded-md border border-app-border bg-surface px-2 py-1 text-xs font-medium ${scoreBand(entry.score).text}`}
           >
             {Math.round(entry.score)}
           </span>
