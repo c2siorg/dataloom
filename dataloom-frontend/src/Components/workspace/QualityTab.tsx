@@ -31,7 +31,7 @@ export function QualityTab() {
   return (
     <div className="flex-1 overflow-auto p-4">
       {stale && report && (
-        <div className="mb-4 flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+        <div className="mb-4 flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-400">
           <span className="flex items-center gap-1.5">
             <LuTriangleAlert className="h-4 w-4 shrink-0" />
             The data changed after this assessment ran.
@@ -43,7 +43,7 @@ export function QualityTab() {
       )}
 
       {error ? (
-        <div className="flex h-40 flex-col items-center justify-center gap-2 text-sm text-gray-500">
+        <div className="flex h-40 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
           Couldn’t run the assessment.
           <Button type="button" variant="secondary" onClick={() => run()}>
             Try again
@@ -52,7 +52,7 @@ export function QualityTab() {
       ) : report ? (
         <QualityReportView report={report} history={runHistory} />
       ) : (
-        <div className="flex h-40 items-center justify-center text-sm text-gray-400">
+        <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
           Assessing data quality…
         </div>
       )}
