@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 
 from app import database, models, schemas
 from app.api.dependencies import get_current_user, get_project_or_404
@@ -63,9 +64,9 @@ async def upload_project(
     logger.info("Upload request: project=%s, file=%s", projectName, file.filename)
     await validate_upload_file(file)
 
-    original_path, copy_path = store_upload(file)
+    original_path, copy_path = await run_in_threadpool(store_upload, file)
     try:
-        df = read_table_safe(original_path)
+        df = await run_in_threadpool(read_table_safe, original_path)
     except HTTPException as e:
         # The just-uploaded file could not be parsed — that's a bad client file,
         # not a server fault. Discard the orphaned files and report a clean 400.
@@ -113,7 +114,7 @@ def list_projects(
 
 
 @router.get("/get/{project_id}", response_model=schemas.ProjectResponse)
-async def get_project_details(
+def get_project_details(
     page: int = 1,
     pageSize: int = 50,
     project: models.Project = Depends(get_project_or_404),
@@ -179,7 +180,7 @@ async def rename_project_endpoint(
 
 
 @router.post("/{project_id}/save", response_model=schemas.ProjectResponse)
-async def save_project(
+def save_project(
     project_id: uuid.UUID,
     commit_message: str,
     db: Session = Depends(database.get_db),
@@ -225,7 +226,7 @@ async def save_project(
 
 
 @router.post("/{project_id}/revert", response_model=schemas.ProjectResponse)
-async def revert_to_checkpoint(
+def revert_to_checkpoint(
     project_id: uuid.UUID,
     checkpoint_id: uuid.UUID = None,
     db: Session = Depends(database.get_db),
@@ -308,7 +309,7 @@ async def revert_to_checkpoint(
 
 
 @router.get("/{project_id}/export")
-async def export_project(
+def export_project(
     fmt: str | None = Query(default=None, alias="format"),
     delimiter: str | None = Query(default=None),
     include_header: bool = Query(default=True),
@@ -417,7 +418,7 @@ async def delete_project_endpoint(
 
 
 @router.post("/{project_id}/undo", response_model=schemas.ProjectResponse)
-async def undo_last_transformation(
+def undo_last_transformation(
     project_id: uuid.UUID,
     project: models.Project = Depends(get_project_or_404),
     db: Session = Depends(database.get_db),

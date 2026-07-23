@@ -101,7 +101,7 @@ def _dispatch_transform(df, transformation_input):
 
 
 @router.post("/{project_id}/transform", response_model=schemas.BasicQueryResponse)
-async def transform_project(
+def transform_project(
     project_id: uuid.UUID,
     transformation_input: schemas.TransformationInput,
     preview: bool = Query(False, description="If true, return transformation data without saving."),
