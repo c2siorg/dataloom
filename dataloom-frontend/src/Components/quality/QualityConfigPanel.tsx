@@ -27,7 +27,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   // Select renders a button, so htmlFor has no input id to point at).
   return (
     <label className="mb-3 block">
-      <span className="mb-1 block text-sm font-medium text-gray-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-foreground">{label}</span>
       {children}
     </label>
   );
@@ -100,9 +100,9 @@ export default function QualityConfigPanel({ onClose }: QualityConfigPanelProps)
           value={sensitivity}
           onChange={(e) => setSensitivity(e.target.value)}
           placeholder={`Default: ${DEFAULT_SENSITIVITY[method]}`}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          className="w-full rounded-md border border-app-border bg-surface px-3 py-2 text-sm text-foreground focus:border-blue-500 focus:outline-none"
         />
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-muted-foreground">
           {method === "iqr"
             ? "Fence multiplier — higher flags less."
             : "|z| threshold — higher flags less."}
@@ -110,24 +110,24 @@ export default function QualityConfigPanel({ onClose }: QualityConfigPanelProps)
       </Field>
 
       <fieldset className="mb-3">
-        <legend className="mb-1 block text-sm font-medium text-gray-700">Pattern rules</legend>
+        <legend className="mb-1 block text-sm font-medium text-foreground">Pattern rules</legend>
         {rules.length > 0 && (
           <ul className="mb-2 space-y-1">
             {rules.map((rule) => (
               <li
                 key={rule.id}
-                className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs"
+                className="flex items-center justify-between gap-2 rounded-md border border-app-border bg-surface-hover px-2 py-1 text-xs text-foreground"
               >
                 <span className="min-w-0 truncate">
                   <span className="font-medium">{rule.column}</span>
-                  <span className="text-gray-400"> must match </span>
-                  <code className="text-gray-700">{rule.pattern}</code>
+                  <span className="text-muted-foreground"> must match </span>
+                  <code className="text-foreground">{rule.pattern}</code>
                 </span>
                 <button
                   type="button"
                   aria-label={`Remove rule for ${rule.column}`}
                   onClick={() => setRules((prev) => prev.filter((r) => r.id !== rule.id))}
-                  className="shrink-0 text-gray-400 hover:text-red-500"
+                  className="shrink-0 text-muted-foreground hover:text-red-500"
                 >
                   <LuX className="h-3.5 w-3.5" />
                 </button>
@@ -148,7 +148,7 @@ export default function QualityConfigPanel({ onClose }: QualityConfigPanelProps)
             value={rulePattern}
             onChange={(e) => setRulePattern(e.target.value)}
             placeholder="Regex, e.g. [A-Z]{2}-\d{4}"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-md border border-app-border bg-surface px-3 py-2 font-mono text-sm text-foreground focus:border-blue-500 focus:outline-none"
           />
           <div className="flex items-center gap-2">
             <div className="flex-1">
@@ -169,7 +169,7 @@ export default function QualityConfigPanel({ onClose }: QualityConfigPanelProps)
             </Button>
           </div>
         </div>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-muted-foreground">
           Values in the column must fully match the pattern.
         </p>
       </fieldset>

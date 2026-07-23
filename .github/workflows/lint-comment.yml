@@ -1,0 +1,159 @@
+name: Lint Comment
+
+# Privileged half of the lint pipeline. It is triggered by the completion of
+# Lint (lint.yml) and never checks out or executes pull request code — it only
+# reads the data-only report.json artifact that run produced.
+
+on:
+  workflow_run:
+    workflows: [Lint]
+    types: [completed]
+
+concurrency:
+  group: lint-comment-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+
+jobs:
+  comment:
+    name: PR Comment
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download report
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-lint-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post or delete combined comment
+        if: steps.download.outcome == 'success'
+        uses: actions/github-script@v7
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('report.json', 'utf8'));
+
+            // report.json comes from a run that executed fork code, so treat
+            // every field as untrusted input.
+            const prNumber = parseInt(report.pr, 10);
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed('Report contains no usable PR number.');
+              return;
+            }
+
+            // Confirm the reported PR really is the one that triggered the run,
+            // so a forged report cannot make the bot comment on someone else's PR.
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            if (pr.head.sha !== process.env.HEAD_SHA) {
+              core.setFailed(`PR #${prNumber} head ${pr.head.sha} does not match run head ${process.env.HEAD_SHA}.`);
+              return;
+            }
+
+            const marker = '<!-- ci-bot -->';
+            const oldMarkers = ['<!-- lint-frontend-bot -->', '<!-- lint-backend-bot -->', '<!-- rebase-bot -->'];
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            // Clean up old individual comments from previous workflow versions
+            for (const old of oldMarkers) {
+              const c = comments.find(c => c.body.includes(old));
+              if (c) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: c.id,
+                });
+              }
+            }
+
+            // Build combined comment sections
+            const sections = [];
+
+            const eslintFailed = report.eslint === 'failure';
+            const prettierFailed = report.prettier === 'failure';
+            const typecheckFailed = report.typecheck === 'failure';
+            if (eslintFailed || prettierFailed || typecheckFailed) {
+              let s = '### Frontend\n\n';
+              if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix . --ext js,jsx,ts,tsx` in `dataloom-frontend/`\n';
+              if (prettierFailed) s += '- **Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,ts,tsx,css,md}"` in `dataloom-frontend/`\n';
+              if (typecheckFailed) s += '- **TypeScript:** Run `npx tsc --noEmit` in `dataloom-frontend/` and fix the reported errors\n';
+              sections.push(s);
+            }
+
+            const ruffLintFailed = report.ruff_lint === 'failure';
+            const ruffFormatFailed = report.ruff_format === 'failure';
+            if (ruffLintFailed || ruffFormatFailed) {
+              let s = '### Backend\n\n';
+              if (ruffLintFailed) s += '- **Ruff lint:** Run `uv run ruff check --fix .` in `dataloom-backend/`\n';
+              if (ruffFormatFailed) s += '- **Ruff format:** Run `uv run ruff format .` in `dataloom-backend/`\n';
+              sections.push(s);
+            }
+
+            const behind = parseInt(report.behind_count || '0', 10) || 0;
+            // Commit subjects are author-controlled: strip fence characters and
+            // cap the volume before embedding them in the comment.
+            const mergeCommits = (report.merge_commits || '')
+              .trim()
+              .replace(/`/g, "'")
+              .split('\n')
+              .slice(0, 20)
+              .join('\n');
+            if (behind > 0 || mergeCommits) {
+              let s = '### Rebase\n\n';
+              if (behind > 0) s += `Your branch is **${behind} commit(s) behind \`main\`**. Please rebase.\n\n`;
+              if (mergeCommits) s += '**Merge commits detected** — please use rebase instead of merge:\n\n```\n' + mergeCommits + '\n```\n\n';
+              sections.push(s);
+            }
+
+            const prCommits = parseInt(report.pr_commits || '1', 10) || 1;
+            if (prCommits > 1) {
+              sections.push(`### Squash\n\nYour PR has **${prCommits} commits**. Please squash into a single commit.\n`);
+            }
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (sections.length === 0) {
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  comment_id: existing.id,
+                });
+              }
+              return;
+            }
+
+            let body = marker + '\n## PR Review\n\n';
+            body += sections.join('\n');
+
+            if (behind > 0 || mergeCommits || prCommits > 1) {
+              body += '\n### How to fix\n```bash\ngit fetch origin\ngit rebase -i origin/main   # mark all but first commit as "squash"\ngit push --force-with-lease\n```\n';
+            }
+
+            body += '\n---\n*This comment updates automatically on each push.*\n';
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: prNumber, body,
+              });
+            }

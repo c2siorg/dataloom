@@ -4,11 +4,11 @@ Each function takes a DataFrame and parameters, returns a new DataFrame.
 No side effects -- saving to disk is handled by the caller.
 """
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from app.schemas import FillStrategy, MeltParams, OperationType
@@ -220,7 +220,12 @@ def delete_column(df: pd.DataFrame, index: int) -> pd.DataFrame:
     return df.drop(column_name, axis=1)
 
 
-def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -> pd.DataFrame:
+def change_cell_value(
+    df: pd.DataFrame,
+    row_index: int,
+    col_index: int,
+    value,
+) -> pd.DataFrame:
     """Update a single cell value.
 
     Note: col_index is 1-based from the frontend (skipping S.No. column).
@@ -233,15 +238,20 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
 
     Returns:
         DataFrame with updated cell.
+
+    Raises:
+        TransformationError: If an index is out of bounds, a numeric value is
+            invalid or non-finite, a datetime value has an invalid format, or
+            pandas cannot store the converted value in the target column.
     """
     df = df.copy()
 
     # col_index is 1-based (1..len(columns)); row_index is 0-based. Guard both
     # ends so a negative index can't silently wrap to the wrong cell.
-    if row_index < 0 or row_index >= len(df) or col_index < 1 or col_index > len(df.columns):
+    if row_index < 0 or row_index >= len(df) or col_index < 1 or col_index >= len(df.columns) + 1:
         raise TransformationError("Row or column index out of bounds")
 
-    # col_index is 1-based from frontend (accounting for S.No. column).
+    # col_index is 1-based from frontend (accounting for S.No. column)
     column_name = df.columns[col_index - 1]
 
     # Cast value to match the column's existing dtype so pandas doesn't reject
@@ -249,76 +259,112 @@ def change_cell_value(df: pd.DataFrame, row_index: int, col_index: int, value) -
     col_dtype = df[column_name].dtype
 
     if value == "" or value is None:
-        # Clearing a cell stores Python None. Numeric columns are promoted to
-        # object so None can coexist with the remaining values without forcing
-        # integer values through float64 and potentially losing precision.
-        if pd.api.types.is_numeric_dtype(col_dtype):
+        # Clearing a cell stores Python None. Numeric columns are upcast to
+        # object so None can coexist with the remaining values (int64 has no
+        # null sentinel; we upcast float64 too for consistency with the int
+        # path, even though NaN would fit natively).
+        if pd.api.types.is_integer_dtype(col_dtype) or pd.api.types.is_float_dtype(col_dtype):
             df[column_name] = df[column_name].astype(object)
 
         value = None
+    else:
+        if pd.api.types.is_integer_dtype(col_dtype):
+            normalized = str(value).strip()
 
-    elif pd.api.types.is_integer_dtype(col_dtype):
-        # Preserve integer precision by attempting integer parsing first.
-        # Python integers are arbitrary precision, so values beyond float64's
-        # exact integer range remain unchanged.
-        normalized = str(value).strip()
-
-        try:
-            value = int(normalized)
-        except (ValueError, TypeError, OverflowError):
             try:
-                decimal_value = float(normalized)
-            except (ValueError, TypeError, OverflowError) as err:
-                raise TransformationError(
-                    f"Cannot interpret {value!r} as a number for column "
-                    f"'{column_name}'. Expected an integer or decimal value."
-                ) from err
+                # Try int() first so large integer strings like
+                # "9007199254740993" (above 2^53) keep full precision —
+                # converting them through float would lose bits.
+                value = int(normalized)
+            except ValueError:
+                try:
+                    decimal_value = float(normalized)
+                except (ValueError, TypeError, OverflowError):
+                    raise TransformationError(
+                        f"Invalid value {value!r} for integer column "
+                        f"'{column_name}'. Expected an integer or decimal value."
+                    ) from None
 
-            if not np.isfinite(decimal_value):
+                if not math.isfinite(decimal_value):
+                    raise TransformationError(
+                        f"Invalid value {value!r} for column '{column_name}'. Expected a finite number."
+                    ) from None
+
+                # A decimal-formatted value cannot remain in an integer dtype.
+                # Promote to object instead of float64 so existing large
+                # integers retain their exact values.
+                df[column_name] = df[column_name].astype(object)
+                value = decimal_value
+
+        elif pd.api.types.is_float_dtype(col_dtype):
+            try:
+                value = float(value)
+            except (ValueError, TypeError, OverflowError):
                 raise TransformationError(
-                    f"Cannot interpret {value!r} as a finite number for column '{column_name}'."
+                    f"Invalid value {value!r} for float column '{column_name}'. Expected a numeric value."
                 ) from None
 
-            # A decimal cannot be stored in an integer dtype. Promote the
-            # column to object instead of float64 so unedited large integers,
-            # including values beyond 2^53, retain their exact values.
-            df[column_name] = df[column_name].astype(object)
-            value = decimal_value
+            if not math.isfinite(value):
+                raise TransformationError(
+                    f"Invalid value {value!r} for column '{column_name}'. Expected a finite number."
+                )
 
-    elif pd.api.types.is_float_dtype(col_dtype):
-        # Float columns accept only valid finite numeric values. Invalid edits
-        # are rejected instead of silently demoting the column to object.
-        normalized = str(value).strip()
+        elif pd.api.types.is_bool_dtype(col_dtype):
+            # Accepted tokens are a superset of cast_data_type()'s, so a
+            # value that cast-to-boolean would accept never gets rejected
+            # by a cell edit.
+            normalized = str(value).strip().lower()
 
-        try:
-            value = float(normalized)
-        except (ValueError, TypeError, OverflowError) as err:
-            raise TransformationError(
-                f"Cannot interpret {value!r} as a float for column '{column_name}'. Expected a numeric value."
-            ) from err
+            if normalized in ("true", "1", "yes", "t", "y", "on"):
+                value = True
+            elif normalized in ("false", "0", "no", "f", "n", "off"):
+                value = False
+            else:
+                raise TransformationError(
+                    f"Cannot interpret {value!r} as boolean for column "
+                    f"'{column_name}'. Expected one of: true/false, 1/0, "
+                    "yes/no, t/f, y/n, on/off."
+                )
 
-        if not np.isfinite(value):
-            raise TransformationError(
-                f"Cannot interpret {value!r} as a finite number for column '{column_name}'."
-            ) from None
+        elif pd.api.types.is_datetime64_any_dtype(col_dtype):
+            normalized = str(value).strip()
 
-    elif pd.api.types.is_bool_dtype(col_dtype):
-        # Accepted tokens are a superset of cast_data_type()'s, so a value
-        # that cast-to-boolean would accept never gets rejected by a cell edit.
-        normalized = str(value).strip().lower()
+            try:
+                # Accept only complete dates or timestamps.
+                if len(normalized) == 10:
+                    parsed = pd.to_datetime(
+                        normalized,
+                        format="%Y-%m-%d",
+                        errors="raise",
+                    )
+                else:
+                    parsed = pd.to_datetime(
+                        normalized,
+                        format="%Y-%m-%d %H:%M:%S",
+                        errors="raise",
+                    )
+            except (ValueError, TypeError, OverflowError):
+                raise TransformationError(
+                    f"Invalid datetime for column '{column_name}'. Expected YYYY-MM-DD or YYYY-MM-DD HH:MM:SS."
+                ) from None
 
-        if normalized in ("true", "1", "yes", "t", "y", "on"):
-            value = True
-        elif normalized in ("false", "0", "no", "f", "n", "off"):
-            value = False
-        else:
-            raise TransformationError(
-                f"Cannot interpret {value!r} as boolean for column "
-                f"'{column_name}'. Expected one of: true/false, 1/0, "
-                "yes/no, t/f, y/n, on/off."
-            )
+            # _infer_datetime_columns can produce timezone-aware columns
+            # (e.g. timestamps normalized through utc=True). Localize the edit
+            # to the existing column timezone before assignment.
+            col_tz = getattr(col_dtype, "tz", None)
 
-    df.at[row_index, column_name] = value
+            if col_tz is not None:
+                parsed = parsed.tz_localize(col_tz)
+
+            value = parsed
+
+    try:
+        df.at[row_index, column_name] = value
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise TransformationError(
+            f"Cannot store {value!r} in column '{column_name}' ({df[column_name].dtype})."
+        ) from exc
+
     return df
 
 
