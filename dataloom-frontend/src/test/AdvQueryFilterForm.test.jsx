@@ -23,9 +23,15 @@ const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
 const mockHandleSave = vi.fn();
 
-const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
+const renderForm = ({
+  isPreviewMode = false,
+  onClose = vi.fn(),
+  saving = false,
+  pageSize = 50,
+} = {}) => {
   useProjectContext.mockReturnValue({
     isPreviewMode,
+    pageSize,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
   });
@@ -49,6 +55,10 @@ describe("AdvQueryFilterForm", () => {
       columns: ["amount"],
       rows: [["100"]],
       dtypes: { amount: "integer" },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     });
   });
 
@@ -66,7 +76,7 @@ describe("AdvQueryFilterForm", () => {
     expect(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5")).toBeRequired();
   });
 
-  it("submits the query for preview", async () => {
+  it("submits the query for preview with pagination parameters", async () => {
     const user = userEvent.setup();
     renderForm();
 
@@ -80,17 +90,31 @@ describe("AdvQueryFilterForm", () => {
           operation_type: ADV_QUERY_FILTER,
           adv_query: { query: "amount > 10" },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
 
-  it("enters preview mode using the transformation response", async () => {
+  it("enters preview mode using the transformation response and pagination metadata", async () => {
     const user = userEvent.setup();
-    const response = { columns: ["amount"], rows: [[100]], dtypes: { amount: "integer" } };
+    const response = {
+      columns: ["amount"],
+      rows: [[100]],
+      dtypes: { amount: "integer" },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+    };
+
     transformProject.mockResolvedValue(response);
 
     renderForm();
+
     await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -99,7 +123,38 @@ describe("AdvQueryFilterForm", () => {
         response.columns,
         response.rows,
         response.dtypes,
-        expect.objectContaining({ projectId: "project-123" }),
+        expect.objectContaining({
+          projectId: "project-123",
+        }),
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
+    });
+  });
+
+  it("uses the current page size when requesting the preview", async () => {
+    const user = userEvent.setup();
+    renderForm({ pageSize: 10 });
+
+    await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(transformProject).toHaveBeenCalledWith(
+        "project-123",
+        {
+          operation_type: ADV_QUERY_FILTER,
+          adv_query: { query: "amount > 10" },
+        },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 10,
+        },
       );
     });
   });
@@ -107,6 +162,7 @@ describe("AdvQueryFilterForm", () => {
   it("disables Submit while the request is pending", async () => {
     const user = userEvent.setup();
     let resolveTransform;
+
     transformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -115,12 +171,21 @@ describe("AdvQueryFilterForm", () => {
     );
 
     renderForm();
+
     await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
 
-    resolveTransform({ columns: [], rows: [], dtypes: {} });
+    resolveTransform({
+      columns: [],
+      rows: [],
+      dtypes: {},
+      total_rows: 0,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+    });
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Submit" })).not.toBeDisabled();
@@ -129,17 +194,24 @@ describe("AdvQueryFilterForm", () => {
 
   it("shows the backend error message when the query request fails", async () => {
     const user = userEvent.setup();
+
     transformProject.mockRejectedValue({
-      response: { data: { detail: "Invalid query syntax." } },
+      response: {
+        data: {
+          detail: "Invalid query syntax.",
+        },
+      },
     });
 
     renderForm();
+
     await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount >>");
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
     await waitFor(() => {
       expect(screen.getByText("Invalid query syntax.")).toBeInTheDocument();
     });
+
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
@@ -152,6 +224,7 @@ describe("AdvQueryFilterForm", () => {
 
   it("calls the preview save handler when Save Changes is clicked", async () => {
     const user = userEvent.setup();
+
     renderForm({ isPreviewMode: true });
 
     await user.click(screen.getByRole("button", { name: "Save Changes" }));
@@ -160,7 +233,10 @@ describe("AdvQueryFilterForm", () => {
   });
 
   it("shows saving state while preview changes are being saved", () => {
-    renderForm({ isPreviewMode: true, saving: true });
+    renderForm({
+      isPreviewMode: true,
+      saving: true,
+    });
 
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
   });
@@ -168,7 +244,11 @@ describe("AdvQueryFilterForm", () => {
   it("cancels preview mode when Cancel is clicked during preview", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: true, onClose });
+
+    renderForm({
+      isPreviewMode: true,
+      onClose,
+    });
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -179,7 +259,11 @@ describe("AdvQueryFilterForm", () => {
   it("closes the form when Cancel is clicked outside preview mode", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: false, onClose });
+
+    renderForm({
+      isPreviewMode: false,
+      onClose,
+    });
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 

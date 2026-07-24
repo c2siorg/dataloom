@@ -33,8 +33,16 @@ const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
 const mockHandleSave = vi.fn();
 
-const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
+const renderForm = ({
+  isPreviewMode = false,
+  onClose = vi.fn(),
+  saving = false,
+  columns = ["amount", "created_at"],
+  pageSize = 50,
+} = {}) => {
   useProjectContext.mockReturnValue({
+    columns,
+    pageSize,
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
@@ -58,40 +66,58 @@ describe("StringReplaceForm", () => {
     transformProject.mockResolvedValue({
       columns: ["amount"],
       rows: [["100"]],
-      dtypes: { amount: "integer" },
+      dtypes: {
+        amount: "integer",
+      },
     });
   });
 
-  it("renders column, find, and replace controls", () => {
+  it("renders column, find, and replace controls with buttons", () => {
     renderForm();
 
     expect(screen.getByLabelText("Column")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Text to find")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Replacement text")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
   it("shows a validation error when no column is selected", async () => {
     const user = userEvent.setup();
+
     renderForm();
 
     await user.type(screen.getByPlaceholderText("Text to find"), "foo");
-    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Please select a column.")).toBeInTheDocument();
     });
+
     expect(transformProject).not.toHaveBeenCalled();
   });
 
   it("submits column, find value, and replace value", async () => {
     const user = userEvent.setup();
+
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.type(screen.getByPlaceholderText("Text to find"), "foo");
+
     await user.type(screen.getByPlaceholderText("Replacement text"), "bar");
-    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply",
+      }),
+    );
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(
@@ -104,18 +130,29 @@ describe("StringReplaceForm", () => {
             replace_value: "bar",
           },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
 
   it("allows an empty replace value", async () => {
     const user = userEvent.setup();
+
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.type(screen.getByPlaceholderText("Text to find"), "foo");
-    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply",
+      }),
+    );
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(
@@ -128,17 +165,32 @@ describe("StringReplaceForm", () => {
             replace_value: "",
           },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
 
   it("enters preview mode using the transformation response", async () => {
     const user = userEvent.setup();
-    const response = { columns: ["amount"], rows: [[100]], dtypes: { amount: "integer" } };
+
+    const response = {
+      columns: ["amount"],
+      rows: [[100]],
+      dtypes: { amount: "integer" },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+    };
+
     transformProject.mockResolvedValue(response);
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
     await user.type(screen.getByPlaceholderText("Text to find"), "foo");
     await user.click(screen.getByRole("button", { name: "Apply" }));
@@ -148,14 +200,24 @@ describe("StringReplaceForm", () => {
         response.columns,
         response.rows,
         response.dtypes,
-        expect.objectContaining({ projectId: "project-123" }),
+        expect.objectContaining({
+          projectId: "project-123",
+        }),
+        {
+          total_rows: 1,
+          total_pages: 1,
+          page: 1,
+          page_size: 50,
+        },
       );
     });
   });
 
   it("shows applying state while the request is pending", async () => {
     const user = userEvent.setup();
+
     let resolveTransform;
+
     transformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -164,64 +226,135 @@ describe("StringReplaceForm", () => {
     );
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.type(screen.getByPlaceholderText("Text to find"), "foo");
-    await user.click(screen.getByRole("button", { name: "Apply" }));
 
-    expect(screen.getByRole("button", { name: "Applying..." })).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply",
+      }),
+    );
 
-    resolveTransform({ columns: [], rows: [], dtypes: {} });
+    expect(
+      screen.getByRole("button", {
+        name: "Applying...",
+      }),
+    ).toBeDisabled();
+
+    resolveTransform({
+      columns: [],
+      rows: [],
+      dtypes: {},
+    });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Apply" })).not.toBeDisabled();
+      expect(
+        screen.getByRole("button", {
+          name: "Apply",
+        }),
+      ).not.toBeDisabled();
     });
   });
 
   it("shows the backend error message when the request fails", async () => {
     const user = userEvent.setup();
+
     transformProject.mockRejectedValue({
-      response: { data: { detail: "Unable to replace text." } },
+      response: {
+        data: {
+          detail: "Unable to replace text.",
+        },
+      },
     });
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.type(screen.getByPlaceholderText("Text to find"), "foo");
-    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Unable to replace text.")).toBeInTheDocument();
     });
+
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
   it("disables Apply and displays Save Changes in preview mode", () => {
-    renderForm({ isPreviewMode: true });
+    renderForm({
+      isPreviewMode: true,
+    });
 
-    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Save Changes" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Apply",
+      }),
+    ).toBeDisabled();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Save Changes",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("calls the preview save handler when Save Changes is clicked", async () => {
     const user = userEvent.setup();
-    renderForm({ isPreviewMode: true });
 
-    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    renderForm({
+      isPreviewMode: true,
+    });
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Save Changes",
+      }),
+    );
 
     expect(mockHandleSave).toHaveBeenCalledTimes(1);
   });
 
   it("shows saving state while preview changes are being saved", () => {
-    renderForm({ isPreviewMode: true, saving: true });
+    renderForm({
+      isPreviewMode: true,
+      saving: true,
+    });
 
-    expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+    expect(
+      screen.getByRole("button", {
+        name: "Saving...",
+      }),
+    ).toBeDisabled();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Apply",
+      }),
+    ).toBeDisabled();
   });
 
   it("cancels preview mode when Cancel is clicked during preview", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: true, onClose });
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    renderForm({
+      isPreviewMode: true,
+      onClose,
+    });
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Cancel",
+      }),
+    );
 
     expect(mockCancelPreview).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
@@ -230,9 +363,17 @@ describe("StringReplaceForm", () => {
   it("closes the form when Cancel is clicked outside preview mode", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: false, onClose });
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    renderForm({
+      isPreviewMode: false,
+      onClose,
+    });
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Cancel",
+      }),
+    );
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(mockCancelPreview).not.toHaveBeenCalled();
