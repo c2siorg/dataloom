@@ -3,10 +3,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProjectContext } from "../context/ProjectContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { useTheme } from "../context/ThemeContext";
 import { ROUTES } from "../constants/routes";
 import { renameProject } from "../api/projects";
 import DataLoomLogo from "./common/DataLoomLogo";
-import { LuCircleUserRound, LuCheck, LuX, LuLogOut } from "react-icons/lu";
+import { LuCircleUserRound, LuCheck, LuX, LuLogOut, LuSun, LuMoon } from "react-icons/lu";
 
 const Navbar = () => {
   const location = useLocation();
@@ -14,6 +15,7 @@ const Navbar = () => {
   const { projectId, projectName, setProjectInfo } = useProjectContext();
   const { user, logout } = useAuth();
   const { showToast } = useToast();
+  const { isDarkMode, toggleTheme } = useTheme();
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
@@ -154,6 +156,18 @@ const Navbar = () => {
               </div>
             </Link>
           )}
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isDarkMode}
+            onClick={toggleTheme}
+            aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-app-border bg-surface text-secondary-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus:outline-none focus:ring-2 focus:ring-accent/30"
+          >
+            {isDarkMode ? <LuSun className="h-5 w-5" /> : <LuMoon className="h-5 w-5" />}
+          </button>
 
           <button
             type="button"
