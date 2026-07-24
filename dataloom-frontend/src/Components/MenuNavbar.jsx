@@ -26,12 +26,33 @@ const MenuNavbar = ({ projectId }) => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("File");
+  const [activeTooltip, setActiveTooltip] = useState(null);
 
   const { updateData, refreshProject, pageSize, projectName, isPreviewMode } = useProjectContext();
   const { activePanel, openPanel, togglePanel, closePanel } = usePanel();
   const { openTab, activeTabId } = useWorkspaceTabs();
   const { refreshLogs, refreshCheckpoints } = useHistoryRefresh();
   const { showColumnProfiles, toggleColumnProfiles } = useColumnProfilesView();
+
+  const handleMouseEnter = (e, hoverText) => {
+    if (!hoverText) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const minX = 80;
+    const maxX = Math.max(minX, viewportWidth - 80);
+    const clampedLeft = Math.max(minX, Math.min(centerX, maxX));
+
+    setActiveTooltip({
+      text: hoverText,
+      top: rect.bottom + 6,
+      left: clampedLeft,
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setActiveTooltip(null);
+  };
 
   // Column profiles render inside the DataSet tab, so focus it when turning
   // them on (re-opens it if the tab was closed).
@@ -149,6 +170,7 @@ const MenuNavbar = ({ projectId }) => {
       : item.action?.openTab
         ? activeTabId === item.action.openTab.id
         : false,
+    hover: item.hover,
   }));
 
   const allItems = [...coreItems, ...featureItems];
@@ -168,6 +190,12 @@ const MenuNavbar = ({ projectId }) => {
     ]),
   );
 
+  const TAB_DESCRIPTIONS = {
+    File: "Manage project checkpoints, export data, and view history.",
+    Data: "Apply transformations, filter, sort, and query the dataset.",
+    Profiling: "Analyze dataset summary, column profiles, charts, and data quality.",
+  };
+
   return (
     <div className="bg-background border-b border-app-border">
       <div className="flex items-center gap-0 border-b border-app-border px-8">
@@ -175,7 +203,15 @@ const MenuNavbar = ({ projectId }) => {
           <button
             key={tabName}
             data-testid={`tab-${tabName.toLowerCase()}`}
-            onClick={() => setActiveTab(tabName)}
+            title={TAB_DESCRIPTIONS[tabName]}
+            onClick={() => {
+              handleMouseLeave();
+              setActiveTab(tabName);
+            }}
+            onMouseEnter={(e) => handleMouseEnter(e, TAB_DESCRIPTIONS[tabName])}
+            onMouseLeave={handleMouseLeave}
+            onFocus={(e) => handleMouseEnter(e, TAB_DESCRIPTIONS[tabName])}
+            onBlur={handleMouseLeave}
             className={`px-4 py-1.5 text-sm font-medium ${
               activeTab === tabName
                 ? "text-blue-600 dark:text-blue-300 border-b-2 border-blue-500"
@@ -196,27 +232,35 @@ const MenuNavbar = ({ projectId }) => {
                 {section.items.map((item) => {
                   const isActive = Boolean(item.active);
                   return (
-                    <button
-                      key={item.label}
-                      data-testid={`toolbar-${item.label.toLowerCase().replace(/ /g, "-")}`}
-                      onClick={item.onClick}
-                      disabled={item.disabled}
-                      title={item.hover}
-                      className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md transition-colors ${
-                        isActive
-                          ? "bg-accent-subtle text-accent"
-                          : "hover:bg-surface-hover disabled:hover:bg-transparent"
-                      } ${item.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      <item.icon
-                        className={`w-5 h-5 ${isActive ? "text-accent" : "text-muted-foreground"}`}
-                      />
-                      <span
-                        className={`text-xs ${isActive ? "text-accent" : "text-muted-foreground"}`}
+                    <div key={item.label} className="flex flex-col items-center">
+                      <button
+                        data-testid={`toolbar-${item.label.toLowerCase().replace(/ /g, "-")}`}
+                        title={item.hover}
+                        onClick={(e) => {
+                          handleMouseLeave();
+                          item.onClick(e);
+                        }}
+                        onMouseEnter={(e) => handleMouseEnter(e, item.hover)}
+                        onMouseLeave={handleMouseLeave}
+                        onFocus={(e) => handleMouseEnter(e, item.hover)}
+                        onBlur={handleMouseLeave}
+                        disabled={item.disabled}
+                        className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-md transition-colors ${
+                          isActive
+                            ? "bg-accent-subtle text-accent"
+                            : "hover:bg-surface-hover disabled:hover:bg-transparent"
+                        } ${item.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
                       >
-                        {item.label}
-                      </span>
-                    </button>
+                        <item.icon
+                          className={`w-5 h-5 ${isActive ? "text-accent" : "text-muted-foreground"}`}
+                        />
+                        <span
+                          className={`text-xs ${isActive ? "text-accent" : "text-muted-foreground"}`}
+                        >
+                          {item.label}
+                        </span>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -244,6 +288,19 @@ const MenuNavbar = ({ projectId }) => {
       {toast && (
         <div className="fixed bottom-4 right-4 z-50">
           <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
+        </div>
+      )}
+
+      {activeTooltip && (
+        <div
+          role="tooltip"
+          style={{
+            top: `${activeTooltip.top}px`,
+            left: `${activeTooltip.left}px`,
+          }}
+          className="fixed -translate-x-1/2 z-40 pointer-events-none px-2.5 py-1 text-xs font-medium text-white bg-slate-900/90 dark:bg-slate-800/95 backdrop-blur-sm rounded-md shadow-md border border-slate-700/50 max-w-xs text-center text-wrap"
+        >
+          {activeTooltip.text}
         </div>
       )}
     </div>

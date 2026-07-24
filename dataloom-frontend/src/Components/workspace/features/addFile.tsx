@@ -20,6 +20,7 @@ registerFeature({
       action: { togglePanel: "AddFilePanel" },
       disabledInPreview: true,
       activePanel: "AddFilePanel",
+      hover: "Add a file to the project dataset.",
     },
   ],
 });
