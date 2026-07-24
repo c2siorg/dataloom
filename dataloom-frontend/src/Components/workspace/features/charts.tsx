@@ -22,6 +22,7 @@ registerFeature({
       icon: LuChartColumnBig,
       action: { openTab: CHARTS_TAB, openPanel: "ChartBuilder" },
       activePanel: "ChartBuilder",
+      hover: "Open chart builder and show visualizations for the dataset.",
     },
   ],
 });
