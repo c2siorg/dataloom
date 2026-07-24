@@ -1,6 +1,14 @@
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useState, useEffect, useMemo, useRef, type ReactNode, type KeyboardEvent } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+  type KeyboardEvent,
+  useCallback,
+} from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
@@ -149,6 +157,9 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
 
   const [draggedColIndex, setDraggedColIndex] = useState<number | null>(null);
   const [hoveredTargetIndex, setHoveredTargetIndex] = useState<number | null>(null);
+
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const previewRequestIdRef = useRef(0);
 
   // Per-column profiles for the "Columns" toggle. dataVersion is the change
   // signal (bumped on any content edit), so cached profiles refresh after a
@@ -395,41 +406,65 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     }
   };
 
-  const fetchPreviewPage = async (targetPage: number, targetPageSize: number) => {
-    if (!pendingTransform) return;
+  const fetchPreviewPage = useCallback(
+    async (targetPage: number, targetPageSize: number) => {
+      if (!pendingTransform) return;
 
-    try {
-      const response = (await transformProject(
-        pendingTransform.projectId,
-        pendingTransform.payload,
-        {
-          preview: true,
-          page: targetPage,
-          pageSize: targetPageSize,
-        },
-      )) as unknown as TransformResponse & {
-        total_rows: number;
-        total_pages: number;
-        page: number;
-        page_size: number;
-      };
+      const requestId = ++previewRequestIdRef.current;
 
-      updatePreviewPage(response.columns, normalizeRows(response.rows), response.dtypes, {
-        total_rows: response.total_rows,
-        total_pages: response.total_pages,
-        page: response.page,
-        page_size: response.page_size,
-      });
-    } catch {
-      setToast({
-        message: "Failed to load preview page. Please try again.",
-        type: "error",
-      });
-    }
-  };
+      setPreviewLoading(true);
+
+      try {
+        const response = (await transformProject(
+          pendingTransform.projectId,
+          pendingTransform.payload,
+          {
+            preview: true,
+            page: targetPage,
+            pageSize: targetPageSize,
+          },
+        )) as unknown as TransformResponse & {
+          total_rows: number;
+          total_pages: number;
+          page: number;
+          page_size: number;
+        };
+
+        // Ignore stale responses from older requests.
+        if (requestId !== previewRequestIdRef.current) {
+          return;
+        }
+
+        updatePreviewPage(response.columns, normalizeRows(response.rows), response.dtypes, {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        });
+      } catch {
+        // Ignore errors from stale requests.
+        if (requestId !== previewRequestIdRef.current) {
+          return;
+        }
+
+        setToast({
+          message: "Failed to load preview page. Please try again.",
+          type: "error",
+        });
+      } finally {
+        // Only the latest request controls the loading state.
+        if (requestId === previewRequestIdRef.current) {
+          setPreviewLoading(false);
+        }
+      }
+    },
+    [pendingTransform, updatePreviewPage],
+  );
 
   const handlePageChange = async (newPage: number) => {
     if (isPreviewMode) {
+      if (previewLoading) return;
+
       await fetchPreviewPage(newPage, pageSize);
       return;
     }
@@ -437,8 +472,11 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     setPaginationData({ page: newPage });
     refreshProject(projectId, newPage, pageSize);
   };
+
   const handlePageSizeChange = async (newSize: number) => {
     if (isPreviewMode) {
+      if (previewLoading) return;
+
       await fetchPreviewPage(1, newSize);
       return;
     }
@@ -625,6 +663,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
           pageSize={pageSize}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
+          isLoading={isPreviewMode && previewLoading}
         />
       </div>
 
@@ -693,6 +732,7 @@ interface TablePaginationProps {
   pageSize: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
+  isLoading?: boolean;
 }
 
 export function TablePagination({
@@ -702,6 +742,7 @@ export function TablePagination({
   pageSize,
   onPageChange,
   onPageSizeChange,
+  isLoading = false,
 }: TablePaginationProps) {
   const [pageSizeOpen, setPageSizeOpen] = useState(false);
   const [pageInput, setPageInput] = useState(String(page));
@@ -716,19 +757,34 @@ export function TablePagination({
   }
 
   const handleFirst = () => {
-    if (page !== 1) onPageChange(1);
+    if (page !== 1) {
+      onPageChange(1);
+    }
   };
+
   const handlePrevious = () => {
-    if (page > 1) onPageChange(page - 1);
+    if (page > 1) {
+      onPageChange(page - 1);
+    }
   };
+
   const handleNext = () => {
-    if (page < totalPages) onPageChange(page + 1);
+    if (page < totalPages) {
+      onPageChange(page + 1);
+    }
   };
+
   const handleLast = () => {
-    if (page !== totalPages) onPageChange(totalPages);
+    if (page !== totalPages) {
+      onPageChange(totalPages);
+    }
   };
 
   const commitPageInput = () => {
+    if (isLoading) {
+      return;
+    }
+
     const input = pageInputRef.current;
     if (input && !input.reportValidity()) {
       showToast("Invalid page number", "error");
@@ -762,6 +818,7 @@ export function TablePagination({
           <div className="relative inline-block">
             <button
               onClick={() => setPageSizeOpen(!pageSizeOpen)}
+              disabled={isLoading}
               className="min-w-8.5 rounded border border-app-border px-2 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {pageSize}
@@ -772,10 +829,16 @@ export function TablePagination({
                   <div
                     key={size}
                     onClick={() => {
+                      if (isLoading) return;
+
                       onPageSizeChange(size);
                       setPageSizeOpen(false);
                     }}
-                    className="cursor-pointer rounded px-3 py-1 hover:bg-surface-hover hover:text-blue-700"
+                    className={`rounded px-3 py-1 ${
+                      isLoading
+                        ? "cursor-not-allowed opacity-40"
+                        : "cursor-pointer hover:bg-surface-hover hover:text-blue-700"
+                    }`}
                   >
                     {size}
                   </div>
@@ -790,7 +853,7 @@ export function TablePagination({
       <div className="flex flex-wrap items-center justify-end gap-1.5">
         <button
           onClick={handleFirst}
-          disabled={page === 1}
+          disabled={page === 1 || isLoading}
           className="rounded border border-app-border p-1 transition-colors hover:bg-surface-hover focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="First page"
         >
@@ -798,7 +861,7 @@ export function TablePagination({
         </button>
         <button
           onClick={handlePrevious}
-          disabled={page === 1}
+          disabled={page === 1 || isLoading}
           className="rounded border border-app-border p-1 transition-colors hover:bg-surface-hover focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Previous page"
         >
@@ -815,11 +878,12 @@ export function TablePagination({
             max={totalPages}
             step={1}
             value={pageInput}
+            disabled={isLoading}
             onChange={(e) => setPageInput(e.target.value)}
             onKeyDown={handlePageInputKeyDown}
             onBlur={commitPageInput}
             title={`Enter a page between 1 and ${totalPages}`}
-            className="h-6 w-11 rounded border border-app-border px-1 text-center text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            className="h-6 w-11 rounded border border-app-border px-1 text-center text-foreground focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             aria-label="Current page"
           />
           <span className="text-muted-foreground">of {totalPages}</span>
@@ -827,7 +891,7 @@ export function TablePagination({
 
         <button
           onClick={handleNext}
-          disabled={page === totalPages}
+          disabled={page === totalPages || isLoading}
           className="rounded border border-app-border p-1 transition-colors hover:bg-surface-hover focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Next page"
         >
@@ -835,7 +899,7 @@ export function TablePagination({
         </button>
         <button
           onClick={handleLast}
-          disabled={page === totalPages}
+          disabled={page === totalPages || isLoading}
           className="rounded border border-app-border p-1 transition-colors hover:bg-surface-hover focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Last page"
         >

@@ -39,10 +39,12 @@ const renderForm = ({
   isPreviewMode = false,
   onClose = vi.fn(),
   saving = false,
+  pageSize = 50,
   columns = ["amount", "created_at"],
 } = {}) => {
   useProjectContext.mockReturnValue({
     columns,
+    pageSize,
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
@@ -74,9 +76,11 @@ describe("TrimWhitespaceForm", () => {
     renderForm();
 
     const select = screen.getByLabelText("Column");
+
     expect(select).toBeInTheDocument();
     expect(screen.getByText("All string columns")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
   it("shows a validation error when no column is selected", async () => {
@@ -88,6 +92,7 @@ describe("TrimWhitespaceForm", () => {
     await waitFor(() => {
       expect(screen.getByText("Please select a column.")).toBeInTheDocument();
     });
+
     expect(transformProject).not.toHaveBeenCalled();
   });
 
@@ -103,9 +108,15 @@ describe("TrimWhitespaceForm", () => {
         "project-123",
         {
           operation_type: TRIM_WHITESPACE,
-          trim_whitespace_params: { column: "amount" },
+          trim_whitespace_params: {
+            column: "amount",
+          },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
@@ -115,6 +126,7 @@ describe("TrimWhitespaceForm", () => {
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "All string columns");
+
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
@@ -122,19 +134,36 @@ describe("TrimWhitespaceForm", () => {
         "project-123",
         {
           operation_type: TRIM_WHITESPACE,
-          trim_whitespace_params: { column: "All string columns" },
+          trim_whitespace_params: {
+            column: "All string columns",
+          },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
 
   it("enters preview mode using the transformation response", async () => {
     const user = userEvent.setup();
-    const response = { columns: ["amount"], rows: [[100]], dtypes: { amount: "integer" } };
+
+    const response = {
+      columns: ["amount"],
+      rows: [[100]],
+      dtypes: { amount: "integer" },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+    };
+
     transformProject.mockResolvedValue(response);
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
@@ -143,14 +172,30 @@ describe("TrimWhitespaceForm", () => {
         response.columns,
         response.rows,
         response.dtypes,
-        expect.objectContaining({ projectId: "project-123" }),
+        expect.objectContaining({
+          projectId: "project-123",
+          payload: {
+            operation_type: TRIM_WHITESPACE,
+            trim_whitespace_params: {
+              column: "amount",
+            },
+          },
+        }),
+        {
+          total_rows: 1,
+          total_pages: 1,
+          page: 1,
+          page_size: 50,
+        },
       );
     });
   });
 
   it("shows applying state while the request is pending", async () => {
     const user = userEvent.setup();
+
     let resolveTransform;
+
     transformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -159,12 +204,17 @@ describe("TrimWhitespaceForm", () => {
     );
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(screen.getByRole("button", { name: "Applying..." })).toBeDisabled();
 
-    resolveTransform({ columns: [], rows: [], dtypes: {} });
+    resolveTransform({
+      columns: [],
+      rows: [],
+      dtypes: {},
+    });
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Apply" })).not.toBeDisabled();
@@ -173,17 +223,24 @@ describe("TrimWhitespaceForm", () => {
 
   it("shows the backend error message when the request fails", async () => {
     const user = userEvent.setup();
+
     transformProject.mockRejectedValue({
-      response: { data: { detail: "Unable to trim whitespace." } },
+      response: {
+        data: {
+          detail: "Unable to trim whitespace.",
+        },
+      },
     });
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(screen.getByText("Unable to trim whitespace.")).toBeInTheDocument();
     });
+
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
@@ -196,6 +253,7 @@ describe("TrimWhitespaceForm", () => {
 
   it("calls the preview save handler when Save Changes is clicked", async () => {
     const user = userEvent.setup();
+
     renderForm({ isPreviewMode: true });
 
     await user.click(screen.getByRole("button", { name: "Save Changes" }));
@@ -204,15 +262,23 @@ describe("TrimWhitespaceForm", () => {
   });
 
   it("shows saving state while preview changes are being saved", () => {
-    renderForm({ isPreviewMode: true, saving: true });
+    renderForm({
+      isPreviewMode: true,
+      saving: true,
+    });
 
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   });
 
   it("cancels preview mode when Cancel is clicked during preview", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: true, onClose });
+
+    renderForm({
+      isPreviewMode: true,
+      onClose,
+    });
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -223,11 +289,86 @@ describe("TrimWhitespaceForm", () => {
   it("closes the form when Cancel is clicked outside preview mode", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: false, onClose });
+
+    renderForm({
+      isPreviewMode: false,
+      onClose,
+    });
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(mockCancelPreview).not.toHaveBeenCalled();
+  });
+
+  it("does not call enterPreviewMode when the component unmounts during loading", async () => {
+    const user = userEvent.setup();
+
+    let resolveTransform;
+
+    transformProject.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveTransform = resolve;
+        }),
+    );
+
+    const { unmount } = renderForm();
+
+    await user.selectOptions(screen.getByLabelText("Column"), "amount");
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    unmount();
+
+    resolveTransform({
+      columns: [],
+      rows: [],
+      dtypes: {},
+    });
+
+    await Promise.resolve();
+
+    expect(mockEnterPreviewMode).not.toHaveBeenCalled();
+  });
+
+  it("allows re-submit after a cancelled in-flight request", async () => {
+    const user = userEvent.setup();
+
+    let resolveTransform;
+
+    transformProject.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveTransform = resolve;
+        }),
+    );
+
+    const { unmount } = renderForm();
+
+    await user.selectOptions(screen.getByLabelText("Column"), "amount");
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    unmount();
+
+    resolveTransform({
+      columns: [],
+      rows: [],
+      dtypes: {},
+    });
+
+    transformProject.mockResolvedValue({
+      columns: [],
+      rows: [],
+      dtypes: {},
+    });
+
+    renderForm();
+
+    await user.selectOptions(screen.getByLabelText("Column"), "amount");
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => {
+      expect(transformProject).toHaveBeenCalledTimes(2);
+    });
   });
 });

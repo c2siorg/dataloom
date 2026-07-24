@@ -60,6 +60,7 @@ const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false }
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
+    pageSize: 50,
   });
 
   usePreviewSave.mockReturnValue({
@@ -91,6 +92,10 @@ describe("CastDataTypeForm", () => {
         amount: "integer",
         created_at: "datetime",
       },
+      total_rows: 2,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     });
   });
 
@@ -127,7 +132,9 @@ describe("CastDataTypeForm", () => {
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.selectOptions(screen.getByLabelText("Target Type"), "float");
+
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
@@ -142,12 +149,14 @@ describe("CastDataTypeForm", () => {
         },
         {
           preview: true,
+          page: 1,
+          pageSize: 50,
         },
       );
     });
   });
 
-  it("enters preview mode using the transformation response", async () => {
+  it("enters preview mode using the transformation response and pagination metadata", async () => {
     const user = userEvent.setup();
 
     const response = {
@@ -156,6 +165,10 @@ describe("CastDataTypeForm", () => {
       dtypes: {
         amount: "integer",
       },
+      total_rows: 2,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     };
 
     transformProject.mockResolvedValue(response);
@@ -163,6 +176,7 @@ describe("CastDataTypeForm", () => {
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
@@ -180,6 +194,12 @@ describe("CastDataTypeForm", () => {
             },
           },
         },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
       );
     });
   });
@@ -188,6 +208,7 @@ describe("CastDataTypeForm", () => {
     const user = userEvent.setup();
 
     let resolveTransform;
+
     transformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -198,6 +219,7 @@ describe("CastDataTypeForm", () => {
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(screen.getByRole("button", { name: "Applying..." })).toBeDisabled();
@@ -206,6 +228,10 @@ describe("CastDataTypeForm", () => {
       columns: ["amount"],
       rows: [[100]],
       dtypes: { amount: "integer" },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     });
 
     await waitFor(() => {
@@ -227,7 +253,9 @@ describe("CastDataTypeForm", () => {
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.selectOptions(screen.getByLabelText("Target Type"), "integer");
+
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
@@ -245,24 +273,32 @@ describe("CastDataTypeForm", () => {
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(mockShowToast).toHaveBeenCalledWith("Failed to cast data type.", "error");
     });
+
+    expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
   it("disables Apply and displays Save Changes in preview mode", () => {
-    renderForm({ isPreviewMode: true });
+    renderForm({
+      isPreviewMode: true,
+    });
 
     expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+
     expect(screen.getByRole("button", { name: "Save Changes" })).toBeInTheDocument();
   });
 
   it("calls the preview save handler when Save Changes is clicked", async () => {
     const user = userEvent.setup();
 
-    renderForm({ isPreviewMode: true });
+    renderForm({
+      isPreviewMode: true,
+    });
 
     await user.click(screen.getByRole("button", { name: "Save Changes" }));
 
@@ -276,6 +312,7 @@ describe("CastDataTypeForm", () => {
     });
 
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
+
     expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   });
 
@@ -315,6 +352,7 @@ describe("CastDataTypeForm", () => {
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "created_at");
+
     await user.selectOptions(screen.getByLabelText("Target Type"), "datetime");
 
     fireEvent.submit(screen.getByRole("button", { name: "Apply" }).closest("form"));
@@ -331,6 +369,8 @@ describe("CastDataTypeForm", () => {
         },
         {
           preview: true,
+          page: 1,
+          pageSize: 50,
         },
       );
     });
