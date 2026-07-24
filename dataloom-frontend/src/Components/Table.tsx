@@ -65,12 +65,28 @@ interface ProjectContextValue {
   totalPages: number;
   page: number;
   pageSize: number;
+  isPreviewMode: boolean;
+  pendingTransform: {
+    projectId: string;
+    payload: Record<string, unknown>;
+  } | null;
   setPaginationData: (info: {
     page?: number;
     page_size?: number;
     total_rows?: number;
     total_pages?: number;
   }) => void;
+  updatePreviewPage: (
+    columns: string[],
+    rows: Cell[][],
+    dtypes: Record<string, string> | undefined,
+    paginationInfo: {
+      total_rows?: number;
+      total_pages?: number;
+      page?: number;
+      page_size?: number;
+    },
+  ) => void;
   refreshProject: (id: string, page: number, pageSize: number) => void;
 }
 
@@ -115,7 +131,10 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     totalPages,
     page,
     pageSize,
+    isPreviewMode,
+    pendingTransform,
     setPaginationData,
+    updatePreviewPage,
     refreshProject,
   } = useProjectContext() as unknown as ProjectContextValue;
   const { refreshLogs } = useHistoryRefresh();
@@ -366,6 +385,8 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
   };
 
   const handleCellClick = (rowIndex: number, cellIndex: number, cellValue: Cell) => {
+    if (isPreviewMode) return;
+
     if (cellIndex !== 0) {
       setEditingCell({ rowIndex, cellIndex });
       // Coerce null/undefined (missing cells now serialize to null) to "" so the
@@ -374,12 +395,54 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     }
   };
 
-  const handlePageChange = (newPage: number) => {
+  const fetchPreviewPage = async (targetPage: number, targetPageSize: number) => {
+    if (!pendingTransform) return;
+
+    try {
+      const response = (await transformProject(
+        pendingTransform.projectId,
+        pendingTransform.payload,
+        {
+          preview: true,
+          page: targetPage,
+          pageSize: targetPageSize,
+        },
+      )) as unknown as TransformResponse & {
+        total_rows: number;
+        total_pages: number;
+        page: number;
+        page_size: number;
+      };
+
+      updatePreviewPage(response.columns, normalizeRows(response.rows), response.dtypes, {
+        total_rows: response.total_rows,
+        total_pages: response.total_pages,
+        page: response.page,
+        page_size: response.page_size,
+      });
+    } catch {
+      setToast({
+        message: "Failed to load preview page. Please try again.",
+        type: "error",
+      });
+    }
+  };
+
+  const handlePageChange = async (newPage: number) => {
+    if (isPreviewMode) {
+      await fetchPreviewPage(newPage, pageSize);
+      return;
+    }
+
     setPaginationData({ page: newPage });
     refreshProject(projectId, newPage, pageSize);
   };
+  const handlePageSizeChange = async (newSize: number) => {
+    if (isPreviewMode) {
+      await fetchPreviewPage(1, newSize);
+      return;
+    }
 
-  const handlePageSizeChange = (newSize: number) => {
     setPaginationData({ page: 1, page_size: newSize });
     refreshProject(projectId, 1, newSize);
   };
@@ -428,7 +491,11 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                       className={`h-6 px-0.5 py-0 border-r border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
                         isDropTarget ? "ring-2 ring-blue-400" : ""
                       } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
-                      onContextMenu={(e) => open(e, { type: "column", columnIndex })}
+                      onContextMenu={(e) => {
+                        if (!isPreviewMode) {
+                          open(e, { type: "column", columnIndex });
+                        }
+                      }}
                     >
                       <button
                         type="button"
@@ -512,7 +579,11 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                           ? "w-16 sticky left-0 z-10 bg-surface text-center font-medium text-muted-foreground"
                           : "text-foreground"
                       }`}
-                      onContextMenu={(e) => open(e, { type: "row", rowIndex })}
+                      onContextMenu={(e) => {
+                        if (!isPreviewMode) {
+                          open(e, { type: "row", rowIndex });
+                        }
+                      }}
                     >
                       {editingCell &&
                       editingCell.rowIndex === rowIndex &&

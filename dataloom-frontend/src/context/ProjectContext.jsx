@@ -5,7 +5,7 @@ const ProjectContext = createContext(null);
 
 /**
  * Hook to access project state and actions.
- * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, columnOrder: number[], setColumnOrder: Function, deleteProjectOrder: Function, loading: boolean, error: string|null, dataVersion: number, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function, updatePageSizePreference: Function, isPreviewMode: boolean, previewSnapshot: Object|null, pendingTransform: Object|null, setIsPreviewMode: Function, setPreviewSnapshot: Function, setPendingTransform: Function, enterPreviewMode: Function, cancelPreview: Function, confirmPreview: Function }}
+ * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, columnOrder: number[], setColumnOrder: Function, deleteProjectOrder: Function, loading: boolean, error: string|null, dataVersion: number, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function, updatePageSizePreference: Function, isPreviewMode: boolean, previewSnapshot: Object|null, pendingTransform: Object|null, setIsPreviewMode: Function, setPreviewSnapshot: Function, setPendingTransform: Function, enterPreviewMode: Function, updatePreviewPage: Function, cancelPreview: Function, confirmPreview: Function }}
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useProjectContext() {
@@ -170,7 +170,7 @@ export function ProjectProvider({ children }) {
   }, []);
 
   const enterPreviewMode = useCallback(
-    (previewColumns, previewRows, previewDtypes, transformInfo = null) => {
+    (previewColumns, previewRows, previewDtypes, transformInfo = null, paginationInfo = {}) => {
       // Save the current table state into the snapshot (only on first entry;
       // a second Apply click while already in preview mode refreshes the
       // preview data but keeps the original snapshot intact).
@@ -182,26 +182,43 @@ export function ProjectProvider({ children }) {
           totalRows,
           totalPages,
           page,
+          pageSize,
         });
       }
 
-      // Update the table to show the preview data
+      // Update the table to show the preview data.
       setColumns(previewColumns);
       setRows(previewRows);
       if (previewDtypes) setDtypes(previewDtypes);
       setPendingTransform(transformInfo);
 
-      // Update pagination counters to reflect the preview result so the
-      // pagination UI doesn't misleadingly show the original row/page count.
-      const previewRowCount = previewRows.length;
-      setTotalRows(previewRowCount);
-      setTotalPages(1);
-      setPage(1);
+      // Use pagination metadata returned for the transformed preview.
+      setTotalRows(paginationInfo.total_rows ?? previewRows.length);
+      setTotalPages(paginationInfo.total_pages ?? 1);
+      setPage(paginationInfo.page ?? 1);
+      setPageSize(paginationInfo.page_size ?? pageSize);
 
-      // Activate preview mode
+      // Activate preview mode.
       setIsPreviewMode(true);
     },
-    [columns, rows, dtypes, totalRows, totalPages, page, previewSnapshot],
+    [columns, rows, dtypes, totalRows, totalPages, page, pageSize, previewSnapshot],
+  );
+
+  const updatePreviewPage = useCallback(
+    (previewColumns, previewRows, previewDtypes, paginationInfo = {}) => {
+      setColumns(previewColumns);
+      setRows(previewRows);
+
+      if (previewDtypes) {
+        setDtypes(previewDtypes);
+      }
+
+      setTotalRows(paginationInfo.total_rows ?? previewRows.length);
+      setTotalPages(paginationInfo.total_pages ?? 1);
+      setPage(paginationInfo.page ?? 1);
+      setPageSize(paginationInfo.page_size ?? pageSize);
+    },
+    [pageSize],
   );
 
   const cancelPreview = useCallback(() => {
@@ -214,6 +231,7 @@ export function ProjectProvider({ children }) {
     setTotalRows(previewSnapshot.totalRows);
     setTotalPages(previewSnapshot.totalPages);
     setPage(previewSnapshot.page);
+    setPageSize(previewSnapshot.pageSize);
 
     // Clear the snapshot and exit preview mode
     setPreviewSnapshot(null);
@@ -283,6 +301,7 @@ export function ProjectProvider({ children }) {
         setPreviewSnapshot,
         setPendingTransform,
         enterPreviewMode,
+        updatePreviewPage,
         cancelPreview,
         confirmPreview,
         setColumnOrder,

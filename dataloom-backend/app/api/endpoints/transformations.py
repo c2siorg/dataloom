@@ -3,6 +3,7 @@
 All transformations are handled through a single unified /transform endpoint.
 """
 
+import math
 import re
 import uuid
 
@@ -105,6 +106,8 @@ async def transform_project(
     project_id: uuid.UUID,
     transformation_input: schemas.TransformationInput,
     preview: bool = Query(False, description="If true, return transformation data without saving."),
+    page: int = Query(1, ge=1, description="Preview page number."),
+    page_size: int = Query(50, ge=1, le=100, description="Rows per preview page."),
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -145,11 +148,32 @@ async def transform_project(
                     )
                 raise
 
-        resp = dataframe_to_response(result_df)
+        response_df = result_df
+        pagination = {}
+
+        if preview:
+            total_rows = len(result_df)
+            total_pages = max(1, math.ceil(total_rows / page_size))
+            effective_page = min(page, total_pages)
+
+            start = (effective_page - 1) * page_size
+            end = start + page_size
+            response_df = result_df.iloc[start:end]
+
+            pagination = {
+                "total_rows": total_rows,
+                "total_pages": total_pages,
+                "page": effective_page,
+                "page_size": page_size,
+            }
+
+        resp = dataframe_to_response(response_df)
+
         return {
             "project_id": project_id,
             "operation_type": operation_type,
             **resp,
+            **pagination,
         }
     except HTTPException as e:
         safe_detail = _safe_http_exception_detail(e)

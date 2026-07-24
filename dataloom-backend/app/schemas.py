@@ -343,7 +343,11 @@ class BasicQueryResponse(BaseModel):
     row_count: int
     columns: list[str]
     rows: list[list]
-    dtypes: dict[str, str] = {}
+    dtypes: dict[str, str] = Field(default_factory=dict)
+    total_rows: int | None = None
+    total_pages: int | None = None
+    page: int | None = None
+    page_size: int | None = None
 
 
 class ProjectResponse(BaseModel):

@@ -27,7 +27,7 @@ const FilterForm = ({ projectId, onClose }: { projectId: string; onClose: () => 
   });
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
-  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { saving, handleSave } = usePreviewSave({
     clearError,
     handleError,
@@ -58,11 +58,21 @@ const FilterForm = ({ projectId, onClose }: { projectId: string; onClose: () => 
       };
       const response = await transformProject(projectId, payload, {
         preview: true,
+        page: 1,
+        pageSize,
       });
-      enterPreviewMode(response.columns, response.rows, response.dtypes, {
-        projectId,
-        payload,
-      });
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (err) {
       const e = err as { response?: { data?: unknown }; message?: string };
       console.error("Error applying filter:", e.response?.data || e.message);

@@ -13,7 +13,7 @@ const MeltForm = ({ projectId, onClose }: { projectId: string; onClose: () => vo
   const [valueName, setValueName] = useState("value");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { saving, handleSave } = usePreviewSave({
     clearError: () => setError(null),
     handleError: (err: { response?: { data?: { detail?: string } }; message?: string }) =>
@@ -77,8 +77,23 @@ const MeltForm = ({ projectId, onClose }: { projectId: string; onClose: () => vo
           value_name: finalValueName,
         },
       };
-      const response = await transformProject(projectId, payload, { preview: true });
-      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
+      const response = await transformProject(projectId, payload, {
+        preview: true,
+        page: 1,
+        pageSize,
+      });
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (err) {
       const e = err as { response?: { data?: { detail?: string } }; message?: string };
       setError(e.response?.data?.detail || e.message || null);

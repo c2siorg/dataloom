@@ -6,28 +6,42 @@ import client from "./client";
 
 /**
  * @typedef {Object} TransformResult
- * @property {string[]} columns - Column names after the transformation.
- * @property {Array<Array<*>>} rows - Row data after the transformation.
- * @property {Object.<string, string>} dtypes - Column name to pandas dtype mapping.
+ * @property {string} project_id
+ * @property {string} operation_type
+ * @property {number} row_count
+ * @property {string[]} columns
+ * @property {any[][]} rows
+ * @property {Object.<string, string>} dtypes
+ * @property {number} [page]
+ * @property {number} [page_size]
+ * @property {number} [total_rows]
+ * @property {number} [total_pages]
  */
-
 /**
  * Apply a transformation (filter, sort, add/delete row/column, pivot, etc).
  * @param {string} projectId - The project ID.
  * @param {Object} transformationInput - The transformation parameters including operation_type.
  * @param {Object} options - Request options.
  * @param {boolean} options.preview - If true, return transformed data without persisting.
+ * @param {number} [options.page] - Preview page number.
+ * @param {number} [options.pageSize] - Number of preview rows per page.
  * @returns {Promise<TransformResult>} Transformation result with updated rows and columns.
  */
 export const transformProject = async (
   projectId,
   transformationInput,
-  { preview = false } = {},
+  { preview = false, page, pageSize } = {},
 ) => {
-  const params = preview ? { preview: true } : {};
+  const params = {
+    ...(preview ? { preview: true } : {}),
+    ...(preview && page !== undefined ? { page } : {}),
+    ...(preview && pageSize !== undefined ? { page_size: pageSize } : {}),
+  };
+
   const response = await client.post(`/projects/${projectId}/transform`, transformationInput, {
     params,
   });
+
   return response.data;
 };
 

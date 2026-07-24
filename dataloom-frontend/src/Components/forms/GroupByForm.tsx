@@ -14,6 +14,7 @@ import { AGG_FUNCTIONS } from "../../constants/aggregations";
 const GroupByForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
   const {
     columns: availableColumns,
+    pageSize,
     isPreviewMode,
     enterPreviewMode,
     cancelPreview,
@@ -55,9 +56,24 @@ const GroupByForm = ({ projectId, onClose }: { projectId: string; onClose: () =>
           agg_function: aggFunction,
         },
       };
-      const response = await transformProject(projectId, payload, { preview: true });
+      const response = await transformProject(projectId, payload, {
+        preview: true,
+        page: 1,
+        pageSize,
+      });
       if (cancelledRef.current) return;
-      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (err) {
       handleError(err);
     } finally {

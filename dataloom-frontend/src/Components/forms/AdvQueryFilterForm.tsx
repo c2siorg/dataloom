@@ -11,7 +11,7 @@ const AdvQueryFilterForm = ({ projectId, onClose }: { projectId: string; onClose
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
-  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { saving, handleSave } = usePreviewSave({
     clearError,
     handleError,
@@ -27,8 +27,23 @@ const AdvQueryFilterForm = ({ projectId, onClose }: { projectId: string; onClose
         operation_type: ADV_QUERY_FILTER,
         adv_query: { query },
       };
-      const response = await transformProject(projectId, payload, { preview: true });
-      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
+      const response = await transformProject(projectId, payload, {
+        preview: true,
+        page: 1,
+        pageSize,
+      });
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (err) {
       console.error("Error applying query:", (err as Error).message);
       handleError(err);
