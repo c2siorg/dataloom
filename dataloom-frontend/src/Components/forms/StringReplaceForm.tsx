@@ -9,7 +9,7 @@ import ColumnSelect from "../common/ColumnSelect";
 import Button from "../common/Button";
 
 const StringReplaceForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
-  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
 
   const [column, setColumn] = useState("");
   const [findValue, setFindValue] = useState("");
@@ -38,8 +38,23 @@ const StringReplaceForm = ({ projectId, onClose }: { projectId: string; onClose:
           replace_value: replaceValue,
         },
       };
-      const response = await transformProject(projectId, payload, { preview: true });
-      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
+      const response = await transformProject(projectId, payload, {
+        preview: true,
+        page: 1,
+        pageSize,
+      });
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (error) {
       handleError(error);
     } finally {

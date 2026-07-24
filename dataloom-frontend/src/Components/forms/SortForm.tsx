@@ -25,7 +25,7 @@ interface SortCriterion {
  * Allows users to add, remove, and reorder multiple sort criteria.
  */
 const SortForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
-  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const [criteria, setCriteria] = useState<SortCriterion[]>([
     { id: 1, column: "", ascending: true },
   ]);
@@ -110,8 +110,23 @@ const SortForm = ({ projectId, onClose }: { projectId: string; onClose: () => vo
           criteria: criteriaList,
         },
       };
-      const response = await transformProject(projectId, payload, { preview: true });
-      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
+      const response = await transformProject(projectId, payload, {
+        preview: true,
+        page: 1,
+        pageSize,
+      });
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (err) {
       handleError(err);
     } finally {
