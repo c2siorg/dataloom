@@ -115,10 +115,17 @@ jobs:
           MERGE_COMMITS=$(git log --merges origin/main..origin/pr-head --oneline)
           BEHIND_COUNT=$(git rev-list --count origin/pr-head..origin/main)
 
-          echo "merge_commits<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$MERGE_COMMITS" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-          echo "behind_count=$BEHIND_COUNT" >> "$GITHUB_OUTPUT"
+          # Commit subjects are author-controlled, so a commit message containing
+          # a bare "EOF" line would close a fixed-delimiter heredoc and let the
+          # author inject arbitrary step outputs. Use an unguessable delimiter.
+          DELIM="ghadelim_$(openssl rand -hex 16)"
+
+          {
+            echo "merge_commits<<$DELIM"
+            echo "$MERGE_COMMITS"
+            echo "$DELIM"
+            echo "behind_count=$BEHIND_COUNT"
+          } >> "$GITHUB_OUTPUT"
 
   report:
     name: Report
