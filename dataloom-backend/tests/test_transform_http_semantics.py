@@ -1,5 +1,7 @@
 """HTTP semantics tests for the transform endpoint."""
 
+import csv
+
 import pytest
 from fastapi import HTTPException
 
@@ -21,6 +23,32 @@ def project(client, sample_csv):
 @pytest.fixture
 def project_id(project):
     return project["project_id"]
+
+
+@pytest.fixture
+def pagination_project(client, tmp_path):
+    """Create a project with 101 rows for pagination testing."""
+    csv_path = tmp_path / "pagination_data.csv"
+
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["name", "age"])
+
+        for i in range(101):
+            writer.writerow([f"User {i}", i])
+
+    with open(csv_path, "rb") as f:
+        response = client.post(
+            "/projects/upload",
+            files={"file": ("pagination_data.csv", f, "text/csv")},
+            data={
+                "projectName": "Pagination Test",
+                "projectDescription": "Pagination fixture",
+            },
+        )
+
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
 def test_transform_preserves_http_exception_status(client, project_id):
@@ -221,3 +249,251 @@ def test_transform_reverts_file_if_log_transformation_fails(client, project, mon
 
     restored_df = read_table_safe(file_path)
     assert restored_df.equals(original_df)
+
+
+def test_transform_preview_returns_first_page(client, pagination_project):
+    project_id = pagination_project["project_id"]
+
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        params={
+            "preview": "true",
+            "page": 1,
+            "page_size": 50,
+        },
+        json={
+            "operation_type": "filter",
+            "parameters": {
+                "column": "age",
+                "condition": ">=",
+                "value": "0",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+
+    assert data["total_rows"] == 101
+    assert data["total_pages"] == 3
+    assert data["page"] == 1
+    assert data["page_size"] == 50
+
+    assert data["row_count"] == 50
+    assert len(data["rows"]) == 50
+
+    assert data["rows"][0] == ["User 0", 0]
+    assert data["rows"][-1] == ["User 49", 49]
+
+
+def test_transform_preview_returns_second_page(client, pagination_project):
+    project_id = pagination_project["project_id"]
+
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        params={
+            "preview": "true",
+            "page": 2,
+            "page_size": 50,
+        },
+        json={
+            "operation_type": "filter",
+            "parameters": {
+                "column": "age",
+                "condition": ">=",
+                "value": "0",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+
+    assert data["total_rows"] == 101
+    assert data["total_pages"] == 3
+    assert data["page"] == 2
+    assert data["page_size"] == 50
+
+    assert data["row_count"] == 50
+    assert len(data["rows"]) == 50
+
+    assert data["rows"][0] == ["User 50", 50]
+    assert data["rows"][-1] == ["User 99", 99]
+
+
+def test_transform_preview_returns_partial_last_page(client, pagination_project):
+    project_id = pagination_project["project_id"]
+
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        params={
+            "preview": "true",
+            "page": 3,
+            "page_size": 50,
+        },
+        json={
+            "operation_type": "filter",
+            "parameters": {
+                "column": "age",
+                "condition": ">=",
+                "value": "0",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+
+    assert data["total_rows"] == 101
+    assert data["total_pages"] == 3
+    assert data["page"] == 3
+    assert data["page_size"] == 50
+
+    assert data["row_count"] == 1
+    assert len(data["rows"]) == 1
+
+    assert data["rows"][0] == ["User 100", 100]
+
+
+def test_transform_preview_clamps_out_of_range_page(client, pagination_project):
+    project_id = pagination_project["project_id"]
+
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        params={
+            "preview": "true",
+            "page": 999,
+            "page_size": 50,
+        },
+        json={
+            "operation_type": "filter",
+            "parameters": {
+                "column": "age",
+                "condition": ">=",
+                "value": "0",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+
+    assert data["total_rows"] == 101
+    assert data["total_pages"] == 3
+
+    # Page 999 is clamped to the last valid page.
+    assert data["page"] == 3
+    assert data["page_size"] == 50
+
+    assert data["row_count"] == 1
+    assert data["rows"] == [["User 100", 100]]
+
+
+def test_transform_preview_exactly_divisible_by_page_size(client, pagination_project):
+    project_id = pagination_project["project_id"]
+
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        params={
+            "preview": "true",
+            "page": 2,
+            "page_size": 50,
+        },
+        json={
+            "operation_type": "filter",
+            "parameters": {
+                "column": "age",
+                "condition": "<",
+                "value": "100",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+
+    # The filter produces exactly 100 rows.
+    assert data["total_rows"] == 100
+    assert data["total_pages"] == 2
+    assert data["page"] == 2
+    assert data["page_size"] == 50
+
+    assert data["row_count"] == 50
+    assert len(data["rows"]) == 50
+
+    assert data["rows"][0] == ["User 50", 50]
+    assert data["rows"][-1] == ["User 99", 99]
+
+
+def test_transform_preview_page_size_100_boundary(client, pagination_project):
+    project_id = pagination_project["project_id"]
+
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        params={
+            "preview": "true",
+            "page": 1,
+            "page_size": 100,
+        },
+        json={
+            "operation_type": "filter",
+            "parameters": {
+                "column": "age",
+                "condition": ">=",
+                "value": "0",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+
+    assert data["total_rows"] == 101
+    assert data["total_pages"] == 2
+    assert data["page"] == 1
+    assert data["page_size"] == 100
+
+    assert data["row_count"] == 100
+    assert len(data["rows"]) == 100
+
+    assert data["rows"][0] == ["User 0", 0]
+    assert data["rows"][-1] == ["User 99", 99]
+
+
+def test_transform_preview_defaults_to_first_page(client, pagination_project):
+    project_id = pagination_project["project_id"]
+
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        params={"preview": "true"},
+        json={
+            "operation_type": "filter",
+            "parameters": {
+                "column": "age",
+                "condition": ">=",
+                "value": "0",
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+
+    # Default page=1 and page_size=50.
+    assert data["total_rows"] == 101
+    assert data["total_pages"] == 3
+    assert data["page"] == 1
+    assert data["page_size"] == 50
+
+    assert data["row_count"] == 50
+    assert len(data["rows"]) == 50
+
+    assert data["rows"][0] == ["User 0", 0]
+    assert data["rows"][-1] == ["User 49", 49]
