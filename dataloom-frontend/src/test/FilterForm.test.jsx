@@ -45,8 +45,14 @@ const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
 const mockHandleSave = vi.fn();
 
-const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
+const renderForm = ({
+  isPreviewMode = false,
+  onClose = vi.fn(),
+  saving = false,
+  pageSize = 50,
+} = {}) => {
   useProjectContext.mockReturnValue({
+    pageSize,
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
@@ -70,7 +76,14 @@ describe("FilterForm", () => {
     transformProject.mockResolvedValue({
       columns: ["amount", "created_at"],
       rows: [["100", "2026-07-18"]],
-      dtypes: { amount: "integer", created_at: "datetime" },
+      dtypes: {
+        amount: "integer",
+        created_at: "datetime",
+      },
+      total_rows: 2,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     });
   });
 
@@ -81,7 +94,9 @@ describe("FilterForm", () => {
     expect(screen.getByLabelText("Column")).toBeInTheDocument();
     expect(screen.getByLabelText("Condition")).toBeInTheDocument();
     expect(screen.getByTestId("filter-value")).toBeInTheDocument();
+
     expect(screen.getByRole("button", { name: "Apply Filter" })).toBeInTheDocument();
+
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
@@ -93,48 +108,86 @@ describe("FilterForm", () => {
 
   it("shows a validation error when no column is selected", async () => {
     const user = userEvent.setup();
+
     renderForm();
 
     await user.type(screen.getByTestId("filter-value"), "100");
+
     fireEvent.submit(screen.getByTestId("filter-form").querySelector("form"));
 
     await waitFor(() => {
       expect(screen.getByText("Please select a column.")).toBeInTheDocument();
     });
+
     expect(transformProject).not.toHaveBeenCalled();
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
   it("submits the filter parameters for preview", async () => {
     const user = userEvent.setup();
+
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.selectOptions(screen.getByLabelText("Condition"), ">");
+
     await user.type(screen.getByTestId("filter-value"), "50");
-    await user.click(screen.getByRole("button", { name: "Apply Filter" }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Filter",
+      }),
+    );
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(
         "project-123",
         {
           operation_type: FILTER,
-          parameters: { column: "amount", condition: ">", value: "50" },
+          parameters: {
+            column: "amount",
+            condition: ">",
+            value: "50",
+          },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
 
   it("enters preview mode using the transformation response", async () => {
     const user = userEvent.setup();
-    const response = { columns: ["amount"], rows: [[100]], dtypes: { amount: "integer" } };
+
+    const response = {
+      columns: ["amount"],
+      rows: [[100]],
+      dtypes: {
+        amount: "integer",
+      },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+    };
+
     transformProject.mockResolvedValue(response);
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.type(screen.getByTestId("filter-value"), "50");
-    await user.click(screen.getByRole("button", { name: "Apply Filter" }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Filter",
+      }),
+    );
 
     await waitFor(() => {
       expect(mockEnterPreviewMode).toHaveBeenCalledWith(
@@ -145,8 +198,18 @@ describe("FilterForm", () => {
           projectId: "project-123",
           payload: {
             operation_type: FILTER,
-            parameters: { column: "amount", condition: "=", value: "50" },
+            parameters: {
+              column: "amount",
+              condition: "=",
+              value: "50",
+            },
           },
+        },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
         },
       );
     });
@@ -154,7 +217,9 @@ describe("FilterForm", () => {
 
   it("disables the Apply Filter button while the request is pending", async () => {
     const user = userEvent.setup();
+
     let resolveTransform;
+
     transformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -163,65 +228,139 @@ describe("FilterForm", () => {
     );
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.type(screen.getByTestId("filter-value"), "50");
-    await user.click(screen.getByRole("button", { name: "Apply Filter" }));
 
-    expect(screen.getByRole("button", { name: "Apply Filter" })).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Filter",
+      }),
+    );
 
-    resolveTransform({ columns: [], rows: [], dtypes: {} });
+    expect(
+      screen.getByRole("button", {
+        name: "Apply Filter",
+      }),
+    ).toBeDisabled();
+
+    resolveTransform({
+      columns: [],
+      rows: [],
+      dtypes: {},
+      total_rows: 0,
+      total_pages: 0,
+      page: 1,
+      page_size: 50,
+    });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Apply Filter" })).not.toBeDisabled();
+      expect(
+        screen.getByRole("button", {
+          name: "Apply Filter",
+        }),
+      ).not.toBeDisabled();
     });
   });
 
   it("shows the backend error message when the filter request fails", async () => {
     const user = userEvent.setup();
+
     transformProject.mockRejectedValue({
-      response: { data: { detail: "Invalid filter expression." } },
+      response: {
+        data: {
+          detail: "Invalid filter expression.",
+        },
+      },
     });
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
     await user.type(screen.getByTestId("filter-value"), "50");
-    await user.click(screen.getByRole("button", { name: "Apply Filter" }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Filter",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Invalid filter expression.")).toBeInTheDocument();
     });
+
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
   it("disables Apply Filter and displays Save Changes in preview mode", () => {
-    renderForm({ isPreviewMode: true });
+    renderForm({
+      isPreviewMode: true,
+    });
 
-    expect(screen.getByRole("button", { name: "Apply Filter" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Save Changes" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Apply Filter",
+      }),
+    ).toBeDisabled();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Save Changes",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("calls the preview save handler when Save Changes is clicked", async () => {
     const user = userEvent.setup();
-    renderForm({ isPreviewMode: true });
 
-    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    renderForm({
+      isPreviewMode: true,
+    });
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Save Changes",
+      }),
+    );
 
     expect(mockHandleSave).toHaveBeenCalledTimes(1);
   });
 
   it("shows saving state while preview changes are being saved", () => {
-    renderForm({ isPreviewMode: true, saving: true });
+    renderForm({
+      isPreviewMode: true,
+      saving: true,
+    });
 
-    expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Apply Filter" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", {
+        name: "Saving...",
+      }),
+    ).toBeDisabled();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Apply Filter",
+      }),
+    ).toBeDisabled();
   });
 
   it("cancels preview mode when Cancel is clicked during preview", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: true, onClose });
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    renderForm({
+      isPreviewMode: true,
+      onClose,
+    });
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Cancel",
+      }),
+    );
 
     expect(mockCancelPreview).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
@@ -230,11 +369,68 @@ describe("FilterForm", () => {
   it("closes the form when Cancel is clicked outside preview mode", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: false, onClose });
 
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    renderForm({
+      isPreviewMode: false,
+      onClose,
+    });
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Cancel",
+      }),
+    );
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(mockCancelPreview).not.toHaveBeenCalled();
+  });
+
+  it("enters preview mode using pagination metadata", async () => {
+    const user = userEvent.setup();
+
+    const response = {
+      columns: ["amount"],
+      rows: [[100]],
+      dtypes: {
+        amount: "integer",
+      },
+      total_rows: 38,
+      total_pages: 4,
+      page: 2,
+      page_size: 10,
+    };
+
+    transformProject.mockResolvedValue(response);
+
+    renderForm({
+      pageSize: 10,
+    });
+
+    await user.selectOptions(screen.getByLabelText("Column"), "amount");
+
+    await user.type(screen.getByTestId("filter-value"), "50");
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Filter",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockEnterPreviewMode).toHaveBeenCalledWith(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        expect.objectContaining({
+          projectId: "project-123",
+        }),
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
+    });
   });
 });

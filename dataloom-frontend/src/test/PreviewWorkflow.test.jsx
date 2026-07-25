@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import FilterForm from "../Components/forms/FilterForm";
 import TrimWhitespaceForm from "../Components/forms/TrimWhitespaceForm";
@@ -10,7 +10,11 @@ vi.mock("../api", () => ({
 
 const mockContext = {
   columns: ["City", "Amount", "Date"],
-  dtypes: { City: "string", Amount: "float", Date: "date" },
+  dtypes: {
+    City: "string",
+    Amount: "float",
+    Date: "date",
+  },
   columnOrder: [0, 1, 2],
   updateData: vi.fn(),
   enterPreviewMode: vi.fn(),
@@ -27,34 +31,48 @@ vi.mock("../context/ProjectContext", () => ({
 }));
 
 vi.mock("../context/HistoryRefreshContext", () => ({
-  useHistoryRefresh: () => ({ refreshLogs: vi.fn(), refreshCheckpoints: vi.fn() }),
+  useHistoryRefresh: () => ({
+    refreshLogs: vi.fn(),
+    refreshCheckpoints: vi.fn(),
+  }),
 }));
 
 beforeEach(() => {
   vi.resetAllMocks();
+
   mockContext.columnOrder = [0, 1, 2];
   mockContext.isPreviewMode = false;
   mockContext.pendingTransform = null;
+  mockContext.pageSize = 50;
 });
 
 describe("PreviewWorkflow — updateData propagation", () => {
-  it("calls enterPreviewMode with dtypes after successful transform", async () => {
+  it("calls enterPreviewMode with dtypes and pagination metadata after successful transform", async () => {
     transformProject.mockResolvedValueOnce({
       columns: ["City", "Amount"],
       rows: [["Paris", "300"]],
-      dtypes: { City: "string", Amount: "float" },
+      dtypes: {
+        City: "string",
+        Amount: "float",
+      },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     });
 
     const { getByTestId, getByText } = render(<FilterForm projectId="proj-1" onClose={vi.fn()} />);
 
-    // Fill required fields
-    // ColumnSelect renders a combobox button; open it and pick a column
-    const { fireEvent } = await import("@testing-library/react");
     fireEvent.click(getByTestId("filter-column"));
     fireEvent.click(getByText("City"));
 
     const valueInput = getByTestId("filter-value");
-    fireEvent.change(valueInput, { target: { value: "Paris" } });
+
+    fireEvent.change(valueInput, {
+      target: {
+        value: "Paris",
+      },
+    });
 
     fireEvent.click(getByText("Apply Filter"));
 
@@ -62,7 +80,10 @@ describe("PreviewWorkflow — updateData propagation", () => {
       expect(mockContext.enterPreviewMode).toHaveBeenCalledWith(
         ["City", "Amount"],
         [["Paris", "300"]],
-        { City: "string", Amount: "float" }, // <-- This was the missing argument causing the test to fail previously
+        {
+          City: "string",
+          Amount: "float",
+        },
         {
           payload: {
             operation_type: "filter",
@@ -74,6 +95,12 @@ describe("PreviewWorkflow — updateData propagation", () => {
           },
           projectId: "proj-1",
         },
+        {
+          total_rows: 1,
+          total_pages: 1,
+          page: 1,
+          page_size: 50,
+        },
       );
     });
   });
@@ -83,9 +110,13 @@ describe("PreviewWorkflow — updateData propagation", () => {
 
     const { getByTestId, getByText } = render(<FilterForm projectId="proj-1" onClose={vi.fn()} />);
 
-    const { fireEvent } = await import("@testing-library/react");
     const valueInput = getByTestId("filter-value");
-    fireEvent.change(valueInput, { target: { value: "Paris" } });
+
+    fireEvent.change(valueInput, {
+      target: {
+        value: "Paris",
+      },
+    });
 
     fireEvent.click(getByText("Apply Filter"));
 
@@ -96,18 +127,21 @@ describe("PreviewWorkflow — updateData propagation", () => {
 });
 
 describe("PreviewWorkflow — Newly migrated forms (TrimWhitespaceForm)", () => {
-  it("calls enterPreviewMode on apply", async () => {
+  it("calls enterPreviewMode with dtypes and pagination metadata on apply", async () => {
     transformProject.mockResolvedValueOnce({
       columns: ["City"],
       rows: [["Paris"]],
-      dtypes: { City: "string" },
+      dtypes: {
+        City: "string",
+      },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     });
 
     const { getByText } = render(<TrimWhitespaceForm projectId="proj-1" onClose={vi.fn()} />);
 
-    const { fireEvent } = await import("@testing-library/react");
-
-    // Select column (City) - it's a select button
     fireEvent.click(getByText("Select column..."));
     fireEvent.click(getByText("City"));
 
@@ -117,7 +151,9 @@ describe("PreviewWorkflow — Newly migrated forms (TrimWhitespaceForm)", () => 
       expect(mockContext.enterPreviewMode).toHaveBeenCalledWith(
         ["City"],
         [["Paris"]],
-        { City: "string" },
+        {
+          City: "string",
+        },
         {
           payload: {
             operation_type: "trimWhitespace",
@@ -127,20 +163,27 @@ describe("PreviewWorkflow — Newly migrated forms (TrimWhitespaceForm)", () => 
           },
           projectId: "proj-1",
         },
+        {
+          total_rows: 1,
+          total_pages: 1,
+          page: 1,
+          page_size: 50,
+        },
       );
     });
   });
 
   it("calls cancelPreview and stays open when cancelled in preview mode", async () => {
     mockContext.isPreviewMode = true;
+
     const onCloseMock = vi.fn();
 
     const { getByText } = render(<TrimWhitespaceForm projectId="proj-1" onClose={onCloseMock} />);
 
-    const { fireEvent } = await import("@testing-library/react");
     fireEvent.click(getByText("Cancel"));
 
     expect(mockContext.cancelPreview).toHaveBeenCalled();
+
     expect(onCloseMock).not.toHaveBeenCalled();
   });
 });

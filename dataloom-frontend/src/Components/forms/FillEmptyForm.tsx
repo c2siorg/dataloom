@@ -19,7 +19,7 @@ const STRATEGIES = [
 ];
 
 const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
-  const { columns, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { columns, pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { showToast } = useToast();
   const { error, clearError, handleError } = useError();
   const [loading, setLoading] = useState(false);
@@ -53,8 +53,23 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
           fill_value: strategy === "custom" ? fillValue : null,
         },
       };
-      const response = await transformProject(projectId, payload, { preview: true });
-      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
+      const response = await transformProject(projectId, payload, {
+        preview: true,
+        page: 1,
+        pageSize,
+      });
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (err) {
       handleError(err);
       showToast(

@@ -57,6 +57,7 @@ const mockHandleSave = vi.fn();
 const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
   useProjectContext.mockReturnValue({
     isPreviewMode,
+    pageSize: 50,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
   });
@@ -80,6 +81,10 @@ describe("DropDuplicateForm", () => {
       columns: ["amount"],
       rows: [["100"]],
       dtypes: { amount: "integer" },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     });
   });
 
@@ -107,6 +112,7 @@ describe("DropDuplicateForm", () => {
     await waitFor(() => {
       expect(screen.getByText("Please select at least one column.")).toBeInTheDocument();
     });
+
     expect(transformProject).not.toHaveBeenCalled();
   });
 
@@ -123,19 +129,37 @@ describe("DropDuplicateForm", () => {
         "project-123",
         {
           operation_type: DROP_DUPLICATE,
-          drop_duplicate: { columns: "amount,created_at", keep: "last" },
+          drop_duplicate: {
+            columns: "amount,created_at",
+            keep: "last",
+          },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
 
-  it("enters preview mode using the transformation response", async () => {
+  it("enters preview mode using the transformation response and pagination metadata", async () => {
     const user = userEvent.setup();
-    const response = { columns: ["amount"], rows: [[100]], dtypes: { amount: "integer" } };
+
+    const response = {
+      columns: ["amount"],
+      rows: [[100]],
+      dtypes: { amount: "integer" },
+      total_rows: 38,
+      total_pages: 4,
+      page: 2,
+      page_size: 10,
+    };
+
     transformProject.mockResolvedValue(response);
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Columns"), ["amount"]);
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -148,8 +172,17 @@ describe("DropDuplicateForm", () => {
           projectId: "project-123",
           payload: {
             operation_type: DROP_DUPLICATE,
-            drop_duplicate: { columns: "amount", keep: "first" },
+            drop_duplicate: {
+              columns: "amount",
+              keep: "first",
+            },
           },
+        },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
         },
       );
     });
@@ -157,17 +190,24 @@ describe("DropDuplicateForm", () => {
 
   it("shows the backend error message when the request fails", async () => {
     const user = userEvent.setup();
+
     transformProject.mockRejectedValue({
-      response: { data: { detail: "Unable to drop duplicates." } },
+      response: {
+        data: {
+          detail: "Unable to drop duplicates.",
+        },
+      },
     });
 
     renderForm();
+
     await user.selectOptions(screen.getByLabelText("Columns"), ["amount"]);
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
     await waitFor(() => {
       expect(screen.getByText("Unable to drop duplicates.")).toBeInTheDocument();
     });
+
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
@@ -180,6 +220,7 @@ describe("DropDuplicateForm", () => {
 
   it("calls the preview save handler when Save Changes is clicked", async () => {
     const user = userEvent.setup();
+
     renderForm({ isPreviewMode: true });
 
     await user.click(screen.getByRole("button", { name: "Save Changes" }));
@@ -188,7 +229,10 @@ describe("DropDuplicateForm", () => {
   });
 
   it("shows saving state while preview changes are being saved", () => {
-    renderForm({ isPreviewMode: true, saving: true });
+    renderForm({
+      isPreviewMode: true,
+      saving: true,
+    });
 
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
@@ -197,7 +241,11 @@ describe("DropDuplicateForm", () => {
   it("cancels preview mode when Cancel is clicked during preview", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: true, onClose });
+
+    renderForm({
+      isPreviewMode: true,
+      onClose,
+    });
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -208,7 +256,11 @@ describe("DropDuplicateForm", () => {
   it("closes the form when Cancel is clicked outside preview mode", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    renderForm({ isPreviewMode: false, onClose });
+
+    renderForm({
+      isPreviewMode: false,
+      onClose,
+    });
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 

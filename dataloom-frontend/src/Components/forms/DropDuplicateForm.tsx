@@ -18,7 +18,7 @@ const DropDuplicateForm = ({ projectId, onClose }: { projectId: string; onClose:
   const [columns, setColumns] = useState<string[]>([]);
   const [keep, setKeep] = useState("first");
   const { error, setError, clearError, handleError } = useError();
-  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { saving, handleSave } = usePreviewSave({
     clearError,
     handleError,
@@ -34,7 +34,7 @@ const DropDuplicateForm = ({ projectId, onClose }: { projectId: string; onClose:
       return;
     }
 
-    const transformationInput = {
+    const payload = {
       operation_type: DROP_DUPLICATE,
       drop_duplicate: {
         columns: columns.join(","),
@@ -43,11 +43,24 @@ const DropDuplicateForm = ({ projectId, onClose }: { projectId: string; onClose:
     };
 
     try {
-      const response = await transformProject(projectId, transformationInput, { preview: true });
-      enterPreviewMode(response.columns, response.rows, response.dtypes, {
-        projectId,
-        payload: transformationInput,
+      const response = await transformProject(projectId, payload, {
+        preview: true,
+        page: 1,
+        pageSize,
       });
+
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (err) {
       console.error("Error transforming project:", err);
       handleError(err);

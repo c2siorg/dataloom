@@ -53,6 +53,7 @@ const mockHandleSave = vi.fn();
 const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
   useProjectContext.mockReturnValue({
     isPreviewMode,
+    pageSize: 50,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
   });
@@ -162,7 +163,11 @@ describe("SortForm", () => {
             criteria: [{ column: "amount", ascending: false }],
           },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
@@ -188,14 +193,27 @@ describe("SortForm", () => {
             ],
           },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
 
   it("enters preview mode using the transformation response", async () => {
     const user = userEvent.setup();
-    const response = { columns: ["amount"], rows: [[100]], dtypes: { amount: "integer" } };
+    const response = {
+      columns: ["amount"],
+      rows: [[100]],
+      dtypes: { amount: "integer" },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+    };
+
     transformProject.mockResolvedValue(response);
 
     renderForm();
@@ -208,6 +226,12 @@ describe("SortForm", () => {
         response.rows,
         response.dtypes,
         expect.objectContaining({ projectId: "project-123" }),
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
       );
     });
   });
@@ -228,7 +252,15 @@ describe("SortForm", () => {
 
     expect(screen.getByRole("button", { name: "Applying..." })).toBeDisabled();
 
-    resolveTransform({ columns: [], rows: [], dtypes: {} });
+    resolveTransform({
+      columns: [],
+      rows: [],
+      dtypes: {},
+      total_rows: 0,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+    });
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Apply Sort" })).not.toBeDisabled();
@@ -294,5 +326,31 @@ describe("SortForm", () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(mockCancelPreview).not.toHaveBeenCalled();
+  });
+
+  it("requests the first preview page using the current page size", async () => {
+    const user = userEvent.setup();
+
+    renderForm();
+
+    await user.selectOptions(screen.getByTestId("sort-column"), "amount");
+    await user.click(screen.getByRole("button", { name: "Apply Sort" }));
+
+    await waitFor(() => {
+      expect(transformProject).toHaveBeenCalledWith(
+        "project-123",
+        {
+          operation_type: SORT,
+          sort_params: {
+            criteria: [{ column: "amount", ascending: true }],
+          },
+        },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
+      );
+    });
   });
 });

@@ -55,9 +55,11 @@ const renderForm = ({
   onClose = vi.fn(),
   saving = false,
   columns = ["amount", "created_at"],
+  pageSize = 50,
 } = {}) => {
   useProjectContext.mockReturnValue({
     columns,
+    pageSize,
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
@@ -160,7 +162,7 @@ describe("FillEmptyForm", () => {
             fill_value: "N/A",
           },
         },
-        { preview: true },
+        { preview: true, page: 1, pageSize: 50 },
       );
     });
   });
@@ -184,7 +186,7 @@ describe("FillEmptyForm", () => {
             fill_value: null,
           },
         },
-        { preview: true },
+        { preview: true, page: 1, pageSize: 50 },
       );
     });
   });
@@ -203,7 +205,23 @@ describe("FillEmptyForm", () => {
         response.columns,
         response.rows,
         response.dtypes,
-        expect.objectContaining({ projectId: "project-123" }),
+        {
+          projectId: "project-123",
+          payload: {
+            operation_type: "fillEmpty",
+            fill_empty_params: {
+              index: null,
+              strategy: "custom",
+              fill_value: "0",
+            },
+          },
+        },
+        {
+          total_rows: undefined,
+          total_pages: undefined,
+          page: undefined,
+          page_size: undefined,
+        },
       );
     });
   });
@@ -304,5 +322,43 @@ describe("FillEmptyForm", () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(mockCancelPreview).not.toHaveBeenCalled();
+  });
+
+  it("enters preview mode using the transformation response and pagination metadata", async () => {
+    const user = userEvent.setup();
+
+    const response = {
+      columns: ["amount"],
+      rows: [[1]],
+      dtypes: { amount: "integer" },
+      total_rows: 38,
+      total_pages: 4,
+      page: 2,
+      page_size: 10,
+    };
+
+    transformProject.mockResolvedValue(response);
+
+    renderForm();
+
+    await user.type(screen.getByPlaceholderText("Enter value"), "0");
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => {
+      expect(mockEnterPreviewMode).toHaveBeenCalledWith(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        expect.objectContaining({
+          projectId: "project-123",
+        }),
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
+    });
   });
 });

@@ -8,7 +8,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import Button from "../common/Button";
 const TrimWhitespaceForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
-  const { columns, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { columns, pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
 
   const [column, setColumn] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,8 +34,23 @@ const TrimWhitespaceForm = ({ projectId, onClose }: { projectId: string; onClose
           column,
         },
       };
-      const response = await transformProject(projectId, payload, { preview: true });
-      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
+      const response = await transformProject(projectId, payload, {
+        preview: true,
+        page: 1,
+        pageSize,
+      });
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (error) {
       handleError(error);
     } finally {

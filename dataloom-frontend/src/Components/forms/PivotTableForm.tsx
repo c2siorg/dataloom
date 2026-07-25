@@ -18,7 +18,7 @@ const PivotTableForm = ({ projectId, onClose }: { projectId: string; onClose: ()
   const [aggfun, setAggfun] = useState("sum");
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
-  const { isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
+  const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -41,8 +41,23 @@ const PivotTableForm = ({ projectId, onClose }: { projectId: string; onClose: ()
         operation_type: PIVOT_TABLES,
         pivot_query: { index: index.join(","), column, value, aggfun },
       };
-      const response = await transformProject(projectId, payload, { preview: true });
-      enterPreviewMode(response.columns, response.rows, response.dtypes, { projectId, payload });
+      const response = await transformProject(projectId, payload, {
+        preview: true,
+        page: 1,
+        pageSize,
+      });
+      enterPreviewMode(
+        response.columns,
+        response.rows,
+        response.dtypes,
+        { projectId, payload },
+        {
+          total_rows: response.total_rows,
+          total_pages: response.total_pages,
+          page: response.page,
+          page_size: response.page_size,
+        },
+      );
     } catch (err) {
       console.error("Error applying pivot table:", (err as Error).message);
       handleError(err);

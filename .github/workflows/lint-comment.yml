@@ -1,7 +1,7 @@
 name: Lint Comment
 
 # Privileged half of the lint pipeline. It is triggered by the completion of
-# Lint (lint.yml) and never checks out or executes pull request code — it only
+# Lint (lint.yml) and never checks out or executes pull request code. It only
 # reads the data-only report.json artifact that run produced.
 
 on:
@@ -16,12 +16,17 @@ concurrency:
 permissions:
   contents: read
   actions: read
+  checks: write
   pull-requests: write
 
 jobs:
   comment:
     name: PR Comment
-    if: github.event.workflow_run.event == 'pull_request'
+    # A cancelled Lint run can still leave a downloadable artifact behind, so
+    # skip those explicitly rather than trusting a partial result.
+    if: >-
+      github.event.workflow_run.event == 'pull_request'
+      && github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     steps:
       - name: Download report
@@ -36,124 +41,236 @@ jobs:
       - name: Post or delete combined comment
         if: steps.download.outcome == 'success'
         uses: actions/github-script@v7
-        env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         with:
           script: |
             const fs = require('fs');
-            const report = JSON.parse(fs.readFileSync('report.json', 'utf8'));
+            const run = context.payload.workflow_run;
 
-            // report.json comes from a run that executed fork code, so treat
-            // every field as untrusted input.
-            const prNumber = parseInt(report.pr, 10);
-            if (!Number.isInteger(prNumber) || prNumber <= 0) {
-              core.setFailed('Report contains no usable PR number.');
-              return;
-            }
+            const main = async () => {
+              // ---- Trust boundary ------------------------------------------
+              // The Lint run executed fork code, and that code holds
+              // ACTIONS_RUNTIME_TOKEN, so it can upload an artifact named
+              // `pr-lint-report` before the trusted `Report` job does.
+              // Therefore: require Report to have succeeded, and never take the
+              // PR identity from the artifact. Identity comes only from the
+              // workflow_run payload, which GitHub stamps and fork code cannot
+              // touch.
 
-            // Confirm the reported PR really is the one that triggered the run,
-            // so a forged report cannot make the bot comment on someone else's PR.
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner, repo: context.repo.repo,
-              pull_number: prNumber,
-            });
-            if (pr.head.sha !== process.env.HEAD_SHA) {
-              core.setFailed(`PR #${prNumber} head ${pr.head.sha} does not match run head ${process.env.HEAD_SHA}.`);
-              return;
-            }
-
-            const marker = '<!-- ci-bot -->';
-            const oldMarkers = ['<!-- lint-frontend-bot -->', '<!-- lint-backend-bot -->', '<!-- rebase-bot -->'];
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: prNumber,
-            });
-
-            // Clean up old individual comments from previous workflow versions
-            for (const old of oldMarkers) {
-              const c = comments.find(c => c.body.includes(old));
-              if (c) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner, repo: context.repo.repo,
-                  comment_id: c.id,
-                });
+              // 1. Reject a run whose Report job did not cleanly produce the
+              //    artifact. upload-artifact@v4 rejects duplicate names, so
+              //    name-squatting by fork code makes Report fail, which is
+              //    exactly what we key off here.
+              const { data: runJobs } = await github.rest.actions.listJobsForWorkflowRun({
+                owner: context.repo.owner, repo: context.repo.repo,
+                run_id: run.id, filter: 'latest', per_page: 100,
+              });
+              const reportJob = runJobs.jobs.find(j => j.name === 'Report');
+              if (!reportJob || reportJob.conclusion !== 'success') {
+                return { status: 'fail', message:
+                  `Lint run ${run.id} has no successful Report job ` +
+                  `(${reportJob ? reportJob.conclusion : 'missing'}); refusing to trust its artifact.` };
               }
-            }
 
-            // Build combined comment sections
-            const sections = [];
+              // 2. Parse the artifact defensively. Its size is attacker-influenced.
+              const stat = fs.statSync('report.json');
+              if (stat.size > 1000000) {
+                return { status: 'fail', message: `report.json is ${stat.size} bytes; refusing to parse.` };
+              }
+              let report;
+              try {
+                report = JSON.parse(fs.readFileSync('report.json', 'utf8'));
+              } catch (e) {
+                return { status: 'fail', message: `report.json is not valid JSON: ${e.message}` };
+              }
+              if (report === null || typeof report !== 'object' || Array.isArray(report)) {
+                return { status: 'fail', message: 'report.json is not a JSON object.' };
+              }
 
-            const eslintFailed = report.eslint === 'failure';
-            const prettierFailed = report.prettier === 'failure';
-            const typecheckFailed = report.typecheck === 'failure';
-            if (eslintFailed || prettierFailed || typecheckFailed) {
-              let s = '### Frontend\n\n';
-              if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix . --ext js,jsx,ts,tsx` in `dataloom-frontend/`\n';
-              if (prettierFailed) s += '- **Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,ts,tsx,css,md}"` in `dataloom-frontend/`\n';
-              if (typecheckFailed) s += '- **TypeScript:** Run `npx tsc --noEmit` in `dataloom-frontend/` and fix the reported errors\n';
-              sections.push(s);
-            }
+              // 3. Derive the PR from the run, not from the report.
+              const headRepo = run.head_repository;
+              const headBranch = run.head_branch;
+              if (!headRepo || !headBranch) {
+                return { status: 'skip', message: 'workflow_run carries no head repository/branch.' };
+              }
 
-            const ruffLintFailed = report.ruff_lint === 'failure';
-            const ruffFormatFailed = report.ruff_format === 'failure';
-            if (ruffLintFailed || ruffFormatFailed) {
-              let s = '### Backend\n\n';
-              if (ruffLintFailed) s += '- **Ruff lint:** Run `uv run ruff check --fix .` in `dataloom-backend/`\n';
-              if (ruffFormatFailed) s += '- **Ruff format:** Run `uv run ruff format .` in `dataloom-backend/`\n';
-              sections.push(s);
-            }
+              const { data: candidates } = await github.rest.pulls.list({
+                owner: context.repo.owner, repo: context.repo.repo,
+                state: 'open', base: 'main',
+                head: `${headRepo.owner.login}:${headBranch}`,
+              });
 
-            const behind = parseInt(report.behind_count || '0', 10) || 0;
-            // Commit subjects are author-controlled: strip fence characters and
-            // cap the volume before embedding them in the comment.
-            const mergeCommits = (report.merge_commits || '')
-              .trim()
-              .replace(/`/g, "'")
-              .split('\n')
-              .slice(0, 20)
-              .join('\n');
-            if (behind > 0 || mergeCommits) {
-              let s = '### Rebase\n\n';
-              if (behind > 0) s += `Your branch is **${behind} commit(s) behind \`main\`**. Please rebase.\n\n`;
-              if (mergeCommits) s += '**Merge commits detected** — please use rebase instead of merge:\n\n```\n' + mergeCommits + '\n```\n\n';
-              sections.push(s);
-            }
+              // Closed, merged, or branch deleted since the lint run. Benign.
+              if (candidates.length === 0) {
+                return { status: 'skip', message:
+                  `No open PR for ${headRepo.full_name}#${headBranch}.` };
+              }
+              if (candidates.length > 1) {
+                return { status: 'fail', message:
+                  `Ambiguous: ${candidates.length} open PRs for ${headRepo.owner.login}:${headBranch}.` };
+              }
+              const pr = candidates[0];
+              const prNumber = pr.number;
 
-            const prCommits = parseInt(report.pr_commits || '1', 10) || 1;
-            if (prCommits > 1) {
-              sections.push(`### Squash\n\nYour PR has **${prCommits} commits**. Please squash into a single commit.\n`);
-            }
+              // The head filter matches on owner:branch, so pin the exact repo too.
+              if (pr.head.repo && pr.head.repo.full_name !== headRepo.full_name) {
+                return { status: 'fail', message:
+                  `PR #${prNumber} head repo ${pr.head.repo.full_name} != run head repo ${headRepo.full_name}.` };
+              }
 
-            const existing = comments.find(c => c.body.includes(marker));
+              // 4. Tripwire. A legitimate Report job wrote
+              //    github.event.pull_request.number, so this can only disagree
+              //    if the artifact was forged. Fail loudly.
+              const claimedPr = parseInt(report.pr, 10);
+              if (Number.isInteger(claimedPr) && claimedPr !== prNumber) {
+                return { status: 'fail', message:
+                  `report.json claims PR #${claimedPr} but run ${run.id} belongs to PR #${prNumber}.` };
+              }
 
-            if (sections.length === 0) {
+              // 5. Freshness, NOT authorization. If the head moved, a newer Lint
+              //    run is already in flight and its comment will be accurate.
+              //    Deliberately an equality check rather than an ancestry check:
+              //    contributors here rebase and force-push, which makes the old
+              //    sha unreachable from the new head.
+              if (pr.head.sha !== run.head_sha) {
+                return { status: 'skip', message:
+                  `PR #${prNumber} moved ${run.head_sha.slice(0, 7)} -> ${pr.head.sha.slice(0, 7)}; superseded.` };
+              }
+              // ---- End trust boundary --------------------------------------
+              // From here prNumber is authoritative. report.* fields are still
+              // untrusted content and are sanitized before display.
+
+              const marker = '<!-- ci-bot -->';
+              const oldMarkers = ['<!-- lint-frontend-bot -->', '<!-- lint-backend-bot -->', '<!-- rebase-bot -->'];
+
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: prNumber,
+              });
+
+              // Clean up old individual comments from previous workflow versions
+              for (const old of oldMarkers) {
+                const c = comments.find(c => c.body.includes(old));
+                if (c) {
+                  await github.rest.issues.deleteComment({
+                    owner: context.repo.owner, repo: context.repo.repo,
+                    comment_id: c.id,
+                  });
+                }
+              }
+
+              // Build combined comment sections
+              const sections = [];
+
+              const eslintFailed = report.eslint === 'failure';
+              const prettierFailed = report.prettier === 'failure';
+              const typecheckFailed = report.typecheck === 'failure';
+              if (eslintFailed || prettierFailed || typecheckFailed) {
+                let s = '### Frontend\n\n';
+                if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix . --ext js,jsx,ts,tsx` in `dataloom-frontend/`\n';
+                if (prettierFailed) s += '- **Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,ts,tsx,css,md}"` in `dataloom-frontend/`\n';
+                if (typecheckFailed) s += '- **TypeScript:** Run `npx tsc --noEmit` in `dataloom-frontend/` and fix the reported errors\n';
+                sections.push(s);
+              }
+
+              const ruffLintFailed = report.ruff_lint === 'failure';
+              const ruffFormatFailed = report.ruff_format === 'failure';
+              if (ruffLintFailed || ruffFormatFailed) {
+                let s = '### Backend\n\n';
+                if (ruffLintFailed) s += '- **Ruff lint:** Run `uv run ruff check --fix .` in `dataloom-backend/`\n';
+                if (ruffFormatFailed) s += '- **Ruff format:** Run `uv run ruff format .` in `dataloom-backend/`\n';
+                sections.push(s);
+              }
+
+              // Commit subjects are author-controlled: strip fence characters,
+              // and cap both line count and line length so one pathological
+              // subject cannot push the body past GitHub's 65536-char limit.
+              const mergeCommits = String(report.merge_commits || '')
+                .replace(/\r/g, '')
+                .trim()
+                .replace(/`/g, "'")
+                .split('\n')
+                .slice(0, 20)
+                .map(l => l.slice(0, 200))
+                .join('\n');
+
+              const clamp = (v, d, max) => Math.min(Math.max(parseInt(v != null ? v : '', 10) || d, 0), max);
+              const behind = clamp(report.behind_count, 0, 9999);
+              const prCommits = clamp(report.pr_commits, 1, 9999);
+
+              if (behind > 0 || mergeCommits) {
+                let s = '### Rebase\n\n';
+                if (behind > 0) s += `Your branch is **${behind} commit(s) behind \`main\`**. Please rebase.\n\n`;
+                if (mergeCommits) s += '**Merge commits detected.** Please use rebase instead of merge:\n\n```\n' + mergeCommits + '\n```\n\n';
+                sections.push(s);
+              }
+
+              if (prCommits > 1) {
+                sections.push(`### Squash\n\nYour PR has **${prCommits} commits**. Please squash into a single commit.\n`);
+              }
+
+              const existing = comments.find(c => c.body.includes(marker));
+
+              if (sections.length === 0) {
+                if (existing) {
+                  await github.rest.issues.deleteComment({
+                    owner: context.repo.owner, repo: context.repo.repo,
+                    comment_id: existing.id,
+                  });
+                }
+                return { status: 'ok', message: `PR #${prNumber} is clean; no comment needed.` };
+              }
+
+              let body = marker + '\n## PR Review\n\n';
+              body += sections.join('\n');
+
+              if (behind > 0 || mergeCommits || prCommits > 1) {
+                body += '\n### How to fix\n```bash\ngit fetch origin\ngit rebase -i origin/main   # mark all but first commit as "squash"\ngit push --force-with-lease\n```\n';
+              }
+
+              body += '\n---\n*This comment updates automatically on each push.*\n';
+
               if (existing) {
-                await github.rest.issues.deleteComment({
+                await github.rest.issues.updateComment({
                   owner: context.repo.owner, repo: context.repo.repo,
-                  comment_id: existing.id,
+                  comment_id: existing.id, body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: prNumber, body,
                 });
               }
-              return;
+              return { status: 'ok', message: `Posted review comment on PR #${prNumber}.` };
+            };
+
+            let outcome;
+            try {
+              outcome = await main();
+            } catch (e) {
+              outcome = { status: 'fail', message: `Unexpected error: ${e.message}` };
             }
 
-            let body = marker + '\n## PR Review\n\n';
-            body += sections.join('\n');
+            core.info(`${outcome.status}: ${outcome.message}`);
 
-            if (behind > 0 || mergeCommits || prCommits > 1) {
-              body += '\n### How to fix\n```bash\ngit fetch origin\ngit rebase -i origin/main   # mark all but first commit as "squash"\ngit push --force-with-lease\n```\n';
+            // workflow_run jobs never surface a check-run on the PR, so failures
+            // here would otherwise only be visible in the Actions tab on main.
+            // Synthesize one against the run head so it shows up where it
+            // matters. It is not a required context, so it cannot block merges.
+            if (outcome.status !== 'skip') {
+              try {
+                await github.rest.checks.create({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  name: 'PR Comment', head_sha: run.head_sha,
+                  status: 'completed',
+                  conclusion: outcome.status === 'ok' ? 'success' : 'failure',
+                  output: {
+                    title: outcome.status === 'ok' ? 'Lint comment posted' : 'Lint comment failed',
+                    summary: `${outcome.message}\n\nFrom Lint run ${run.id}.`,
+                  },
+                });
+              } catch (e) {
+                core.warning(`Could not create check run: ${e.message}`);
+              }
             }
 
-            body += '\n---\n*This comment updates automatically on each push.*\n';
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: existing.id, body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: prNumber, body,
-              });
-            }
+            if (outcome.status === 'fail') core.setFailed(outcome.message);

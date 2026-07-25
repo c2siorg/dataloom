@@ -41,8 +41,14 @@ const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
 const mockHandleSave = vi.fn();
 
-const renderForm = async ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
+const renderForm = async ({
+  isPreviewMode = false,
+  onClose = vi.fn(),
+  saving = false,
+  pageSize = 50,
+} = {}) => {
   useProjectContext.mockReturnValue({
+    pageSize,
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
@@ -59,23 +65,15 @@ const renderForm = async ({ isPreviewMode = false, onClose = vi.fn(), saving = f
     expect(getProjectDetails).toHaveBeenCalledWith("project-123");
   });
 
-  return { onClose, ...utils };
+  return {
+    onClose,
+    ...utils,
+  };
 };
 
 describe("MeltForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    useProjectContext.mockReturnValue({
-      isPreviewMode: false,
-      enterPreviewMode: mockEnterPreviewMode,
-      cancelPreview: mockCancelPreview,
-    });
-
-    usePreviewSave.mockReturnValue({
-      saving: false,
-      handleSave: mockHandleSave,
-    });
 
     getProjectDetails.mockResolvedValue({
       columns: ["amount", "created_at", "region"],
@@ -88,6 +86,10 @@ describe("MeltForm", () => {
         variable: "string",
         value: "string",
       },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     });
   });
 
@@ -97,8 +99,18 @@ describe("MeltForm", () => {
     const multiSelects = screen.getAllByRole("listbox");
 
     expect(multiSelects).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "Apply Melt" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Apply Melt",
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Cancel",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("shows an error if fetching columns fails", async () => {
@@ -118,7 +130,11 @@ describe("MeltForm", () => {
 
     await renderForm();
 
-    await user.click(screen.getByRole("button", { name: "Apply Melt" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Melt",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Please select at least one ID variable.")).toBeInTheDocument();
@@ -137,7 +153,11 @@ describe("MeltForm", () => {
     await user.selectOptions(idSelect, "amount");
     await user.selectOptions(valueSelect, "amount");
 
-    await user.click(screen.getByRole("button", { name: "Apply Melt" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Melt",
+      }),
+    );
 
     await waitFor(() => {
       expect(
@@ -157,7 +177,11 @@ describe("MeltForm", () => {
 
     await user.selectOptions(idSelect, "amount");
 
-    await user.click(screen.getByRole("button", { name: "Apply Melt" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Melt",
+      }),
+    );
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(
@@ -171,7 +195,11 @@ describe("MeltForm", () => {
             value_name: "value",
           },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
@@ -187,6 +215,7 @@ describe("MeltForm", () => {
     await user.selectOptions(valueSelect, "region");
 
     const variableNameInput = screen.getByPlaceholderText("default: variable");
+
     const valueNameInput = screen.getByPlaceholderText("default: value");
 
     await user.clear(variableNameInput);
@@ -195,7 +224,11 @@ describe("MeltForm", () => {
     await user.clear(valueNameInput);
     await user.type(valueNameInput, "reading");
 
-    await user.click(screen.getByRole("button", { name: "Apply Melt" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Melt",
+      }),
+    );
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(
@@ -209,18 +242,29 @@ describe("MeltForm", () => {
             value_name: "reading",
           },
         },
-        { preview: true },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 50,
+        },
       );
     });
   });
 
-  it("enters preview mode using the transformation response", async () => {
+  it("enters preview mode using the transformation response and pagination metadata", async () => {
     const user = userEvent.setup();
 
     const response = {
       columns: ["variable", "value"],
       rows: [["amount", "100"]],
-      dtypes: {},
+      dtypes: {
+        variable: "string",
+        value: "string",
+      },
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     };
 
     transformProject.mockResolvedValue(response);
@@ -231,22 +275,42 @@ describe("MeltForm", () => {
 
     await user.selectOptions(idSelect, "amount");
 
-    await user.click(screen.getByRole("button", { name: "Apply Melt" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Melt",
+      }),
+    );
 
     await waitFor(() => {
       expect(mockEnterPreviewMode).toHaveBeenCalledWith(
         response.columns,
         response.rows,
         response.dtypes,
-        expect.objectContaining({
+        {
           projectId: "project-123",
-        }),
+          payload: {
+            operation_type: "melt",
+            melt_params: {
+              id_vars: ["amount"],
+              value_vars: ["created_at", "region"],
+              var_name: "variable",
+              value_name: "value",
+            },
+          },
+        },
+        {
+          total_rows: 1,
+          total_pages: 1,
+          page: 1,
+          page_size: 50,
+        },
       );
     });
   });
 
   it("shows a processing state while the request is pending", async () => {
     const user = userEvent.setup();
+
     let resolveTransform;
 
     transformProject.mockImplementation(
@@ -262,7 +326,11 @@ describe("MeltForm", () => {
 
     await user.selectOptions(idSelect, "amount");
 
-    await user.click(screen.getByRole("button", { name: "Apply Melt" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Melt",
+      }),
+    );
 
     expect(
       screen.getByRole("button", {
@@ -274,6 +342,10 @@ describe("MeltForm", () => {
       columns: [],
       rows: [],
       dtypes: {},
+      total_rows: 0,
+      total_pages: 0,
+      page: 1,
+      page_size: 50,
     });
 
     await waitFor(() => {
@@ -302,7 +374,11 @@ describe("MeltForm", () => {
 
     await user.selectOptions(idSelect, "amount");
 
-    await user.click(screen.getByRole("button", { name: "Apply Melt" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Melt",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Unable to melt dataset.")).toBeInTheDocument();
@@ -361,6 +437,7 @@ describe("MeltForm", () => {
     );
 
     expect(mockCancelPreview).toHaveBeenCalledTimes(1);
+
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -380,6 +457,7 @@ describe("MeltForm", () => {
     );
 
     expect(onClose).toHaveBeenCalledTimes(1);
+
     expect(mockCancelPreview).not.toHaveBeenCalled();
   });
 });
