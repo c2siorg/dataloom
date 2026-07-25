@@ -10,7 +10,7 @@ import { usePanel } from "../context/PanelContext";
 import { useWorkspaceTabs } from "../context/WorkspaceTabsContext";
 import { useHistoryRefresh } from "../context/HistoryRefreshContext";
 import { useColumnProfilesView } from "../context/ColumnProfilesContext";
-import { DATASET_TAB } from "./workspace/DataSetTab";
+import { useColumnProfilesAction } from "./workspace/useProfilingMenu";
 import { getFeatureMenu } from "./workspace/featureRegistry";
 
 // Ribbon skeleton: the top tabs and the group order within each. Features and the
@@ -32,7 +32,7 @@ const MenuNavbar = ({ projectId }) => {
   const { activePanel, openPanel, togglePanel, closePanel } = usePanel();
   const { openTab, activeTabId } = useWorkspaceTabs();
   const { refreshLogs, refreshCheckpoints } = useHistoryRefresh();
-  const { showColumnProfiles, toggleColumnProfiles } = useColumnProfilesView();
+  const { showColumnProfiles } = useColumnProfilesView();
 
   const handleMouseEnter = (e, hoverText) => {
     if (!hoverText) return;
@@ -54,12 +54,8 @@ const MenuNavbar = ({ projectId }) => {
     setActiveTooltip(null);
   };
 
-  // Column profiles render inside the DataSet tab, so focus it when turning
-  // them on (re-opens it if the tab was closed).
-  const handleToggleColumnProfiles = () => {
-    if (!showColumnProfiles) openTab(DATASET_TAB);
-    toggleColumnProfiles();
-  };
+  // Shared with the tab bar dropdown so both entry points behave identically.
+  const handleToggleColumnProfiles = useColumnProfilesAction();
 
   const handleSave = () => setIsInputOpen(true);
 
@@ -298,7 +294,7 @@ const MenuNavbar = ({ projectId }) => {
             top: `${activeTooltip.top}px`,
             left: `${activeTooltip.left}px`,
           }}
-          className="fixed -translate-x-1/2 z-40 pointer-events-none px-2.5 py-1 text-xs font-medium text-white bg-slate-900/90 dark:bg-slate-800/95 backdrop-blur-sm rounded-md shadow-md border border-slate-700/50 max-w-xs text-center text-wrap"
+          className="fixed -translate-x-1/2 z-50 pointer-events-none px-2.5 py-1 text-xs text-foreground bg-surface border border-app-border rounded-md shadow-md max-w-xs text-center text-wrap"
         >
           {activeTooltip.text}
         </div>

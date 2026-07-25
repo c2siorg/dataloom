@@ -1,14 +1,6 @@
 import { LuLayoutDashboard } from "react-icons/lu";
-import type { WorkspaceTab } from "../../../context/WorkspaceTabsContext";
-import { SummaryTab } from "../SummaryTab";
+import { SummaryTab, SUMMARY_TAB } from "../SummaryTab";
 import { registerFeature } from "../featureRegistry";
-
-const SUMMARY_TAB: WorkspaceTab = {
-  id: "summary",
-  title: "Summary",
-  type: "summary",
-  closeable: true,
-};
 
 /**
  * Profiling feature — the dataset Summary tab and its Profiling-ribbon menu item.
