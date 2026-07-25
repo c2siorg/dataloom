@@ -57,7 +57,7 @@ function WorkspaceContent({ projectId }) {
       <MenuNavbar projectId={projectId} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <WorkspaceTabBar onAddTab={() => openTab(DATASET_TAB)} />
+          <WorkspaceTabBar />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{renderActiveTab()}</div>
         </div>
         <RightPanel projectId={projectId} />

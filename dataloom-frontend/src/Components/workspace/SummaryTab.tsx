@@ -1,8 +1,16 @@
 import { useParams } from "react-router-dom";
-import { useWorkspaceTabs } from "../../context/WorkspaceTabsContext";
+import { useWorkspaceTabs, type WorkspaceTab } from "../../context/WorkspaceTabsContext";
 import { useProjectContext } from "../../context/ProjectContext";
 import useDatasetSummary from "../../hooks/useDatasetSummary";
 import DatasetSummaryPanel from "../profiling/DatasetSummaryPanel";
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const SUMMARY_TAB: WorkspaceTab = {
+  id: "summary",
+  title: "Summary",
+  type: "summary",
+  closeable: true,
+};
 
 /**
  * Summary tab — the dataset-wide overview (row/column counts, dtypes, memory).
