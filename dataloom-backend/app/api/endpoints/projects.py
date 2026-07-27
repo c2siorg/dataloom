@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 
 from app import database, models, schemas
 from app.api.dependencies import get_current_user, get_project_or_404
@@ -35,6 +36,7 @@ from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
+from app.utils.project_locks import project_write_lock
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -63,9 +65,9 @@ async def upload_project(
     logger.info("Upload request: project=%s, file=%s", projectName, file.filename)
     await validate_upload_file(file)
 
-    original_path, copy_path = store_upload(file)
+    original_path, copy_path = await run_in_threadpool(store_upload, file)
     try:
-        df = read_table_safe(original_path)
+        df = await run_in_threadpool(read_table_safe, original_path)
     except HTTPException as e:
         # The just-uploaded file could not be parsed — that's a bad client file,
         # not a server fault. Discard the orphaned files and report a clean 400.
@@ -113,7 +115,7 @@ def list_projects(
 
 
 @router.get("/get/{project_id}", response_model=schemas.ProjectResponse)
-async def get_project_details(
+def get_project_details(
     page: int = 1,
     pageSize: int = 50,
     project: models.Project = Depends(get_project_or_404),
@@ -179,7 +181,7 @@ async def rename_project_endpoint(
 
 
 @router.post("/{project_id}/save", response_model=schemas.ProjectResponse)
-async def save_project(
+def save_project(
     project_id: uuid.UUID,
     commit_message: str,
     db: Session = Depends(database.get_db),
@@ -191,23 +193,24 @@ async def save_project(
     checkpoint creation should preserve that current dataset and only update the
     checkpoint/log metadata for pending actions.
     """
-    original_path = get_original_path(project.file_path)
-    if Path(project.file_path).resolve() == original_path.resolve():
-        logger.error(
-            "Project working copy unexpectedly points at original file: id=%s working_copy=%s original=%s",
-            project_id,
-            project.file_path,
-            original_path,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Project {project_id} working copy is misconfigured; please retry or contact support.",
-        )
+    with project_write_lock(project_id):
+        original_path = get_original_path(project.file_path)
+        if Path(project.file_path).resolve() == original_path.resolve():
+            logger.error(
+                "Project working copy unexpectedly points at original file: id=%s working_copy=%s original=%s",
+                project_id,
+                project.file_path,
+                original_path,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Project {project_id} working copy is misconfigured; please retry or contact support.",
+            )
 
-    df = read_table_safe(project.file_path)
+        df = read_table_safe(project.file_path)
 
-    # Create checkpoint (marks logs as applied)
-    checkpoint = create_checkpoint(db, project_id, commit_message)
+        # Create checkpoint (marks logs as applied)
+        checkpoint = create_checkpoint(db, project_id, commit_message)
 
     total_rows = len(df)
     resp = dataframe_to_response(df)
@@ -225,7 +228,7 @@ async def save_project(
 
 
 @router.post("/{project_id}/revert", response_model=schemas.ProjectResponse)
-async def revert_to_checkpoint(
+def revert_to_checkpoint(
     project_id: uuid.UUID,
     checkpoint_id: uuid.UUID = None,
     db: Session = Depends(database.get_db),
@@ -237,6 +240,11 @@ async def revert_to_checkpoint(
     that checkpoint onto the original file. When None, reverts to the original
     uploaded state.
     """
+    with project_write_lock(project_id):
+        return _revert_to_checkpoint(project_id, checkpoint_id, db, project)
+
+
+def _revert_to_checkpoint(project_id, checkpoint_id, db, project):
     original_path = get_original_path(project.file_path)
     df = read_table_safe(original_path)
 
@@ -308,7 +316,7 @@ async def revert_to_checkpoint(
 
 
 @router.get("/{project_id}/export")
-async def export_project(
+def export_project(
     fmt: str | None = Query(default=None, alias="format"),
     delimiter: str | None = Query(default=None),
     include_header: bool = Query(default=True),
@@ -417,7 +425,7 @@ async def delete_project_endpoint(
 
 
 @router.post("/{project_id}/undo", response_model=schemas.ProjectResponse)
-async def undo_last_transformation(
+def undo_last_transformation(
     project_id: uuid.UUID,
     project: models.Project = Depends(get_project_or_404),
     db: Session = Depends(database.get_db),
@@ -427,6 +435,11 @@ async def undo_last_transformation(
     Removes the last change log entry and rebuilds the working copy
     by replaying all remaining logs onto the original file.
     """
+    with project_write_lock(project_id):
+        return _undo_last_transformation(project_id, project, db)
+
+
+def _undo_last_transformation(project_id, project, db):
     last_log = get_last_change_log(db, project_id)
     if not last_log:
         raise HTTPException(status_code=404, detail="No transformations to undo")
