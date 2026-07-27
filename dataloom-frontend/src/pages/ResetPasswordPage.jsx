@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { CornerDownLeft } from "lucide-react";
 import AuthLayout from "../Components/auth/AuthLayout";
+import PasswordStrengthMeter from "../Components/auth/PasswordStrengthMeter";
 import DataLoomLogo from "../Components/common/DataLoomLogo";
 import { resetPassword } from "../api/auth";
 import { ROUTES } from "../constants/routes";
@@ -93,6 +94,7 @@ export default function ResetPasswordPage() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+            <PasswordStrengthMeter password={password} />
           </div>
           <div>
             <label htmlFor="confirm" className="mb-1.5 block text-sm font-medium text-foreground">

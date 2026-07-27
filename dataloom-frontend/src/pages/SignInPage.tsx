@@ -103,8 +103,7 @@ export default function SignInPage() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-
-            <div className="flex justify-end mt-2">
+            <div className="mt-2 flex justify-end">
               <Link
                 to={ROUTES.forgotPassword}
                 className="text-xs text-muted-foreground hover:text-accent hover:underline"
