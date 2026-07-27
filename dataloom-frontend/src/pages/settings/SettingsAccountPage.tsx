@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { changePassword, deleteAccount, getCurrentUser, updateEmail } from "../../api/auth";
 import Modal from "../../Components/common/Modal";
+import PasswordStrengthMeter from "../../Components/auth/PasswordStrengthMeter";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../context/ToastContext";
@@ -313,6 +314,7 @@ export default function SettingsAccountPage() {
                     {show ? "Hide" : "Show"}
                   </button>
                 </div>
+                {id === "password" ? <PasswordStrengthMeter password={value} /> : null}
               </div>
             ))}
 

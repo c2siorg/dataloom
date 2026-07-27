@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { CornerDownLeft } from "lucide-react";
 import AuthLayout from "../Components/auth/AuthLayout";
+import PasswordStrengthMeter from "../Components/auth/PasswordStrengthMeter";
 import DataLoomLogo from "../Components/common/DataLoomLogo";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -112,6 +113,7 @@ export default function SignUpPage() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+            <PasswordStrengthMeter password={password} />
             <p className="mt-1.5 text-xs text-muted-foreground">At least 8 characters.</p>
           </div>
         </div>
