@@ -1,18 +1,51 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadProject, getRecentProjects, deleteProject, searchProjects } from "../api";
+import {
+  uploadProject,
+  getRecentProjects,
+  deleteProject,
+  searchProjects,
+  updateProject,
+} from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
 import { UploadCloud, FileText, X, Pencil, Search } from "lucide-react";
+import { FaRegEdit, FaRegTrashAlt } from "react-icons/fa";
+import { CiMenuKebab } from "react-icons/ci";
 import { ACCEPTED_EXTENSIONS, formatFileSize, validateFile } from "../utils/fileUtils";
+import { getErrorMessage } from "../utils/errorUtils";
 import { useProjectContext } from "../context/ProjectContext";
 
-const ProjectCard = ({ project, onClick, onDelete }) => {
+// Must stay in sync with UpdateProjectRequest in dataloom-backend/app/schemas.py
+const PROJECT_NAME_MAX_LENGTH = 255;
+const PROJECT_DESCRIPTION_MAX_LENGTH = 1000;
+
+const ProjectCard = ({ project, onClick, onDelete, onEdit, isOpen, onToggleMenu, onCloseMenu }) => {
+  const menuRef = useRef(null);
+
   const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        onCloseMenu();
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onCloseMenu();
+    };
+    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onCloseMenu]);
 
   return (
     <button
@@ -21,28 +54,61 @@ const ProjectCard = ({ project, onClick, onDelete }) => {
       onClick={onClick}
       className="relative flex flex-col items-start gap-2 rounded-lg border border-app-border bg-surface p-5 text-left shadow-sm transition-all duration-200 hover:border-app-border-hover hover:shadow-md"
     >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(project.project_id);
-        }}
-        className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 transition-colors duration-150 p-1 rounded-md hover:bg-red-50"
-        aria-label="Delete project"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4"
-          viewBox="0 0 20 20"
-          fill="currentColor"
+      <div className="absolute top-2 right-2" ref={menuRef}>
+        <button
+          type="button"
+          data-testid="project-card-menu-button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMenu(project.project_id);
+          }}
+          className="text-muted-foreground hover:text-foreground transition-colors duration-150 p-1 rounded-md hover:bg-surface-hover"
+          aria-label="Project options"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
         >
-          <path
-            fillRule="evenodd"
-            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </button>
-      <h3 className="text-lg font-semibold text-foreground truncate w-full pr-6">{project.name}</h3>
+          <CiMenuKebab className="h-5 w-5" />
+        </button>
+
+        {isOpen && (
+          <div
+            data-testid="project-card-menu"
+            role="menu"
+            className="absolute right-0 top-full mt-1 w-32 rounded-md border border-app-border bg-surface shadow-lg z-20 py-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="edit-project-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCloseMenu();
+                onEdit(project);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-surface-hover transition-colors duration-150"
+            >
+              <FaRegEdit className="h-3.5 w-3.5 text-blue-500" />
+              <span>Edit</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              data-testid="delete-project-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCloseMenu();
+                onDelete(project.project_id);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors duration-150"
+            >
+              <FaRegTrashAlt className="h-3.5 w-3.5" />
+              <span>Delete</span>
+            </button>
+          </div>
+        )}
+      </div>
+      <h3 className="text-lg font-semibold text-foreground truncate w-full pr-8">{project.name}</h3>
       {project.description && (
         <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
       )}
@@ -111,9 +177,25 @@ const HomeScreen = () => {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, projectId: null });
+  const [activeMenuProjectId, setActiveMenuProjectId] = useState(null);
+  const [editModal, setEditModal] = useState({
+    open: false,
+    project: null,
+    name: "",
+    description: "",
+    isSubmitting: false,
+  });
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { deleteProjectOrder } = useProjectContext();
+
+  const handleToggleMenu = useCallback((projectId) => {
+    setActiveMenuProjectId((prev) => (prev === projectId ? null : projectId));
+  }, []);
+
+  const handleCloseMenu = useCallback(() => {
+    setActiveMenuProjectId(null);
+  }, []);
 
   const isSearching = searchQuery.trim().length > 0;
   const visibleProjects = isSearching ? searchResults : recentProjects;
@@ -130,6 +212,61 @@ const HomeScreen = () => {
       fileInputRef.current.value = "";
     }
   }, []);
+
+  const handleEditClick = (project) => {
+    setEditModal({
+      open: true,
+      project,
+      name: project.name || "",
+      description: project.description || "",
+      isSubmitting: false,
+    });
+  };
+
+  const handleCloseEditModal = useCallback(() => {
+    setEditModal({
+      open: false,
+      project: null,
+      name: "",
+      description: "",
+      isSubmitting: false,
+    });
+  }, []);
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editModal.project) return;
+
+    const trimmedName = editModal.name.trim();
+    const trimmedDesc = editModal.description.trim();
+
+    if (!trimmedName) {
+      showToast("Project Name cannot be empty", "warning");
+      return;
+    }
+
+    try {
+      setEditModal((prev) => ({ ...prev, isSubmitting: true }));
+      await updateProject(editModal.project.project_id, {
+        name: trimmedName,
+        description: trimmedDesc,
+      });
+      showToast("Project updated successfully", "success");
+      await fetchRecentProjects();
+      setSearchResults((prev) =>
+        prev.map((p) =>
+          p.project_id === editModal.project.project_id
+            ? { ...p, name: trimmedName, description: trimmedDesc }
+            : p,
+        ),
+      );
+      handleCloseEditModal();
+    } catch (error) {
+      console.error("Error updating project:", error);
+      showToast(getErrorMessage(error, "Failed to update project"), "error");
+      setEditModal((prev) => ({ ...prev, isSubmitting: false }));
+    }
+  };
 
   const fetchRecentProjects = useCallback(async () => {
     try {
@@ -178,6 +315,15 @@ const HomeScreen = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showModal, isSubmitting, handleCloseModal]);
+
+  useEffect(() => {
+    if (!editModal.open) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !editModal.isSubmitting) handleCloseEditModal();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editModal.open, editModal.isSubmitting, handleCloseEditModal]);
 
   const handleNewProjectClick = () => {
     setShowModal(true);
@@ -327,6 +473,10 @@ const HomeScreen = () => {
             project={project}
             onClick={() => handleRecentProjectClick(project.project_id)}
             onDelete={handleDeleteClick}
+            onEdit={handleEditClick}
+            isOpen={activeMenuProjectId === project.project_id}
+            onToggleMenu={handleToggleMenu}
+            onCloseMenu={handleCloseMenu}
           />
         ))}
       </div>
@@ -563,6 +713,87 @@ const HomeScreen = () => {
                 {isSubmitting ? "Creating..." : "Create Project"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editModal.open && (
+        <div
+          data-testid="edit-project-modal"
+          className="fixed inset-0 flex items-center justify-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-modal-title"
+        >
+          <div
+            className="fixed inset-0 bg-black/50"
+            onClick={editModal.isSubmitting ? undefined : handleCloseEditModal}
+            aria-hidden="true"
+          ></div>
+          <div className="bg-surface rounded-xl shadow-xl p-8 z-50 max-w-lg w-full mx-4">
+            <h2 id="edit-modal-title" className="text-xl font-semibold text-foreground mb-6">
+              Edit Project
+            </h2>
+            <form onSubmit={handleSaveEdit} className="flex flex-col gap-4">
+              <div>
+                <label
+                  htmlFor="edit-project-name"
+                  className="block text-sm font-medium text-secondary-foreground mb-1"
+                >
+                  Project Name<span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="edit-project-name"
+                  data-testid="edit-project-name-input"
+                  type="text"
+                  placeholder="Project name"
+                  className="block w-full text-sm text-foreground border border-app-border rounded-md px-3 py-2 bg-surface focus:outline-none dark:focus:border-gray-800 focus:ring-2 focus:ring-blue-100 dark:focus:ring-gray-700"
+                  value={editModal.name}
+                  onChange={(e) => setEditModal((prev) => ({ ...prev, name: e.target.value }))}
+                  maxLength={PROJECT_NAME_MAX_LENGTH}
+                  required
+                  aria-required="true"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="edit-project-description"
+                  className="block text-sm font-medium text-secondary-foreground mb-1"
+                >
+                  Description
+                </label>
+                <textarea
+                  id="edit-project-description"
+                  data-testid="edit-project-description-input"
+                  rows={3}
+                  placeholder="Brief description of this dataset"
+                  className="block w-full text-sm text-foreground border border-app-border rounded-md px-3 py-2 bg-surface focus:outline-none dark:focus:border-gray-800 focus:ring-2 focus:ring-blue-100 dark:focus:ring-gray-700 resize-y"
+                  value={editModal.description}
+                  onChange={(e) =>
+                    setEditModal((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                  maxLength={PROJECT_DESCRIPTION_MAX_LENGTH}
+                />
+              </div>
+              <div className="flex flex-row justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-surface border border-app-border text-foreground hover:bg-surface-hover rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleCloseEditModal}
+                  disabled={editModal.isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  data-testid="save-edit-project"
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!editModal.name.trim() || editModal.isSubmitting}
+                >
+                  {editModal.isSubmitting ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -11,6 +11,7 @@ export {
   exportProject,
   deleteProject,
   searchProjects,
+  updateProject,
   getProjectMeta,
   getProjects,
 } from "./projects";
