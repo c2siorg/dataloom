@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Correlation } from "../../api/profiling";
+import DownloadImageButton from "../visualizations/DownloadImageButton";
 
 interface CorrelationHeatmapProps {
   correlation: Correlation | null;
@@ -154,17 +155,85 @@ function HighlightsView({ pairs }: { pairs: Pair[] }) {
   );
 }
 
+/** Geometry of the exported grid image, in CSS px. */
+const EXPORT_LABEL_WIDTH = 132;
+const EXPORT_HEADER_HEIGHT = 24;
+const EXPORT_CELL_WIDTH = 72;
+const EXPORT_CELL_HEIGHT = 26;
+const EXPORT_FONT = 11;
+const EXPORT_GRID = "#e5e7eb"; // gray-200, matching the on-screen cell borders
+
+/** Escape the characters that would otherwise break the generated markup. */
+function escapeXml(text: string): string {
+  return text.replace(/[<>&"]/g, (char) => `&#${char.charCodeAt(0)};`);
+}
+
+/** Shorten a label to `max` characters so it stays inside its cell. */
+function clip(text: string, max: number): string {
+  return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
+}
+
+/**
+ * Build a standalone SVG of the grid for PNG export. The on-screen grid is a
+ * styled <table>, which cannot be rasterized, so the same colour and formatting
+ * helpers are laid out here instead; `labelColor` carries the current theme's
+ * text colour onto the exported labels.
+ */
+function buildMatrixSvg(
+  columns: string[],
+  subMatrix: (number | null)[][],
+  labelColor: string,
+): SVGSVGElement {
+  const width = EXPORT_LABEL_WIDTH + columns.length * EXPORT_CELL_WIDTH;
+  const height = EXPORT_HEADER_HEIGHT + columns.length * EXPORT_CELL_HEIGHT;
+  const parts: string[] = [];
+
+  const label = (x: number, y: number, anchor: string, color: string, text: string) =>
+    `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="${EXPORT_FONT}" fill="${color}">${escapeXml(text)}</text>`;
+
+  columns.forEach((column, j) => {
+    const x = EXPORT_LABEL_WIDTH + j * EXPORT_CELL_WIDTH + EXPORT_CELL_WIDTH / 2;
+    parts.push(label(x, EXPORT_HEADER_HEIGHT - 8, "middle", labelColor, clip(column, 11)));
+  });
+
+  columns.forEach((rowColumn, i) => {
+    const y = EXPORT_HEADER_HEIGHT + i * EXPORT_CELL_HEIGHT;
+    const baseline = y + EXPORT_CELL_HEIGHT / 2 + EXPORT_FONT * 0.35;
+    parts.push(label(EXPORT_LABEL_WIDTH - 8, baseline, "end", labelColor, clip(rowColumn, 20)));
+
+    // Lower triangle only — the upper half mirrors it, as in the table.
+    for (let j = 0; j <= i; j++) {
+      const x = EXPORT_LABEL_WIDTH + j * EXPORT_CELL_WIDTH;
+      const value = i === j ? null : (subMatrix[i]?.[j] ?? null);
+      const fill = i === j ? "#ffffff" : value == null ? "#f3f4f6" : cellColor(value);
+      const text = i === j ? "1" : fmt(value);
+      const color = i === j || value == null ? "#9ca3af" : textColor(value);
+      parts.push(
+        `<rect x="${x}" y="${y}" width="${EXPORT_CELL_WIDTH}" height="${EXPORT_CELL_HEIGHT}" fill="${fill}" stroke="${EXPORT_GRID}" />`,
+        label(x + EXPORT_CELL_WIDTH / 2, baseline, "middle", color, text),
+      );
+    }
+  });
+
+  const markup =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" ` +
+    `viewBox="0 0 ${width} ${height}" font-family="system-ui, sans-serif">${parts.join("")}</svg>`;
+  return new DOMParser().parseFromString(markup, "image/svg+xml")
+    .documentElement as unknown as SVGSVGElement;
+}
+
 /**
  * Cleaned-up grid: lower triangle only (the matrix is symmetric), a muted
  * identity diagonal instead of a screaming red one, a colour legend, and a
  * crosshair that names the hovered pair in a readable caption.
  */
 function MatrixView({ columns, subMatrix }: { columns: string[]; subMatrix: (number | null)[][] }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState<{ row: number; col: number } | null>(null);
   const hoveredValue = hovered != null ? (subMatrix[hovered.row]?.[hovered.col] ?? null) : null;
 
   return (
-    <div>
+    <div ref={rootRef}>
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
         <span>−1</span>
         <span
@@ -267,6 +336,15 @@ function MatrixView({ columns, subMatrix }: { columns: string[]; subMatrix: (num
           </tbody>
         </table>
       </div>
+
+      <DownloadImageButton
+        getTarget={() =>
+          rootRef.current
+            ? buildMatrixSvg(columns, subMatrix, getComputedStyle(rootRef.current).color)
+            : null
+        }
+        title="Correlation"
+      />
     </div>
   );
 }
