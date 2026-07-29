@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { LuChartColumnBig, LuSparkles } from "react-icons/lu";
 import type { ChartSpec, ChartType } from "../../api/visualizations";
@@ -8,6 +8,7 @@ import useChartSuggestions from "../../hooks/useChartSuggestions";
 import useCorrelation from "../../hooks/useCorrelation";
 import CorrelationHeatmap from "../profiling/CorrelationHeatmap";
 import { isNumeric } from "../visualizations/chartFields";
+import DownloadImageButton from "../visualizations/DownloadImageButton";
 import SuggestionCard from "../visualizations/SuggestionCard";
 import type { WorkspaceTab } from "../../context/WorkspaceTabsContext";
 
@@ -54,6 +55,9 @@ export function ChartsTab() {
     dataVersion: number;
   };
   const { spec, mode, loading, error, activeKey, selectSuggestion, showHeatmap } = useChartView();
+  // The chart is lazy-loaded inside Suspense, so the export resolves it from
+  // this container on click rather than holding a ref to the renderer itself.
+  const chartRef = useRef<HTMLDivElement>(null);
 
   const { suggestions } = useChartSuggestions(projectId, true, dataVersion);
   const correlation = useCorrelation(projectId, mode === "heatmap", dataVersion);
@@ -113,16 +117,19 @@ export function ChartsTab() {
         ) : mode === "chart" && spec ? (
           <div>
             <h3 className="mb-1 text-center text-sm font-medium text-foreground">{spec.title}</h3>
-            <Suspense
-              fallback={
-                <div className="flex h-80 items-center justify-center text-sm text-muted-foreground">
-                  Loading chart…
-                </div>
-              }
-            >
-              <ChartRenderer spec={spec} />
-            </Suspense>
+            <div ref={chartRef}>
+              <Suspense
+                fallback={
+                  <div className="flex h-80 items-center justify-center text-sm text-muted-foreground">
+                    Loading chart…
+                  </div>
+                }
+              >
+                <ChartRenderer spec={spec} />
+              </Suspense>
+            </div>
             <MetaNote spec={spec} />
+            <DownloadImageButton getTarget={() => chartRef.current} title={spec.title} />
           </div>
         ) : (
           <EmptyState />
