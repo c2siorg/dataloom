@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
@@ -18,7 +19,7 @@ const STRATEGIES = [
   { value: "bfill", label: "Backward Fill" },
 ];
 
-const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const FillEmptyForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const { columns, pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { showToast } = useToast();
   const { error, clearError, handleError } = useError();
@@ -53,6 +54,11 @@ const FillEmptyForm = ({ projectId, onClose }: { projectId: string; onClose: () 
           fill_value: strategy === "custom" ? fillValue : null,
         },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

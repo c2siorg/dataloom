@@ -288,3 +288,46 @@ def prepare_formula_expression(expression: str, columns: list[str]) -> str:
     for placeholder in sorted(placeholders, key=len, reverse=True):
         executable = executable.replace(placeholder, placeholders[placeholder])
     return executable
+
+
+SAFE_TRANSFORMATION_ERROR_DETAIL = "Invalid transformation request"
+
+_SENSITIVE_TOKEN_MARKERS = (
+    "traceback",
+    "sqlalchemy",
+    "psycopg",
+    "sqlite",
+    "postgres",
+    "password",
+    "secret",
+    "token",
+)
+_SQL_MARKERS = ("select ", "insert ", "update ", "delete ", "drop ", "alter ", "create table", " from ", " where ")
+
+
+def safe_transformation_error_detail(error: Exception) -> str:
+    """Return a client-safe 400 detail for domain transformation failures.
+
+    Shared by the transform endpoint and the pipeline apply endpoint, which
+    surface failures raised by the same transformation registry.
+    """
+    detail = str(error).strip()
+    if not detail:
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+
+    lowered = detail.lower()
+
+    if "\n" in detail or "\r" in detail:
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+
+    if any(token in lowered for token in _SENSITIVE_TOKEN_MARKERS):
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+
+    # Redact SQL-like payloads only when multiple SQL markers co-occur.
+    if sum(marker in lowered for marker in _SQL_MARKERS) >= 2:
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+
+    # Redact likely filesystem paths that should not be exposed to clients.
+    if re.search(r"[A-Za-z]:\\[^\\\n]+", detail) or re.search(r"/(?:[^/\n]+/)+[^/\n]+", detail):
+        return SAFE_TRANSFORMATION_ERROR_DETAIL
+    return detail

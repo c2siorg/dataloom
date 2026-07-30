@@ -83,15 +83,40 @@ def get_current_user(
     return user
 
 
+def fetch_owned_project(db: Session, project_id: uuid.UUID, current_user: models.User) -> models.Project:
+    """Fetch a project owned by the user, 404 otherwise (existence-hiding).
+
+    Returns 404 (rather than 403) when the project belongs to another user, so
+    the existence of other users' projects is not revealed.
+
+    Plain helper rather than a dependency, for endpoints that read the project id
+    from the request body instead of the path (FastAPI resolves dependency
+    parameters from the path/query, never the body).
+
+    Args:
+        db: Database session.
+        project_id: The project primary key.
+        current_user: The authenticated user.
+
+    Returns:
+        The Project model instance.
+
+    Raises:
+        HTTPException: 404 if the project does not exist or is not owned by the
+            current user.
+    """
+    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
+    if project is None or project.owner_id != current_user.id:
+        raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found")
+    return project
+
+
 def get_project_or_404(
     project_id: uuid.UUID,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ) -> models.Project:
     """FastAPI dependency that fetches a project owned by the current user.
-
-    Returns 404 (rather than 403) when the project belongs to another user, so
-    the existence of other users' projects is not revealed.
 
     Args:
         project_id: The project primary key from the path.
@@ -105,10 +130,7 @@ def get_project_or_404(
         HTTPException: 404 if the project does not exist or is not owned by the
             current user.
     """
-    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
-    if project is None or project.owner_id != current_user.id:
-        raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found")
-    return project
+    return fetch_owned_project(db, project_id, current_user)
 
 
 def load_project_df(project: models.Project) -> pd.DataFrame:

@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, useEffect, FormEvent } from "react";
 import { transformProject, getProjectDetails } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
@@ -5,7 +6,7 @@ import usePreviewSave from "../../hooks/usePreviewSave";
 import ColumnMultiSelect from "../common/ColumnMultiSelect";
 import Button from "../common/Button";
 
-const MeltForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const MeltForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const [columns, setColumns] = useState<string[]>([]);
   const [idVars, setIdVars] = useState<string[]>([]);
   const [valueVars, setValueVars] = useState<string[]>([]);
@@ -77,6 +78,11 @@ const MeltForm = ({ projectId, onClose }: { projectId: string; onClose: () => vo
           value_name: finalValueName,
         },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.endpoints import (
     auth,
+    pipelines,
     profiling,
     project_files,
     projects,
@@ -114,6 +115,7 @@ app.include_router(quality.router, prefix="/projects", tags=["quality"])
 app.include_router(project_files.router, prefix="/projects", tags=["project_files"])
 app.include_router(visualizations.router, prefix="/projects", tags=["visualizations"])
 app.include_router(user_logs.router, prefix="/logs", tags=["user_logs"])
+app.include_router(pipelines.router, prefix="/pipelines", tags=["pipelines"])
 
 if __name__ == "__main__":
     import uvicorn

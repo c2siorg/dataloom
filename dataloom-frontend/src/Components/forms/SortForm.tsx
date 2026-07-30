@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, useCallback, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { SORT } from "../../constants/operationTypes";
@@ -24,7 +25,7 @@ interface SortCriterion {
  * SortForm component for multi-column sorting.
  * Allows users to add, remove, and reorder multiple sort criteria.
  */
-const SortForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const SortForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const [criteria, setCriteria] = useState<SortCriterion[]>([
     { id: 1, column: "", ascending: true },
@@ -110,6 +111,11 @@ const SortForm = ({ projectId, onClose }: { projectId: string; onClose: () => vo
           criteria: criteriaList,
         },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

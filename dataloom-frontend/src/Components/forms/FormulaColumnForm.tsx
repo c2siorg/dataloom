@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
@@ -8,7 +9,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import Button from "../common/Button";
 import { ADD_FORMULA_COLUMN } from "../../constants/operationTypes";
 
-const FormulaColumnForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const FormulaColumnForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const { columns, pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { showToast } = useToast();
   const { error, clearError, handleError } = useError();
@@ -39,6 +40,11 @@ const FormulaColumnForm = ({ projectId, onClose }: { projectId: string; onClose:
           expression: expression.trim(),
         },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

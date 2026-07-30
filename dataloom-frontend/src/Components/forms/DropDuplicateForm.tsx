@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { DROP_DUPLICATE } from "../../constants/operationTypes";
@@ -14,7 +15,7 @@ const KEEP_OPTIONS = [
   { value: "last", label: "Last" },
 ];
 
-const DropDuplicateForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const DropDuplicateForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const [columns, setColumns] = useState<string[]>([]);
   const [keep, setKeep] = useState("first");
   const { error, setError, clearError, handleError } = useError();
@@ -43,6 +44,11 @@ const DropDuplicateForm = ({ projectId, onClose }: { projectId: string; onClose:
     };
 
     try {
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

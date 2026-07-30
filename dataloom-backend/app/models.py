@@ -169,3 +169,49 @@ class Checkpoint(SQLModel, table=True):
     )
 
     project: Project | None = Relationship(back_populates="checkpoints")
+
+
+class Pipeline(SQLModel, table=True):
+    """A named, reusable sequence of transformation steps owned by a user."""
+
+    __tablename__ = "pipelines"
+
+    id: uuid_mod.UUID = Field(
+        default_factory=uuid_mod.uuid4,
+        sa_column=Column(sa.Uuid, primary_key=True, default=uuid_mod.uuid4),
+    )
+    name: str = Field(max_length=200)
+    description: str | None = None
+    owner_id: uuid_mod.UUID = Field(
+        sa_column=Column(sa.Uuid, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+    )
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime, server_default=func.now(), nullable=False),
+    )
+
+    steps: list["PipelineStep"] = Relationship(
+        back_populates="pipeline",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan", "order_by": "PipelineStep.step_order"},
+    )
+
+
+class PipelineStep(SQLModel, table=True):
+    """One transformation step of a pipeline.
+
+    ``action_type`` and ``action_details`` are copied verbatim from a
+    ``user_logs`` row, so a step replays through the same transformation
+    registry as the save path.
+    """
+
+    __tablename__ = "pipeline_steps"
+
+    id: int | None = Field(default=None, primary_key=True)
+    pipeline_id: uuid_mod.UUID = Field(
+        sa_column=Column(sa.Uuid, sa.ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False, index=True),
+    )
+    step_order: int = Field(sa_column=Column(sa.Integer, nullable=False))
+    action_type: str = Field(max_length=50)
+    action_details: dict = Field(sa_column=sa.Column(sa.JSON, nullable=False))
+
+    pipeline: Pipeline | None = Relationship(back_populates="steps")

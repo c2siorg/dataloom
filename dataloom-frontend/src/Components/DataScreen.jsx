@@ -8,6 +8,7 @@ import { HistoryRefreshProvider } from "../context/HistoryRefreshContext";
 import { ColumnProfilesProvider } from "../context/ColumnProfilesContext";
 import { ChartViewProvider } from "../context/ChartViewContext";
 import { QualityViewProvider } from "../context/QualityViewContext";
+import { PipelineDraftProvider } from "../context/PipelineDraftContext";
 import { getTabComponent } from "./workspace/TabRegistry";
 // Each feature module self-registers its tabs, panels, and menu items.
 import { DATASET_TAB } from "./workspace/features/dataset";
@@ -17,6 +18,7 @@ import "./workspace/features/profiling";
 import "./workspace/features/charts";
 import "./workspace/features/quality";
 import "./workspace/features/addFile";
+import "./workspace/features/pipelines";
 import WorkspaceTabBar from "./workspace/WorkspaceTabBar";
 import RightPanel from "./workspace/RightPanel";
 import MenuNavbar from "./MenuNavbar";
@@ -89,7 +91,9 @@ export default function DataScreen() {
             <ColumnProfilesProvider>
               <ChartViewProvider>
                 <QualityViewProvider>
-                  <WorkspaceContent projectId={projectId} />
+                  <PipelineDraftProvider>
+                    <WorkspaceContent projectId={projectId} />
+                  </PipelineDraftProvider>
                 </QualityViewProvider>
               </ChartViewProvider>
             </ColumnProfilesProvider>

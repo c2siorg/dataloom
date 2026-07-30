@@ -17,7 +17,7 @@ import { getFeatureMenu } from "./workspace/featureRegistry";
 // core items below slot their entries into these buckets; layout stays stable.
 const RIBBON_LAYOUT = {
   File: ["Save", "Source", "History"],
-  Data: ["Transform", "Query"],
+  Data: ["Transform", "Query", "Pipeline"],
   Profiling: ["Profiling"],
 };
 
