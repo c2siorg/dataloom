@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { TRIM_WHITESPACE } from "../../constants/operationTypes";
@@ -7,7 +8,7 @@ import useError from "../../hooks/useError";
 import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import Button from "../common/Button";
-const TrimWhitespaceForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const TrimWhitespaceForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const { columns, pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
 
   const [column, setColumn] = useState("");
@@ -34,6 +35,11 @@ const TrimWhitespaceForm = ({ projectId, onClose }: { projectId: string; onClose
           column,
         },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

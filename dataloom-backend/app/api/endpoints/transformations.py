@@ -16,48 +16,11 @@ from app.services import transformation_service as ts
 from app.services.project_service import log_transformation
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
+from app.utils.security import safe_transformation_error_detail
 
 logger = get_logger(__name__)
 
 router = APIRouter()
-
-SAFE_TRANSFORMATION_ERROR_DETAIL = "Invalid transformation request"
-
-_SENSITIVE_TOKEN_MARKERS = (
-    "traceback",
-    "sqlalchemy",
-    "psycopg",
-    "sqlite",
-    "postgres",
-    "password",
-    "secret",
-    "token",
-)
-_SQL_MARKERS = ("select ", "insert ", "update ", "delete ", "drop ", "alter ", "create table", " from ", " where ")
-
-
-def _safe_transformation_error_detail(error: Exception) -> str:
-    """Return a client-safe 400 detail for domain transformation failures."""
-    detail = str(error).strip()
-    if not detail:
-        return SAFE_TRANSFORMATION_ERROR_DETAIL
-
-    lowered = detail.lower()
-
-    if "\n" in detail or "\r" in detail:
-        return SAFE_TRANSFORMATION_ERROR_DETAIL
-
-    if any(token in lowered for token in _SENSITIVE_TOKEN_MARKERS):
-        return SAFE_TRANSFORMATION_ERROR_DETAIL
-
-    # Redact SQL-like payloads only when multiple SQL markers co-occur.
-    if sum(marker in lowered for marker in _SQL_MARKERS) >= 2:
-        return SAFE_TRANSFORMATION_ERROR_DETAIL
-
-    # Redact likely filesystem paths that should not be exposed to clients.
-    if re.search(r"[A-Za-z]:\\[^\\\n]+", detail) or re.search(r"/(?:[^/\n]+/)+[^/\n]+", detail):
-        return SAFE_TRANSFORMATION_ERROR_DETAIL
-    return detail
 
 
 def _safe_http_exception_detail(error: HTTPException) -> str | None:
@@ -189,7 +152,7 @@ async def transform_project(
         )
         raise HTTPException(status_code=e.status_code, detail=safe_detail) from e
     except ts.TransformationError as e:
-        raise HTTPException(status_code=400, detail=_safe_transformation_error_detail(e)) from e
+        raise HTTPException(status_code=400, detail=safe_transformation_error_detail(e)) from e
     except Exception as e:
         logger.exception("Unexpected error during transform for project_id=%s op=%s", project_id, operation_type)
         raise HTTPException(status_code=500, detail="Internal server error") from e

@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { CAST_DATA_TYPE } from "../../constants/operationTypes";
@@ -18,7 +19,7 @@ const TARGET_TYPES = [
   { value: "datetime", label: "DateTime" },
 ];
 
-const CastDataTypeForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const CastDataTypeForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const { showToast } = useToast();
 
   const [column, setColumn] = useState("");
@@ -50,6 +51,11 @@ const CastDataTypeForm = ({ projectId, onClose }: { projectId: string; onClose: 
           target_type: targetType,
         },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

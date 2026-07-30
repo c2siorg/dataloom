@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import useError from "../../hooks/useError";
 import { transformProject } from "../../api";
@@ -11,7 +12,7 @@ import usePreviewSave from "../../hooks/usePreviewSave";
 import Button from "../common/Button";
 import { AGG_FUNCTIONS } from "../../constants/aggregations";
 
-const PivotTableForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const PivotTableForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const [index, setIndex] = useState<string[]>([]);
   const [column, setColumn] = useState("");
   const [value, setValue] = useState("");
@@ -41,6 +42,11 @@ const PivotTableForm = ({ projectId, onClose }: { projectId: string; onClose: ()
         operation_type: PIVOT_TABLES,
         pivot_query: { index: index.join(","), column, value, aggfun },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

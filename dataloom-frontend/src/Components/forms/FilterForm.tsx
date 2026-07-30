@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, ChangeEvent, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { FILTER } from "../../constants/operationTypes";
@@ -19,7 +20,7 @@ const CONDITIONS = [
   { value: "contains", label: "contains" },
 ];
 
-const FilterForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const FilterForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const [filterParams, setFilterParams] = useState({
     column: "",
     condition: "=",
@@ -56,6 +57,11 @@ const FilterForm = ({ projectId, onClose }: { projectId: string; onClose: () => 
         operation_type: FILTER,
         parameters: filterParams,
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

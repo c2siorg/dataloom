@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { ADV_QUERY_FILTER } from "../../constants/operationTypes";
@@ -7,7 +8,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
 
-const AdvQueryFilterForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const AdvQueryFilterForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const { error, clearError, handleError } = useError();
@@ -27,6 +28,11 @@ const AdvQueryFilterForm = ({ projectId, onClose }: { projectId: string; onClose
         operation_type: ADV_QUERY_FILTER,
         adv_query: { query },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

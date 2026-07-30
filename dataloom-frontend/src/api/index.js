@@ -32,3 +32,11 @@ export {
   getProjectFiles,
   reappendProjectFile,
 } from "./projectFiles";
+export {
+  createPipeline,
+  getPipelines,
+  deletePipeline,
+  checkPipeline,
+  checkSteps,
+  applyPipeline,
+} from "./pipelines";

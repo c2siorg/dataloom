@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, useRef, useEffect, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { GROUPBY } from "../../constants/operationTypes";
@@ -11,7 +12,7 @@ import Select from "../common/Select";
 import Button from "../common/Button";
 import { AGG_FUNCTIONS } from "../../constants/aggregations";
 
-const GroupByForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const GroupByForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const {
     columns: availableColumns,
     pageSize,
@@ -56,6 +57,11 @@ const GroupByForm = ({ projectId, onClose }: { projectId: string; onClose: () =>
           agg_function: aggFunction,
         },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

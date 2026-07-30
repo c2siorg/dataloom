@@ -796,3 +796,85 @@ class ProjectMetaResponse(BaseModel):
     last_modified: datetime.datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- Pipeline schemas ---
+
+
+class PipelineStepInput(BaseModel):
+    """One step of a pipeline being saved: an operation plus its parameters.
+
+    Steps come from either a change-log entry the user picked or one built from
+    scratch in the step builder; both resolve to the same ``action_type`` +
+    ``action_details`` pair a ``user_logs`` row stores.
+    """
+
+    action_type: str
+    action_details: dict
+
+
+class PipelineCreateRequest(BaseModel):
+    """Request to save an ordered list of steps as a reusable pipeline."""
+
+    name: str
+    description: str | None = None
+    project_id: uuid.UUID
+    steps: list[PipelineStepInput]
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_blank(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Pipeline name must not be empty")
+        return v.strip()
+
+    @field_validator("steps")
+    @classmethod
+    def steps_must_not_be_empty(cls, v: list[PipelineStepInput]) -> list[PipelineStepInput]:
+        if not v:
+            raise ValueError("At least one step is required")
+        return v
+
+
+class PipelineApplyRequest(BaseModel):
+    """Request to apply (or compatibility-check) a pipeline on a project."""
+
+    project_id: uuid.UUID
+
+
+class PipelineCheckStepsRequest(BaseModel):
+    """Request to dry-run an unsaved list of steps against a project."""
+
+    project_id: uuid.UUID
+    steps: list[PipelineStepInput]
+
+
+class PipelineStepResponse(BaseModel):
+    """One step of a stored pipeline."""
+
+    step_order: int
+    action_type: str
+    action_details: dict
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PipelineResponse(BaseModel):
+    """A stored pipeline with its ordered steps."""
+
+    id: uuid.UUID
+    name: str
+    description: str | None
+    created_at: datetime.datetime
+    steps: list[PipelineStepResponse]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PipelineCompatibilityResponse(BaseModel):
+    """Result of dry-running a pipeline against a project."""
+
+    compatible: bool
+    failing_step: int | None = None
+    action_type: str | None = None
+    reason: str | None = None

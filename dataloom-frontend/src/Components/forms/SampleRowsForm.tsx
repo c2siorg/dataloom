@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { SAMPLE_ROWS } from "../../constants/operationTypes";
@@ -7,7 +8,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
 
-const SampleRowsForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const SampleRowsForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const [sampleSize, setSampleSize] = useState("");
   const [randomSeed, setRandomSeed] = useState("");
@@ -54,6 +55,11 @@ const SampleRowsForm = ({ projectId, onClose }: { projectId: string; onClose: ()
         operation_type: SAMPLE_ROWS,
         sample_params: params,
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,

@@ -14,4 +14,7 @@ test("operation type constants match backend contract", () => {
   expect(ops.PIVOT_TABLES).toBe("pivotTables");
   expect(ops.SORT).toBe("sort");
   expect(ops.TRIM_WHITESPACE).toBe("trimWhitespace");
+  expect(ops.DROP_NA).toBe("dropNa");
+  expect(ops.MELT).toBe("melt");
+  expect(ops.ADD_FILE).toBe("addFile");
 });

@@ -1,3 +1,4 @@
+import type { TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
@@ -8,7 +9,7 @@ import FormErrorAlert from "../common/FormErrorAlert";
 import ColumnSelect from "../common/ColumnSelect";
 import Button from "../common/Button";
 
-const StringReplaceForm = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
+const StringReplaceForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
 
   const [column, setColumn] = useState("");
@@ -38,6 +39,11 @@ const StringReplaceForm = ({ projectId, onClose }: { projectId: string; onClose:
           replace_value: replaceValue,
         },
       };
+      if (onCapture) {
+        onCapture({ action_type: payload.operation_type, action_details: payload });
+        return;
+      }
+
       const response = await transformProject(projectId, payload, {
         preview: true,
         page: 1,
