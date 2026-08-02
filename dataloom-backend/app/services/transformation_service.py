@@ -15,7 +15,7 @@ from app.schemas import FillStrategy, MeltParams, OperationType
 from app.services.append_service import append_dataframes
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import read_table_safe
-from app.utils.security import validate_query_string
+from app.utils.security import prepare_formula_expression, validate_query_string
 
 logger = get_logger(__name__)
 
@@ -836,6 +836,52 @@ def sample_rows(df: pd.DataFrame, sample_size: int, random_seed: int | None = No
     return sampled.reset_index(drop=True)
 
 
+def add_formula_column(df: pd.DataFrame, column_name: str, expression: str) -> pd.DataFrame:
+    """Add a computed column evaluated from a sandboxed formula expression.
+
+    The expression is validated against an AST allowlist (arithmetic,
+    comparisons, boolean logic, column references, and literals only) before
+    being evaluated with ``DataFrame.eval`` — never raw ``eval()``.
+
+    Args:
+        df: Source DataFrame.
+        column_name: Name for the new computed column.
+        expression: Formula referencing existing columns, e.g. ``price * quantity``.
+
+    Returns:
+        DataFrame with the computed column appended.
+
+    Raises:
+        TransformationError: If the target name is blank, already exists, or the
+            formula cannot be evaluated against the dataset.
+        HTTPException: If the formula fails validation — empty, dangerous,
+            unparseable, or referencing an unknown column.
+    """
+    column_name = column_name.strip()
+    if not column_name:
+        raise TransformationError("New column name must not be empty")
+    if column_name in df.columns:
+        raise TransformationError(f"Column '{column_name}' already exists")
+
+    # The validator returns the exact string to evaluate, with quotes
+    # normalized and non-identifier column names backtick-wrapped, so the
+    # string that passes the AST allowlist is the string that runs.
+    expr = prepare_formula_expression(expression, list(df.columns))
+
+    df = df.copy()
+    try:
+        result = df.eval(expr, local_dict={"__builtins__": {}})
+    except Exception as e:
+        reason = str(e).splitlines()[0][:200] if str(e) else type(e).__name__
+        raise TransformationError(f"Formula could not be evaluated: {reason}") from e
+
+    if isinstance(result, pd.DataFrame):
+        raise TransformationError("Formula must produce a single column of values")
+
+    df[column_name] = result
+    return df
+
+
 def apply_add_file(df: pd.DataFrame, file_path: str) -> pd.DataFrame:
     """Append a stored inventory file's rows onto the DataFrame.
 
@@ -1057,6 +1103,12 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         params_field="add_file_params",
         missing_error="Add file operations must use the /files endpoint",
         build_args=lambda d: (d["add_file_params"]["file_path"],),
+    ),
+    OperationType.addFormulaCol: TransformationSpec(
+        func="add_formula_column",
+        params_field="formula_col_params",
+        missing_error="Formula column parameters required",
+        build_args=lambda d: (d["formula_col_params"]["column_name"], d["formula_col_params"]["expression"]),
     ),
 }
 

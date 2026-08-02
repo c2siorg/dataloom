@@ -45,6 +45,7 @@ class OperationType(StrEnum):
     sample = "sample"
     stringReplace = "stringReplace"
     addFile = "addFile"
+    addFormulaCol = "addFormulaCol"
 
 
 class DropDup(StrEnum):
@@ -211,6 +212,20 @@ class DropNaParams(BaseModel):
         return v
 
 
+class FormulaColumnParams(BaseModel):
+    """Parameters for adding a computed column from a formula expression."""
+
+    column_name: str = Field(min_length=1, max_length=255)
+    expression: str = Field(min_length=1, max_length=500)
+
+    @field_validator("column_name", "expression")
+    @classmethod
+    def must_not_be_blank(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("must not be empty")
+        return v.strip()
+
+
 class StringReplaceParams(BaseModel):
     """Parameters for find-and-replace on a string column."""
 
@@ -333,6 +348,7 @@ class TransformationInput(BaseModel):
     melt_params: MeltParams | None = None
     sample_params: SampleParams | None = None
     string_replace_params: StringReplaceParams | None = None
+    formula_col_params: FormulaColumnParams | None = None
 
 
 class BasicQueryResponse(BaseModel):

@@ -41,3 +41,5 @@ export const GROUPBY = "groupby";
 export const SAMPLE_ROWS = "sample";
 /** @type {string} Find and replace string values in a column */
 export const STRING_REPLACE = "stringReplace";
+/** @type {string} Add a computed column from a formula expression */
+export const ADD_FORMULA_COLUMN = "addFormulaCol";
