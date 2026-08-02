@@ -10,6 +10,7 @@ import {
   LuRefreshCw,
   LuReplace,
   LuScissors,
+  LuSigma,
   LuTable2,
 } from "react-icons/lu";
 import FilterForm from "../../forms/FilterForm";
@@ -24,6 +25,7 @@ import GroupByForm from "../../forms/GroupByForm";
 import StringReplaceForm from "../../forms/StringReplaceForm";
 import FillEmptyForm from "../../forms/FillEmptyForm";
 import SampleRowsForm from "../../forms/SampleRowsForm";
+import FormulaColumnForm from "../../forms/FormulaColumnForm";
 import { registerFeature } from "../featureRegistry";
 
 /**
@@ -44,6 +46,7 @@ registerFeature({
     { name: "TrimWhitespaceForm", title: "Trim Whitespace", component: TrimWhitespaceForm },
     { name: "StringReplaceForm", title: "Replace", component: StringReplaceForm },
     { name: "FillEmptyForm", title: "Fill Empty", component: FillEmptyForm },
+    { name: "FormulaColumnForm", title: "Formula Column", component: FormulaColumnForm },
     { name: "AdvQueryFilterForm", title: "Advanced Query", component: AdvQueryFilterForm },
     { name: "PivotTableForm", title: "Pivot Table", component: PivotTableForm },
     { name: "MeltForm", title: "Melt (Unpivot)", component: MeltForm },
@@ -148,6 +151,17 @@ registerFeature({
       disabledInPreview: true,
       activePanel: "FillEmptyForm",
       hover: "Fill empty cells in a column with a specific value.",
+    },
+    {
+      ribbon: "Data",
+      group: "Transform",
+      order: 9,
+      label: "Formula",
+      icon: LuSigma,
+      action: { togglePanel: "FormulaColumnForm" },
+      disabledInPreview: true,
+      activePanel: "FormulaColumnForm",
+      hover: "Add a computed column from a formula like price * quantity.",
     },
     // Data ▸ Query
     {

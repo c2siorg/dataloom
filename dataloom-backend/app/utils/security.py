@@ -1,5 +1,7 @@
 """Security utilities for file upload validation, path safety, and query sanitization."""
 
+import ast
+import keyword
 import re
 import uuid
 from pathlib import Path
@@ -97,3 +99,192 @@ def validate_query_string(query: str) -> str:
         if re.search(pattern, query, re.IGNORECASE):
             raise HTTPException(status_code=400, detail="Query contains potentially dangerous expressions")
     return query
+
+
+# Node types a formula expression may contain: arithmetic, comparisons, boolean
+# logic, column references, and literals. Function calls, attribute access,
+# subscripts, lambdas, and comprehensions are all absent, so they fail closed.
+_ALLOWED_FORMULA_NODES = (
+    ast.Expression,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.BoolOp,
+    ast.Compare,
+    ast.Name,
+    ast.Constant,
+    ast.Load,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+    ast.USub,
+    ast.UAdd,
+    ast.Not,
+    ast.And,
+    ast.Or,
+    ast.Eq,
+    ast.NotEq,
+    ast.Lt,
+    ast.LtE,
+    ast.Gt,
+    ast.GtE,
+)
+
+
+_FORMULA_PLACEHOLDER_PREFIX = "_dataloom_col_"
+
+# A single-quoted or double-quoted run with no line break and no embedded quote
+# of the same kind. Escapes are not supported: a literal containing a backslash
+# fails to match here and then fails the parse, which is the safe outcome.
+_FORMULA_STRING_LITERAL = re.compile(r"'[^'\n]*'|\"[^\"\n]*\"")
+
+
+def _is_bare_column_name(col: str) -> bool:
+    """Return True when a column name can appear in a formula as a plain Python name.
+
+    Python keywords are excluded: a column called ``True`` or ``None`` is a
+    valid identifier but parses as a constant, so it needs the same
+    placeholder-and-backtick handling as a name containing spaces.
+    """
+    return col.isidentifier() and not keyword.iskeyword(col)
+
+
+def _normalize_string_literal(literal: str) -> str:
+    """Return a string literal in the double-quoted form pandas' parser wants.
+
+    Args:
+        literal: The literal exactly as the user wrote it, quotes included.
+
+    Returns:
+        The same literal, double-quoted.
+
+    Raises:
+        HTTPException: If a single-quoted literal contains a double quote, which
+            cannot survive the conversion.
+    """
+    if literal.startswith('"'):
+        return literal
+    body = literal[1:-1]
+    if '"' in body:
+        raise HTTPException(
+            status_code=400,
+            detail="Formula string literals must not mix quote characters",
+        )
+    return f'"{body}"'
+
+
+def _substitute_column_names(expression: str, quoted_cols: list[str]) -> tuple[str, dict[str, str]]:
+    """Replace non-identifier column names with placeholder identifiers.
+
+    The expression is scanned left to right, so a column name and a string
+    literal can never claim the same characters. Text inside a literal is copied
+    through untouched, which keeps a literal that reads exactly like a column
+    name (``status == "unit cost"``) from turning into a column reference.
+
+    Args:
+        expression: The user-supplied formula.
+        quoted_cols: Non-identifier column names, longest first, so a short name
+            never claims part of a longer one that contains it.
+
+    Returns:
+        The rewritten expression, and a placeholder-to-backticked-name mapping.
+
+    Raises:
+        HTTPException: If a string literal cannot be normalized.
+    """
+    placeholder_by_col: dict[str, str] = {}
+    placeholders: dict[str, str] = {}
+    parts: list[str] = []
+    i = 0
+    while i < len(expression):
+        for col in quoted_cols:
+            if expression.startswith(col, i):
+                placeholder = placeholder_by_col.get(col)
+                if placeholder is None:
+                    placeholder = f"{_FORMULA_PLACEHOLDER_PREFIX}{len(placeholder_by_col)}"
+                    placeholder_by_col[col] = placeholder
+                    placeholders[placeholder] = f"`{col}`"
+                parts.append(placeholder)
+                i += len(col)
+                break
+        else:
+            literal = _FORMULA_STRING_LITERAL.match(expression, i)
+            if literal:
+                parts.append(_normalize_string_literal(literal.group(0)))
+                i = literal.end()
+            else:
+                parts.append(expression[i])
+                i += 1
+    return "".join(parts), placeholders
+
+
+def prepare_formula_expression(expression: str, columns: list[str]) -> str:
+    """Validate a computed-column formula and return the string to evaluate.
+
+    Column names that cannot appear as a plain Python name are substituted with
+    placeholder identifiers (longest name first, so a short name never corrupts
+    a longer one that contains it) so they parse as a single node. The
+    substitution scans the expression left to right and steps over string
+    literals, so a literal is never mistaken for a column name. Any name that
+    is neither a column nor a placeholder is rejected.
+
+    The returned expression is rebuilt from the exact string the AST walk
+    approved, with each placeholder swapped for its backtick-wrapped column
+    name. The validated string and the executed string therefore cannot drift
+    apart.
+
+    Args:
+        expression: The user-supplied formula, e.g. ``price * quantity``.
+        columns: Column names of the target DataFrame.
+
+    Returns:
+        The expression to hand to ``DataFrame.eval``.
+
+    Raises:
+        HTTPException: If the expression is empty, fails the dangerous-pattern
+            screen, mixes quote characters inside a string literal, is not
+            parseable, or contains disallowed syntax.
+    """
+    if not expression or not expression.strip():
+        raise HTTPException(status_code=400, detail="Formula expression must not be empty")
+
+    for pattern in _DANGEROUS_PATTERNS:
+        if re.search(pattern, expression, re.IGNORECASE):
+            raise HTTPException(status_code=400, detail="Formula contains potentially dangerous expressions")
+
+    if _FORMULA_PLACEHOLDER_PREFIX in expression:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Formula must not contain the reserved prefix '{_FORMULA_PLACEHOLDER_PREFIX}'",
+        )
+
+    allowed_names = {col for col in columns if _is_bare_column_name(col)}
+    quoted_cols = sorted((col for col in columns if not _is_bare_column_name(col)), key=len, reverse=True)
+    sanitized, placeholders = _substitute_column_names(expression, quoted_cols)
+    sanitized = sanitized.strip()
+    allowed_names.update(placeholders)
+
+    try:
+        tree = ast.parse(sanitized, mode="eval")
+    except SyntaxError as e:
+        raise HTTPException(status_code=400, detail="Formula is not a valid expression") from e
+
+    for node in ast.walk(tree):
+        if not isinstance(node, _ALLOWED_FORMULA_NODES):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Formula contains unsupported syntax: {type(node).__name__}",
+            )
+        if isinstance(node, ast.Name) and node.id not in allowed_names:
+            raise HTTPException(status_code=400, detail=f"Unknown column or name '{node.id}' in formula")
+        if isinstance(node, ast.Constant) and not isinstance(node.value, int | float | str | bool):
+            raise HTTPException(status_code=400, detail="Formula literals must be numbers, strings, or booleans")
+
+    # Longest placeholder first: "_dataloom_col_1" is a prefix of "_dataloom_col_10".
+    executable = sanitized
+    for placeholder in sorted(placeholders, key=len, reverse=True):
+        executable = executable.replace(placeholder, placeholders[placeholder])
+    return executable
