@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.get("/{project_id}/profile/summary", response_model=schemas.DatasetSummaryResponse)
-async def get_dataset_summary(
+def get_dataset_summary(
     project_id: uuid.UUID,
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -27,7 +27,7 @@ async def get_dataset_summary(
 
 
 @router.get("/{project_id}/profile/column", response_model=schemas.ColumnProfileResponse)
-async def get_column_profile(
+def get_column_profile(
     project_id: uuid.UUID,
     column_name: str = Query(..., description="Name of the column to profile"),
     project: models.Project = Depends(get_project_or_404),
@@ -47,7 +47,7 @@ async def get_column_profile(
 
 
 @router.get("/{project_id}/profile/columns", response_model=schemas.ColumnProfilesResponse)
-async def get_all_column_profiles(
+def get_all_column_profiles(
     project_id: uuid.UUID,
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -62,7 +62,7 @@ async def get_all_column_profiles(
 
 
 @router.get("/{project_id}/profile/correlation", response_model=schemas.CorrelationResponse)
-async def get_correlation_matrix(
+def get_correlation_matrix(
     project_id: uuid.UUID,
     project: models.Project = Depends(get_project_or_404),
 ):
