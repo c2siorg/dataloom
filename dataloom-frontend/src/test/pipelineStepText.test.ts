@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { stepLabel, stepSummary } from "../Components/pipelines/pipelineStepText";
+import {
+  stepFailureMessage,
+  stepLabel,
+  stepSummary,
+} from "../Components/pipelines/pipelineStepText";
 
 describe("stepLabel", () => {
   it("maps known operations to friendly names", () => {
@@ -45,5 +49,18 @@ describe("stepSummary", () => {
   it("returns an empty string when there is nothing legible", () => {
     expect(stepSummary("renameCol", { operation_type: "renameCol" })).toBe("");
     expect(stepSummary("filter", { operation_type: "filter" })).toBe("");
+  });
+});
+
+describe("stepFailureMessage", () => {
+  it("reports the failing step by its 1-based position and friendly label", () => {
+    expect(
+      stepFailureMessage({
+        compatible: false,
+        failing_step: 1,
+        action_type: "dropDuplicate",
+        reason: "Column 'x' not found",
+      }),
+    ).toBe("Step 2 (Drop duplicates) would fail: Column 'x' not found");
   });
 });

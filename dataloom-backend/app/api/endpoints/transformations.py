@@ -13,7 +13,7 @@ from sqlmodel import Session
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
-from app.services.project_service import log_transformation
+from app.services.project_service import log_transformations_or_restore
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
 from app.utils.security import safe_transformation_error_detail
@@ -96,20 +96,13 @@ async def transform_project(
 
         if not preview and not is_noop_cell_edit:
             save_table_safe(result_df, project.file_path)
-            try:
-                log_transformation(db, project_id, operation_type, transformation_input.dict())
-            except Exception:
-                # Compensate disk mutation if audit logging fails to avoid a
-                # partially persisted state (file changed without log entry).
-                try:
-                    save_table_safe(df, project.file_path)
-                except Exception:
-                    logger.exception(
-                        "Failed to restore project file after log_transformation failure for project_id=%s op=%s",
-                        project_id,
-                        operation_type,
-                    )
-                raise
+            log_transformations_or_restore(
+                db,
+                project_id,
+                project.file_path,
+                df,
+                [(operation_type, transformation_input.dict())],
+            )
 
         response_df = result_df
         pagination = {}

@@ -229,12 +229,12 @@ def test_transform_reverts_file_if_log_transformation_fails(client, project, mon
     file_path = project["file_path"]
     original_df = read_table_safe(file_path)
 
-    from app.api.endpoints import transformations as transformations_endpoint
+    from app.services import project_service
 
     def boom(*args, **kwargs):
         raise RuntimeError("db log failure")
 
-    monkeypatch.setattr(transformations_endpoint, "log_transformation", boom)
+    monkeypatch.setattr(project_service, "log_transformation", boom)
 
     response = client.post(
         f"/projects/{project_id}/transform",

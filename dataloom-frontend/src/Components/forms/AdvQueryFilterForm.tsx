@@ -1,4 +1,4 @@
-import type { TransformFormProps } from "./transformFormProps";
+import { captureStep, type TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { ADV_QUERY_FILTER } from "../../constants/operationTypes";
@@ -28,10 +28,7 @@ const AdvQueryFilterForm = ({ projectId, onClose, onCapture }: TransformFormProp
         operation_type: ADV_QUERY_FILTER,
         adv_query: { query },
       };
-      if (onCapture) {
-        onCapture({ action_type: payload.operation_type, action_details: payload });
-        return;
-      }
+      if (captureStep(onCapture, payload)) return;
 
       const response = await transformProject(projectId, payload, {
         preview: true,

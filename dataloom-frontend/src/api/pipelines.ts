@@ -34,6 +34,12 @@ export interface PipelineCompatibility {
   reason: string | null;
 }
 
+/** Acknowledgement returned by a delete. */
+export interface DeleteResult {
+  success: boolean;
+  message: string;
+}
+
 /** Response of applying a pipeline (same shape as a transform response). */
 export interface PipelineApplyResult {
   row_count: number;
@@ -69,8 +75,9 @@ export const getPipelines = async (): Promise<Pipeline[]> => {
 };
 
 /** Delete a pipeline. */
-export const deletePipeline = async (pipelineId: string): Promise<void> => {
-  await client.delete(`/pipelines/${pipelineId}`);
+export const deletePipeline = async (pipelineId: string): Promise<DeleteResult> => {
+  const response = await client.delete(`/pipelines/${pipelineId}`);
+  return response.data;
 };
 
 /** Dry-run a pipeline against a project without changing anything. */
@@ -83,7 +90,7 @@ export const checkPipeline = async (
 };
 
 /** Dry-run an unsaved list of draft steps against a project (before saving). */
-export const checkSteps = async (
+export const checkDraftPipelineSteps = async (
   projectId: string,
   steps: PipelineStepInput[],
 ): Promise<PipelineCompatibility> => {

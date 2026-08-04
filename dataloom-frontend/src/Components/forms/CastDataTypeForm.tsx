@@ -1,4 +1,4 @@
-import type { TransformFormProps } from "./transformFormProps";
+import { captureStep, type TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { CAST_DATA_TYPE } from "../../constants/operationTypes";
@@ -51,10 +51,7 @@ const CastDataTypeForm = ({ projectId, onClose, onCapture }: TransformFormProps)
           target_type: targetType,
         },
       };
-      if (onCapture) {
-        onCapture({ action_type: payload.operation_type, action_details: payload });
-        return;
-      }
+      if (captureStep(onCapture, payload)) return;
 
       const response = await transformProject(projectId, payload, {
         preview: true,

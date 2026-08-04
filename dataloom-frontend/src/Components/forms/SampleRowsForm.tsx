@@ -1,4 +1,4 @@
-import type { TransformFormProps } from "./transformFormProps";
+import { captureStep, type TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { SAMPLE_ROWS } from "../../constants/operationTypes";
@@ -55,10 +55,7 @@ const SampleRowsForm = ({ projectId, onClose, onCapture }: TransformFormProps) =
         operation_type: SAMPLE_ROWS,
         sample_params: params,
       };
-      if (onCapture) {
-        onCapture({ action_type: payload.operation_type, action_details: payload });
-        return;
-      }
+      if (captureStep(onCapture, payload)) return;
 
       const response = await transformProject(projectId, payload, {
         preview: true,

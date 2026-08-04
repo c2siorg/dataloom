@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { PipelineStepInput } from "../api/pipelines";
 import { useProjectContext } from "./ProjectContext";
 
 /** Where a draft step came from: picked off the change log, or built from scratch. */
@@ -37,6 +38,19 @@ interface PipelineDraftValue {
 }
 
 const PipelineDraftContext = createContext<PipelineDraftValue | null>(null);
+
+/**
+ * Drop the client-only fields, leaving the `{ action_type, action_details }`
+ * pairs the API stores. Used wherever a draft is sent to the backend — the
+ * eligibility check and the save.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function toStepInputs(steps: DraftStep[]): PipelineStepInput[] {
+  return steps.map((step) => ({
+    action_type: step.action_type,
+    action_details: step.action_details,
+  }));
+}
 
 /** Access the shared pipeline draft. Bridges the docked step builder and the Pipelines tab. */
 // eslint-disable-next-line react-refresh/only-export-components
