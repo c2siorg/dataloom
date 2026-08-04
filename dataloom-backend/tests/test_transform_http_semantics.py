@@ -251,16 +251,168 @@ def test_transform_reverts_file_if_log_transformation_fails(client, project, mon
     assert restored_df.equals(original_df)
 
 
-def test_transform_preview_returns_first_page(client, pagination_project):
+@pytest.mark.parametrize(
+    "extra_params, condition, value, expected",
+    [
+        pytest.param(
+            {"page": 1, "page_size": 50},
+            ">=",
+            "0",
+            {
+                "total_rows": 101,
+                "total_pages": 3,
+                "page": 1,
+                "page_size": 50,
+                "row_count": 50,
+                "first_row": ["User 0", 0],
+                "last_row": ["User 49", 49],
+            },
+            id="first_page",
+        ),
+        pytest.param(
+            {"page": 2, "page_size": 50},
+            ">=",
+            "0",
+            {
+                "total_rows": 101,
+                "total_pages": 3,
+                "page": 2,
+                "page_size": 50,
+                "row_count": 50,
+                "first_row": ["User 50", 50],
+                "last_row": ["User 99", 99],
+            },
+            id="second_page",
+        ),
+        pytest.param(
+            {"page": 3, "page_size": 50},
+            ">=",
+            "0",
+            {
+                "total_rows": 101,
+                "total_pages": 3,
+                "page": 3,
+                "page_size": 50,
+                "row_count": 1,
+                "first_row": ["User 100", 100],
+                "last_row": ["User 100", 100],
+            },
+            id="partial_last_page",
+        ),
+        pytest.param(
+            {"page": 999, "page_size": 50},
+            ">=",
+            "0",
+            {
+                "total_rows": 101,
+                "total_pages": 3,
+                # Page 999 is clamped to the last valid page.
+                "page": 3,
+                "page_size": 50,
+                "row_count": 1,
+                "first_row": ["User 100", 100],
+                "last_row": ["User 100", 100],
+            },
+            id="clamps_out_of_range_page",
+        ),
+        pytest.param(
+            {"page": 2, "page_size": 50},
+            "<",
+            "100",
+            {
+                # The filter produces exactly 100 rows.
+                "total_rows": 100,
+                "total_pages": 2,
+                "page": 2,
+                "page_size": 50,
+                "row_count": 50,
+                "first_row": ["User 50", 50],
+                "last_row": ["User 99", 99],
+            },
+            id="exactly_divisible_by_page_size",
+        ),
+        pytest.param(
+            {"page": 1, "page_size": 100},
+            ">=",
+            "0",
+            {
+                "total_rows": 101,
+                "total_pages": 2,
+                "page": 1,
+                "page_size": 100,
+                "row_count": 100,
+                "first_row": ["User 0", 0],
+                "last_row": ["User 99", 99],
+            },
+            id="page_size_100_boundary",
+        ),
+        pytest.param(
+            {},
+            ">=",
+            "0",
+            {
+                # Default page=1 and page_size=50.
+                "total_rows": 101,
+                "total_pages": 3,
+                "page": 1,
+                "page_size": 50,
+                "row_count": 50,
+                "first_row": ["User 0", 0],
+                "last_row": ["User 49", 49],
+            },
+            id="defaults_to_first_page",
+        ),
+    ],
+)
+def test_transform_preview_pagination(client, pagination_project, extra_params, condition, value, expected):
     project_id = pagination_project["project_id"]
 
     response = client.post(
         f"/projects/{project_id}/transform",
-        params={
-            "preview": "true",
-            "page": 1,
-            "page_size": 50,
+        params={"preview": "true", **extra_params},
+        json={
+            "operation_type": "filter",
+            "parameters": {
+                "column": "age",
+                "condition": condition,
+                "value": value,
+            },
         },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+
+    assert data["total_rows"] == expected["total_rows"]
+    assert data["total_pages"] == expected["total_pages"]
+    assert data["page"] == expected["page"]
+    assert data["page_size"] == expected["page_size"]
+
+    assert data["row_count"] == expected["row_count"]
+    assert len(data["rows"]) == expected["row_count"]
+
+    assert data["rows"][0] == expected["first_row"]
+    assert data["rows"][-1] == expected["last_row"]
+
+
+@pytest.mark.parametrize(
+    "invalid_params",
+    [
+        {"page": 0, "page_size": 50},
+        {"page": 1, "page_size": 0},
+        {"page": 1, "page_size": 101},
+    ],
+    ids=["page_below_minimum", "page_size_below_minimum", "page_size_above_maximum"],
+)
+def test_transform_preview_rejects_out_of_bounds_query_params(client, pagination_project, invalid_params):
+    # The endpoint declares page/page_size via Query(..., ge=1, le=100); values
+    # outside that range must 422, not silently clamp.
+    project_id = pagination_project["project_id"]
+
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        params={"preview": "true", **invalid_params},
         json={
             "operation_type": "filter",
             "parameters": {
@@ -271,229 +423,4 @@ def test_transform_preview_returns_first_page(client, pagination_project):
         },
     )
 
-    assert response.status_code == 200, response.text
-
-    data = response.json()
-
-    assert data["total_rows"] == 101
-    assert data["total_pages"] == 3
-    assert data["page"] == 1
-    assert data["page_size"] == 50
-
-    assert data["row_count"] == 50
-    assert len(data["rows"]) == 50
-
-    assert data["rows"][0] == ["User 0", 0]
-    assert data["rows"][-1] == ["User 49", 49]
-
-
-def test_transform_preview_returns_second_page(client, pagination_project):
-    project_id = pagination_project["project_id"]
-
-    response = client.post(
-        f"/projects/{project_id}/transform",
-        params={
-            "preview": "true",
-            "page": 2,
-            "page_size": 50,
-        },
-        json={
-            "operation_type": "filter",
-            "parameters": {
-                "column": "age",
-                "condition": ">=",
-                "value": "0",
-            },
-        },
-    )
-
-    assert response.status_code == 200, response.text
-
-    data = response.json()
-
-    assert data["total_rows"] == 101
-    assert data["total_pages"] == 3
-    assert data["page"] == 2
-    assert data["page_size"] == 50
-
-    assert data["row_count"] == 50
-    assert len(data["rows"]) == 50
-
-    assert data["rows"][0] == ["User 50", 50]
-    assert data["rows"][-1] == ["User 99", 99]
-
-
-def test_transform_preview_returns_partial_last_page(client, pagination_project):
-    project_id = pagination_project["project_id"]
-
-    response = client.post(
-        f"/projects/{project_id}/transform",
-        params={
-            "preview": "true",
-            "page": 3,
-            "page_size": 50,
-        },
-        json={
-            "operation_type": "filter",
-            "parameters": {
-                "column": "age",
-                "condition": ">=",
-                "value": "0",
-            },
-        },
-    )
-
-    assert response.status_code == 200, response.text
-
-    data = response.json()
-
-    assert data["total_rows"] == 101
-    assert data["total_pages"] == 3
-    assert data["page"] == 3
-    assert data["page_size"] == 50
-
-    assert data["row_count"] == 1
-    assert len(data["rows"]) == 1
-
-    assert data["rows"][0] == ["User 100", 100]
-
-
-def test_transform_preview_clamps_out_of_range_page(client, pagination_project):
-    project_id = pagination_project["project_id"]
-
-    response = client.post(
-        f"/projects/{project_id}/transform",
-        params={
-            "preview": "true",
-            "page": 999,
-            "page_size": 50,
-        },
-        json={
-            "operation_type": "filter",
-            "parameters": {
-                "column": "age",
-                "condition": ">=",
-                "value": "0",
-            },
-        },
-    )
-
-    assert response.status_code == 200, response.text
-
-    data = response.json()
-
-    assert data["total_rows"] == 101
-    assert data["total_pages"] == 3
-
-    # Page 999 is clamped to the last valid page.
-    assert data["page"] == 3
-    assert data["page_size"] == 50
-
-    assert data["row_count"] == 1
-    assert data["rows"] == [["User 100", 100]]
-
-
-def test_transform_preview_exactly_divisible_by_page_size(client, pagination_project):
-    project_id = pagination_project["project_id"]
-
-    response = client.post(
-        f"/projects/{project_id}/transform",
-        params={
-            "preview": "true",
-            "page": 2,
-            "page_size": 50,
-        },
-        json={
-            "operation_type": "filter",
-            "parameters": {
-                "column": "age",
-                "condition": "<",
-                "value": "100",
-            },
-        },
-    )
-
-    assert response.status_code == 200, response.text
-
-    data = response.json()
-
-    # The filter produces exactly 100 rows.
-    assert data["total_rows"] == 100
-    assert data["total_pages"] == 2
-    assert data["page"] == 2
-    assert data["page_size"] == 50
-
-    assert data["row_count"] == 50
-    assert len(data["rows"]) == 50
-
-    assert data["rows"][0] == ["User 50", 50]
-    assert data["rows"][-1] == ["User 99", 99]
-
-
-def test_transform_preview_page_size_100_boundary(client, pagination_project):
-    project_id = pagination_project["project_id"]
-
-    response = client.post(
-        f"/projects/{project_id}/transform",
-        params={
-            "preview": "true",
-            "page": 1,
-            "page_size": 100,
-        },
-        json={
-            "operation_type": "filter",
-            "parameters": {
-                "column": "age",
-                "condition": ">=",
-                "value": "0",
-            },
-        },
-    )
-
-    assert response.status_code == 200, response.text
-
-    data = response.json()
-
-    assert data["total_rows"] == 101
-    assert data["total_pages"] == 2
-    assert data["page"] == 1
-    assert data["page_size"] == 100
-
-    assert data["row_count"] == 100
-    assert len(data["rows"]) == 100
-
-    assert data["rows"][0] == ["User 0", 0]
-    assert data["rows"][-1] == ["User 99", 99]
-
-
-def test_transform_preview_defaults_to_first_page(client, pagination_project):
-    project_id = pagination_project["project_id"]
-
-    response = client.post(
-        f"/projects/{project_id}/transform",
-        params={"preview": "true"},
-        json={
-            "operation_type": "filter",
-            "parameters": {
-                "column": "age",
-                "condition": ">=",
-                "value": "0",
-            },
-        },
-    )
-
-    assert response.status_code == 200, response.text
-
-    data = response.json()
-
-    # Default page=1 and page_size=50.
-    assert data["total_rows"] == 101
-    assert data["total_pages"] == 3
-    assert data["page"] == 1
-    assert data["page_size"] == 50
-
-    assert data["row_count"] == 50
-    assert len(data["rows"]) == 50
-
-    assert data["rows"][0] == ["User 0", 0]
-    assert data["rows"][-1] == ["User 49", 49]
+    assert response.status_code == 422
