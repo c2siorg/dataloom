@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { RiFileDownloadFill } from "react-icons/ri";
+import { RiDownload2Fill } from "react-icons/ri";
 import { downloadChartAsPng } from "../../utils/chartImage";
 import { createLogger } from "../../utils/logger";
 
@@ -64,7 +64,7 @@ export default function DownloadImageButton({ getTarget, title }: DownloadImageB
             : "border-app-border bg-surface text-muted-foreground hover:border-app-border-hover hover:bg-surface-hover hover:text-foreground"
         }`}
       >
-        <RiFileDownloadFill className="h-3.5 w-3.5" />
+        <RiDownload2Fill className="h-3.5 w-3.5" />
         {LABEL[status]}
       </button>
     </div>
