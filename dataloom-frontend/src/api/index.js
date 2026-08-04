@@ -37,6 +37,6 @@ export {
   getPipelines,
   deletePipeline,
   checkPipeline,
-  checkSteps,
+  checkDraftPipelineSteps,
   applyPipeline,
 } from "./pipelines";

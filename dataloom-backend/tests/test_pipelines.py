@@ -6,9 +6,11 @@ import pandas as pd
 import pytest
 
 from app import models
+from app.services import project_service
 from app.services.pipeline_service import apply_pipeline, check_pipeline_compatibility
+from app.services.project_service import log_transformations_or_restore
 from app.services.transformation_service import TransformationError
-from app.utils.pandas_helpers import read_table_safe
+from app.utils.pandas_helpers import read_table_safe, save_table_safe
 
 
 def _upload(client, sample_csv, name):
@@ -160,10 +162,10 @@ class TestCheckCompatibility:
 
         df = pd.DataFrame({"a": [1, 2]})
         result = check_pipeline_compatibility(df, pipeline)
-        assert result["compatible"] is False
-        assert result["failing_step"] == 0
-        assert result["action_type"] == "filter"
-        assert "missing" in result["reason"]
+        assert result.compatible is False
+        assert result.failing_step == 0
+        assert result.action_type == "filter"
+        assert "missing" in result.reason
 
 
 class TestCheckDraftSteps:
@@ -259,12 +261,12 @@ class TestApplyPipeline:
         target = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(target_project_id)).first()
         original_df = read_table_safe(target.file_path)
 
-        from app.api.endpoints import pipelines as pipelines_endpoint
+        from app.services import project_service
 
         def boom(*args, **kwargs):
             raise RuntimeError("db log failure")
 
-        monkeypatch.setattr(pipelines_endpoint, "log_transformation", boom)
+        monkeypatch.setattr(project_service, "log_transformation", boom)
 
         with pytest.raises(RuntimeError, match="db log failure"):
             client.post(f"/pipelines/{pipeline_id}/apply", json={"project_id": target_project_id})
@@ -310,3 +312,55 @@ class TestAuthIsolation:
         assert client.delete(f"/pipelines/{pipeline.id}").status_code == 404
         assert client.post(f"/pipelines/{pipeline.id}/check", json={"project_id": project_id}).status_code == 404
         assert client.post(f"/pipelines/{pipeline.id}/apply", json={"project_id": project_id}).status_code == 404
+
+
+class TestLogTransformationsOrRestore:
+    """The shared compensating write used by both the transform and the apply path."""
+
+    def test_logs_every_entry_in_order(self, db, project_id):
+        project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
+        df = read_table_safe(project.file_path)
+
+        log_transformations_or_restore(
+            db,
+            project.project_id,
+            project.file_path,
+            df,
+            [("filter", {"operation_type": "filter"}), ("sort", {"operation_type": "sort"})],
+        )
+
+        logs = sorted(
+            db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.project_id == project.project_id).all(),
+            key=lambda log: log.change_log_id,
+        )
+        assert [log.action_type for log in logs] == ["filter", "sort"]
+
+    def test_restores_the_file_and_reraises_when_a_later_entry_fails(self, db, project_id, monkeypatch):
+        """A partial log is the failure this guards: entry one lands, entry two raises."""
+        project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
+        original_df = read_table_safe(project.file_path)
+
+        # Stand in for the transformed data already written to disk.
+        save_table_safe(original_df.head(1), project.file_path)
+
+        calls = {"n": 0}
+        real_log = project_service.log_transformation
+
+        def flaky(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise RuntimeError("db log failure")
+            return real_log(*args, **kwargs)
+
+        monkeypatch.setattr(project_service, "log_transformation", flaky)
+
+        with pytest.raises(RuntimeError, match="db log failure"):
+            log_transformations_or_restore(
+                db,
+                project.project_id,
+                project.file_path,
+                original_df,
+                [("filter", {"operation_type": "filter"}), ("sort", {"operation_type": "sort"})],
+            )
+
+        assert read_table_safe(project.file_path).equals(original_df)

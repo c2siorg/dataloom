@@ -6,25 +6,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app import database, models, schemas
-from app.api.dependencies import fetch_owned_project, get_current_user, load_project_df
+from app.api.dependencies import (
+    fetch_owned_pipeline,
+    fetch_owned_project,
+    get_current_user,
+    load_project_df,
+)
 from app.services import pipeline_service
-from app.services.project_service import log_transformation
+from app.services.project_service import log_transformations_or_restore
 from app.services.transformation_service import TransformationError
-from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, save_table_safe
 from app.utils.security import safe_transformation_error_detail
 
-logger = get_logger(__name__)
-
 router = APIRouter()
-
-
-def _get_owned_pipeline(db: Session, pipeline_id: uuid.UUID, user: models.User) -> models.Pipeline:
-    """Fetch a pipeline owned by the user, 404 otherwise (existence-hiding)."""
-    pipeline = db.query(models.Pipeline).filter(models.Pipeline.id == pipeline_id).first()
-    if pipeline is None or pipeline.owner_id != user.id:
-        raise HTTPException(status_code=404, detail=f"Pipeline with ID {pipeline_id} not found")
-    return pipeline
 
 
 @router.post("", response_model=schemas.PipelineResponse)
@@ -59,7 +53,7 @@ def delete_pipeline(
     current_user: models.User = Depends(get_current_user),
 ):
     """Delete a pipeline and its steps."""
-    pipeline = _get_owned_pipeline(db, pipeline_id, current_user)
+    pipeline = fetch_owned_pipeline(db, pipeline_id, current_user)
     db.delete(pipeline)
     db.commit()
     return {"success": True, "message": "Pipeline deleted"}
@@ -85,7 +79,7 @@ def check_pipeline(
     current_user: models.User = Depends(get_current_user),
 ):
     """Dry-run a pipeline against a project and report the first failing step."""
-    pipeline = _get_owned_pipeline(db, pipeline_id, current_user)
+    pipeline = fetch_owned_pipeline(db, pipeline_id, current_user)
     project = fetch_owned_project(db, body.project_id, current_user)
     df = load_project_df(project)
     return pipeline_service.check_pipeline_compatibility(df, pipeline)
@@ -99,7 +93,7 @@ def apply_pipeline(
     current_user: models.User = Depends(get_current_user),
 ):
     """Replay a pipeline's steps onto a project and log each step."""
-    pipeline = _get_owned_pipeline(db, pipeline_id, current_user)
+    pipeline = fetch_owned_pipeline(db, pipeline_id, current_user)
     project = fetch_owned_project(db, body.project_id, current_user)
 
     df = load_project_df(project)
@@ -109,22 +103,13 @@ def apply_pipeline(
         raise HTTPException(status_code=400, detail=safe_transformation_error_detail(e)) from e
 
     save_table_safe(result_df, project.file_path)
-    try:
-        for step in sorted(pipeline.steps, key=lambda s: s.step_order):
-            log_transformation(db, project.project_id, step.action_type, step.action_details)
-    except Exception:
-        # Compensate the disk mutation if audit logging fails, so the file never
-        # ends up transformed with a missing or partial log — save, undo and
-        # checkpoint replay all read back from these entries.
-        try:
-            save_table_safe(df, project.file_path)
-        except Exception:
-            logger.exception(
-                "Failed to restore project file after log_transformation failure for project_id=%s pipeline_id=%s",
-                project.project_id,
-                pipeline.id,
-            )
-        raise
+    log_transformations_or_restore(
+        db,
+        project.project_id,
+        project.file_path,
+        df,
+        [(step.action_type, step.action_details) for step in sorted(pipeline.steps, key=lambda s: s.step_order)],
+    )
 
     resp = dataframe_to_response(result_df)
     return {

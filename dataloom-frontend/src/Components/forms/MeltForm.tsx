@@ -1,4 +1,4 @@
-import type { TransformFormProps } from "./transformFormProps";
+import { captureStep, type TransformFormProps } from "./transformFormProps";
 import { useState, useEffect, FormEvent } from "react";
 import { transformProject, getProjectDetails } from "../../api";
 import { useProjectContext } from "../../context/ProjectContext";
@@ -78,10 +78,7 @@ const MeltForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
           value_name: finalValueName,
         },
       };
-      if (onCapture) {
-        onCapture({ action_type: payload.operation_type, action_details: payload });
-        return;
-      }
+      if (captureStep(onCapture, payload)) return;
 
       const response = await transformProject(projectId, payload, {
         preview: true,

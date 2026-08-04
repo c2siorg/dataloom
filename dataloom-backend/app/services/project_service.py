@@ -1,8 +1,10 @@
 """Database operations for projects, logs, and checkpoints."""
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
+import pandas as pd
 import sqlalchemy as sa
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
@@ -10,6 +12,7 @@ from sqlmodel import Session
 
 from app import models
 from app.utils.logging import get_logger
+from app.utils.pandas_helpers import save_table_safe
 
 logger = get_logger(__name__)
 
@@ -202,6 +205,45 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
         db.add(project)
     db.commit()
     logger.debug("Logged transformation: project_id=%s, type=%s", project_id, operation_type)
+
+
+def log_transformations_or_restore(
+    db: Session,
+    project_id: uuid.UUID,
+    file_path: str,
+    original_df: pd.DataFrame,
+    entries: Sequence[tuple[str, dict]],
+) -> None:
+    """Log transformation entries, restoring the file if logging fails.
+
+    A transform writes the file first and logs second. If logging fails, the file
+    is left transformed with a missing or partial log — and save, undo and
+    checkpoint replay all read back from those entries. This compensates the disk
+    mutation so the two never drift apart.
+
+    Args:
+        db: Database session.
+        project_id: The project that was transformed.
+        file_path: The working copy that was just overwritten.
+        original_df: The data as it was before the transform, for the restore.
+        entries: The ``(action_type, action_details)`` pairs to log, in order.
+
+    Raises:
+        Exception: Re-raises whatever logging failed with, after restoring.
+    """
+    try:
+        for action_type, action_details in entries:
+            log_transformation(db, project_id, action_type, action_details)
+    except Exception:
+        try:
+            save_table_safe(original_df, file_path)
+        except Exception:
+            logger.exception(
+                "Failed to restore project file after log_transformation failure for project_id=%s ops=%s",
+                project_id,
+                [action_type for action_type, _ in entries],
+            )
+        raise
 
 
 def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> models.Checkpoint:

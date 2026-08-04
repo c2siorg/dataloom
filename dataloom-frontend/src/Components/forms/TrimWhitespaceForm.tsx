@@ -1,4 +1,4 @@
-import type { TransformFormProps } from "./transformFormProps";
+import { captureStep, type TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { TRIM_WHITESPACE } from "../../constants/operationTypes";
@@ -35,10 +35,7 @@ const TrimWhitespaceForm = ({ projectId, onClose, onCapture }: TransformFormProp
           column,
         },
       };
-      if (onCapture) {
-        onCapture({ action_type: payload.operation_type, action_details: payload });
-        return;
-      }
+      if (captureStep(onCapture, payload)) return;
 
       const response = await transformProject(projectId, payload, {
         preview: true,

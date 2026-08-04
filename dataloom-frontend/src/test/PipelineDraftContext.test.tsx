@@ -1,7 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { PipelineDraftProvider, usePipelineDraft } from "../context/PipelineDraftContext";
+import {
+  PipelineDraftProvider,
+  toStepInputs,
+  usePipelineDraft,
+} from "../context/PipelineDraftContext";
 
 // The provider only reads projectId (to reset the draft on project switch).
 vi.mock("../context/ProjectContext", () => ({
@@ -73,5 +77,29 @@ describe("PipelineDraftContext", () => {
 
     expect(result.current.name).toBe("");
     expect(result.current.steps).toEqual([]);
+  });
+});
+
+describe("toStepInputs", () => {
+  it("drops the client-only fields the API does not store", () => {
+    expect(
+      toStepInputs([
+        {
+          id: "1",
+          action_type: "filter",
+          action_details: { operation_type: "filter" },
+          source: "log",
+        },
+        {
+          id: "2",
+          action_type: "sort",
+          action_details: { operation_type: "sort" },
+          source: "manual",
+        },
+      ]),
+    ).toEqual([
+      { action_type: "filter", action_details: { operation_type: "filter" } },
+      { action_type: "sort", action_details: { operation_type: "sort" } },
+    ]);
   });
 });

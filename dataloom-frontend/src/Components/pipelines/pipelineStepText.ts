@@ -7,6 +7,7 @@
  * for the draft list and the saved-pipeline library.
  */
 
+import type { PipelineCompatibility } from "../../api/pipelines";
 import * as OP from "../../constants/operationTypes";
 
 const LABELS: Record<string, string> = {
@@ -36,6 +37,16 @@ const LABELS: Record<string, string> = {
 /** Friendly, title-cased name for an operation (falls back to the raw type). */
 export function stepLabel(actionType: string): string {
   return LABELS[actionType] ?? actionType;
+}
+
+/**
+ * The one-line reason a dry run failed, naming the first failing step.
+ * Shared by the draft eligibility check and the saved-pipeline card, so both
+ * report an incompatible pipeline the same way.
+ */
+export function stepFailureMessage(result: PipelineCompatibility): string {
+  const position = (result.failing_step ?? 0) + 1;
+  return `Step ${position} (${stepLabel(result.action_type ?? "")}) would fail: ${result.reason}`;
 }
 
 type Details = Record<string, unknown>;

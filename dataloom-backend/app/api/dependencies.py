@@ -111,6 +111,31 @@ def fetch_owned_project(db: Session, project_id: uuid.UUID, current_user: models
     return project
 
 
+def fetch_owned_pipeline(db: Session, pipeline_id: uuid.UUID, current_user: models.User) -> models.Pipeline:
+    """Fetch a pipeline owned by the user, 404 otherwise (existence-hiding).
+
+    The pipeline counterpart of :func:`fetch_owned_project`, and a plain helper
+    for the same reason: the pipeline endpoints read the project id from the
+    request body, so they resolve ownership imperatively.
+
+    Args:
+        db: Database session.
+        pipeline_id: The pipeline primary key.
+        current_user: The authenticated user.
+
+    Returns:
+        The Pipeline model instance.
+
+    Raises:
+        HTTPException: 404 if the pipeline does not exist or is not owned by the
+            current user.
+    """
+    pipeline = db.query(models.Pipeline).filter(models.Pipeline.id == pipeline_id).first()
+    if pipeline is None or pipeline.owner_id != current_user.id:
+        raise HTTPException(status_code=404, detail=f"Pipeline with ID {pipeline_id} not found")
+    return pipeline
+
+
 def get_project_or_404(
     project_id: uuid.UUID,
     current_user: models.User = Depends(get_current_user),

@@ -1,4 +1,4 @@
-import type { TransformFormProps } from "./transformFormProps";
+import { captureStep, type TransformFormProps } from "./transformFormProps";
 import { useState, useCallback, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { SORT } from "../../constants/operationTypes";
@@ -111,10 +111,7 @@ const SortForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
           criteria: criteriaList,
         },
       };
-      if (onCapture) {
-        onCapture({ action_type: payload.operation_type, action_details: payload });
-        return;
-      }
+      if (captureStep(onCapture, payload)) return;
 
       const response = await transformProject(projectId, payload, {
         preview: true,

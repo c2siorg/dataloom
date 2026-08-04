@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from sqlmodel import Session
 
 from app import models
-from app.schemas import OperationType, PipelineStepInput
+from app.schemas import OperationType, PipelineCompatibilityResponse, PipelineStepInput
 from app.services.transformation_service import TransformationError, apply_logged_transformation
 from app.utils.logging import get_logger
 
@@ -100,25 +100,22 @@ def _ordered_steps(pipeline: models.Pipeline) -> list[models.PipelineStep]:
     return sorted(pipeline.steps, key=lambda step: step.step_order)
 
 
-def _incompatible(step: _DraftStep, reason: str) -> dict:
-    """Build a PipelineCompatibilityResponse-shaped failure for one step."""
-    return {
-        "compatible": False,
-        "failing_step": step.number,
-        "action_type": step.action_type,
-        "reason": reason,
-    }
+def _incompatible(step: _DraftStep, reason: str) -> PipelineCompatibilityResponse:
+    """Build the failure result for one step."""
+    return PipelineCompatibilityResponse(
+        compatible=False,
+        failing_step=step.number,
+        action_type=step.action_type,
+        reason=reason,
+    )
 
 
-def _dry_run_steps(df: pd.DataFrame, steps: list[_DraftStep]) -> dict:
+def _dry_run_steps(df: pd.DataFrame, steps: list[_DraftStep]) -> PipelineCompatibilityResponse:
     """Replay draft steps against a DataFrame and report the first failure.
 
     Shared by the saved-pipeline check and the unsaved-draft check. A step the
     save path would reject fails here too, so a draft that reports compatible is
     always saveable.
-
-    Returns:
-        Dict shaped like PipelineCompatibilityResponse.
     """
     for step in steps:
         rejection = _step_rejection_reason(step.action_type)
@@ -129,16 +126,16 @@ def _dry_run_steps(df: pd.DataFrame, steps: list[_DraftStep]) -> dict:
         except (TransformationError, HTTPException, KeyError, TypeError) as e:
             reason = e.detail if isinstance(e, HTTPException) else str(e)
             return _incompatible(step, str(reason))
-    return {"compatible": True, "failing_step": None, "action_type": None, "reason": None}
+    return PipelineCompatibilityResponse(compatible=True)
 
 
-def check_pipeline_compatibility(df: pd.DataFrame, pipeline: models.Pipeline) -> dict:
+def check_pipeline_compatibility(df: pd.DataFrame, pipeline: models.Pipeline) -> PipelineCompatibilityResponse:
     """Dry-run a saved pipeline against a DataFrame and report the first failure."""
     steps = [_DraftStep(step.step_order, step.action_type, step.action_details) for step in _ordered_steps(pipeline)]
     return _dry_run_steps(df, steps)
 
 
-def check_steps_compatibility(df: pd.DataFrame, steps: list[PipelineStepInput]) -> dict:
+def check_steps_compatibility(df: pd.DataFrame, steps: list[PipelineStepInput]) -> PipelineCompatibilityResponse:
     """Dry-run an unsaved list of draft steps against a DataFrame (0-based step numbers)."""
     drafts = [_DraftStep(order, step.action_type, step.action_details) for order, step in enumerate(steps)]
     return _dry_run_steps(df, drafts)

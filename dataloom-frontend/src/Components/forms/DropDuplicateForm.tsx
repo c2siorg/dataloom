@@ -1,4 +1,4 @@
-import type { TransformFormProps } from "./transformFormProps";
+import { captureStep, type TransformFormProps } from "./transformFormProps";
 import { useState, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { DROP_DUPLICATE } from "../../constants/operationTypes";
@@ -44,10 +44,7 @@ const DropDuplicateForm = ({ projectId, onClose, onCapture }: TransformFormProps
     };
 
     try {
-      if (onCapture) {
-        onCapture({ action_type: payload.operation_type, action_details: payload });
-        return;
-      }
+      if (captureStep(onCapture, payload)) return;
 
       const response = await transformProject(projectId, payload, {
         preview: true,
