@@ -212,6 +212,24 @@ class TestCheckDraftSteps:
         assert body["action_type"] == "addFile"
         assert "addFile" in body["reason"]
 
+    def test_pandas_native_failure_is_reported_not_a_500(self, client, target_project_id):
+        """Transform functions pass user input straight to pandas, which raises its
+        own error types — here AttributeError from the query parser. A step that
+        cannot run is a step failure, not a server fault."""
+        steps = [
+            {"action_type": "advQueryFilter", "action_details": {"adv_query": {"query": "age >> 3"}}},
+        ]
+        response = client.post(
+            "/pipelines/check-steps",
+            json={"project_id": target_project_id, "steps": steps},
+        )
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["compatible"] is False
+        assert body["failing_step"] == 0
+        assert body["action_type"] == "advQueryFilter"
+        assert body["reason"]
+
     def test_unknown_action_type_draft_is_incompatible(self, client, target_project_id):
         """The draft check rejects what the save path rejects, rather than replaying it."""
         steps = [
