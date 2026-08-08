@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /** A numbered "—— Step N —— Title ——" divider that opens each part of the form. */
-export function SectionHeader({ n, title, hint }: { n: number; title: string; hint?: string }) {
+function SectionHeader({ n, title, hint }: { n: number; title: string; hint?: string }) {
   return (
     <div className="flex items-center gap-3">
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-surface">

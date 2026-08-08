@@ -57,6 +57,20 @@ const asRecord = (value: unknown): Details | null =>
 const str = (value: unknown): string => (value == null ? "" : String(value));
 
 /**
+ * The step's parameter bag. A transform payload is `operation_type` plus exactly
+ * one op-specific object (`sort_params`, `pivot_query`, `drop_duplicate`, …), so
+ * reading the first object value keeps the backend's field names out of here.
+ */
+const params = (details: Details): Details | null => {
+  for (const [key, value] of Object.entries(details)) {
+    if (key === "operation_type") continue;
+    const record = asRecord(value);
+    if (record) return record;
+  }
+  return null;
+};
+
+/**
  * A short summary of a step's parameters, e.g. `age > 26` or `price → float`.
  * Returns "" when there's nothing legible to show, so callers can render the
  * label alone.
@@ -64,12 +78,12 @@ const str = (value: unknown): string => (value == null ? "" : String(value));
 export function stepSummary(actionType: string, details: Details): string {
   switch (actionType) {
     case OP.FILTER: {
-      const p = asRecord(details.parameters);
+      const p = params(details);
       if (!p) return "";
       return [str(p.column), str(p.condition), str(p.value)].filter(Boolean).join(" ");
     }
     case OP.SORT: {
-      const p = asRecord(details.sort_params);
+      const p = params(details);
       const criteria = Array.isArray(p?.criteria) ? (p!.criteria as Details[]) : null;
       if (criteria?.length) {
         return criteria
@@ -80,21 +94,21 @@ export function stepSummary(actionType: string, details: Details): string {
       return "";
     }
     case OP.CAST_DATA_TYPE: {
-      const p = asRecord(details.cast_data_type_params);
+      const p = params(details);
       if (!p?.column) return "";
       return `${str(p.column)} → ${str(p.target_type)}`;
     }
     case OP.TRIM_WHITESPACE: {
-      const p = asRecord(details.trim_whitespace_params);
+      const p = params(details);
       return str(p?.column);
     }
     case OP.STRING_REPLACE: {
-      const p = asRecord(details.string_replace_params);
+      const p = params(details);
       if (!p?.column) return "";
       return `${str(p.column)}: "${str(p.find_value)}" → "${str(p.replace_value)}"`;
     }
     case OP.GROUPBY: {
-      const p = asRecord(details.groupby_params);
+      const p = params(details);
       if (!p) return "";
       const by = Array.isArray(p.columns) ? p.columns.join(", ") : str(p.columns);
       const agg =
@@ -102,28 +116,28 @@ export function stepSummary(actionType: string, details: Details): string {
       return [by && `by ${by}`, agg].filter(Boolean).join(" · ");
     }
     case OP.PIVOT_TABLES: {
-      const p = asRecord(details.pivot_query);
+      const p = params(details);
       if (!p) return "";
       return [str(p.value), p.column && `by ${str(p.column)}`].filter(Boolean).join(" ");
     }
     case OP.ADV_QUERY_FILTER: {
-      const p = asRecord(details.adv_query);
+      const p = params(details);
       return p?.query ? `"${str(p.query)}"` : "";
     }
     case OP.DROP_DUPLICATE: {
-      const p = asRecord(details.drop_duplicate);
+      const p = params(details);
       const cols = str(p?.columns);
       return cols || "all columns";
     }
     case OP.ADD_FORMULA_COLUMN: {
-      const p = asRecord(details.formula_col_params);
+      const p = params(details);
       if (!p) return "";
       return [str(p.column_name), p.expression && `= ${str(p.expression)}`]
         .filter(Boolean)
         .join(" ");
     }
     case OP.FILL_EMPTY: {
-      const p = asRecord(details.fill_empty_params);
+      const p = params(details);
       return p?.strategy ? str(p.strategy) : "";
     }
     default:

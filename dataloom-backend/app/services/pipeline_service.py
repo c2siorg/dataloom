@@ -7,41 +7,48 @@ add no transformation logic of their own.
 """
 
 import uuid
-from typing import NamedTuple
+from collections.abc import Sequence
 
 import pandas as pd
 from fastapi import HTTPException
 from sqlmodel import Session
 
 from app import models
-from app.schemas import OperationType, PipelineCompatibilityResponse, PipelineStepInput
-from app.services.transformation_service import TransformationError, apply_logged_transformation
+from app.schemas import PipelineCompatibilityResponse, PipelineStepInput
+from app.services.project_service import log_transformations_or_restore
+from app.services.transformation_service import (
+    TRANSFORMATION_REGISTRY,
+    TransformationError,
+    apply_logged_transformation,
+)
 from app.utils.logging import get_logger
+from app.utils.pandas_helpers import save_table_safe
 
 logger = get_logger(__name__)
 
-_VALID_ACTION_TYPES = {op.value for op in OperationType}
-
-
-class _DraftStep(NamedTuple):
-    """One step queued for a dry run: its position plus what to replay."""
-
-    number: int
-    action_type: str
-    action_details: dict
+# One replayable step, as both a saved pipeline and an unsaved draft express it.
+Step = tuple[str, dict]
 
 
 def _step_rejection_reason(action_type: str) -> str | None:
     """Return why a step may not belong to a pipeline, or None if it is allowed.
 
-    The single rule shared by the save path and the draft check, so a draft can
+    Reusability is a property of the operation, so the registry owns it: an
+    operation bound to one project is marked ``reusable=False`` there. This is
+    the single rule shared by the save path and the draft check, so a draft can
     never pass the check and then be rejected on save.
     """
-    if action_type not in _VALID_ACTION_TYPES:
+    spec = TRANSFORMATION_REGISTRY.get(action_type)
+    if spec is None:
         return f"Unknown action type: {action_type}"
-    if action_type == OperationType.addFile:
-        return "addFile steps cannot be included in a pipeline"
+    if not spec.reusable:
+        return f"{action_type} steps cannot be included in a pipeline"
     return None
+
+
+def pipeline_steps(pipeline: models.Pipeline) -> list[Step]:
+    """The pipeline's steps in run order, as replayable pairs."""
+    return [(step.action_type, step.action_details) for step in sorted(pipeline.steps, key=lambda s: s.step_order)]
 
 
 def create_pipeline_from_steps(
@@ -68,8 +75,8 @@ def create_pipeline_from_steps(
         The persisted Pipeline with its steps.
 
     Raises:
-        HTTPException: 400 if a step has an unknown action_type, or an addFile
-            step is included (its stored file is project-scoped).
+        HTTPException: 400 if a step has an unknown action_type, or is an
+            operation the registry marks as not reusable.
     """
     for step in steps:
         rejection = _step_rejection_reason(step.action_type)
@@ -96,57 +103,45 @@ def create_pipeline_from_steps(
     return pipeline
 
 
-def _ordered_steps(pipeline: models.Pipeline) -> list[models.PipelineStep]:
-    return sorted(pipeline.steps, key=lambda step: step.step_order)
+def _replay(df: pd.DataFrame, steps: Sequence[Step]) -> tuple[pd.DataFrame, PipelineCompatibilityResponse | None]:
+    """Replay steps in order, stopping at the first one that fails.
 
+    The single replay path behind both the compatibility check and the apply, so
+    the two can never disagree about what a pipeline accepts.
 
-def _incompatible(step: _DraftStep, reason: str) -> PipelineCompatibilityResponse:
-    """Build the failure result for one step."""
-    return PipelineCompatibilityResponse(
-        compatible=False,
-        failing_step=step.number,
-        action_type=step.action_type,
-        reason=reason,
-    )
-
-
-def _dry_run_steps(df: pd.DataFrame, steps: list[_DraftStep]) -> PipelineCompatibilityResponse:
-    """Replay draft steps against a DataFrame and report the first failure.
-
-    Shared by the saved-pipeline check and the unsaved-draft check. A step the
-    save path would reject fails here too, so a draft that reports compatible is
-    always saveable.
+    Returns:
+        The DataFrame as far as it got, plus the failure for the first bad step
+        (None when every step ran).
     """
-    for step in steps:
-        rejection = _step_rejection_reason(step.action_type)
-        if rejection is not None:
-            return _incompatible(step, rejection)
-        try:
-            df = apply_logged_transformation(df, step.action_type, step.action_details)
-        except (TransformationError, HTTPException, KeyError, TypeError) as e:
-            reason = e.detail if isinstance(e, HTTPException) else str(e)
-            return _incompatible(step, str(reason))
-    return PipelineCompatibilityResponse(compatible=True)
+    for number, (action_type, action_details) in enumerate(steps):
+        reason = _step_rejection_reason(action_type)
+        if reason is None:
+            try:
+                df = apply_logged_transformation(df, action_type, action_details)
+                continue
+            except (TransformationError, HTTPException, KeyError, TypeError) as e:
+                reason = str(e.detail if isinstance(e, HTTPException) else e)
+        return df, PipelineCompatibilityResponse(
+            compatible=False,
+            failing_step=number,
+            action_type=action_type,
+            reason=reason,
+        )
+    return df, None
 
 
-def check_pipeline_compatibility(df: pd.DataFrame, pipeline: models.Pipeline) -> PipelineCompatibilityResponse:
-    """Dry-run a saved pipeline against a DataFrame and report the first failure."""
-    steps = [_DraftStep(step.step_order, step.action_type, step.action_details) for step in _ordered_steps(pipeline)]
-    return _dry_run_steps(df, steps)
+def check_steps_compatibility(df: pd.DataFrame, steps: Sequence[Step]) -> PipelineCompatibilityResponse:
+    """Dry-run steps against a DataFrame and report the first failing one."""
+    _, failure = _replay(df, steps)
+    return failure or PipelineCompatibilityResponse(compatible=True)
 
 
-def check_steps_compatibility(df: pd.DataFrame, steps: list[PipelineStepInput]) -> PipelineCompatibilityResponse:
-    """Dry-run an unsaved list of draft steps against a DataFrame (0-based step numbers)."""
-    drafts = [_DraftStep(order, step.action_type, step.action_details) for order, step in enumerate(steps)]
-    return _dry_run_steps(df, drafts)
-
-
-def apply_pipeline(df: pd.DataFrame, pipeline: models.Pipeline) -> pd.DataFrame:
-    """Replay every pipeline step on the DataFrame.
+def apply_pipeline(df: pd.DataFrame, steps: Sequence[Step]) -> pd.DataFrame:
+    """Replay every step on the DataFrame.
 
     Args:
         df: The target project's current data.
-        pipeline: The pipeline to apply.
+        steps: The steps to replay, in run order.
 
     Returns:
         The transformed DataFrame.
@@ -154,10 +149,38 @@ def apply_pipeline(df: pd.DataFrame, pipeline: models.Pipeline) -> pd.DataFrame:
     Raises:
         TransformationError: If a step fails, with the step context prepended.
     """
-    for step in _ordered_steps(pipeline):
-        try:
-            df = apply_logged_transformation(df, step.action_type, step.action_details)
-        except (TransformationError, HTTPException, KeyError, TypeError) as e:
-            reason = e.detail if isinstance(e, HTTPException) else str(e)
-            raise TransformationError(f"Pipeline step {step.step_order} ({step.action_type}) failed: {reason}") from e
-    return df
+    result_df, failure = _replay(df, steps)
+    if failure is not None:
+        raise TransformationError(
+            f"Pipeline step {failure.failing_step} ({failure.action_type}) failed: {failure.reason}"
+        )
+    return result_df
+
+
+def apply_pipeline_to_project(
+    db: Session, project: models.Project, pipeline: models.Pipeline, df: pd.DataFrame
+) -> pd.DataFrame:
+    """Replay a pipeline onto a project's working copy and log every step.
+
+    Logging each step as a change-log row is what keeps save, undo and
+    checkpoint replay working on a pipeline run exactly as on a manual
+    transform. The caller supplies the loaded DataFrame so the file is read
+    through the endpoint layer's redacting reader.
+
+    Args:
+        db: Database session.
+        project: The target project.
+        pipeline: The pipeline to replay.
+        df: The project's current data.
+
+    Returns:
+        The transformed DataFrame.
+
+    Raises:
+        TransformationError: If a step fails; nothing is written.
+    """
+    steps = pipeline_steps(pipeline)
+    result_df = apply_pipeline(df, steps)
+    save_table_safe(result_df, project.file_path)
+    log_transformations_or_restore(db, project.project_id, project.file_path, df, steps)
+    return result_df

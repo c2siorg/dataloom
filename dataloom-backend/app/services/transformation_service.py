@@ -926,6 +926,9 @@ class TransformationSpec:
             passed to ``func`` after ``df``.
         replay_tolerant: When ``True``, a replay whose parameters are missing/
             incomplete is skipped (returns ``df`` unchanged) instead of raising.
+        reusable: When ``False``, the operation is bound to the project it was
+            logged against and may not be replayed on another one — so it cannot
+            belong to a saved pipeline.
     """
 
     func: str
@@ -933,6 +936,7 @@ class TransformationSpec:
     missing_error: str | None
     build_args: Callable[[dict], tuple]
     replay_tolerant: bool = False
+    reusable: bool = True
 
 
 def _col_params(details: dict, field: str) -> dict:
@@ -1103,6 +1107,9 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         params_field="add_file_params",
         missing_error="Add file operations must use the /files endpoint",
         build_args=lambda d: (d["add_file_params"]["file_path"],),
+        # The stored file belongs to one project, so an append cannot be replayed
+        # onto another: this is what keeps addFile out of pipelines.
+        reusable=False,
     ),
     OperationType.addFormulaCol: TransformationSpec(
         func="add_formula_column",

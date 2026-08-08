@@ -184,8 +184,39 @@ def delete_project(db: Session, project: models.Project) -> None:
     )
 
 
+def log_transformations(db: Session, project_id: uuid.UUID, entries: Sequence[tuple[str, dict]]) -> None:
+    """Record transformation actions in the change log, in one commit.
+
+    A pipeline run logs a whole sequence at once, so the project is touched once
+    and the rows land together rather than one commit per step.
+
+    Args:
+        db: Database session.
+        project_id: The project that was transformed.
+        entries: The ``(operation_type, details)`` pairs to record, in order.
+    """
+    for operation_type, details in entries:
+        db.add(
+            models.ProjectChangeLog(
+                project_id=project_id,
+                action_type=operation_type,
+                action_details=details,
+            )
+        )
+    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
+    if project:
+        project.last_modified = datetime.now(UTC)
+        db.add(project)
+    db.commit()
+    logger.debug(
+        "Logged transformations: project_id=%s, types=%s",
+        project_id,
+        [operation_type for operation_type, _ in entries],
+    )
+
+
 def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, details: dict) -> None:
-    """Record a transformation action in the change log.
+    """Record a single transformation action in the change log.
 
     Args:
         db: Database session.
@@ -193,18 +224,7 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
         operation_type: The type of operation performed.
         details: Full transformation parameters as a dict.
     """
-    log = models.ProjectChangeLog(
-        project_id=project_id,
-        action_type=operation_type,
-        action_details=details,
-    )
-    db.add(log)
-    project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
-    if project:
-        project.last_modified = datetime.now(UTC)
-        db.add(project)
-    db.commit()
-    logger.debug("Logged transformation: project_id=%s, type=%s", project_id, operation_type)
+    log_transformations(db, project_id, [(operation_type, details)])
 
 
 def log_transformations_or_restore(
@@ -217,9 +237,10 @@ def log_transformations_or_restore(
     """Log transformation entries, restoring the file if logging fails.
 
     A transform writes the file first and logs second. If logging fails, the file
-    is left transformed with a missing or partial log — and save, undo and
-    checkpoint replay all read back from those entries. This compensates the disk
-    mutation so the two never drift apart.
+    is left transformed with no log — and save, undo and checkpoint replay all
+    read back from those entries. This compensates the disk mutation so the two
+    never drift apart. The entries commit together, so a failed run logs none of
+    them.
 
     Args:
         db: Database session.
@@ -232,8 +253,7 @@ def log_transformations_or_restore(
         Exception: Re-raises whatever logging failed with, after restoring.
     """
     try:
-        for action_type, action_details in entries:
-            log_transformation(db, project_id, action_type, action_details)
+        log_transformations(db, project_id, entries)
     except Exception:
         try:
             save_table_safe(original_df, file_path)

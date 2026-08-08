@@ -7,7 +7,7 @@ import pytest
 
 from app import models
 from app.services import project_service
-from app.services.pipeline_service import apply_pipeline, check_pipeline_compatibility
+from app.services.pipeline_service import apply_pipeline, check_steps_compatibility, pipeline_steps
 from app.services.project_service import log_transformations_or_restore
 from app.services.transformation_service import TransformationError
 from app.utils.pandas_helpers import read_table_safe, save_table_safe
@@ -161,7 +161,7 @@ class TestCheckCompatibility:
         db.refresh(pipeline)
 
         df = pd.DataFrame({"a": [1, 2]})
-        result = check_pipeline_compatibility(df, pipeline)
+        result = check_steps_compatibility(df, pipeline_steps(pipeline))
         assert result.compatible is False
         assert result.failing_step == 0
         assert result.action_type == "filter"
@@ -266,7 +266,7 @@ class TestApplyPipeline:
         def boom(*args, **kwargs):
             raise RuntimeError("db log failure")
 
-        monkeypatch.setattr(project_service, "log_transformation", boom)
+        monkeypatch.setattr(project_service, "log_transformations", boom)
 
         with pytest.raises(RuntimeError, match="db log failure"):
             client.post(f"/pipelines/{pipeline_id}/apply", json={"project_id": target_project_id})
@@ -290,7 +290,7 @@ class TestApplyPipeline:
 
         df = pd.DataFrame({"a": [1, 2]})
         with pytest.raises(TransformationError, match=r"step 0 \(filter\)"):
-            apply_pipeline(df, pipeline)
+            apply_pipeline(df, pipeline_steps(pipeline))
 
 
 class TestAuthIsolation:
@@ -335,24 +335,18 @@ class TestLogTransformationsOrRestore:
         )
         assert [log.action_type for log in logs] == ["filter", "sort"]
 
-    def test_restores_the_file_and_reraises_when_a_later_entry_fails(self, db, project_id, monkeypatch):
-        """A partial log is the failure this guards: entry one lands, entry two raises."""
+    def test_restores_the_file_and_reraises_when_logging_fails(self, db, project_id, monkeypatch):
+        """The file must never stay transformed with no log behind it."""
         project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
         original_df = read_table_safe(project.file_path)
 
         # Stand in for the transformed data already written to disk.
         save_table_safe(original_df.head(1), project.file_path)
 
-        calls = {"n": 0}
-        real_log = project_service.log_transformation
+        def boom(*args, **kwargs):
+            raise RuntimeError("db log failure")
 
-        def flaky(*args, **kwargs):
-            calls["n"] += 1
-            if calls["n"] == 2:
-                raise RuntimeError("db log failure")
-            return real_log(*args, **kwargs)
-
-        monkeypatch.setattr(project_service, "log_transformation", flaky)
+        monkeypatch.setattr(project_service, "log_transformations", boom)
 
         with pytest.raises(RuntimeError, match="db log failure"):
             log_transformations_or_restore(

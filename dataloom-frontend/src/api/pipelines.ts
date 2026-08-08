@@ -4,17 +4,15 @@
  */
 import client from "./client";
 
-/** One stored step of a pipeline (copied from a change-log entry). */
-export interface PipelineStep {
-  step_order: number;
-  action_type: string;
-  action_details: Record<string, unknown>;
-}
-
 /** A step to save into a pipeline: an operation plus its serialized parameters. */
 export interface PipelineStepInput {
   action_type: string;
   action_details: Record<string, unknown>;
+}
+
+/** One stored step of a pipeline: the same pair, plus its position in the run order. */
+export interface PipelineStep extends PipelineStepInput {
+  step_order: number;
 }
 
 /** A saved pipeline with its ordered steps. */

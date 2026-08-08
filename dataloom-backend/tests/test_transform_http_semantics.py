@@ -234,7 +234,7 @@ def test_transform_reverts_file_if_log_transformation_fails(client, project, mon
     def boom(*args, **kwargs):
         raise RuntimeError("db log failure")
 
-    monkeypatch.setattr(project_service, "log_transformation", boom)
+    monkeypatch.setattr(project_service, "log_transformations", boom)
 
     response = client.post(
         f"/projects/{project_id}/transform",

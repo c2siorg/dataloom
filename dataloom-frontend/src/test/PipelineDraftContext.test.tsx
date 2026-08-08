@@ -67,15 +67,13 @@ describe("PipelineDraftContext", () => {
     expect(result.current.steps.map((s) => s.action_type)).toEqual(["filter", "sort"]);
   });
 
-  it("clearDraft empties the name and steps", () => {
+  it("clearDraft empties the steps", () => {
     const { result } = renderHook(() => usePipelineDraft(), { wrapper });
 
-    act(() => result.current.setName("Monthly"));
     act(() => result.current.addStep(step("filter")));
 
     act(() => result.current.clearDraft());
 
-    expect(result.current.name).toBe("");
     expect(result.current.steps).toEqual([]);
   });
 });

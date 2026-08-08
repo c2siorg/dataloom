@@ -1,38 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
 import { LuPlus } from "react-icons/lu";
-import { getLogs } from "../../api";
 import { usePipelineDraft } from "../../context/PipelineDraftContext";
-import { useHistoryRefreshTokens } from "../../context/HistoryRefreshContext";
 import { useToast } from "../../context/ToastContext";
+import { useLogs, type LogEntry } from "../../hooks/useLogs";
 import { stepLabel } from "./pipelineStepText";
 import { StepText } from "./StepText";
-
-interface LogEntry {
-  id: number;
-  action_type: string;
-  action_details: Record<string, unknown>;
-  timestamp: string;
-}
 
 /** Always-visible list of the project's logged steps; clicking one appends it to the draft. */
 export function HistoryList({ projectId }: { projectId: string }) {
   const { addStep } = usePipelineDraft();
   const { showToast } = useToast();
-  const { logsToken } = useHistoryRefreshTokens();
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-
-  const loadLogs = useCallback(async () => {
-    try {
-      setLogs(await getLogs(projectId));
-    } catch {
-      setLogs([]);
-    }
-  }, [projectId]);
-
-  // Refetch on mount and whenever a mutation bumps the logs token.
-  useEffect(() => {
-    loadLogs();
-  }, [loadLogs, logsToken]);
+  const logs = useLogs(projectId);
 
   const addLog = (log: LogEntry) => {
     addStep({ action_type: log.action_type, action_details: log.action_details, source: "log" });

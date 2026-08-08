@@ -3,6 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import selectinload
 from sqlmodel import Session
 
 from app import database, models, schemas
@@ -13,9 +14,8 @@ from app.api.dependencies import (
     load_project_df,
 )
 from app.services import pipeline_service
-from app.services.project_service import log_transformations_or_restore
 from app.services.transformation_service import TransformationError
-from app.utils.pandas_helpers import dataframe_to_response, save_table_safe
+from app.utils.pandas_helpers import dataframe_to_response
 from app.utils.security import safe_transformation_error_detail
 
 router = APIRouter()
@@ -40,6 +40,7 @@ def list_pipelines(
     """List the current user's pipelines, newest first."""
     return (
         db.query(models.Pipeline)
+        .options(selectinload(models.Pipeline.steps))
         .filter(models.Pipeline.owner_id == current_user.id)
         .order_by(models.Pipeline.created_at.desc())
         .all()
@@ -68,7 +69,9 @@ def check_steps(
     """Dry-run an unsaved list of draft steps against a project (before saving)."""
     project = fetch_owned_project(db, body.project_id, current_user)
     df = load_project_df(project)
-    return pipeline_service.check_steps_compatibility(df, body.steps)
+    return pipeline_service.check_steps_compatibility(
+        df, [(step.action_type, step.action_details) for step in body.steps]
+    )
 
 
 @router.post("/{pipeline_id}/check", response_model=schemas.PipelineCompatibilityResponse)
@@ -82,7 +85,7 @@ def check_pipeline(
     pipeline = fetch_owned_pipeline(db, pipeline_id, current_user)
     project = fetch_owned_project(db, body.project_id, current_user)
     df = load_project_df(project)
-    return pipeline_service.check_pipeline_compatibility(df, pipeline)
+    return pipeline_service.check_steps_compatibility(df, pipeline_service.pipeline_steps(pipeline))
 
 
 @router.post("/{pipeline_id}/apply", response_model=schemas.BasicQueryResponse)
@@ -98,18 +101,9 @@ def apply_pipeline(
 
     df = load_project_df(project)
     try:
-        result_df = pipeline_service.apply_pipeline(df, pipeline)
+        result_df = pipeline_service.apply_pipeline_to_project(db, project, pipeline, df)
     except TransformationError as e:
         raise HTTPException(status_code=400, detail=safe_transformation_error_detail(e)) from e
-
-    save_table_safe(result_df, project.file_path)
-    log_transformations_or_restore(
-        db,
-        project.project_id,
-        project.file_path,
-        df,
-        [(step.action_type, step.action_details) for step in sorted(pipeline.steps, key=lambda s: s.step_order)],
-    )
 
     resp = dataframe_to_response(result_df)
     return {

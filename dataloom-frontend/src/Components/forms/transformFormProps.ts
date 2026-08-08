@@ -7,14 +7,14 @@
  * `{ action_type, action_details }`, the same pair a change-log row stores — instead
  * of previewing it against the current project.
  */
+import type { PanelProps } from "../workspace/featureRegistry";
+
 export interface CaptureStep {
   action_type: string;
   action_details: Record<string, unknown>;
 }
 
-export interface TransformFormProps {
-  projectId: string;
-  onClose: () => void;
+export interface TransformFormProps extends PanelProps {
   /** When set, capture the built step instead of applying it (pipeline builder). */
   onCapture?: (step: CaptureStep) => void;
 }
