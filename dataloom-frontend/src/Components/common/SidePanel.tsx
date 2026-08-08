@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 
 interface SidePanelProps {
   title: string;
-  onClose: () => void;
+  /** Omit for a pinned panel: no close button is drawn and the panel stays put. */
+  onClose?: () => void;
   children: ReactNode;
 }
 
@@ -21,15 +22,17 @@ const SidePanel = ({ title, onClose, children }: SidePanelProps) => {
     >
       <div className="flex items-center justify-between border-b bg-elevated border-app-border h-9 px-4">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close panel"
-          data-testid="side-panel-close"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close panel"
+            data-testid="side-panel-close"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto p-4">{children}</div>
     </aside>

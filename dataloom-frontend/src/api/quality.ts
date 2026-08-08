@@ -1,5 +1,5 @@
 /**
- * API functions for data quality assessment (run, history, stored reports).
+ * API functions for data quality assessment (run, history, stored assessments).
  * @module api/quality
  */
 import client from "./client";
@@ -42,8 +42,8 @@ export interface QualityRemediation {
   operation: string | null;
 }
 
-/** A full quality assessment report. Scores are 0–100. Computed on demand. */
-export interface QualityReport {
+/** A full quality assessment. Scores are 0–100. Computed on demand. */
+export interface QualityAssessment {
   overall_score: number;
   issue_count: number;
   issues: QualityIssue[];
@@ -53,15 +53,15 @@ export interface QualityReport {
 
 /**
  * Run a quality assessment on the project's current data. Nothing is persisted
- * server-side; the report reflects the working copy at call time.
+ * server-side; the assessment reflects the working copy at call time.
  * @param projectId - The project ID.
  * @param config - Optional detector configuration (outlier method, pattern rules).
- * @returns The full scored report.
+ * @returns The full scored assessment.
  */
 export const runQualityAssessment = async (
   projectId: string,
   config: QualityAssessConfig = {},
-): Promise<QualityReport> => {
-  const response = await client.post<QualityReport>(`/projects/${projectId}/quality`, config);
+): Promise<QualityAssessment> => {
+  const response = await client.post<QualityAssessment>(`/projects/${projectId}/quality`, config);
   return response.data;
 };

@@ -7,7 +7,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { runQualityAssessment, type QualityAssessConfig, type QualityReport } from "../api/quality";
+import {
+  runQualityAssessment,
+  type QualityAssessConfig,
+  type QualityAssessment,
+} from "../api/quality";
 import { useProjectContext } from "./ProjectContext";
 
 /** One completed run this session: its score and when it finished. */
@@ -17,12 +21,12 @@ export interface QualityRunEntry {
 }
 
 interface QualityViewValue {
-  report: QualityReport | null;
+  assessment: QualityAssessment | null;
   loading: boolean;
   error: boolean;
-  /** True when the data changed after the shown report was produced. */
+  /** True when the data changed after the shown assessment was produced. */
   stale: boolean;
-  /** Scores of this session's runs, oldest first (reports aren't persisted). */
+  /** Scores of this session's runs, oldest first (assessments aren't persisted). */
   runHistory: QualityRunEntry[];
   /** Run an assessment; no config re-runs with the last-used config. */
   run: (config?: QualityAssessConfig) => void;
@@ -39,12 +43,12 @@ export function useQualityView(): QualityViewValue {
 }
 
 /**
- * Holds the latest quality report so the side-panel config (inputs) and the
- * Quality tab (results) stay in sync, and owns the assessment call. Reports are
+ * Holds the latest quality assessment so the side-panel config (inputs) and the
+ * Quality tab (results) stay in sync, and owns the assessment call. Assessments are
  * computed on demand and never persisted; `runHistory` keeps this session's
  * scores in memory so the user can watch the score climb as they clean. The
  * tab auto-runs its first assessment on open; after that runs are manual — the
- * report is flagged `stale` when the dataset changes and the tab offers a
+ * assessment is flagged `stale` when the dataset changes and the tab offers a
  * re-run, rather than re-running on every transform.
  */
 export function QualityViewProvider({ children }: { children: ReactNode }) {
@@ -53,7 +57,7 @@ export function QualityViewProvider({ children }: { children: ReactNode }) {
     dataVersion: number;
   };
 
-  const [report, setReport] = useState<QualityReport | null>(null);
+  const [assessment, setAssessment] = useState<QualityAssessment | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [versionAtRun, setVersionAtRun] = useState(0);
@@ -68,7 +72,7 @@ export function QualityViewProvider({ children }: { children: ReactNode }) {
       setError(false);
       try {
         const result = await runQualityAssessment(projectId, lastConfig.current);
-        setReport(result);
+        setAssessment(result);
         setVersionAtRun(dataVersion);
         setRunHistory((prev) => [...prev, { score: result.overall_score, at: Date.now() }]);
       } catch (err) {
@@ -83,14 +87,14 @@ export function QualityViewProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<QualityViewValue>(
     () => ({
-      report,
+      assessment,
       loading,
       error,
-      stale: report !== null && dataVersion !== versionAtRun,
+      stale: assessment !== null && dataVersion !== versionAtRun,
       runHistory,
       run: (config?: QualityAssessConfig) => void run(config),
     }),
-    [report, loading, error, dataVersion, versionAtRun, runHistory, run],
+    [assessment, loading, error, dataVersion, versionAtRun, runHistory, run],
   );
 
   return <QualityViewContext.Provider value={value}>{children}</QualityViewContext.Provider>;

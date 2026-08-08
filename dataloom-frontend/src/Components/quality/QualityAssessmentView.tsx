@@ -2,7 +2,7 @@ import type {
   IssueSeverity,
   QualityIssue,
   QualityRemediation,
-  QualityReport,
+  QualityAssessment,
 } from "../../api/quality";
 import type { QualityRunEntry } from "../../context/QualityViewContext";
 import { usePanel } from "../../context/PanelContext";
@@ -58,13 +58,13 @@ function scoreBand(score: number): { label: string; text: string; bar: string } 
   return { label: "Critical", text: "text-red-600 dark:text-red-400", bar: "bg-red-500" };
 }
 
-function ScoreCard({ report }: { report: QualityReport }) {
-  const band = scoreBand(report.overall_score);
+function ScoreCard({ assessment }: { assessment: QualityAssessment }) {
+  const band = scoreBand(assessment.overall_score);
   return (
     <div className="flex items-center gap-4 rounded-lg border border-app-border bg-surface p-4 shadow-xs">
       <div className="text-center">
         <div data-testid="overall-score" className={`text-4xl font-semibold ${band.text}`}>
-          {Math.round(report.overall_score)}
+          {Math.round(assessment.overall_score)}
         </div>
         <div className={`text-xs font-medium uppercase tracking-wider ${band.text}`}>
           {band.label}
@@ -72,9 +72,9 @@ function ScoreCard({ report }: { report: QualityReport }) {
       </div>
       <div className="min-w-0 text-sm text-muted-foreground">
         <p>
-          {report.issue_count === 0
+          {assessment.issue_count === 0
             ? "No issues detected."
-            : `${report.issue_count} issue(s) detected across the dataset.`}
+            : `${assessment.issue_count} issue(s) detected across the dataset.`}
         </p>
       </div>
     </div>
@@ -130,7 +130,7 @@ function IssueList({ issues }: { issues: QualityIssue[] }) {
                 {style.label} ({group.length})
               </div>
               <ul className="space-y-1">
-                {/* detail is unique per issue within a report (type + column + counts) */}
+                {/* detail is unique per issue within an assessment (type + column + counts) */}
                 {group.map((issue) => (
                   <li
                     key={issue.detail}
@@ -157,7 +157,7 @@ function RemediationList({ remediations }: { remediations: QualityRemediation[] 
         Suggested fixes
       </h3>
       <ul className="space-y-1">
-        {/* suggestion mirrors its issue's detail, so it is unique within a report */}
+        {/* suggestion mirrors its issue's detail, so it is unique within an assessment */}
         {remediations.map((remediation) => {
           const action = remediation.operation
             ? OPERATION_ACTION[remediation.operation]
@@ -207,19 +207,19 @@ function HistoryStrip({ history }: { history: QualityRunEntry[] }) {
   );
 }
 
-interface QualityReportViewProps {
-  report: QualityReport;
+interface QualityAssessmentViewProps {
+  assessment: QualityAssessment;
   history: QualityRunEntry[];
 }
 
-/** Renders a scored quality report: score card, column health, issues, fixes, trend. */
-export default function QualityReportView({ report, history }: QualityReportViewProps) {
+/** Renders a scored quality assessment: score card, column health, issues, fixes, trend. */
+export default function QualityAssessmentView({ assessment, history }: QualityAssessmentViewProps) {
   return (
     <div className="space-y-5">
-      <ScoreCard report={report} />
-      <ColumnHealth scores={report.column_scores} />
-      <IssueList issues={report.issues} />
-      <RemediationList remediations={report.remediations} />
+      <ScoreCard assessment={assessment} />
+      <ColumnHealth scores={assessment.column_scores} />
+      <IssueList issues={assessment.issues} />
+      <RemediationList remediations={assessment.remediations} />
       <HistoryStrip history={history} />
     </div>
   );

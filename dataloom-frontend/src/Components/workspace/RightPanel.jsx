@@ -14,9 +14,9 @@ const RightPanel = ({ projectId }) => {
   const panel = activePanel ? getPanel(activePanel) : undefined;
   if (!panel) return null;
 
-  const { title, component: Component } = panel;
+  const { title, component: Component, pinned } = panel;
   return (
-    <SidePanel title={title} onClose={closePanel}>
+    <SidePanel title={title} onClose={pinned ? undefined : closePanel}>
       <Component projectId={projectId} onClose={closePanel} />
     </SidePanel>
   );

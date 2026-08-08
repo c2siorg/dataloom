@@ -88,6 +88,19 @@ class ChartType(StrEnum):
     pie = "pie"
 
 
+class ReportSection(StrEnum):
+    """The parts a Report can carry. The user chooses which ones to include.
+
+    ``overview`` is always rendered; listing it is allowed so the request can
+    name every section it wants explicitly.
+    """
+
+    overview = "overview"
+    profiles = "profiles"
+    quality = "quality"
+    provenance = "provenance"
+
+
 # --- Basic transformation parameter schemas ---
 
 
@@ -557,7 +570,7 @@ class QualityRemediation(BaseModel):
     operation: str | None
 
 
-class QualityReportResponse(BaseModel):
+class QualityAssessmentResponse(BaseModel):
     """A full quality assessment report. Computed on demand, never persisted."""
 
     overall_score: float

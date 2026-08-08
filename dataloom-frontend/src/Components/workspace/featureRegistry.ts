@@ -25,6 +25,12 @@ export interface FeaturePanel {
   name: string;
   title: string;
   component: ComponentType<PanelProps>;
+  /**
+   * Hide the close button, for a panel its tab keeps open and closes itself.
+   * The owning tab must close it, or the user is left with a panel they cannot
+   * dismiss. Defaults to closeable.
+   */
+  pinned?: boolean;
 }
 
 /**

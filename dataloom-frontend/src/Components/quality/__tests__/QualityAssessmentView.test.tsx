@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import QualityReportView from "../QualityReportView";
-import type { QualityReport } from "../../../api/quality";
+import QualityAssessmentView from "../QualityAssessmentView";
+import type { QualityAssessment } from "../../../api/quality";
 
-// QualityReportView calls usePanel → provide a minimal stub so the component
+// QualityAssessmentView calls usePanel → provide a minimal stub so the component
 // renders without the full PanelContext tree.
 vi.mock("../../../context/PanelContext", () => ({
   usePanel: () => ({ openPanel: vi.fn() }),
 }));
 
-const REPORT: QualityReport = {
+const REPORT: QualityAssessment = {
   overall_score: 72,
   column_scores: { age: 95, name: 60 },
   issue_count: 2,
@@ -41,16 +41,16 @@ const REPORT: QualityReport = {
   ],
 };
 
-describe("QualityReportView – dark-mode theming", () => {
+describe("QualityAssessmentView – dark-mode theming", () => {
   it("renders score cards with theme-aware surface tokens", () => {
-    render(<QualityReportView report={REPORT} history={[]} />);
+    render(<QualityAssessmentView assessment={REPORT} history={[]} />);
 
     // The overall score value should be present
     expect(screen.getByTestId("overall-score")).toBeInTheDocument();
   });
 
   it("renders issue cards with bg-surface and border-app-border", () => {
-    const { container } = render(<QualityReportView report={REPORT} history={[]} />);
+    const { container } = render(<QualityAssessmentView assessment={REPORT} history={[]} />);
 
     // Issue list items should use theme tokens instead of hardcoded bg-white
     const issueItems = container.querySelectorAll("li");
@@ -62,7 +62,7 @@ describe("QualityReportView – dark-mode theming", () => {
   });
 
   it("renders section headings with text-muted-foreground", () => {
-    const { container } = render(<QualityReportView report={REPORT} history={[]} />);
+    const { container } = render(<QualityAssessmentView assessment={REPORT} history={[]} />);
 
     const headings = container.querySelectorAll("h3");
     headings.forEach((heading) => {
