@@ -23,6 +23,7 @@ from app.services.transformation_service import (
 )
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import save_table_safe
+from app.utils.security import safe_transformation_error_detail
 
 logger = get_logger(__name__)
 
@@ -103,6 +104,23 @@ def create_pipeline_from_steps(
     return pipeline
 
 
+def _failure_reason(action_type: str, error: Exception) -> str:
+    """Describe a step failure in terms safe to hand back to the client.
+
+    Any exception means the step cannot run on this data, which is a step
+    failure and not a server fault: the transform functions pass user input
+    straight to pandas, so a bad pivot aggregation surfaces as ``ValueError``
+    rather than ``TransformationError``. Unexpected types are logged so a real
+    defect is still visible in the logs, and every message goes through the
+    redactor before it leaves the process.
+    """
+    if isinstance(error, HTTPException):
+        error = TransformationError(str(error.detail))
+    elif not isinstance(error, TransformationError):
+        logger.warning("Unexpected %s replaying %s step: %s", type(error).__name__, action_type, error)
+    return safe_transformation_error_detail(error)
+
+
 def _replay(df: pd.DataFrame, steps: Sequence[Step]) -> tuple[pd.DataFrame, PipelineCompatibilityResponse | None]:
     """Replay steps in order, stopping at the first one that fails.
 
@@ -119,8 +137,8 @@ def _replay(df: pd.DataFrame, steps: Sequence[Step]) -> tuple[pd.DataFrame, Pipe
             try:
                 df = apply_logged_transformation(df, action_type, action_details)
                 continue
-            except (TransformationError, HTTPException, KeyError, TypeError) as e:
-                reason = str(e.detail if isinstance(e, HTTPException) else e)
+            except Exception as e:
+                reason = _failure_reason(action_type, e)
         return df, PipelineCompatibilityResponse(
             compatible=False,
             failing_step=number,
