@@ -3,6 +3,7 @@ import Modal from "./common/Modal";
 import Button from "./common/Button";
 import Select from "./common/Select";
 import { exportProject } from "../api";
+import { downloadBlob } from "../utils/downloadBlob";
 
 type FormatDef = {
   ext: string;
@@ -94,14 +95,7 @@ export default function ExportModal({
         format,
         ...(showOptions ? { delimiter: effectiveDelimiter, includeHeader, encoding } : {}),
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${cleanName}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `${cleanName}.${format}`);
       onClose();
     } catch (err) {
       console.error("Failed to export project:", err);

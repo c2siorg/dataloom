@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app import models
+from app.services import report_service, transformation_service
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import save_table_safe
 
@@ -525,3 +526,74 @@ def get_projects(
         .limit(limit)
         .all()
     )
+
+
+def _timestamp(value: datetime | None) -> str:
+    """Format a stored time for the Report, in the document's one date style."""
+    return value.strftime(report_service.TIMESTAMP_FORMAT) if value else "—"
+
+
+def _transformation(log: models.ProjectChangeLog) -> dict:
+    return {
+        "label": transformation_service.operation_label(log.action_type),
+        "summary": transformation_service.operation_summary(log.action_type, log.action_details or {}),
+        "timestamp": _timestamp(log.timestamp),
+    }
+
+
+def collect_provenance(db: Session, project_id: uuid.UUID) -> dict:
+    """Gather a project's source files and applied work, grouped by checkpoint.
+
+    Applied transformations that belong to no checkpoint are reported separately
+    as unsaved, matching what the History panel shows. The result is plain dicts
+    of display-ready strings, so the report builder stays free of the DB.
+
+    Args:
+        db: Database session.
+        project_id: The project primary key.
+
+    Returns:
+        ``{files, checkpoints, unsaved}``.
+    """
+    files = (
+        db.query(models.ProjectFile)
+        .filter(models.ProjectFile.project_id == project_id)
+        .order_by(models.ProjectFile.uploaded_at)
+        .all()
+    )
+    logs = (
+        db.query(models.ProjectChangeLog)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            models.ProjectChangeLog.applied.is_(True),
+        )
+        .order_by(models.ProjectChangeLog.change_log_id)
+        .all()
+    )
+    checkpoints = (
+        db.query(models.Checkpoint)
+        .filter(models.Checkpoint.project_id == project_id)
+        .order_by(models.Checkpoint.created_at)
+        .all()
+    )
+
+    by_checkpoint: dict = {}
+    unsaved: list[dict] = []
+    for log in logs:
+        if log.checkpoint_id is None:
+            unsaved.append(_transformation(log))
+        else:
+            by_checkpoint.setdefault(log.checkpoint_id, []).append(_transformation(log))
+
+    return {
+        "files": [{"filename": f.original_filename, "uploaded_at": _timestamp(f.uploaded_at)} for f in files],
+        "checkpoints": [
+            {
+                "message": checkpoint.message,
+                "created_at": _timestamp(checkpoint.created_at),
+                "transformations": by_checkpoint.get(checkpoint.id, []),
+            }
+            for checkpoint in checkpoints
+        ],
+        "unsaved": unsaved,
+    }

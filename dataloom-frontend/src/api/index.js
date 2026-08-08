@@ -26,6 +26,7 @@ export {
 } from "./profiling";
 export { getChartSuggestions, getChart } from "./visualizations";
 export { runQualityAssessment } from "./quality";
+export { getProjectReport } from "./reports";
 export {
   previewAddFile,
   addFileToProject,

@@ -21,7 +21,7 @@ router = APIRouter()
 # Sync on purpose: the assessment is CPU-bound pandas/regex work (including
 # user-supplied patterns), so FastAPI must run it in the threadpool rather than
 # on the event loop.
-@router.post("/{project_id}/quality", response_model=schemas.QualityReportResponse)
+@router.post("/{project_id}/quality", response_model=schemas.QualityAssessmentResponse)
 def run_quality_assessment(
     project_id: uuid.UUID,
     request: schemas.QualityAssessRequest | None = None,

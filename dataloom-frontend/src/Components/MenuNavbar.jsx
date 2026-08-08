@@ -2,7 +2,8 @@ import { useState } from "react";
 import InputDialog from "./common/InputDialog";
 import ExportModal from "./ExportModal";
 import Toast from "./common/Toast";
-import { saveProject, undoLastTransformation } from "../api";
+import { saveProject } from "../api/projects";
+import { undoLastTransformation } from "../api/transforms";
 import proptype from "prop-types";
 import { LuSave, LuDownload, LuUndo2, LuColumns3 } from "react-icons/lu";
 import { useProjectContext } from "../context/ProjectContext";
@@ -126,7 +127,7 @@ const MenuNavbar = ({ projectId }) => {
     {
       ribbon: "File",
       group: "Save",
-      order: 2,
+      order: 3,
       label: "Undo",
       icon: LuUndo2,
       onClick: handleUndo,

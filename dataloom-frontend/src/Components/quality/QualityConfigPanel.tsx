@@ -45,7 +45,7 @@ interface QualityConfigPanelProps {
 /**
  * Quality assessment configuration, docked in the right side panel like the
  * transform forms. Outlier settings and per-column regex rules are gathered
- * here; Run hands them to QualityViewContext, which shows the scored report in
+ * here; Run hands them to QualityViewContext, which shows the scored assessment in
  * the Quality tab.
  */
 export default function QualityConfigPanel({ onClose }: QualityConfigPanelProps) {

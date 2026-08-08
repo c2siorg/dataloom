@@ -916,6 +916,9 @@ class TransformationSpec:
         func: Name of the pure transformation function in this module, resolved at
             dispatch time as ``func(df, *args)``. Stored as a name (not a direct
             reference) so the function stays a patchable module-level seam.
+        label: Human-readable name of the Operation, for surfaces that show a
+            Transformation to a reader rather than executing it (currently the
+            provenance section of a Report). Sentence case, no trailing period.
         params_field: Key of this transformation's parameters on the serialized
             ``TransformationInput`` dict (and on a log entry's ``action_details``).
             ``None`` means the transformation takes no parameter object.
@@ -932,6 +935,7 @@ class TransformationSpec:
     """
 
     func: str
+    label: str
     params_field: str | None
     missing_error: str | None
     build_args: Callable[[dict], tuple]
@@ -956,12 +960,14 @@ def resolve_transformation(name: str) -> Callable[..., pd.DataFrame]:
 TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
     OperationType.filter: TransformationSpec(
         func="apply_filter",
+        label="Filter",
         params_field="parameters",
         missing_error="Filter parameters required",
         build_args=lambda d: (d["parameters"]["column"], d["parameters"]["condition"], d["parameters"]["value"]),
     ),
     OperationType.sort: TransformationSpec(
         func="apply_sort",
+        label="Sort",
         params_field="sort_params",
         missing_error="Sort parameters required",
         build_args=lambda d: (
@@ -972,18 +978,21 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
     ),
     OperationType.addRow: TransformationSpec(
         func="add_row",
+        label="Add row",
         params_field="row_params",
         missing_error="Row parameters required",
         build_args=lambda d: (d["row_params"]["index"],),
     ),
     OperationType.delRow: TransformationSpec(
         func="delete_row",
+        label="Delete row",
         params_field="row_params",
         missing_error="Row parameters required",
         build_args=lambda d: (d["row_params"]["index"],),
     ),
     OperationType.addCol: TransformationSpec(
         func="add_column",
+        label="Add column",
         params_field="add_col_params",
         missing_error="Column parameters required",
         build_args=lambda d: (
@@ -993,12 +1002,14 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
     ),
     OperationType.delCol: TransformationSpec(
         func="delete_column",
+        label="Delete column",
         params_field="del_col_params",
         missing_error="Column index required",
         build_args=lambda d: (_col_params(d, "del_col_params")["index"],),
     ),
     OperationType.changeCellValue: TransformationSpec(
         func="change_cell_value",
+        label="Edit cell",
         params_field="change_cell_value",
         missing_error="Cell value parameters required",
         build_args=lambda d: (
@@ -1009,6 +1020,7 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
     ),
     OperationType.fillEmpty: TransformationSpec(
         func="fill_empty",
+        label="Fill empty values",
         params_field="fill_empty_params",
         missing_error="Fill parameters required",
         build_args=lambda d: (
@@ -1019,30 +1031,35 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
     ),
     OperationType.renameCol: TransformationSpec(
         func="rename_column",
+        label="Rename column",
         params_field="rename_col_params",
         missing_error="Rename column parameters required",
         build_args=lambda d: (d["rename_col_params"]["col_index"], d["rename_col_params"]["new_name"]),
     ),
     OperationType.castDataType: TransformationSpec(
         func="cast_data_type",
+        label="Cast data type",
         params_field="cast_data_type_params",
         missing_error="Cast data type parameters required",
         build_args=lambda d: (d["cast_data_type_params"]["column"], d["cast_data_type_params"]["target_type"]),
     ),
     OperationType.trimWhitespace: TransformationSpec(
         func="trim_whitespace",
+        label="Trim whitespace",
         params_field="trim_whitespace_params",
         missing_error="Trim whitespace parameters required",
         build_args=lambda d: (d["trim_whitespace_params"]["column"],),
     ),
     OperationType.sample: TransformationSpec(
         func="sample_rows",
+        label="Sample rows",
         params_field="sample_params",
         missing_error="Sample parameters required",
         build_args=lambda d: (d["sample_params"]["sample_size"], d["sample_params"].get("random_seed")),
     ),
     OperationType.stringReplace: TransformationSpec(
         func="string_replace",
+        label="Replace text",
         params_field="string_replace_params",
         missing_error="String replace parameters required",
         build_args=lambda d: (
@@ -1054,18 +1071,21 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
     ),
     OperationType.dropDuplicate: TransformationSpec(
         func="drop_duplicates",
+        label="Drop duplicates",
         params_field="drop_duplicate",
         missing_error="Drop duplicate parameters required",
         build_args=lambda d: (d["drop_duplicate"]["columns"], d["drop_duplicate"]["keep"]),
     ),
     OperationType.advQueryFilter: TransformationSpec(
         func="advanced_query",
+        label="Advanced query filter",
         params_field="adv_query",
         missing_error="Query parameter required",
         build_args=lambda d: (d["adv_query"]["query"],),
     ),
     OperationType.pivotTables: TransformationSpec(
         func="pivot_table",
+        label="Pivot table",
         params_field="pivot_query",
         missing_error="Pivot parameters required",
         build_args=lambda d: (
@@ -1077,18 +1097,21 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
     ),
     OperationType.dropNa: TransformationSpec(
         func="drop_na",
+        label="Drop missing values",
         params_field="drop_na_params",
         missing_error=None,
         build_args=lambda d: ((d.get("drop_na_params") or {}).get("columns"),),
     ),
     OperationType.melt: TransformationSpec(
         func="melt_dataframe",
+        label="Melt",
         params_field="melt_params",
         missing_error="Melt parameters required",
         build_args=lambda d: (d["melt_params"],),
     ),
     OperationType.groupby: TransformationSpec(
         func="group_by",
+        label="Group by",
         params_field="groupby_params",
         missing_error="GroupBy parameters required",
         build_args=lambda d: (
@@ -1104,6 +1127,7 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
     # the same dispatch seam as every other logged operation.
     OperationType.addFile: TransformationSpec(
         func="apply_add_file",
+        label="Append file",
         params_field="add_file_params",
         missing_error="Add file operations must use the /files endpoint",
         build_args=lambda d: (d["add_file_params"]["file_path"],),
@@ -1113,6 +1137,7 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
     ),
     OperationType.addFormulaCol: TransformationSpec(
         func="add_formula_column",
+        label="Add formula column",
         params_field="formula_col_params",
         missing_error="Formula column parameters required",
         build_args=lambda d: (d["formula_col_params"]["column_name"], d["formula_col_params"]["expression"]),
@@ -1124,6 +1149,46 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
 _missing = set(OperationType) - set(TRANSFORMATION_REGISTRY)
 if _missing:
     raise RuntimeError(f"OperationType members missing a TRANSFORMATION_REGISTRY entry: {sorted(_missing)}")
+
+
+def operation_label(action_type: str) -> str:
+    """Return the human-readable name of an Operation.
+
+    Falls back to the raw ``action_type`` for an operation the registry does not
+    know, so a log entry written by an older or newer version still reads as
+    something rather than blowing up a Report.
+    """
+    spec = TRANSFORMATION_REGISTRY.get(action_type)
+    return spec.label if spec else str(action_type)
+
+
+def _summary_value(value: object) -> str:
+    """Render one parameter value for a reader, not for a debugger."""
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return str(value)
+
+
+def operation_summary(action_type: str, action_details: dict, max_length: int = 90) -> str:
+    """Summarize one Transformation's parameters as a single line.
+
+    Reads the operation's own ``params_field`` off the serialized details, so the
+    summary shows what the user chose without a bespoke formatter per Operation.
+    Returns "" when the operation took no parameters.
+    """
+    spec = TRANSFORMATION_REGISTRY.get(action_type)
+    if spec is None or spec.params_field is None:
+        return ""
+
+    params = action_details.get(spec.params_field) or action_details.get("col_params")
+    if not isinstance(params, dict) or not params:
+        return ""
+
+    parts = [f"{key}: {_summary_value(value)}" for key, value in params.items() if value not in (None, "", [], {})]
+    summary = ", ".join(parts)
+    return summary if len(summary) <= max_length else summary[: max_length - 1] + "…"
 
 
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
