@@ -1,35 +1,8 @@
-import { useState, type ComponentType } from "react";
+import { useMemo, useState, type ComponentType } from "react";
 import type { IconType } from "react-icons";
-import {
-  LuArrowLeft,
-  LuArrowUpDown,
-  LuCode,
-  LuCopyMinus,
-  LuDice5,
-  LuEraser,
-  LuFilter,
-  LuGroup,
-  LuLayoutList,
-  LuRefreshCw,
-  LuReplace,
-  LuScissors,
-  LuSigma,
-  LuTable2,
-} from "react-icons/lu";
-import AdvQueryFilterForm from "../forms/AdvQueryFilterForm";
-import CastDataTypeForm from "../forms/CastDataTypeForm";
-import DropDuplicateForm from "../forms/DropDuplicateForm";
-import FillEmptyForm from "../forms/FillEmptyForm";
-import FilterForm from "../forms/FilterForm";
-import FormulaColumnForm from "../forms/FormulaColumnForm";
-import GroupByForm from "../forms/GroupByForm";
-import MeltForm from "../forms/MeltForm";
-import PivotTableForm from "../forms/PivotTableForm";
-import SampleRowsForm from "../forms/SampleRowsForm";
-import SortForm from "../forms/SortForm";
-import StringReplaceForm from "../forms/StringReplaceForm";
-import TrimWhitespaceForm from "../forms/TrimWhitespaceForm";
+import { LuArrowLeft } from "react-icons/lu";
 import type { CaptureStep, TransformFormProps } from "../forms/transformFormProps";
+import { getFeatureMenu, getPanel } from "../workspace/featureRegistry";
 import { usePipelineDraft } from "../../context/PipelineDraftContext";
 import { useToast } from "../../context/ToastContext";
 
@@ -39,23 +12,23 @@ interface OpEntry {
   component: ComponentType<TransformFormProps>;
 }
 
-// The operations that can be authored from scratch — the same transform forms the
-// Data ribbon exposes, reused here in capture mode.
-const CATALOG: OpEntry[] = [
-  { label: "Filter", icon: LuFilter, component: FilterForm },
-  { label: "Sample", icon: LuDice5, component: SampleRowsForm },
-  { label: "Sort", icon: LuArrowUpDown, component: SortForm },
-  { label: "Drop Duplicates", icon: LuCopyMinus, component: DropDuplicateForm },
-  { label: "Group By", icon: LuGroup, component: GroupByForm },
-  { label: "Cast Type", icon: LuRefreshCw, component: CastDataTypeForm },
-  { label: "Trim Whitespace", icon: LuScissors, component: TrimWhitespaceForm },
-  { label: "Replace", icon: LuReplace, component: StringReplaceForm },
-  { label: "Fill Empty", icon: LuEraser, component: FillEmptyForm },
-  { label: "Advanced Query", icon: LuCode, component: AdvQueryFilterForm },
-  { label: "Pivot Table", icon: LuTable2, component: PivotTableForm },
-  { label: "Melt (Unpivot)", icon: LuLayoutList, component: MeltForm },
-  { label: "Formula Column", icon: LuSigma, component: FormulaColumnForm },
-];
+/** The docked panel name, shared with the tab and the feature registration. */
+export const STEP_BUILDER_PANEL = "PipelineStepBuilder";
+
+/**
+ * The operations that can be authored from scratch: exactly the Data ▸ Transform
+ * ribbon items, read from the feature registry so a new transform appears here
+ * the moment it is registered — there is no second list to keep in step.
+ */
+function transformCatalog(): OpEntry[] {
+  return getFeatureMenu()
+    .filter((item) => item.ribbon === "Data" && item.group === "Transform")
+    .sort((a, b) => a.order - b.order)
+    .flatMap((item) => {
+      const panel = item.action.togglePanel ? getPanel(item.action.togglePanel) : undefined;
+      return panel ? [{ label: item.label, icon: item.icon, component: panel.component }] : [];
+    });
+}
 
 /**
  * Docked builder for authoring a pipeline step from scratch. Pick an operation and
@@ -68,6 +41,7 @@ const PipelineStepBuilderPanel = ({ projectId }: { projectId: string }) => {
   const [selected, setSelected] = useState<OpEntry | null>(null);
   const { addStep } = usePipelineDraft();
   const { showToast } = useToast();
+  const catalog = useMemo(transformCatalog, []);
 
   if (selected) {
     const Form = selected.component;
@@ -100,7 +74,7 @@ const PipelineStepBuilderPanel = ({ projectId }: { projectId: string }) => {
         added to the draft pipeline.
       </p>
       <ul className="space-y-1">
-        {CATALOG.map((op) => {
+        {catalog.map((op) => {
           const Icon = op.icon;
           return (
             <li key={op.label}>

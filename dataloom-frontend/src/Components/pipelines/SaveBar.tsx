@@ -13,9 +13,10 @@ export function SaveBar({
   projectId: string;
   onSaved: () => void | Promise<void>;
 }) {
-  const { name, setName, steps, clearDraft } = usePipelineDraft();
+  const { steps, clearDraft } = usePipelineDraft();
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
   const handleSave = async (e: FormEvent<HTMLFormElement>) => {
@@ -25,6 +26,7 @@ export function SaveBar({
       await createPipeline(projectId, name.trim(), toStepInputs(steps), description);
       showToast("Pipeline saved.", "success");
       clearDraft();
+      setName("");
       setDescription("");
       await onSaved();
     } catch (err) {

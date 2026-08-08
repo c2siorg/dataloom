@@ -1,6 +1,7 @@
 import { LuWorkflow } from "react-icons/lu";
-import PipelineStepBuilderPanel from "../../pipelines/PipelineStepBuilderPanel";
-import { STEP_BUILDER_PANEL } from "../../pipelines/panelNames";
+import PipelineStepBuilderPanel, {
+  STEP_BUILDER_PANEL,
+} from "../../pipelines/PipelineStepBuilderPanel";
 import { PipelinesTab, PIPELINES_TAB } from "../PipelinesTab";
 import { registerFeature } from "../featureRegistry";
 

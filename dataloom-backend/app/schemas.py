@@ -842,19 +842,16 @@ class PipelineApplyRequest(BaseModel):
     project_id: uuid.UUID
 
 
-class PipelineCheckStepsRequest(BaseModel):
+class PipelineCheckStepsRequest(PipelineApplyRequest):
     """Request to dry-run an unsaved list of steps against a project."""
 
-    project_id: uuid.UUID
     steps: list[PipelineStepInput]
 
 
-class PipelineStepResponse(BaseModel):
-    """One step of a stored pipeline."""
+class PipelineStepResponse(PipelineStepInput):
+    """One step of a stored pipeline: the stored pair plus its position."""
 
     step_order: int
-    action_type: str
-    action_details: dict
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -10,8 +10,8 @@ import { EligibilityCheck } from "../pipelines/EligibilityCheck";
 import { HistoryList } from "../pipelines/HistoryList";
 import { PipelineCard } from "../pipelines/PipelineCard";
 import { SaveBar } from "../pipelines/SaveBar";
-import { Section, SectionHeader } from "../pipelines/Section";
-import { STEP_BUILDER_PANEL } from "../pipelines/panelNames";
+import { Section } from "../pipelines/Section";
+import { STEP_BUILDER_PANEL } from "../pipelines/PipelineStepBuilderPanel";
 
 /**
  * Pipelines tab — a full-page, numbered form for building a reusable pipeline:
@@ -78,31 +78,24 @@ export function PipelinesTab() {
         <SaveBar projectId={projectId} onSaved={loadPipelines} />
       </Section>
 
-      <section className="space-y-3">
-        <SectionHeader
-          n={4}
-          title="Saved pipelines"
-          hint="Reapply or manage the ones you’ve saved."
-        />
-        <div className="pl-10">
-          {pipelines.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              No pipelines saved yet. Build one above to reuse it here.
-            </p>
-          ) : (
-            <ul className="grid gap-2 lg:grid-cols-2">
-              {pipelines.map((pipeline) => (
-                <PipelineCard
-                  key={pipeline.id}
-                  pipeline={pipeline}
-                  projectId={projectId}
-                  onDeleted={loadPipelines}
-                />
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+      <Section n={4} title="Saved pipelines" hint="Reapply or manage the ones you’ve saved.">
+        {pipelines.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No pipelines saved yet. Build one above to reuse it here.
+          </p>
+        ) : (
+          <ul className="grid gap-2 lg:grid-cols-2">
+            {pipelines.map((pipeline) => (
+              <PipelineCard
+                key={pipeline.id}
+                pipeline={pipeline}
+                projectId={projectId}
+                onDeleted={loadPipelines}
+              />
+            ))}
+          </ul>
+        )}
+      </Section>
     </div>
   );
 }

@@ -2,19 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useHistoryRefresh, useHistoryRefreshTokens } from "../../context/HistoryRefreshContext";
-import { getLogs, getCheckpoints, revertToCheckpoint } from "../../api";
+import { getCheckpoints, revertToCheckpoint } from "../../api";
+import { useLogs } from "../../hooks/useLogs";
 import LogsPanel from "../history/LogsPanel";
 import CheckpointsPanel from "../history/CheckpointsPanel";
 import ConfirmDialog from "../common/ConfirmDialog";
 import Toast from "../common/Toast";
-
-interface LogEntry {
-  id: number;
-  action_type: string;
-  timestamp: string;
-  checkpoint_id?: string | null;
-  applied: boolean;
-}
 
 interface CheckpointEntry {
   id: string;
@@ -51,21 +44,7 @@ type UpdateData = (
 /** Logs tab — fetches the project's change log and refreshes on transform events. */
 export function LogsTab() {
   const { projectId } = useParams() as { projectId: string };
-  const { logsToken } = useHistoryRefreshTokens();
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-
-  const fetchLogs = useCallback(async () => {
-    try {
-      setLogs(await getLogs(projectId));
-    } catch (error) {
-      console.error("Error fetching logs:", error);
-    }
-  }, [projectId]);
-
-  // Refetch on mount and whenever a mutation bumps the logs token.
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs, logsToken]);
+  const logs = useLogs(projectId);
 
   return (
     <div className="flex-1 overflow-auto p-4">

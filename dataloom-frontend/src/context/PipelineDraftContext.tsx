@@ -27,8 +27,6 @@ export interface DraftStep {
 export type NewDraftStep = Omit<DraftStep, "id">;
 
 interface PipelineDraftValue {
-  name: string;
-  setName: (name: string) => void;
   steps: DraftStep[];
   addStep: (step: NewDraftStep) => void;
   removeStep: (id: string) => void;
@@ -61,14 +59,13 @@ export function usePipelineDraft(): PipelineDraftValue {
 }
 
 /**
- * Holds the pipeline currently being assembled so the docked step builder (which
- * appends steps) and the Pipelines tab (which lists, reorders, names, and saves
- * them) stay in sync. The draft resets when the workspace's project changes.
+ * Holds the steps currently being assembled so the docked step builder (which
+ * appends them) and the Pipelines tab (which lists, reorders and saves them) stay
+ * in sync. The draft resets when the workspace's project changes.
  */
 export function PipelineDraftProvider({ children }: { children: ReactNode }) {
   const { projectId } = useProjectContext() as { projectId: string };
 
-  const [name, setName] = useState("");
   const [steps, setSteps] = useState<DraftStep[]>([]);
   const nextId = useRef(0);
 
@@ -95,7 +92,6 @@ export function PipelineDraftProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearDraft = useCallback(() => {
-    setName("");
     setSteps([]);
   }, []);
 
@@ -105,8 +101,8 @@ export function PipelineDraftProvider({ children }: { children: ReactNode }) {
   }, [projectId, clearDraft]);
 
   const value = useMemo<PipelineDraftValue>(
-    () => ({ name, setName, steps, addStep, removeStep, moveStep, clearDraft }),
-    [name, steps, addStep, removeStep, moveStep, clearDraft],
+    () => ({ steps, addStep, removeStep, moveStep, clearDraft }),
+    [steps, addStep, removeStep, moveStep, clearDraft],
   );
 
   return <PipelineDraftContext.Provider value={value}>{children}</PipelineDraftContext.Provider>;
