@@ -399,15 +399,13 @@ def test_transform_preview_pagination(client, pagination_project, extra_params, 
 @pytest.mark.parametrize(
     "invalid_params",
     [
-        {"page": 0, "page_size": 50},
-        {"page": 1, "page_size": 0},
-        {"page": 1, "page_size": 101},
+        pytest.param({"page": 0, "page_size": 50}, id="page_below_minimum"),
+        pytest.param({"page": 1, "page_size": 0}, id="page_size_below_minimum"),
+        pytest.param({"page": 1, "page_size": 101}, id="page_size_above_maximum"),
     ],
-    ids=["page_below_minimum", "page_size_below_minimum", "page_size_above_maximum"],
 )
 def test_transform_preview_rejects_out_of_bounds_query_params(client, pagination_project, invalid_params):
-    # The endpoint declares page/page_size via Query(..., ge=1, le=100); values
-    # outside that range must 422, not silently clamp.
+    # page and page_size must be at least 1; page_size is also capped at 100.
     project_id = pagination_project["project_id"]
 
     response = client.post(
