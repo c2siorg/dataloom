@@ -15,8 +15,12 @@ export {
   getProjectMeta,
   getProjects,
 } from "./projects";
+export type { ExportOptions, ExportResult, ProjectDetails } from "./projects";
 export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
+export type { Checkpoint, LogEntry } from "./logs";
 export { transformProject, groupByTransform, undoLastTransformation } from "./transforms";
+export type { TransformationInput, TransformOptions, TransformResult } from "./transforms";
+export type { CellValue, Pagination, ProjectSummary, TableResponse } from "./types";
 export { signup, signin, logout, getCurrentUser } from "./auth";
 export {
   getDatasetSummary,
