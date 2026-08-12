@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { exportProject } from "../projects";
 import client from "../client";
 
@@ -7,10 +8,12 @@ vi.mock("../client", () => ({
   },
 }));
 
+const get = vi.mocked(client.get);
+
 describe("project API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    client.get.mockResolvedValue({
+    get.mockResolvedValue({
       data: new Blob(["a,b\n1,2"]),
       headers: { "content-disposition": 'attachment; filename="export.csv"' },
     });

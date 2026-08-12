@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import client from "../client";
 
 describe("API client", () => {
@@ -21,7 +22,9 @@ describe("API client", () => {
   });
 
   it("has response interceptors registered", () => {
-    // Axios stores interceptors with handlers array
-    expect(client.interceptors.response.handlers.length).toBeGreaterThan(0);
+    // Axios stores interceptors in a `handlers` array that its public types
+    // don't describe, so reach for it through the internal shape.
+    const { handlers } = client.interceptors.response as unknown as { handlers: unknown[] };
+    expect(handlers.length).toBeGreaterThan(0);
   });
 });

@@ -10,7 +10,7 @@ import {
   useCallback,
 } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-import { transformProject } from "../api";
+import { transformProject, type TransformationInput } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import { useHistoryRefresh } from "../context/HistoryRefreshContext";
 import {
@@ -76,7 +76,7 @@ interface ProjectContextValue {
   isPreviewMode: boolean;
   pendingTransform: {
     projectId: string;
-    payload: Record<string, unknown>;
+    payload: TransformationInput;
   } | null;
   setPaginationData: (info: {
     page?: number;
@@ -170,8 +170,9 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     dataVersion,
   );
 
-  // transformProject is JS-typed as Promise<Object>; narrow it here.
-  const applyTransform = (input: Record<string, unknown>) =>
+  // The API types rows as unknown[][]; this component also handles the
+  // column-keyed object form, so narrow to the local superset here.
+  const applyTransform = (input: TransformationInput) =>
     transformProject(projectId, input) as unknown as Promise<TransformResponse>;
 
   const safeOrder = useMemo(() => {

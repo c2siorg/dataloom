@@ -2,7 +2,7 @@
  * Configured Axios HTTP client for DataLoom API communication.
  * @module api/client
  */
-import axios from "axios";
+import axios, { type AxiosError } from "axios";
 import { API_BASE_URL, API_TIMEOUT } from "../config/apiConfig";
 
 /**
@@ -16,7 +16,7 @@ const client = axios.create({
 
 client.interceptors.response.use(
   (response) => response,
-  (error) => {
+  (error: AxiosError<{ detail?: string }>) => {
     const { config, response } = error;
     // A 401 from the auth bootstrap just means "not logged in" — not noteworthy.
     const isAuthProbe = response?.status === 401 && config?.url === "/auth/me";
