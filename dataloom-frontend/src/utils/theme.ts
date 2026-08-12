@@ -1,6 +1,9 @@
 const THEME_STORAGE_KEY = "theme";
 
-export const getInitialTheme = () => {
+/** The two colour schemes the app supports. */
+export type Theme = "light" | "dark";
+
+export const getInitialTheme = (): Theme => {
   const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
 
   if (savedTheme === "light" || savedTheme === "dark") {
@@ -12,7 +15,7 @@ export const getInitialTheme = () => {
   return prefersDarkMode ? "dark" : "light";
 };
 
-export const applyTheme = (theme) => {
+export const applyTheme = (theme: Theme) => {
   const root = document.documentElement;
 
   if (theme === "dark") {

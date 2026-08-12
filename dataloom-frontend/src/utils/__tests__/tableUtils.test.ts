@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { withSerialNumbers } from "../tableUtils";
 
 describe("withSerialNumbers", () => {

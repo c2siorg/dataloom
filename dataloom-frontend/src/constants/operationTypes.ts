@@ -9,43 +9,43 @@
  * Values must match OperationType enum in dataloom-backend/app/schemas.py
  */
 
-/** @type {string} Filter rows by column condition */
+/** Filter rows by column condition */
 export const FILTER = "filter";
-/** @type {string} Sort rows by column */
+/** Sort rows by column */
 export const SORT = "sort";
-/** @type {string} Add a new row */
+/** Add a new row */
 export const ADD_ROW = "addRow";
-/** @type {string} Delete a row by index */
+/** Delete a row by index */
 export const DELETE_ROW = "delRow";
-/** @type {string} Add a new column */
+/** Add a new column */
 export const ADD_COLUMN = "addCol";
-/** @type {string} Delete a column by index */
+/** Delete a column by index */
 export const DELETE_COLUMN = "delCol";
-/** @type {string} Change a single cell value */
+/** Change a single cell value */
 export const CHANGE_CELL_VALUE = "changeCellValue";
-/** @type {string} Fill empty cells */
+/** Fill empty cells */
 export const FILL_EMPTY = "fillEmpty";
-/** @type {string} Drop duplicate rows */
+/** Drop duplicate rows */
 export const DROP_DUPLICATE = "dropDuplicate";
-/** @type {string} Advanced pandas query filter */
+/** Advanced pandas query filter */
 export const ADV_QUERY_FILTER = "advQueryFilter";
-/** @type {string} Create a pivot table */
+/** Create a pivot table */
 export const PIVOT_TABLES = "pivotTables";
-/** @type {string} Rename a column */
+/** Rename a column */
 export const RENAME_COLUMN = "renameCol";
-/** @type {string} Cast column to different data type */
+/** Cast column to different data type */
 export const CAST_DATA_TYPE = "castDataType";
-/** @type {string} Trim whitespace from columns */
+/** Trim whitespace from columns */
 export const TRIM_WHITESPACE = "trimWhitespace";
 export const GROUPBY = "groupby";
 export const SAMPLE_ROWS = "sample";
-/** @type {string} Find and replace string values in a column */
+/** Find and replace string values in a column */
 export const STRING_REPLACE = "stringReplace";
-/** @type {string} Drop rows with missing values */
+/** Drop rows with missing values */
 export const DROP_NA = "dropNa";
-/** @type {string} Melt wide columns into long form */
+/** Melt wide columns into long form */
 export const MELT = "melt";
-/** @type {string} Append another file's rows into the project */
+/** Append another file's rows into the project */
 export const ADD_FILE = "addFile";
-/** @type {string} Add a computed column from a formula expression */
+/** Add a computed column from a formula expression */
 export const ADD_FORMULA_COLUMN = "addFormulaCol";

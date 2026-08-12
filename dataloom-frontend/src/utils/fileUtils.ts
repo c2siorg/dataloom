@@ -1,7 +1,13 @@
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 export const ACCEPTED_EXTENSIONS = [".csv", ".tsv", ".json", ".xlsx", ".parquet"];
 
-export function formatFileSize(bytes) {
+/** Outcome of `validateFile`. `error` is present only when `valid` is false. */
+export interface FileValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+export function formatFileSize(bytes: number): string {
   if (bytes < 1024) {
     return `${bytes} B`;
   }
@@ -13,7 +19,7 @@ export function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-export function validateFile(file) {
+export function validateFile(file: File | null | undefined): FileValidationResult {
   if (!file) {
     return { valid: false, error: "Please select a file to upload." };
   }
