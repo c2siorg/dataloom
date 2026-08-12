@@ -18,10 +18,10 @@ export const ROUTES = {
   workspace: "/workspace/:projectId",
   /**
    * Generate workspace path for a specific project.
-   * @param {string} id - The project UUID.
-   * @returns {string} The full route path.
+   * @param id - The project UUID.
+   * @returns The full route path.
    */
-  workspacePath: (id) => `/workspace/${id}`,
+  workspacePath: (id: string) => `/workspace/${id}`,
   /** Settings path */
   settings: "/settings",
   /** Account settings path */
@@ -30,8 +30,8 @@ export const ROUTES = {
   settingsPreferences: "/settings/preferences",
   /**
    * Generate settings path for a specific project.
-   * @param {string} id - The project UUID.
-   * @returns {string} The full route path.
+   * @param id - The project UUID.
+   * @returns The full route path.
    */
-  settingsProject: (id) => `/settings/projects/${id}`,
+  settingsProject: (id: string) => `/settings/projects/${id}`,
 };

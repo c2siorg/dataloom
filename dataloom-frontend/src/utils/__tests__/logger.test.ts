@@ -1,7 +1,8 @@
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { createLogger } from "../logger";
 
 describe("createLogger", () => {
-  let spies;
+  let spies: Record<"debug" | "info" | "warn" | "error", MockInstance>;
 
   beforeEach(() => {
     spies = {

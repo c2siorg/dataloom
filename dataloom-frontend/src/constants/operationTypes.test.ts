@@ -1,3 +1,4 @@
+import { expect, test } from "vitest";
 import * as ops from "../constants/operationTypes";
 
 test("operation type constants match backend contract", () => {
