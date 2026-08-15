@@ -1,18 +1,30 @@
 import { useState } from "react";
-import { deleteCheckpoint } from "../../api";
-import PropTypes from "prop-types";
+import { deleteCheckpoint, type Checkpoint } from "../../api";
 import Modal from "../common/Modal";
 import { useToast } from "../../context/ToastContext";
 import Button from "../common/Button";
 
-const CheckpointsPanel = ({ projectId, checkpoints, onRevert, onCheckpointDeleted }) => {
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+interface CheckpointsPanelProps {
+  projectId: string;
+  checkpoints?: Checkpoint[] | null;
+  onRevert: (checkpointId: string) => void;
+  onCheckpointDeleted: () => Promise<void> | void;
+}
+
+const CheckpointsPanel = ({
+  projectId,
+  checkpoints,
+  onRevert,
+  onCheckpointDeleted,
+}: CheckpointsPanelProps) => {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { showToast } = useToast();
 
   const hasCheckpoints = Array.isArray(checkpoints) && checkpoints.length > 0;
 
   const handleDeleteConfirm = async () => {
     try {
+      if (!confirmDeleteId) return;
       await deleteCheckpoint(projectId, confirmDeleteId);
       showToast("Checkpoint deleted successfully", "success");
       await onCheckpointDeleted();
@@ -69,7 +81,7 @@ const CheckpointsPanel = ({ projectId, checkpoints, onRevert, onCheckpointDelete
               ))
             ) : (
               <tr>
-                <td colSpan="3" className="py-4 px-4 text-center text-sm text-muted-foreground">
+                <td colSpan={3} className="py-4 px-4 text-center text-sm text-muted-foreground">
                   No checkpoints available
                 </td>
               </tr>
@@ -97,19 +109,6 @@ const CheckpointsPanel = ({ projectId, checkpoints, onRevert, onCheckpointDelete
       </Modal>
     </div>
   );
-};
-
-CheckpointsPanel.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  checkpoints: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string.isRequired,
-      message: PropTypes.string.isRequired,
-      created_at: PropTypes.string.isRequired,
-    }),
-  ),
-  onRevert: PropTypes.func.isRequired,
-  onCheckpointDeleted: PropTypes.func.isRequired,
 };
 
 export default CheckpointsPanel;

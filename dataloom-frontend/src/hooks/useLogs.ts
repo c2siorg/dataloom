@@ -1,16 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { getLogs } from "../api";
+import { getLogs, type LogEntry } from "../api";
 import { useHistoryRefreshTokens } from "../context/HistoryRefreshContext";
 
-/** One change-log row, as the logs endpoint returns it. */
-export interface LogEntry {
-  id: number;
-  action_type: string;
-  action_details: Record<string, unknown>;
-  timestamp: string;
-  checkpoint_id?: string | null;
-  applied: boolean;
-}
+export type { LogEntry };
 
 /**
  * A project's change log, refetched on mount and whenever a mutation bumps the

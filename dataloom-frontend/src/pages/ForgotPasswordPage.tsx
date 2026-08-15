@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { CornerDownLeft } from "lucide-react";
 import AuthLayout from "../Components/auth/AuthLayout";
@@ -22,7 +22,7 @@ export default function ForgotPasswordPage() {
     return <Navigate to={ROUTES.home} replace />;
   }
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
     setError("");

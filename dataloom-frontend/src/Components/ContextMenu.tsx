@@ -1,14 +1,28 @@
-import { useState, useEffect, useRef, useLayoutEffect } from "react";
-import PropTypes from "prop-types";
-const ContextMenu = ({
+import { useState, useEffect, useRef, useLayoutEffect, type ReactNode } from "react";
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+interface ContextMenuProps<T> {
+  isOpen: boolean;
+  position: Position;
+  contextData: T | null;
+  onClose: () => void;
+  actions: (contextData: T | null) => ReactNode;
+  "data-testid"?: string;
+}
+
+const ContextMenu = <T,>({
   isOpen,
   position,
   contextData,
   onClose,
   actions,
   "data-testid": testId,
-}) => {
-  const menuRef = useRef(null);
+}: ContextMenuProps<T>) => {
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const [adjustedPosition, setAdjustedPosition] = useState(position);
 
@@ -45,10 +59,10 @@ const ContextMenu = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) onClose();
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) onClose();
     };
-    const handleKeyDown = (event) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     const handleScroll = () => onClose();
@@ -88,18 +102,6 @@ const ContextMenu = ({
       {actions(contextData)}
     </div>
   );
-};
-
-ContextMenu.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  position: PropTypes.shape({
-    x: PropTypes.number.isRequired,
-    y: PropTypes.number.isRequired,
-  }).isRequired,
-  contextData: PropTypes.object,
-  onClose: PropTypes.func.isRequired,
-  actions: PropTypes.func.isRequired,
-  "data-testid": PropTypes.string,
 };
 
 export default ContextMenu;

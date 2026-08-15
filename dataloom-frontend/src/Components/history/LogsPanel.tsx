@@ -1,6 +1,10 @@
-import PropTypes from "prop-types";
+import type { LogEntry } from "../../api";
 
-const LogsPanel = ({ logs }) => {
+interface LogsPanelProps {
+  logs: LogEntry[];
+}
+
+const LogsPanel = ({ logs }: LogsPanelProps) => {
   return (
     <div data-testid="logs-panel">
       <div className="overflow-x-auto">
@@ -40,7 +44,7 @@ const LogsPanel = ({ logs }) => {
               ))
             ) : (
               <tr>
-                <td colSpan="4" className="py-4 px-4 text-center text-sm text-muted-foreground">
+                <td colSpan={4} className="py-4 px-4 text-center text-sm text-muted-foreground">
                   No logs available
                 </td>
               </tr>
@@ -50,18 +54,6 @@ const LogsPanel = ({ logs }) => {
       </div>
     </div>
   );
-};
-
-LogsPanel.propTypes = {
-  logs: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      action_type: PropTypes.string.isRequired,
-      timestamp: PropTypes.string.isRequired,
-      checkpoint_id: PropTypes.string,
-      applied: PropTypes.bool.isRequired,
-    }),
-  ).isRequired,
 };
 
 export default LogsPanel;

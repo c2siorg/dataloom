@@ -4,7 +4,6 @@ import ExportModal from "./ExportModal";
 import Toast from "./common/Toast";
 import { saveProject } from "../api/projects";
 import { undoLastTransformation } from "../api/transforms";
-import proptype from "prop-types";
 import { LuSave, LuDownload, LuUndo2, LuColumns3 } from "react-icons/lu";
 import { useProjectContext } from "../context/ProjectContext";
 import { usePanel } from "../context/PanelContext";
@@ -13,21 +12,51 @@ import { useHistoryRefresh } from "../context/HistoryRefreshContext";
 import { useColumnProfilesView } from "../context/ColumnProfilesContext";
 import { useColumnProfilesAction } from "./workspace/useProfilingMenu";
 import { getFeatureMenu } from "./workspace/featureRegistry";
+import type { ToastType } from "./common/Toast";
+import type { IconType } from "react-icons";
 
 // Ribbon skeleton: the top tabs and the group order within each. Features and the
 // core items below slot their entries into these buckets; layout stays stable.
-const RIBBON_LAYOUT = {
+const RIBBON_LAYOUT: Record<string, string[]> = {
   File: ["Save", "Source", "History"],
   Data: ["Transform", "Query", "Pipeline"],
   Profiling: ["Profiling"],
 };
 
-const MenuNavbar = ({ projectId }) => {
+interface ToastState {
+  message: string;
+  type: ToastType;
+}
+
+interface TooltipState {
+  text: string;
+  top: number;
+  left: number;
+}
+
+/** A resolved ribbon button, from either the core list or a feature. */
+interface RibbonItem {
+  ribbon: string;
+  group: string;
+  order: number;
+  label: string;
+  icon: IconType;
+  onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  hover?: string;
+}
+
+interface MenuNavbarProps {
+  projectId: string;
+}
+
+const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
   const [isInputOpen, setIsInputOpen] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [activeTab, setActiveTab] = useState("File");
-  const [activeTooltip, setActiveTooltip] = useState(null);
+  const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
 
   const { updateData, refreshProject, pageSize, projectName, isPreviewMode } = useProjectContext();
   const { activePanel, openPanel, togglePanel, closePanel } = usePanel();
@@ -35,7 +64,7 @@ const MenuNavbar = ({ projectId }) => {
   const { refreshLogs, refreshCheckpoints } = useHistoryRefresh();
   const { showColumnProfiles } = useColumnProfilesView();
 
-  const handleMouseEnter = (e, hoverText) => {
+  const handleMouseEnter = (e: { currentTarget: Element }, hoverText?: string) => {
     if (!hoverText) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
@@ -60,7 +89,7 @@ const MenuNavbar = ({ projectId }) => {
 
   const handleSave = () => setIsInputOpen(true);
 
-  const handleSubmitCommit = async (message) => {
+  const handleSubmitCommit = async (message: string) => {
     if (!message || !message.trim()) {
       setToast({ message: "Commit message is required.", type: "error" });
       return;
@@ -87,7 +116,7 @@ const MenuNavbar = ({ projectId }) => {
       refreshLogs();
       setToast({ message: "Last transformation undone!", type: "success" });
     } catch (error) {
-      if (error.response?.status === 404) {
+      if ((error as { response?: { status?: number } })?.response?.status === 404) {
         setToast({ message: "No transformations to undo.", type: "error" });
       } else {
         setToast({ message: "Failed to undo transformation.", type: "error" });
@@ -99,7 +128,7 @@ const MenuNavbar = ({ projectId }) => {
 
   // Core ribbon items — the ones that need component-local state/handlers and so
   // can't be declared as (declarative) feature menu items.
-  const coreItems = [
+  const coreItems: RibbonItem[] = [
     {
       ribbon: "File",
       group: "Save",
@@ -149,7 +178,7 @@ const MenuNavbar = ({ projectId }) => {
   ];
 
   // Feature-contributed items resolved against the workspace hooks.
-  const featureItems = getFeatureMenu().map((item) => ({
+  const featureItems: RibbonItem[] = getFeatureMenu().map((item) => ({
     ribbon: item.ribbon,
     group: item.group,
     order: item.order,
@@ -187,7 +216,7 @@ const MenuNavbar = ({ projectId }) => {
     ]),
   );
 
-  const TAB_DESCRIPTIONS = {
+  const TAB_DESCRIPTIONS: Record<string, string> = {
     File: "Manage project checkpoints, export data, and view history.",
     Data: "Apply transformations, filter, sort, and query the dataset.",
     Profiling: "Analyze dataset summary, column profiles, charts, and data quality.",
@@ -221,7 +250,7 @@ const MenuNavbar = ({ projectId }) => {
       </div>
 
       <div className="flex items-stretch gap-3 px-8 py-2 min-h-16 overflow-x-auto">
-        {tabs[activeTab].map((section, sectionIdx) => (
+        {(tabs[activeTab] ?? []).map((section, sectionIdx) => (
           <div key={section.group} className="flex items-stretch gap-3">
             {sectionIdx > 0 && <div className="w-px bg-app-border self-stretch" />}
             <div className="flex flex-col items-center">
@@ -233,9 +262,9 @@ const MenuNavbar = ({ projectId }) => {
                       <button
                         data-testid={`toolbar-${item.label.toLowerCase().replace(/ /g, "-")}`}
                         title={item.hover}
-                        onClick={(e) => {
+                        onClick={() => {
                           handleMouseLeave();
-                          item.onClick(e);
+                          item.onClick();
                         }}
                         onMouseEnter={(e) => handleMouseEnter(e, item.hover)}
                         onMouseLeave={handleMouseLeave}
@@ -302,10 +331,6 @@ const MenuNavbar = ({ projectId }) => {
       )}
     </div>
   );
-};
-
-MenuNavbar.propTypes = {
-  projectId: proptype.string.isRequired,
 };
 
 export default MenuNavbar;
