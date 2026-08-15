@@ -1,4 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  type ChangeEvent,
+  type DragEvent,
+  type FormEvent,
+  type MouseEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import {
   uploadProject,
@@ -6,6 +15,7 @@ import {
   deleteProject,
   searchProjects,
   updateProject,
+  type ProjectSummary,
 } from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
@@ -20,8 +30,26 @@ import { useProjectContext } from "../context/ProjectContext";
 const PROJECT_NAME_MAX_LENGTH = 255;
 const PROJECT_DESCRIPTION_MAX_LENGTH = 1000;
 
-const ProjectCard = ({ project, onClick, onDelete, onEdit, isOpen, onToggleMenu, onCloseMenu }) => {
-  const menuRef = useRef(null);
+interface ProjectCardProps {
+  project: ProjectSummary;
+  onClick: () => void;
+  onDelete: (projectId: string) => void;
+  onEdit: (project: ProjectSummary) => void;
+  isOpen: boolean;
+  onToggleMenu: (projectId: string) => void;
+  onCloseMenu: () => void;
+}
+
+const ProjectCard = ({
+  project,
+  onClick,
+  onDelete,
+  onEdit,
+  isOpen,
+  onToggleMenu,
+  onCloseMenu,
+}: ProjectCardProps) => {
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
     year: "numeric",
@@ -31,12 +59,12 @@ const ProjectCard = ({ project, onClick, onDelete, onEdit, isOpen, onToggleMenu,
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
+    const handleClickOutside = (e: globalThis.MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onCloseMenu();
       }
     };
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") onCloseMenu();
     };
     document.addEventListener("click", handleClickOutside);
@@ -117,7 +145,7 @@ const ProjectCard = ({ project, onClick, onDelete, onEdit, isOpen, onToggleMenu,
   );
 };
 
-const NewProjectCard = ({ onClick }) => (
+const NewProjectCard = ({ onClick }: { onClick: () => void }) => (
   <button
     data-testid="new-project-card"
     onClick={onClick}
@@ -130,7 +158,7 @@ const NewProjectCard = ({ onClick }) => (
 
 const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.join(",");
 
-const EmptyState = ({ onClick }) => (
+const EmptyState = ({ onClick }: { onClick: () => void }) => (
   <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-app-border bg-surface text-center">
     <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-50">
       <svg
@@ -165,20 +193,36 @@ const EmptyState = ({ onClick }) => (
   </div>
 );
 
+interface DeleteConfirmState {
+  open: boolean;
+  projectId: string | null;
+}
+
+interface EditModalState {
+  open: boolean;
+  project: ProjectSummary | null;
+  name: string;
+  description: string;
+  isSubmitting: boolean;
+}
+
 const HomeScreen = () => {
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showModal, setShowModal] = useState(false);
-  const [fileUpload, setFileUpload] = useState(null);
+  const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
-  const [recentProjects, setRecentProjects] = useState([]);
+  const [recentProjects, setRecentProjects] = useState<ProjectSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<ProjectSummary[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, projectId: null });
-  const [activeMenuProjectId, setActiveMenuProjectId] = useState(null);
-  const [editModal, setEditModal] = useState({
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState>({
+    open: false,
+    projectId: null,
+  });
+  const [activeMenuProjectId, setActiveMenuProjectId] = useState<string | null>(null);
+  const [editModal, setEditModal] = useState<EditModalState>({
     open: false,
     project: null,
     name: "",
@@ -189,7 +233,7 @@ const HomeScreen = () => {
   const { showToast } = useToast();
   const { deleteProjectOrder } = useProjectContext();
 
-  const handleToggleMenu = useCallback((projectId) => {
+  const handleToggleMenu = useCallback((projectId: string) => {
     setActiveMenuProjectId((prev) => (prev === projectId ? null : projectId));
   }, []);
 
@@ -213,7 +257,7 @@ const HomeScreen = () => {
     }
   }, []);
 
-  const handleEditClick = (project) => {
+  const handleEditClick = (project: ProjectSummary) => {
     setEditModal({
       open: true,
       project,
@@ -233,10 +277,11 @@ const HomeScreen = () => {
     });
   }, []);
 
-  const handleSaveEdit = async (e) => {
+  const handleSaveEdit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editModal.project) return;
 
+    const { project } = editModal;
     const trimmedName = editModal.name.trim();
     const trimmedDesc = editModal.description.trim();
 
@@ -247,7 +292,7 @@ const HomeScreen = () => {
 
     try {
       setEditModal((prev) => ({ ...prev, isSubmitting: true }));
-      await updateProject(editModal.project.project_id, {
+      await updateProject(project.project_id, {
         name: trimmedName,
         description: trimmedDesc,
       });
@@ -255,7 +300,7 @@ const HomeScreen = () => {
       await fetchRecentProjects();
       setSearchResults((prev) =>
         prev.map((p) =>
-          p.project_id === editModal.project.project_id
+          p.project_id === project.project_id
             ? { ...p, name: trimmedName, description: trimmedDesc }
             : p,
         ),
@@ -309,7 +354,7 @@ const HomeScreen = () => {
 
   useEffect(() => {
     if (!showModal) return;
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape" && !isSubmitting) handleCloseModal();
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -318,7 +363,7 @@ const HomeScreen = () => {
 
   useEffect(() => {
     if (!editModal.open) return;
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape" && !editModal.isSubmitting) handleCloseEditModal();
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -329,12 +374,12 @@ const HomeScreen = () => {
     setShowModal(true);
   };
 
-  const handleSubmitModal = async (event) => {
+  const handleSubmitModal = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
 
     const validation = validateFile(fileUpload);
-    if (!validation.valid) {
-      showToast(validation.error, "warning");
+    if (!validation.valid || !fileUpload) {
+      showToast(validation.error ?? "Please select a file to upload.", "warning");
       return;
     }
 
@@ -361,7 +406,9 @@ const HomeScreen = () => {
       }
     } catch (error) {
       console.error("Error uploading file:", error);
-      const message = error?.response?.data?.detail || "Error uploading file. Please try again.";
+      const message =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "Error uploading file. Please try again.";
       showToast(message, "error");
     } finally {
       setIsSubmitting(false);
@@ -371,14 +418,14 @@ const HomeScreen = () => {
     fetchRecentProjects();
   };
 
-  const handleFileUpload = (fileOrEvent) => {
+  const handleFileUpload = (fileOrEvent: File | ChangeEvent<HTMLInputElement>) => {
     const file = fileOrEvent instanceof File ? fileOrEvent : fileOrEvent.target.files?.[0];
 
     if (!file) return;
 
     const validation = validateFile(file);
     if (!validation.valid) {
-      showToast(validation.error, "warning");
+      showToast(validation.error ?? "Please select a file to upload.", "warning");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -391,7 +438,7 @@ const HomeScreen = () => {
     setFileUpload(file);
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -401,7 +448,7 @@ const HomeScreen = () => {
     }
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: DragEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
   };
@@ -414,17 +461,19 @@ const HomeScreen = () => {
     }
   };
 
-  const handleDeleteClick = (projectId) => {
+  const handleDeleteClick = (projectId: string) => {
     setDeleteConfirm({ open: true, projectId });
   };
 
   const handleDeleteConfirm = async () => {
+    const { projectId } = deleteConfirm;
+    if (!projectId) return;
     try {
-      await deleteProject(deleteConfirm.projectId);
-      deleteProjectOrder(deleteConfirm.projectId);
+      await deleteProject(projectId);
+      deleteProjectOrder(projectId);
       showToast("Project deleted successfully", "success");
       await fetchRecentProjects();
-      setSearchResults((prev) => prev.filter((p) => p.project_id !== deleteConfirm.projectId));
+      setSearchResults((prev) => prev.filter((p) => p.project_id !== projectId));
     } catch (error) {
       console.error("Error deleting project:", error);
       showToast("Failed to delete project", "error");
@@ -436,7 +485,7 @@ const HomeScreen = () => {
     setDeleteConfirm({ open: false, projectId: null });
   };
 
-  const handleRecentProjectClick = (projectId) => {
+  const handleRecentProjectClick = (projectId: string) => {
     if (!projectId) return;
     navigate(`/workspace/${projectId}`);
   };
@@ -659,7 +708,7 @@ const HomeScreen = () => {
 
                           <p className="text-xs text-muted-foreground mt-1">
                             {formatFileSize(fileUpload.size)} •{" "}
-                            {fileUpload.name.split(".").pop().toUpperCase()} File
+                            {fileUpload.name.split(".").pop()?.toUpperCase()} File
                           </p>
                         </div>
                       </div>

@@ -112,9 +112,9 @@ describe("Table — column reorder behavior", () => {
       getData: vi.fn(),
     };
 
-    fireEvent.dragStart(cityHeader, { dataTransfer });
-    fireEvent.dragOver(dateHeader, { dataTransfer });
-    fireEvent.drop(dateHeader, { dataTransfer });
+    fireEvent.dragStart(cityHeader!, { dataTransfer });
+    fireEvent.dragOver(dateHeader!, { dataTransfer });
+    fireEvent.drop(dateHeader!, { dataTransfer });
 
     expect(mockContext.setColumnOrder).toHaveBeenCalledWith([1, 2, 0]);
   });
@@ -128,7 +128,7 @@ describe("Table — column reorder behavior", () => {
 
     const cells = screen.getAllByText("New York");
 
-    await user.click(cells[0]);
+    await user.click(cells[0]!);
 
     const input = await screen.findByDisplayValue("New York");
 

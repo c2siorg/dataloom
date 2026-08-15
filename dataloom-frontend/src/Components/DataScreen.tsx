@@ -1,6 +1,5 @@
 import { useParams } from "react-router-dom";
 import { useEffect } from "react";
-import PropTypes from "prop-types";
 import { useProjectContext } from "../context/ProjectContext";
 import { WorkspaceTabsProvider, useWorkspaceTabs } from "../context/WorkspaceTabsContext";
 import { PanelProvider } from "../context/PanelContext";
@@ -25,7 +24,7 @@ import WorkspaceTabBar from "./workspace/WorkspaceTabBar";
 import RightPanel from "./workspace/RightPanel";
 import MenuNavbar from "./MenuNavbar";
 
-function WorkspaceContent({ projectId }) {
+function WorkspaceContent({ projectId }: { projectId: string }) {
   const { activeTab, openTab } = useWorkspaceTabs();
 
   const renderActiveTab = () => {
@@ -70,12 +69,8 @@ function WorkspaceContent({ projectId }) {
   );
 }
 
-WorkspaceContent.propTypes = {
-  projectId: PropTypes.string,
-};
-
 export default function DataScreen() {
-  const { projectId } = useParams();
+  const { projectId } = useParams() as { projectId: string };
   const { setProjectInfo, refreshProject } = useProjectContext();
 
   useEffect(() => {
