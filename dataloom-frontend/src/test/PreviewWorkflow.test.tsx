@@ -46,9 +46,14 @@ beforeEach(() => {
   mockContext.pageSize = 50;
 });
 
+const mockTransformProject = vi.mocked(transformProject);
+
 describe("PreviewWorkflow — updateData propagation", () => {
   it("calls enterPreviewMode with dtypes and pagination metadata after successful transform", async () => {
-    transformProject.mockResolvedValueOnce({
+    mockTransformProject.mockResolvedValueOnce({
+      project_id: "proj-1",
+      operation_type: "filter",
+      row_count: 1,
       columns: ["City", "Amount"],
       rows: [["Paris", "300"]],
       dtypes: {
@@ -106,7 +111,7 @@ describe("PreviewWorkflow — updateData propagation", () => {
   });
 
   it("does not call enterPreviewMode when transform fails", async () => {
-    transformProject.mockRejectedValueOnce(new Error("Server error"));
+    mockTransformProject.mockRejectedValueOnce(new Error("Server error"));
 
     const { getByTestId, getByText } = render(<FilterForm projectId="proj-1" onClose={vi.fn()} />);
 
@@ -128,7 +133,10 @@ describe("PreviewWorkflow — updateData propagation", () => {
 
 describe("PreviewWorkflow — Newly migrated forms (TrimWhitespaceForm)", () => {
   it("calls enterPreviewMode with dtypes and pagination metadata on apply", async () => {
-    transformProject.mockResolvedValueOnce({
+    mockTransformProject.mockResolvedValueOnce({
+      project_id: "proj-1",
+      operation_type: "trimWhitespace",
+      row_count: 1,
       columns: ["City"],
       rows: [["Paris"]],
       dtypes: {

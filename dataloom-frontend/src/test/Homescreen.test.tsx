@@ -65,7 +65,7 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
     });
 
     const menuButtons = screen.getAllByTestId("project-card-menu-button");
-    fireEvent.click(menuButtons[0]);
+    fireEvent.click(menuButtons[0]!);
 
     expect(screen.getByTestId("edit-project-action")).toBeInTheDocument();
     expect(screen.getByTestId("delete-project-action")).toBeInTheDocument();
@@ -81,11 +81,11 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
     const menuButtons = screen.getAllByTestId("project-card-menu-button");
 
     // Open first card's menu
-    fireEvent.click(menuButtons[0]);
+    fireEvent.click(menuButtons[0]!);
     expect(screen.getAllByTestId("project-card-menu").length).toBe(1);
 
     // Open second card's menu -> first card's menu should close automatically
-    fireEvent.click(menuButtons[1]);
+    fireEvent.click(menuButtons[1]!);
     expect(screen.getAllByTestId("project-card-menu").length).toBe(1);
   });
 
@@ -97,7 +97,7 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
     });
 
     const menuButtons = screen.getAllByTestId("project-card-menu-button");
-    fireEvent.click(menuButtons[0]);
+    fireEvent.click(menuButtons[0]!);
 
     const editOption = screen.getByTestId("edit-project-action");
     fireEvent.click(editOption);
@@ -123,7 +123,7 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
     });
 
     const menuButtons = screen.getAllByTestId("project-card-menu-button");
-    fireEvent.click(menuButtons[0]);
+    fireEvent.click(menuButtons[0]!);
     fireEvent.click(screen.getByTestId("edit-project-action"));
 
     const nameInput = screen.getByTestId("edit-project-name-input");
@@ -151,7 +151,7 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
     });
 
     const menuButtons = screen.getAllByTestId("project-card-menu-button");
-    fireEvent.click(menuButtons[0]);
+    fireEvent.click(menuButtons[0]!);
     expect(screen.getByTestId("project-card-menu")).toBeInTheDocument();
 
     fireEvent.click(document.body);
@@ -167,7 +167,7 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
     });
 
     const menuButtons = screen.getAllByTestId("project-card-menu-button");
-    fireEvent.click(menuButtons[0]);
+    fireEvent.click(menuButtons[0]!);
 
     const toggle = menuButtons[0];
     expect(toggle).toHaveAttribute("aria-expanded", "true");
@@ -185,7 +185,7 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
       expect(screen.getByText("Time series test")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getAllByTestId("project-card-menu-button")[0]);
+    fireEvent.click(screen.getAllByTestId("project-card-menu-button")[0]!);
     fireEvent.click(screen.getByTestId("edit-project-action"));
 
     expect(screen.getByTestId("edit-project-name-input")).toHaveAttribute("maxLength", "255");
@@ -216,7 +216,7 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
       expect(screen.getByText("Time series test")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getAllByTestId("project-card-menu-button")[0]);
+    fireEvent.click(screen.getAllByTestId("project-card-menu-button")[0]!);
     fireEvent.click(screen.getByTestId("edit-project-action"));
     fireEvent.click(screen.getByTestId("save-edit-project"));
 
@@ -234,7 +234,7 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
       expect(screen.getByText("Time series test")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getAllByTestId("project-card-menu-button")[0]);
+    fireEvent.click(screen.getAllByTestId("project-card-menu-button")[0]!);
     fireEvent.click(screen.getByTestId("edit-project-action"));
     fireEvent.click(screen.getByTestId("save-edit-project"));
 
@@ -249,7 +249,7 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
     });
 
     const menuButtons = screen.getAllByTestId("project-card-menu-button");
-    fireEvent.click(menuButtons[0]);
+    fireEvent.click(menuButtons[0]!);
     fireEvent.click(screen.getByTestId("edit-project-action"));
 
     expect(screen.getByTestId("edit-project-modal")).toBeInTheDocument();
