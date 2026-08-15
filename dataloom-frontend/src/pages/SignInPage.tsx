@@ -32,10 +32,11 @@ export default function SignInPage() {
     try {
       await signin(email, password);
       navigate(next || ROUTES.home, { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // `detail` is a string for most errors, but an array of objects for
       // FastAPI 422 validation failures — only a string is safe to render.
-      const detail = err?.response?.data?.detail;
+      const detail = (err as { response?: { data?: { detail?: unknown } } } | null)?.response?.data
+        ?.detail;
       showToast(
         typeof detail === "string" ? detail : "Could not sign in. Please try again.",
         "error",

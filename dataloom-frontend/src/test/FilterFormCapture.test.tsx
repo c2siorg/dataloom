@@ -1,11 +1,33 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { FILTER } from "../constants/operationTypes";
 import FilterForm from "../Components/forms/FilterForm";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
+
+/** Props accepted by the column-picker doubles stubbed in below. */
+interface StubColumnSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: string[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
+
+/** Props accepted by the Select double, whose options carry labels. */
+interface StubSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(),
@@ -20,7 +42,7 @@ vi.mock("../hooks/usePreviewSave", () => ({
 }));
 
 vi.mock("../Components/common/ColumnSelect", () => ({
-  default: ({ value, onChange, placeholder }) => (
+  default: ({ value, onChange, placeholder }: StubColumnSelectProps) => (
     <select aria-label="Column" value={value} onChange={(event) => onChange(event.target.value)}>
       <option value="">{placeholder}</option>
       <option value="amount">Amount</option>
@@ -29,9 +51,9 @@ vi.mock("../Components/common/ColumnSelect", () => ({
 }));
 
 vi.mock("../Components/common/Select", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubSelectProps) => (
     <select aria-label="Condition" value={value} onChange={(event) => onChange(event.target.value)}>
-      {options.map((option) => (
+      {(options ?? []).map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
@@ -40,16 +62,19 @@ vi.mock("../Components/common/Select", () => ({
   ),
 }));
 
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
+
 describe("FilterForm in capture mode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useProjectContext.mockReturnValue({
+    mockUseProjectContext.mockReturnValue({
       pageSize: 50,
       isPreviewMode: false,
       enterPreviewMode: vi.fn(),
       cancelPreview: vi.fn(),
     });
-    usePreviewSave.mockReturnValue({ saving: false, handleSave: vi.fn() });
+    mockUsePreviewSave.mockReturnValue({ saving: false, handleSave: vi.fn() });
   });
 
   it("hands the built step to onCapture instead of previewing", async () => {

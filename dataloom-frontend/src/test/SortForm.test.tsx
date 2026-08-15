@@ -1,11 +1,33 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { SORT } from "../constants/operationTypes";
 import SortForm from "../Components/forms/SortForm";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
+
+/** Props accepted by the column-picker doubles stubbed in below. */
+interface StubColumnSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: string[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
+
+/** Props accepted by the Select double, whose options carry labels. */
+interface StubSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(),
@@ -20,7 +42,7 @@ vi.mock("../hooks/usePreviewSave", () => ({
 }));
 
 vi.mock("../Components/common/ColumnSelect", () => ({
-  default: ({ value, onChange, placeholder, "data-testid": testId }) => (
+  default: ({ value, onChange, placeholder, "data-testid": testId }: StubColumnSelectProps) => (
     <select
       aria-label="Column"
       data-testid={testId}
@@ -35,9 +57,9 @@ vi.mock("../Components/common/ColumnSelect", () => ({
 }));
 
 vi.mock("../Components/common/Select", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubSelectProps) => (
     <select aria-label="Order" value={value} onChange={(event) => onChange(event.target.value)}>
-      {options.map((option) => (
+      {(options ?? []).map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
@@ -46,19 +68,23 @@ vi.mock("../Components/common/Select", () => ({
   ),
 }));
 
+const mockTransformProject = transformProject as unknown as Mock;
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
+
 const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
 const mockHandleSave = vi.fn();
 
 const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
-  useProjectContext.mockReturnValue({
+  mockUseProjectContext.mockReturnValue({
     isPreviewMode,
     pageSize: 50,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
   });
 
-  usePreviewSave.mockReturnValue({
+  mockUsePreviewSave.mockReturnValue({
     saving,
     handleSave: mockHandleSave,
   });
@@ -73,7 +99,7 @@ describe("SortForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: ["amount"],
       rows: [["100"]],
       dtypes: { amount: "integer" },
@@ -116,7 +142,7 @@ describe("SortForm", () => {
     await user.click(screen.getByRole("button", { name: "Add Sort Criterion" }));
     expect(screen.getAllByLabelText("Column")).toHaveLength(2);
 
-    await user.click(screen.getAllByTitle("Remove criterion")[1]);
+    await user.click(screen.getAllByTitle("Remove criterion")[1]!);
 
     expect(screen.getAllByLabelText("Column")).toHaveLength(1);
   });
@@ -127,9 +153,9 @@ describe("SortForm", () => {
 
     await user.selectOptions(screen.getByTestId("sort-column"), "amount");
     await user.click(screen.getByRole("button", { name: "Add Sort Criterion" }));
-    await user.selectOptions(screen.getAllByLabelText("Column")[1], "created_at");
+    await user.selectOptions(screen.getAllByLabelText("Column")[1]!, "created_at");
 
-    await user.click(screen.getAllByTitle("Move down in priority")[0]);
+    await user.click(screen.getAllByTitle("Move down in priority")[0]!);
 
     expect(screen.getByTestId("sort-column")).toHaveValue("created_at");
   });
@@ -178,7 +204,7 @@ describe("SortForm", () => {
 
     await user.selectOptions(screen.getByTestId("sort-column"), "amount");
     await user.click(screen.getByRole("button", { name: "Add Sort Criterion" }));
-    await user.selectOptions(screen.getAllByLabelText("Column")[1], "created_at");
+    await user.selectOptions(screen.getAllByLabelText("Column")[1]!, "created_at");
     await user.click(screen.getByRole("button", { name: "Apply Sort" }));
 
     await waitFor(() => {
@@ -214,7 +240,7 @@ describe("SortForm", () => {
       page_size: 50,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm();
     await user.selectOptions(screen.getByTestId("sort-column"), "amount");
@@ -238,8 +264,8 @@ describe("SortForm", () => {
 
   it("shows applying state while the request is pending", async () => {
     const user = userEvent.setup();
-    let resolveTransform;
-    transformProject.mockImplementation(
+    let resolveTransform!: (value?: unknown) => void;
+    mockTransformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -269,7 +295,7 @@ describe("SortForm", () => {
 
   it("shows the backend error message when the sort request fails", async () => {
     const user = userEvent.setup();
-    transformProject.mockRejectedValue({
+    mockTransformProject.mockRejectedValue({
       response: { data: { detail: "Unable to sort dataset." } },
     });
 

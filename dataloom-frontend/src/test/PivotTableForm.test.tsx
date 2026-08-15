@@ -1,11 +1,42 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { PIVOT_TABLES } from "../constants/operationTypes";
 import PivotTableForm from "../Components/forms/PivotTableForm";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
+
+/** Props accepted by the column-picker doubles stubbed in below. */
+interface StubColumnSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: string[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
+
+/** Props accepted by the Select double, whose options carry labels. */
+interface StubSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
+
+/** Props accepted by the ColumnMultiSelect double, which holds many values. */
+interface StubColumnMultiSelectProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+  options?: string[];
+  placeholder?: string;
+  "data-testid"?: string;
+}
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(),
@@ -20,7 +51,7 @@ vi.mock("../hooks/usePreviewSave", () => ({
 }));
 
 vi.mock("../Components/common/ColumnMultiSelect", () => ({
-  default: ({ value, onChange }) => (
+  default: ({ value, onChange }: StubColumnMultiSelectProps) => (
     <select
       multiple
       aria-label="Index"
@@ -38,7 +69,7 @@ vi.mock("../Components/common/ColumnMultiSelect", () => ({
 let columnSelectRenderCount = 0;
 
 vi.mock("../Components/common/ColumnSelect", () => ({
-  default: ({ value, onChange, placeholder }) => {
+  default: ({ value, onChange, placeholder }: StubColumnSelectProps) => {
     const testId = `pivot-column-select-${columnSelectRenderCount % 2}`;
     columnSelectRenderCount += 1;
 
@@ -53,13 +84,13 @@ vi.mock("../Components/common/ColumnSelect", () => ({
 }));
 
 vi.mock("../Components/common/Select", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubSelectProps) => (
     <select
       aria-label="Aggregation Function"
       value={value}
       onChange={(event) => onChange(event.target.value)}
     >
-      {options.map((option) => (
+      {(options ?? []).map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
@@ -67,6 +98,10 @@ vi.mock("../Components/common/Select", () => ({
     </select>
   ),
 }));
+
+const mockTransformProject = transformProject as unknown as Mock;
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
 
 const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
@@ -78,14 +113,14 @@ const renderForm = ({
   saving = false,
   pageSize = 50,
 } = {}) => {
-  useProjectContext.mockReturnValue({
+  mockUseProjectContext.mockReturnValue({
     pageSize,
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
   });
 
-  usePreviewSave.mockReturnValue({
+  mockUsePreviewSave.mockReturnValue({
     saving,
     handleSave: mockHandleSave,
   });
@@ -106,7 +141,7 @@ describe("PivotTableForm", () => {
     vi.clearAllMocks();
     columnSelectRenderCount = 0;
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: ["region", "amount"],
       rows: [["north", "100"]],
       dtypes: {
@@ -186,9 +221,9 @@ describe("PivotTableForm", () => {
 
     const [columnSelect, valueSelect] = getColumnSelects();
 
-    await user.selectOptions(columnSelect, "created_at");
+    await user.selectOptions(columnSelect!, "created_at");
 
-    await user.selectOptions(valueSelect, "amount");
+    await user.selectOptions(valueSelect!, "amount");
 
     await user.selectOptions(screen.getByLabelText("Aggregation Function"), "mean");
 
@@ -235,7 +270,7 @@ describe("PivotTableForm", () => {
       page_size: 50,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm();
 
@@ -243,9 +278,9 @@ describe("PivotTableForm", () => {
 
     const [columnSelect, valueSelect] = getColumnSelects();
 
-    await user.selectOptions(columnSelect, "created_at");
+    await user.selectOptions(columnSelect!, "created_at");
 
-    await user.selectOptions(valueSelect, "amount");
+    await user.selectOptions(valueSelect!, "amount");
 
     await user.click(
       screen.getByRole("button", {
@@ -283,7 +318,7 @@ describe("PivotTableForm", () => {
   it("shows the backend error message when the pivot request fails", async () => {
     const user = userEvent.setup();
 
-    transformProject.mockRejectedValue({
+    mockTransformProject.mockRejectedValue({
       response: {
         data: {
           detail: "Unable to build pivot table.",
@@ -297,9 +332,9 @@ describe("PivotTableForm", () => {
 
     const [columnSelect, valueSelect] = getColumnSelects();
 
-    await user.selectOptions(columnSelect, "created_at");
+    await user.selectOptions(columnSelect!, "created_at");
 
-    await user.selectOptions(valueSelect, "amount");
+    await user.selectOptions(valueSelect!, "amount");
 
     await user.click(
       screen.getByRole("button", {

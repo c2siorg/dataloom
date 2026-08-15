@@ -52,7 +52,11 @@ export default function SettingsProjectPage() {
       return;
     }
 
-    isName ? setSavingName(true) : setSavingDescription(true);
+    if (isName) {
+      setSavingName(true);
+    } else {
+      setSavingDescription(true);
+    }
 
     try {
       await updateProject(projectId!, {
@@ -75,7 +79,11 @@ export default function SettingsProjectPage() {
         "error",
       );
     } finally {
-      isName ? setSavingName(false) : setSavingDescription(false);
+      if (isName) {
+        setSavingName(false);
+      } else {
+        setSavingDescription(false);
+      }
     }
   };
 

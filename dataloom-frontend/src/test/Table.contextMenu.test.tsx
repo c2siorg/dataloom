@@ -67,7 +67,7 @@ describe("Table Context Menu Actions", () => {
     // 1. Check Row context menu rendering
     // Right click on a cell in the first data row (S.No. is index 0, first data cell is index 1)
     const cells = screen.getAllByText("New York");
-    fireEvent.contextMenu(cells[0]);
+    fireEvent.contextMenu(cells[0]!);
 
     expect(screen.getByRole("menuitem", { name: "Add Row Above" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Add Row Below" })).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe("Table Context Menu Actions", () => {
     // 2. Check Column context menu rendering
     const headers = screen.getAllByRole("columnheader");
     // Right click on the header for "City"
-    fireEvent.contextMenu(headers[1]);
+    fireEvent.contextMenu(headers[1]!);
 
     expect(screen.getByRole("menuitem", { name: "Add Column Before" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Add Column After" })).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe("Table Context Menu Actions", () => {
     renderTable();
 
     const cells = screen.getAllByText("New York");
-    fireEvent.contextMenu(cells[0]);
+    fireEvent.contextMenu(cells[0]!);
 
     const addRowAbove = screen.getByRole("menuitem", { name: "Add Row Above" });
     await user.click(addRowAbove);
@@ -108,7 +108,7 @@ describe("Table Context Menu Actions", () => {
     renderTable();
 
     const cells = screen.getAllByText("New York");
-    fireEvent.contextMenu(cells[0]);
+    fireEvent.contextMenu(cells[0]!);
 
     const addRowBelow = screen.getByRole("menuitem", { name: "Add Row Below" });
     await user.click(addRowBelow);
@@ -128,7 +128,7 @@ describe("Table Context Menu Actions", () => {
 
     const headers = screen.getAllByRole("columnheader");
     // Right click on the first data column ("City", index 1)
-    fireEvent.contextMenu(headers[1]);
+    fireEvent.contextMenu(headers[1]!);
 
     const addColBefore = screen.getByRole("menuitem", { name: "Add Column Before" });
     await user.click(addColBefore);
@@ -155,7 +155,7 @@ describe("Table Context Menu Actions", () => {
 
     const headers = screen.getAllByRole("columnheader");
     // Right click on the first data column ("City", index 1)
-    fireEvent.contextMenu(headers[1]);
+    fireEvent.contextMenu(headers[1]!);
 
     const addColAfter = screen.getByRole("menuitem", { name: "Add Column After" });
     await user.click(addColAfter);
@@ -182,7 +182,7 @@ describe("Table Context Menu Actions", () => {
 
     const headers = screen.getAllByRole("columnheader");
     // Right click on the "S.No." column (index 0)
-    fireEvent.contextMenu(headers[0]);
+    fireEvent.contextMenu(headers[0]!);
 
     const addColBefore = screen.getByRole("menuitem", { name: "Add Column Before" });
     await user.click(addColBefore);
@@ -198,7 +198,7 @@ describe("Table Context Menu Actions", () => {
 
     const headers = screen.getAllByRole("columnheader");
     // Right click on the "S.No." column (index 0)
-    fireEvent.contextMenu(headers[0]);
+    fireEvent.contextMenu(headers[0]!);
 
     const addColAfter = screen.getByRole("menuitem", { name: "Add Column After" });
     await user.click(addColAfter);
@@ -228,7 +228,7 @@ describe("Table Context Menu Actions", () => {
       renderTable();
 
       const cells = screen.getAllByText("New York");
-      fireEvent.contextMenu(cells[0]);
+      fireEvent.contextMenu(cells[0]!);
 
       const addRowAbove = screen.getByRole("menuitem", { name: "Add Row Above" });
       await user.click(addRowAbove);
@@ -250,7 +250,7 @@ describe("Table Context Menu Actions", () => {
       renderTable();
 
       const cells = screen.getAllByText("New York");
-      fireEvent.contextMenu(cells[0]);
+      fireEvent.contextMenu(cells[0]!);
 
       const addRowBelow = screen.getByRole("menuitem", { name: "Add Row Below" });
       await user.click(addRowBelow);

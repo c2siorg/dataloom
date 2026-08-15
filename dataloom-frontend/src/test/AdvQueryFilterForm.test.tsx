@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DROP_DUPLICATE } from "../constants/operationTypes";
-import DropDuplicateForm from "../Components/forms/DropDuplicateForm";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { ADV_QUERY_FILTER } from "../constants/operationTypes";
+import AdvQueryFilterForm from "../Components/forms/AdvQueryFilterForm";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
@@ -19,65 +19,43 @@ vi.mock("../hooks/usePreviewSave", () => ({
   default: vi.fn(),
 }));
 
-vi.mock("../Components/common/ColumnMultiSelect", () => ({
-  default: ({ value, onChange, options }) => (
-    <select
-      multiple
-      aria-label="Columns"
-      value={value}
-      onChange={(event) =>
-        onChange(Array.from(event.target.selectedOptions).map((option) => option.value))
-      }
-    >
-      {(options || ["amount", "created_at"]).map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
-    </select>
-  ),
-}));
-
-vi.mock("../Components/common/Select", () => ({
-  default: ({ value, onChange, options }) => (
-    <select aria-label="Keep" value={value} onChange={(event) => onChange(event.target.value)}>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  ),
-}));
+const mockTransformProject = transformProject as unknown as Mock;
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
 
 const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
 const mockHandleSave = vi.fn();
 
-const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
-  useProjectContext.mockReturnValue({
+const renderForm = ({
+  isPreviewMode = false,
+  onClose = vi.fn(),
+  saving = false,
+  pageSize = 50,
+} = {}) => {
+  mockUseProjectContext.mockReturnValue({
     isPreviewMode,
-    pageSize: 50,
+    pageSize,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
   });
 
-  usePreviewSave.mockReturnValue({
+  mockUsePreviewSave.mockReturnValue({
     saving,
     handleSave: mockHandleSave,
   });
 
   return {
     onClose,
-    ...render(<DropDuplicateForm projectId="project-123" onClose={onClose} />),
+    ...render(<AdvQueryFilterForm projectId="project-123" onClose={onClose} />),
   };
 };
 
-describe("DropDuplicateForm", () => {
+describe("AdvQueryFilterForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: ["amount"],
       rows: [["100"]],
       dtypes: { amount: "integer" },
@@ -88,51 +66,33 @@ describe("DropDuplicateForm", () => {
     });
   });
 
-  it("renders columns and keep controls with buttons", () => {
+  it("renders the query input and buttons", () => {
     renderForm();
 
-    expect(screen.getByLabelText("Columns")).toBeInTheDocument();
-    expect(screen.getByLabelText("Keep")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
-  it("uses first as the default keep option", () => {
+  it("requires a query to be entered", () => {
     renderForm();
 
-    expect(screen.getByLabelText("Keep")).toHaveValue("first");
+    expect(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5")).toBeRequired();
   });
 
-  it("shows a validation error when no columns are selected", async () => {
+  it("submits the query for preview with pagination parameters", async () => {
     const user = userEvent.setup();
     renderForm();
 
-    await user.click(screen.getByRole("button", { name: "Apply" }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Please select at least one column.")).toBeInTheDocument();
-    });
-
-    expect(transformProject).not.toHaveBeenCalled();
-  });
-
-  it("submits the selected columns joined and keep strategy", async () => {
-    const user = userEvent.setup();
-    renderForm();
-
-    await user.selectOptions(screen.getByLabelText("Columns"), ["amount", "created_at"]);
-    await user.selectOptions(screen.getByLabelText("Keep"), "last");
+    await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(
         "project-123",
         {
-          operation_type: DROP_DUPLICATE,
-          drop_duplicate: {
-            columns: "amount,created_at",
-            keep: "last",
-          },
+          operation_type: ADV_QUERY_FILTER,
+          adv_query: { query: "amount > 10" },
         },
         {
           preview: true,
@@ -145,22 +105,21 @@ describe("DropDuplicateForm", () => {
 
   it("enters preview mode using the transformation response and pagination metadata", async () => {
     const user = userEvent.setup();
-
     const response = {
       columns: ["amount"],
       rows: [[100]],
       dtypes: { amount: "integer" },
-      total_rows: 38,
-      total_pages: 4,
-      page: 2,
-      page_size: 10,
+      total_rows: 1,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm();
 
-    await user.selectOptions(screen.getByLabelText("Columns"), ["amount"]);
+    await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
@@ -168,16 +127,9 @@ describe("DropDuplicateForm", () => {
         response.columns,
         response.rows,
         response.dtypes,
-        {
+        expect.objectContaining({
           projectId: "project-123",
-          payload: {
-            operation_type: DROP_DUPLICATE,
-            drop_duplicate: {
-              columns: "amount",
-              keep: "first",
-            },
-          },
-        },
+        }),
         {
           total_rows: response.total_rows,
           total_pages: response.total_pages,
@@ -188,24 +140,80 @@ describe("DropDuplicateForm", () => {
     });
   });
 
-  it("shows the backend error message when the request fails", async () => {
+  it("uses the current page size when requesting the preview", async () => {
+    const user = userEvent.setup();
+    renderForm({ pageSize: 10 });
+
+    await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => {
+      expect(transformProject).toHaveBeenCalledWith(
+        "project-123",
+        {
+          operation_type: ADV_QUERY_FILTER,
+          adv_query: { query: "amount > 10" },
+        },
+        {
+          preview: true,
+          page: 1,
+          pageSize: 10,
+        },
+      );
+    });
+  });
+
+  it("disables Apply while the request is pending", async () => {
+    const user = userEvent.setup();
+    let resolveTransform!: (value?: unknown) => void;
+
+    mockTransformProject.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveTransform = resolve;
+        }),
+    );
+
+    renderForm();
+
+    await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+
+    resolveTransform({
+      columns: [],
+      rows: [],
+      dtypes: {},
+      total_rows: 0,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Apply" })).not.toBeDisabled();
+    });
+  });
+
+  it("shows the backend error message when the query request fails", async () => {
     const user = userEvent.setup();
 
-    transformProject.mockRejectedValue({
+    mockTransformProject.mockRejectedValue({
       response: {
         data: {
-          detail: "Unable to drop duplicates.",
+          detail: "Invalid query syntax.",
         },
       },
     });
 
     renderForm();
 
-    await user.selectOptions(screen.getByLabelText("Columns"), ["amount"]);
+    await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount >>");
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Unable to drop duplicates.")).toBeInTheDocument();
+      expect(screen.getByText("Invalid query syntax.")).toBeInTheDocument();
     });
 
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
@@ -235,7 +243,6 @@ describe("DropDuplicateForm", () => {
     });
 
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   });
 
   it("cancels preview mode when Cancel is clicked during preview", async () => {

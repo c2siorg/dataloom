@@ -1,8 +1,8 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { STRING_REPLACE } from "../constants/operationTypes";
-import StringReplaceForm from "../Components/forms/StringReplaceForm";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { SAMPLE_ROWS } from "../constants/operationTypes";
+import SampleRowsForm from "../Components/forms/SampleRowsForm";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
@@ -19,15 +19,9 @@ vi.mock("../hooks/usePreviewSave", () => ({
   default: vi.fn(),
 }));
 
-vi.mock("../Components/common/ColumnSelect", () => ({
-  default: ({ value, onChange }) => (
-    <select aria-label="Column" value={value} onChange={(event) => onChange(event.target.value)}>
-      <option value="">Select column</option>
-      <option value="amount">Amount</option>
-      <option value="created_at">Created At</option>
-    </select>
-  ),
-}));
+const mockTransformProject = transformProject as unknown as Mock;
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
 
 const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
@@ -37,33 +31,31 @@ const renderForm = ({
   isPreviewMode = false,
   onClose = vi.fn(),
   saving = false,
-  columns = ["amount", "created_at"],
   pageSize = 50,
 } = {}) => {
-  useProjectContext.mockReturnValue({
-    columns,
+  mockUseProjectContext.mockReturnValue({
     pageSize,
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
   });
 
-  usePreviewSave.mockReturnValue({
+  mockUsePreviewSave.mockReturnValue({
     saving,
     handleSave: mockHandleSave,
   });
 
   return {
     onClose,
-    ...render(<StringReplaceForm projectId="project-123" onClose={onClose} />),
+    ...render(<SampleRowsForm projectId="project-123" onClose={onClose} />),
   };
 };
 
-describe("StringReplaceForm", () => {
+describe("SampleRowsForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: ["amount"],
       rows: [["100"]],
       dtypes: {
@@ -72,50 +64,68 @@ describe("StringReplaceForm", () => {
     });
   });
 
-  it("renders column, find, and replace controls with buttons", () => {
+  it("renders sample size, random seed inputs, and buttons", () => {
     renderForm();
 
-    expect(screen.getByLabelText("Column")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Text to find")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Replacement text")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g., 100")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g., 42")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply Sample" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
-  it("shows a validation error when no column is selected", async () => {
+  it("disables Apply Sample when no sample size is entered", () => {
+    renderForm();
+
+    expect(screen.getByRole("button", { name: "Apply Sample" })).toBeDisabled();
+  });
+
+  it("shows an error for a non-positive sample size", async () => {
     const user = userEvent.setup();
 
     renderForm();
 
-    await user.type(screen.getByPlaceholderText("Text to find"), "foo");
+    const sampleSizeInput = screen.getByPlaceholderText("e.g., 100");
 
-    await user.click(
-      screen.getByRole("button", {
-        name: "Apply",
-      }),
-    );
+    await user.type(sampleSizeInput!, "0");
 
-    await waitFor(() => {
-      expect(screen.getByText("Please select a column.")).toBeInTheDocument();
-    });
+    fireEvent.submit(sampleSizeInput.closest("form")!);
+
+    expect(await screen.findByText("Sample size must be a positive integer")).toBeInTheDocument();
 
     expect(transformProject).not.toHaveBeenCalled();
   });
 
-  it("submits column, find value, and replace value", async () => {
+  it("shows an error for a random seed outside the valid range", async () => {
     const user = userEvent.setup();
 
     renderForm();
 
-    await user.selectOptions(screen.getByLabelText("Column"), "amount");
+    const sampleSizeInput = screen.getByPlaceholderText("e.g., 100");
+    const randomSeedInput = screen.getByPlaceholderText("e.g., 42");
 
-    await user.type(screen.getByPlaceholderText("Text to find"), "foo");
+    await user.type(sampleSizeInput!, "10");
+    await user.type(randomSeedInput!, "-1");
 
-    await user.type(screen.getByPlaceholderText("Replacement text"), "bar");
+    fireEvent.submit(sampleSizeInput.closest("form")!);
+
+    expect(
+      await screen.findByText("Random seed must be between 0 and 4294967295"),
+    ).toBeInTheDocument();
+
+    expect(transformProject).not.toHaveBeenCalled();
+  });
+
+  it("submits with an explicit random seed", async () => {
+    const user = userEvent.setup();
+
+    renderForm();
+
+    await user.type(screen.getByPlaceholderText("e.g., 100"), "10");
+    await user.type(screen.getByPlaceholderText("e.g., 42"), "42");
 
     await user.click(
       screen.getByRole("button", {
-        name: "Apply",
+        name: "Apply Sample",
       }),
     );
 
@@ -123,11 +133,10 @@ describe("StringReplaceForm", () => {
       expect(transformProject).toHaveBeenCalledWith(
         "project-123",
         {
-          operation_type: STRING_REPLACE,
-          string_replace_params: {
-            column: "amount",
-            find_value: "foo",
-            replace_value: "bar",
+          operation_type: SAMPLE_ROWS,
+          sample_params: {
+            sample_size: 10,
+            random_seed: 42,
           },
         },
         {
@@ -139,18 +148,16 @@ describe("StringReplaceForm", () => {
     });
   });
 
-  it("allows an empty replace value", async () => {
+  it("auto-generates a random seed when none is provided", async () => {
     const user = userEvent.setup();
 
     renderForm();
 
-    await user.selectOptions(screen.getByLabelText("Column"), "amount");
-
-    await user.type(screen.getByPlaceholderText("Text to find"), "foo");
+    await user.type(screen.getByPlaceholderText("e.g., 100"), "10");
 
     await user.click(
       screen.getByRole("button", {
-        name: "Apply",
+        name: "Apply Sample",
       }),
     );
 
@@ -158,11 +165,10 @@ describe("StringReplaceForm", () => {
       expect(transformProject).toHaveBeenCalledWith(
         "project-123",
         {
-          operation_type: STRING_REPLACE,
-          string_replace_params: {
-            column: "amount",
-            find_value: "foo",
-            replace_value: "",
+          operation_type: SAMPLE_ROWS,
+          sample_params: {
+            sample_size: 10,
+            random_seed: expect.any(Number),
           },
         },
         {
@@ -172,6 +178,11 @@ describe("StringReplaceForm", () => {
         },
       );
     });
+
+    const [, payload] = mockTransformProject.mock.calls[0];
+
+    expect(payload.sample_params.random_seed).toBeGreaterThanOrEqual(0);
+    expect(payload.sample_params.random_seed).toBeLessThanOrEqual(4294967295);
   });
 
   it("enters preview mode using the transformation response", async () => {
@@ -180,29 +191,42 @@ describe("StringReplaceForm", () => {
     const response = {
       columns: ["amount"],
       rows: [[100]],
-      dtypes: { amount: "integer" },
+      dtypes: {
+        amount: "integer",
+      },
       total_rows: 1,
       total_pages: 1,
       page: 1,
       page_size: 50,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm();
 
-    await user.selectOptions(screen.getByLabelText("Column"), "amount");
-    await user.type(screen.getByPlaceholderText("Text to find"), "foo");
-    await user.click(screen.getByRole("button", { name: "Apply" }));
+    await user.type(screen.getByPlaceholderText("e.g., 100"), "10");
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Apply Sample",
+      }),
+    );
 
     await waitFor(() => {
       expect(mockEnterPreviewMode).toHaveBeenCalledWith(
         response.columns,
         response.rows,
         response.dtypes,
-        expect.objectContaining({
+        {
           projectId: "project-123",
-        }),
+          payload: {
+            operation_type: SAMPLE_ROWS,
+            sample_params: {
+              sample_size: 10,
+              random_seed: expect.any(Number),
+            },
+          },
+        },
         {
           total_rows: 1,
           total_pages: 1,
@@ -213,89 +237,42 @@ describe("StringReplaceForm", () => {
     });
   });
 
-  it("shows applying state while the request is pending", async () => {
-    const user = userEvent.setup();
-
-    let resolveTransform;
-
-    transformProject.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveTransform = resolve;
-        }),
-    );
-
-    renderForm();
-
-    await user.selectOptions(screen.getByLabelText("Column"), "amount");
-
-    await user.type(screen.getByPlaceholderText("Text to find"), "foo");
-
-    await user.click(
-      screen.getByRole("button", {
-        name: "Apply",
-      }),
-    );
-
-    expect(
-      screen.getByRole("button", {
-        name: "Applying...",
-      }),
-    ).toBeDisabled();
-
-    resolveTransform({
-      columns: [],
-      rows: [],
-      dtypes: {},
-    });
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", {
-          name: "Apply",
-        }),
-      ).not.toBeDisabled();
-    });
-  });
-
   it("shows the backend error message when the request fails", async () => {
     const user = userEvent.setup();
 
-    transformProject.mockRejectedValue({
+    mockTransformProject.mockRejectedValue({
       response: {
         data: {
-          detail: "Unable to replace text.",
+          detail: "Sample size exceeds row count.",
         },
       },
     });
 
     renderForm();
 
-    await user.selectOptions(screen.getByLabelText("Column"), "amount");
-
-    await user.type(screen.getByPlaceholderText("Text to find"), "foo");
+    await user.type(screen.getByPlaceholderText("e.g., 100"), "10");
 
     await user.click(
       screen.getByRole("button", {
-        name: "Apply",
+        name: "Apply Sample",
       }),
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Unable to replace text.")).toBeInTheDocument();
+      expect(screen.getByText("Sample size exceeds row count.")).toBeInTheDocument();
     });
 
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
-  it("disables Apply and displays Save Changes in preview mode", () => {
+  it("disables Apply Sample and displays Save Changes in preview mode", () => {
     renderForm({
       isPreviewMode: true,
     });
 
     expect(
       screen.getByRole("button", {
-        name: "Apply",
+        name: "Apply Sample",
       }),
     ).toBeDisabled();
 
@@ -336,7 +313,7 @@ describe("StringReplaceForm", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Apply",
+        name: "Apply Sample",
       }),
     ).toBeDisabled();
   });
