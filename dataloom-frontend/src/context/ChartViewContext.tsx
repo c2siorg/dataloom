@@ -46,10 +46,7 @@ export function useChartView(): ChartViewValue {
  * always reflects the latest transforms; a clicked suggestion is a snapshot.
  */
 export function ChartViewProvider({ children }: { children: ReactNode }) {
-  const { projectId, dataVersion } = useProjectContext() as unknown as {
-    projectId: string;
-    dataVersion: number;
-  };
+  const { projectId, dataVersion } = useProjectContext();
 
   const [spec, setSpec] = useState<ChartSpec | null>(null);
   const [mode, setMode] = useState<ChartMode>("empty");
@@ -61,6 +58,7 @@ export function ChartViewProvider({ children }: { children: ReactNode }) {
 
   const fetchChart = useCallback(
     async (params: ChartParams) => {
+      if (!projectId) return;
       setLoading(true);
       setError(false);
       try {

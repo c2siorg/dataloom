@@ -20,7 +20,7 @@ export const SUMMARY_TAB: WorkspaceTab = {
  */
 export function SummaryTab() {
   const { projectId } = useParams() as { projectId: string };
-  const { dataVersion } = useProjectContext() as unknown as { dataVersion: number };
+  const { dataVersion } = useProjectContext();
   const { closeTab } = useWorkspaceTabs();
   // The tab only mounts while active, so it is always "enabled" when rendered.
   const { summary, error, refetch } = useDatasetSummary(projectId, true, dataVersion);

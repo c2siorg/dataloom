@@ -17,8 +17,10 @@ const MeltForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
   const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
   const { saving, handleSave } = usePreviewSave({
     clearError: () => setError(null),
-    handleError: (err: { response?: { data?: { detail?: string } }; message?: string }) =>
-      setError(err.response?.data?.detail || err.message || null),
+    handleError: (err: unknown) => {
+      const apiError = err as { response?: { data?: { detail?: string } }; message?: string };
+      setError(apiError.response?.data?.detail || apiError.message || null);
+    },
     onClose,
   });
 

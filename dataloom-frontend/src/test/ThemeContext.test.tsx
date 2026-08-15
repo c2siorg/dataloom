@@ -9,10 +9,12 @@ vi.mock("../utils/theme", () => ({
   getInitialTheme: vi.fn(),
 }));
 
+const mockGetInitialTheme = vi.mocked(getInitialTheme);
+
 describe("ThemeContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getInitialTheme.mockReturnValue("light");
+    mockGetInitialTheme.mockReturnValue("light");
   });
 
   it("starts with the initial theme", () => {
@@ -34,7 +36,7 @@ describe("ThemeContext", () => {
   });
 
   it("starts in dark mode when the initial theme is dark", () => {
-    getInitialTheme.mockReturnValue("dark");
+    mockGetInitialTheme.mockReturnValue("dark");
 
     const { result } = renderHook(() => useTheme(), {
       wrapper: ThemeProvider,
@@ -60,7 +62,7 @@ describe("ThemeContext", () => {
   });
 
   it("toggleTheme changes dark mode to light mode", () => {
-    getInitialTheme.mockReturnValue("dark");
+    mockGetInitialTheme.mockReturnValue("dark");
 
     const { result } = renderHook(() => useTheme(), {
       wrapper: ThemeProvider,

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useHistoryRefresh, useHistoryRefreshTokens } from "../../context/HistoryRefreshContext";
-import { getCheckpoints, revertToCheckpoint } from "../../api";
+import { getCheckpoints, revertToCheckpoint, type CellValue } from "../../api";
 import { useLogs } from "../../hooks/useLogs";
 import LogsPanel from "../history/LogsPanel";
 import CheckpointsPanel from "../history/CheckpointsPanel";
@@ -20,7 +20,7 @@ interface CheckpointEntry {
 // the response shapes this module reads.
 interface RevertResponse {
   columns: string[];
-  rows: unknown[];
+  rows: CellValue[][];
   dtypes: Record<string, string>;
 }
 
@@ -35,12 +35,6 @@ interface ConfirmData {
 }
 
 // ProjectContext is authored in JS; narrow the one slice this module uses.
-type UpdateData = (
-  columns: string[],
-  rows: unknown[],
-  options?: { dtypes?: Record<string, string>; resetColumnOrder?: boolean },
-) => void;
-
 /** Logs tab — fetches the project's change log and refreshes on transform events. */
 export function LogsTab() {
   const { projectId } = useParams() as { projectId: string };
@@ -56,7 +50,7 @@ export function LogsTab() {
 /** Checkpoints tab — lists checkpoints and handles revert/delete. */
 export function CheckpointsTab() {
   const { projectId } = useParams() as { projectId: string };
-  const { updateData } = useProjectContext() as unknown as { updateData: UpdateData };
+  const { updateData } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const { checkpointsToken } = useHistoryRefreshTokens();
   const [checkpoints, setCheckpoints] = useState<CheckpointEntry[] | null>(null);

@@ -3,6 +3,12 @@ import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import { useHistoryRefresh } from "../context/HistoryRefreshContext";
 
+interface PreviewSaveOptions {
+  clearError: () => void;
+  handleError: (err: unknown) => void;
+  onClose: () => void;
+}
+
 /**
  * Shared hook that encapsulates the Save-Changes logic used by every
  * preview-before-persist form (FilterForm, SampleRowsForm, etc.).
@@ -10,7 +16,7 @@ import { useHistoryRefresh } from "../context/HistoryRefreshContext";
  * Returns { saving, handleSave } — wire `handleSave` to the Save button and
  * use `saving` to disable UI while the request is in flight.
  */
-const usePreviewSave = ({ clearError, handleError, onClose }) => {
+const usePreviewSave = ({ clearError, handleError, onClose }: PreviewSaveOptions) => {
   const { confirmPreview, refreshProject, pageSize, pendingTransform } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const [saving, setSaving] = useState(false);

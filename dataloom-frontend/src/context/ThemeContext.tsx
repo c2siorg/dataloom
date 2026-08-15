@@ -1,11 +1,27 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 
-import { applyTheme, getInitialTheme } from "../utils/theme";
+import { applyTheme, getInitialTheme, type Theme } from "../utils/theme";
 
-const ThemeContext = createContext(null);
+interface ThemeContextValue {
+  theme: Theme;
+  isDarkMode: boolean;
+  setTheme: Dispatch<SetStateAction<Theme>>;
+  toggleTheme: () => void;
+}
 
-export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(getInitialTheme);
+const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+export const ThemeProvider = ({ children }: { children: ReactNode }) => {
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
     applyTheme(theme);
