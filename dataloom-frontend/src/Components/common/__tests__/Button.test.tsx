@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { ButtonSize, ButtonVariant } from "../Button";
 
 import Button from "../Button";
 
@@ -59,7 +60,7 @@ describe("Button", () => {
   });
 
   it("falls back to primary for unknown variant", () => {
-    render(<Button variant="unknown">Fallback</Button>);
+    render(<Button variant={"unknown" as ButtonVariant}>Fallback</Button>);
 
     const button = screen.getByRole("button");
 
@@ -87,7 +88,7 @@ describe("Button", () => {
   });
 
   it("falls back to medium for an unknown size", () => {
-    render(<Button size="unknown">Fallback size</Button>);
+    render(<Button size={"unknown" as ButtonSize}>Fallback size</Button>);
 
     const button = screen.getByRole("button");
 

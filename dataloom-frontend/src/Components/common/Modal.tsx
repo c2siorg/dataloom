@@ -1,20 +1,33 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+
+interface ModalProps {
+  /** Whether the modal is visible. */
+  isOpen: boolean;
+  /** Callback to close the modal. */
+  onClose: () => void;
+  /** Modal title text. */
+  title?: string;
+  /** Modal body content. */
+  children: ReactNode;
+  /** Optional width/spacing classes for the dialog shell. */
+  className?: string;
+}
 
 /**
  * Accessible modal dialog component.
- * @param {Object} props
- * @param {boolean} props.isOpen - Whether the modal is visible.
- * @param {Function} props.onClose - Callback to close the modal.
- * @param {string} [props.title] - Modal title text.
- * @param {React.ReactNode} props.children - Modal body content.
- * @param {string} [props.className] - Optional width/spacing classes for the dialog shell.
  */
-export default function Modal({ isOpen, onClose, title, children, className = "max-w-lg" }) {
-  const dialogRef = useRef(null);
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  className = "max-w-lg",
+}: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handleKeyDown);

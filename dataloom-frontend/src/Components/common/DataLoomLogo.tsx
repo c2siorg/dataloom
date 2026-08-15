@@ -1,10 +1,13 @@
+interface DataLoomLogoProps {
+  /** Additional CSS classes for sizing. */
+  className?: string;
+}
+
 /**
  * DataLoom logo — 2×2 interlaced bar weave pattern.
  * Uses currentColor so it inherits the parent's text color.
- * @param {Object} props
- * @param {string} [props.className] - Additional CSS classes for sizing.
  */
-export default function DataLoomLogo({ className = "" }) {
+export default function DataLoomLogo({ className = "" }: DataLoomLogoProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

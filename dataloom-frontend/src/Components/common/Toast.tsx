@@ -7,15 +7,24 @@ const TYPE_CLASSES = {
   warning: "border-l-yellow-500",
 };
 
+/** The severities a toast can carry. */
+export type ToastType = keyof typeof TYPE_CLASSES;
+
+interface ToastProps {
+  /** Toast message text. */
+  message: string;
+  /** Toast visual type. */
+  type?: ToastType;
+  /** Callback when toast should be removed. */
+  onDismiss: () => void;
+  /** Auto-dismiss duration in ms. */
+  duration?: number;
+}
+
 /**
  * Single toast notification component.
- * @param {Object} props
- * @param {string} props.message - Toast message text.
- * @param {'success'|'error'|'info'|'warning'} [props.type='info'] - Toast visual type.
- * @param {Function} props.onDismiss - Callback when toast should be removed.
- * @param {number} [props.duration=3000] - Auto-dismiss duration in ms.
  */
-export default function Toast({ message, type = "info", onDismiss, duration = 3000 }) {
+export default function Toast({ message, type = "info", onDismiss, duration = 3000 }: ToastProps) {
   useEffect(() => {
     const timer = setTimeout(onDismiss, duration);
     return () => clearTimeout(timer);

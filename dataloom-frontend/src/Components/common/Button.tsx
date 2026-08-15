@@ -1,12 +1,5 @@
-/**
- * Reusable button component with variant and size support.
- * @param {Object} props
- * @param {'primary'|'secondary'|'danger'|'ghost'|'success'} [props.variant='primary'] - Visual style variant.
- * @param {'sm'|'md'} [props.size='md'] - Button size.
- * @param {React.ReactNode} props.children - Button content.
- * @param {string} [props.className] - Additional CSS classes.
- * @param {Object} [props.rest] - Additional props passed to the button element.
- */
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+
 const VARIANT_CLASSES = {
   primary: "bg-accent text-white hover:bg-accent-hover focus:ring-accent",
 
@@ -25,13 +18,28 @@ const SIZE_CLASSES = {
   md: "px-4 py-2",
 };
 
+export type ButtonVariant = keyof typeof VARIANT_CLASSES;
+export type ButtonSize = keyof typeof SIZE_CLASSES;
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Visual style variant. */
+  variant?: ButtonVariant;
+  /** Button size. */
+  size?: ButtonSize;
+  children?: ReactNode;
+  className?: string;
+}
+
+/**
+ * Reusable button component with variant and size support.
+ */
 export default function Button({
   variant = "primary",
   size = "md",
   children,
   className = "",
   ...rest
-}) {
+}: ButtonProps) {
   return (
     <button
       className={`rounded-md font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
