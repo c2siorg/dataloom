@@ -1,6 +1,8 @@
-import PropTypes from "prop-types";
+interface FormErrorAlertProps {
+  message?: string | null;
+}
 
-const FormErrorAlert = ({ message }) => {
+const FormErrorAlert = ({ message }: FormErrorAlertProps) => {
   if (!message) return null;
 
   return (
@@ -8,10 +10,6 @@ const FormErrorAlert = ({ message }) => {
       {message}
     </div>
   );
-};
-
-FormErrorAlert.propTypes = {
-  message: PropTypes.string,
 };
 
 export default FormErrorAlert;

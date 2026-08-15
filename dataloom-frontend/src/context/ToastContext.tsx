@@ -1,8 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import Toast from "../Components/common/Toast";
+import Toast, { type ToastType } from "../Components/common/Toast";
 
-/** The severities a toast can carry. */
-export type ToastType = "success" | "error" | "info" | "warning";
+export type { ToastType };
 
 interface ToastEntry {
   id: number;

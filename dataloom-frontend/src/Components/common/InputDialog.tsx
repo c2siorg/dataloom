@@ -1,6 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import Modal from "./Modal";
 import Button from "./Button";
+
+interface InputDialogProps {
+  isOpen: boolean;
+  message: string;
+  defaultValue?: string;
+  onSubmit: (value: string) => void;
+  onCancel: () => void;
+  required?: boolean;
+}
 
 export default function InputDialog({
   isOpen,
@@ -9,7 +18,7 @@ export default function InputDialog({
   onSubmit,
   onCancel,
   required = false,
-}) {
+}: InputDialogProps) {
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
@@ -18,7 +27,7 @@ export default function InputDialog({
     }
   }, [isOpen, defaultValue]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit(value);
   };

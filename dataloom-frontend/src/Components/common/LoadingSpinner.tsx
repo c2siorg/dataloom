@@ -1,9 +1,12 @@
+interface LoadingSpinnerProps {
+  /** Text shown below spinner. */
+  message?: string;
+}
+
 /**
  * Loading spinner indicator.
- * @param {Object} props
- * @param {string} [props.message="Loading..."] - Text shown below spinner.
  */
-export default function LoadingSpinner({ message = "Loading..." }) {
+export default function LoadingSpinner({ message = "Loading..." }: LoadingSpinnerProps) {
   return (
     <div className="flex flex-col items-center justify-center p-8" aria-busy="true">
       <div className="w-8 h-8 border-4 border-app-border border-t-blue-500 rounded-full animate-spin" />

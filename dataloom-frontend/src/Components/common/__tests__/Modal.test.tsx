@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import Modal from "../Modal";
 
@@ -56,7 +57,8 @@ describe("Modal", () => {
     );
     // Click on the overlay (the outermost div)
     const overlay = screen.getByRole("dialog").parentElement;
-    await user.click(overlay);
+    expect(overlay).not.toBeNull();
+    await user.click(overlay!);
     expect(onClose).toHaveBeenCalledOnce();
   });
 

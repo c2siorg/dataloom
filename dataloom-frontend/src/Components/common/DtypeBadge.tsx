@@ -1,6 +1,4 @@
-import PropTypes from "prop-types";
-
-const DTYPE_STYLES = {
+const DTYPE_STYLES: Record<string, string> = {
   int: "bg-blue-100 text-blue-700",
   float: "bg-teal-100 text-teal-700",
   str: "bg-green-100 text-green-700",
@@ -8,7 +6,12 @@ const DTYPE_STYLES = {
   bool: "bg-orange-100 text-orange-700",
 };
 
-const DtypeBadge = ({ dtype, className = "ml-1.5" }) => {
+interface DtypeBadgeProps {
+  dtype?: string | null;
+  className?: string;
+}
+
+const DtypeBadge = ({ dtype, className = "ml-1.5" }: DtypeBadgeProps) => {
   if (!dtype) return null;
 
   const style = DTYPE_STYLES[dtype] || "bg-gray-100 text-gray-700";
@@ -20,11 +23,6 @@ const DtypeBadge = ({ dtype, className = "ml-1.5" }) => {
       {dtype}
     </span>
   );
-};
-
-DtypeBadge.propTypes = {
-  dtype: PropTypes.string,
-  className: PropTypes.string,
 };
 
 export default DtypeBadge;
