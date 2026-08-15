@@ -1,12 +1,34 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { CAST_DATA_TYPE } from "../constants/operationTypes";
 import CastDataTypeForm from "../Components/forms/CastDataTypeForm";
 import { transformProject } from "../api";
 import { useToast } from "../context/ToastContext";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
+
+/** Props accepted by the column-picker doubles stubbed in below. */
+interface StubColumnSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: string[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
+
+/** Props accepted by the Select double, whose options carry labels. */
+interface StubSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(),
@@ -25,7 +47,7 @@ vi.mock("../hooks/usePreviewSave", () => ({
 }));
 
 vi.mock("../Components/common/ColumnSelect", () => ({
-  default: ({ value, onChange, placeholder }) => (
+  default: ({ value, onChange, placeholder }: StubColumnSelectProps) => (
     <select aria-label="Column" value={value} onChange={(event) => onChange(event.target.value)}>
       <option value="">{placeholder}</option>
       <option value="amount">Amount</option>
@@ -35,13 +57,13 @@ vi.mock("../Components/common/ColumnSelect", () => ({
 }));
 
 vi.mock("../Components/common/Select", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubSelectProps) => (
     <select
       aria-label="Target Type"
       value={value}
       onChange={(event) => onChange(event.target.value)}
     >
-      {options.map((option) => (
+      {(options ?? []).map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
@@ -50,20 +72,25 @@ vi.mock("../Components/common/Select", () => ({
   ),
 }));
 
+const mockTransformProject = transformProject as unknown as Mock;
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
+const mockUseToast = useToast as unknown as Mock;
+
 const mockShowToast = vi.fn();
 const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
 const mockHandleSave = vi.fn();
 
 const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
-  useProjectContext.mockReturnValue({
+  mockUseProjectContext.mockReturnValue({
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
     pageSize: 50,
   });
 
-  usePreviewSave.mockReturnValue({
+  mockUsePreviewSave.mockReturnValue({
     saving,
     handleSave: mockHandleSave,
   });
@@ -78,11 +105,11 @@ describe("CastDataTypeForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    useToast.mockReturnValue({
+    mockUseToast.mockReturnValue({
       showToast: mockShowToast,
     });
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: ["amount", "created_at"],
       rows: [
         ["100", "2026-07-18"],
@@ -171,7 +198,7 @@ describe("CastDataTypeForm", () => {
       page_size: 50,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm();
 
@@ -207,9 +234,9 @@ describe("CastDataTypeForm", () => {
   it("shows applying state while the preview request is pending", async () => {
     const user = userEvent.setup();
 
-    let resolveTransform;
+    let resolveTransform!: (value?: unknown) => void;
 
-    transformProject.mockImplementation(
+    mockTransformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -242,7 +269,7 @@ describe("CastDataTypeForm", () => {
   it("shows the backend error message when preview fails", async () => {
     const user = userEvent.setup();
 
-    transformProject.mockRejectedValue({
+    mockTransformProject.mockRejectedValue({
       response: {
         data: {
           detail: "Unable to cast column to integer.",
@@ -268,7 +295,7 @@ describe("CastDataTypeForm", () => {
   it("shows a fallback message when preview fails without backend detail", async () => {
     const user = userEvent.setup();
 
-    transformProject.mockRejectedValue(new Error("Network error"));
+    mockTransformProject.mockRejectedValue(new Error("Network error"));
 
     renderForm();
 
@@ -355,7 +382,7 @@ describe("CastDataTypeForm", () => {
 
     await user.selectOptions(screen.getByLabelText("Target Type"), "datetime");
 
-    fireEvent.submit(screen.getByRole("button", { name: "Apply" }).closest("form"));
+    fireEvent.submit(screen.getByRole("button", { name: "Apply" }).closest("form")!);
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(

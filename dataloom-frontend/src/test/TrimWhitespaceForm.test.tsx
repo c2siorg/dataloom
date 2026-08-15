@@ -1,11 +1,22 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { TRIM_WHITESPACE } from "../constants/operationTypes";
 import TrimWhitespaceForm from "../Components/forms/TrimWhitespaceForm";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
+
+/** Props accepted by the column-picker doubles stubbed in below. */
+interface StubColumnSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: string[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(),
@@ -20,7 +31,7 @@ vi.mock("../hooks/usePreviewSave", () => ({
 }));
 
 vi.mock("../Components/common/ColumnSelect", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubColumnSelectProps) => (
     <select aria-label="Column" value={value} onChange={(event) => onChange(event.target.value)}>
       {(options || []).map((option) => (
         <option key={option} value={option}>
@@ -30,6 +41,10 @@ vi.mock("../Components/common/ColumnSelect", () => ({
     </select>
   ),
 }));
+
+const mockTransformProject = transformProject as unknown as Mock;
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
 
 const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
@@ -42,7 +57,7 @@ const renderForm = ({
   pageSize = 50,
   columns = ["amount", "created_at"],
 } = {}) => {
-  useProjectContext.mockReturnValue({
+  mockUseProjectContext.mockReturnValue({
     columns,
     pageSize,
     isPreviewMode,
@@ -50,7 +65,7 @@ const renderForm = ({
     cancelPreview: mockCancelPreview,
   });
 
-  usePreviewSave.mockReturnValue({
+  mockUsePreviewSave.mockReturnValue({
     saving,
     handleSave: mockHandleSave,
   });
@@ -65,7 +80,7 @@ describe("TrimWhitespaceForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: ["amount"],
       rows: [["100"]],
       dtypes: { amount: "integer" },
@@ -160,7 +175,7 @@ describe("TrimWhitespaceForm", () => {
       page_size: 50,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm();
 
@@ -194,9 +209,9 @@ describe("TrimWhitespaceForm", () => {
   it("shows applying state while the request is pending", async () => {
     const user = userEvent.setup();
 
-    let resolveTransform;
+    let resolveTransform!: (value?: unknown) => void;
 
-    transformProject.mockImplementation(
+    mockTransformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -224,7 +239,7 @@ describe("TrimWhitespaceForm", () => {
   it("shows the backend error message when the request fails", async () => {
     const user = userEvent.setup();
 
-    transformProject.mockRejectedValue({
+    mockTransformProject.mockRejectedValue({
       response: {
         data: {
           detail: "Unable to trim whitespace.",
@@ -304,9 +319,9 @@ describe("TrimWhitespaceForm", () => {
   it("does not call enterPreviewMode when the component unmounts during loading", async () => {
     const user = userEvent.setup();
 
-    let resolveTransform;
+    let resolveTransform!: (value?: unknown) => void;
 
-    transformProject.mockImplementation(
+    mockTransformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -334,9 +349,9 @@ describe("TrimWhitespaceForm", () => {
   it("allows re-submit after a cancelled in-flight request", async () => {
     const user = userEvent.setup();
 
-    let resolveTransform;
+    let resolveTransform!: (value?: unknown) => void;
 
-    transformProject.mockImplementationOnce(
+    mockTransformProject.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -356,7 +371,7 @@ describe("TrimWhitespaceForm", () => {
       dtypes: {},
     });
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: [],
       rows: [],
       dtypes: {},

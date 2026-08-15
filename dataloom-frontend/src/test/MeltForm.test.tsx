@@ -1,10 +1,19 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import MeltForm from "../Components/forms/MeltForm";
 import { transformProject, getProjectDetails } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
+
+/** Props accepted by the ColumnMultiSelect double, which holds many values. */
+interface StubColumnMultiSelectProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+  options?: string[];
+  placeholder?: string;
+  "data-testid"?: string;
+}
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(),
@@ -20,7 +29,7 @@ vi.mock("../hooks/usePreviewSave", () => ({
 }));
 
 vi.mock("../Components/common/ColumnMultiSelect", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubColumnMultiSelectProps) => (
     <select
       multiple
       value={value}
@@ -37,6 +46,11 @@ vi.mock("../Components/common/ColumnMultiSelect", () => ({
   ),
 }));
 
+const mockTransformProject = transformProject as unknown as Mock;
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
+const mockGetProjectDetails = getProjectDetails as unknown as Mock;
+
 const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
 const mockHandleSave = vi.fn();
@@ -47,14 +61,14 @@ const renderForm = async ({
   saving = false,
   pageSize = 50,
 } = {}) => {
-  useProjectContext.mockReturnValue({
+  mockUseProjectContext.mockReturnValue({
     pageSize,
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
   });
 
-  usePreviewSave.mockReturnValue({
+  mockUsePreviewSave.mockReturnValue({
     saving,
     handleSave: mockHandleSave,
   });
@@ -75,11 +89,11 @@ describe("MeltForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    getProjectDetails.mockResolvedValue({
+    mockGetProjectDetails.mockResolvedValue({
       columns: ["amount", "created_at", "region"],
     });
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: ["variable", "value"],
       rows: [["amount", "100"]],
       dtypes: {
@@ -114,7 +128,7 @@ describe("MeltForm", () => {
   });
 
   it("shows an error if fetching columns fails", async () => {
-    getProjectDetails.mockRejectedValue(new Error("network down"));
+    mockGetProjectDetails.mockRejectedValue(new Error("network down"));
 
     render(<MeltForm projectId="project-123" onClose={vi.fn()} />);
 
@@ -150,8 +164,8 @@ describe("MeltForm", () => {
 
     const [idSelect, valueSelect] = screen.getAllByRole("listbox");
 
-    await user.selectOptions(idSelect, "amount");
-    await user.selectOptions(valueSelect, "amount");
+    await user.selectOptions(idSelect!, "amount");
+    await user.selectOptions(valueSelect!, "amount");
 
     await user.click(
       screen.getByRole("button", {
@@ -175,7 +189,7 @@ describe("MeltForm", () => {
 
     const [idSelect] = screen.getAllByRole("listbox");
 
-    await user.selectOptions(idSelect, "amount");
+    await user.selectOptions(idSelect!, "amount");
 
     await user.click(
       screen.getByRole("button", {
@@ -211,18 +225,18 @@ describe("MeltForm", () => {
 
     const [idSelect, valueSelect] = screen.getAllByRole("listbox");
 
-    await user.selectOptions(idSelect, "amount");
-    await user.selectOptions(valueSelect, "region");
+    await user.selectOptions(idSelect!, "amount");
+    await user.selectOptions(valueSelect!, "region");
 
     const variableNameInput = screen.getByPlaceholderText("default: variable");
 
     const valueNameInput = screen.getByPlaceholderText("default: value");
 
     await user.clear(variableNameInput);
-    await user.type(variableNameInput, "metric");
+    await user.type(variableNameInput!, "metric");
 
     await user.clear(valueNameInput);
-    await user.type(valueNameInput, "reading");
+    await user.type(valueNameInput!, "reading");
 
     await user.click(
       screen.getByRole("button", {
@@ -267,13 +281,13 @@ describe("MeltForm", () => {
       page_size: 50,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     await renderForm();
 
     const [idSelect] = screen.getAllByRole("listbox");
 
-    await user.selectOptions(idSelect, "amount");
+    await user.selectOptions(idSelect!, "amount");
 
     await user.click(
       screen.getByRole("button", {
@@ -311,9 +325,9 @@ describe("MeltForm", () => {
   it("shows a processing state while the request is pending", async () => {
     const user = userEvent.setup();
 
-    let resolveTransform;
+    let resolveTransform!: (value?: unknown) => void;
 
-    transformProject.mockImplementation(
+    mockTransformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -324,7 +338,7 @@ describe("MeltForm", () => {
 
     const [idSelect] = screen.getAllByRole("listbox");
 
-    await user.selectOptions(idSelect, "amount");
+    await user.selectOptions(idSelect!, "amount");
 
     await user.click(
       screen.getByRole("button", {
@@ -360,7 +374,7 @@ describe("MeltForm", () => {
   it("shows the backend error message when the melt request fails", async () => {
     const user = userEvent.setup();
 
-    transformProject.mockRejectedValue({
+    mockTransformProject.mockRejectedValue({
       response: {
         data: {
           detail: "Unable to melt dataset.",
@@ -372,7 +386,7 @@ describe("MeltForm", () => {
 
     const [idSelect] = screen.getAllByRole("listbox");
 
-    await user.selectOptions(idSelect, "amount");
+    await user.selectOptions(idSelect!, "amount");
 
     await user.click(
       screen.getByRole("button", {

@@ -21,15 +21,18 @@ module.exports = {
     {
       files: ["**/*.{ts,tsx}"],
       parser: "@typescript-eslint/parser",
+      plugins: ["@typescript-eslint"],
+      extends: ["plugin:@typescript-eslint/recommended"],
       rules: {
         // Covered by tsc (noUnusedLocals); the core rule false-positives on
         // type-only constructs like interface members and type imports.
         "no-unused-vars": "off",
         "no-undef": "off",
+        "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
       },
     },
     {
-      files: ["**/__tests__/**/*.{js,jsx,ts,tsx}", "**/*.test.{js,jsx,ts,tsx}"],
+      files: ["**/__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"],
       env: { jest: true },
       globals: { vi: "readonly" },
       rules: {

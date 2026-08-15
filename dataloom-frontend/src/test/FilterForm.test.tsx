@@ -1,11 +1,33 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { FILTER } from "../constants/operationTypes";
 import FilterForm from "../Components/forms/FilterForm";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
+
+/** Props accepted by the column-picker doubles stubbed in below. */
+interface StubColumnSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: string[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
+
+/** Props accepted by the Select double, whose options carry labels. */
+interface StubSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(),
@@ -20,7 +42,7 @@ vi.mock("../hooks/usePreviewSave", () => ({
 }));
 
 vi.mock("../Components/common/ColumnSelect", () => ({
-  default: ({ value, onChange, placeholder }) => (
+  default: ({ value, onChange, placeholder }: StubColumnSelectProps) => (
     <select aria-label="Column" value={value} onChange={(event) => onChange(event.target.value)}>
       <option value="">{placeholder}</option>
       <option value="amount">Amount</option>
@@ -30,9 +52,9 @@ vi.mock("../Components/common/ColumnSelect", () => ({
 }));
 
 vi.mock("../Components/common/Select", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubSelectProps) => (
     <select aria-label="Condition" value={value} onChange={(event) => onChange(event.target.value)}>
-      {options.map((option) => (
+      {(options ?? []).map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
@@ -40,6 +62,10 @@ vi.mock("../Components/common/Select", () => ({
     </select>
   ),
 }));
+
+const mockTransformProject = transformProject as unknown as Mock;
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
 
 const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
@@ -51,14 +77,14 @@ const renderForm = ({
   saving = false,
   pageSize = 50,
 } = {}) => {
-  useProjectContext.mockReturnValue({
+  mockUseProjectContext.mockReturnValue({
     pageSize,
     isPreviewMode,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
   });
 
-  usePreviewSave.mockReturnValue({
+  mockUsePreviewSave.mockReturnValue({
     saving,
     handleSave: mockHandleSave,
   });
@@ -73,7 +99,7 @@ describe("FilterForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: ["amount", "created_at"],
       rows: [["100", "2026-07-18"]],
       dtypes: {
@@ -113,7 +139,7 @@ describe("FilterForm", () => {
 
     await user.type(screen.getByTestId("filter-value"), "100");
 
-    fireEvent.submit(screen.getByTestId("filter-form").querySelector("form"));
+    fireEvent.submit(screen.getByTestId("filter-form").querySelector("form")!);
 
     await waitFor(() => {
       expect(screen.getByText("Please select a column.")).toBeInTheDocument();
@@ -175,7 +201,7 @@ describe("FilterForm", () => {
       page_size: 50,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm();
 
@@ -218,9 +244,9 @@ describe("FilterForm", () => {
   it("disables the Apply Filter button while the request is pending", async () => {
     const user = userEvent.setup();
 
-    let resolveTransform;
+    let resolveTransform!: (value?: unknown) => void;
 
-    transformProject.mockImplementation(
+    mockTransformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -267,7 +293,7 @@ describe("FilterForm", () => {
   it("shows the backend error message when the filter request fails", async () => {
     const user = userEvent.setup();
 
-    transformProject.mockRejectedValue({
+    mockTransformProject.mockRejectedValue({
       response: {
         data: {
           detail: "Invalid filter expression.",
@@ -400,7 +426,7 @@ describe("FilterForm", () => {
       page_size: 10,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm({
       pageSize: 10,

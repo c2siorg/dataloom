@@ -1,11 +1,42 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { GROUPBY } from "../constants/operationTypes";
 import GroupByForm from "../Components/forms/GroupByForm";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import usePreviewSave from "../hooks/usePreviewSave";
+
+/** Props accepted by the column-picker doubles stubbed in below. */
+interface StubColumnSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: string[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
+
+/** Props accepted by the Select double, whose options carry labels. */
+interface StubSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  includeEmptyOption?: boolean;
+  emptyLabel?: string;
+  "data-testid"?: string;
+}
+
+/** Props accepted by the ColumnMultiSelect double, which holds many values. */
+interface StubColumnMultiSelectProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+  options?: string[];
+  placeholder?: string;
+  "data-testid"?: string;
+}
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(),
@@ -20,7 +51,7 @@ vi.mock("../hooks/usePreviewSave", () => ({
 }));
 
 vi.mock("../Components/common/ColumnMultiSelect", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubColumnMultiSelectProps) => (
     <select
       multiple
       aria-label="Group By Columns"
@@ -39,7 +70,7 @@ vi.mock("../Components/common/ColumnMultiSelect", () => ({
 }));
 
 vi.mock("../Components/common/ColumnSelect", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubColumnSelectProps) => (
     <select
       aria-label="Aggregation Column"
       value={value}
@@ -56,9 +87,9 @@ vi.mock("../Components/common/ColumnSelect", () => ({
 }));
 
 vi.mock("../Components/common/Select", () => ({
-  default: ({ value, onChange, options }) => (
+  default: ({ value, onChange, options }: StubSelectProps) => (
     <select aria-label="Function" value={value} onChange={(event) => onChange(event.target.value)}>
-      {options.map((option) => (
+      {(options ?? []).map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
@@ -66,6 +97,10 @@ vi.mock("../Components/common/Select", () => ({
     </select>
   ),
 }));
+
+const mockTransformProject = transformProject as unknown as Mock;
+const mockUseProjectContext = useProjectContext as unknown as Mock;
+const mockUsePreviewSave = usePreviewSave as unknown as Mock;
 
 const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
@@ -78,7 +113,7 @@ const renderForm = ({
   columns = ["amount", "created_at", "region"],
   pageSize = 50,
 } = {}) => {
-  useProjectContext.mockReturnValue({
+  mockUseProjectContext.mockReturnValue({
     columns,
     pageSize,
     isPreviewMode,
@@ -86,7 +121,7 @@ const renderForm = ({
     cancelPreview: mockCancelPreview,
   });
 
-  usePreviewSave.mockReturnValue({
+  mockUsePreviewSave.mockReturnValue({
     saving,
     handleSave: mockHandleSave,
   });
@@ -101,7 +136,7 @@ describe("GroupByForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: ["region", "amount"],
       rows: [["north", "100"]],
       dtypes: {
@@ -224,7 +259,7 @@ describe("GroupByForm", () => {
       page_size: 50,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm();
 
@@ -267,9 +302,9 @@ describe("GroupByForm", () => {
   it("shows applying state while the request is pending", async () => {
     const user = userEvent.setup();
 
-    let resolveTransform;
+    let resolveTransform!: (value?: unknown) => void;
 
-    transformProject.mockImplementation(
+    mockTransformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -316,7 +351,7 @@ describe("GroupByForm", () => {
   it("shows the backend error message when the group by request fails", async () => {
     const user = userEvent.setup();
 
-    transformProject.mockRejectedValue({
+    mockTransformProject.mockRejectedValue({
       response: {
         data: {
           detail: "Unable to group dataset.",
@@ -439,9 +474,9 @@ describe("GroupByForm", () => {
   it("does not call enterPreviewMode when user closes during loading", async () => {
     const user = userEvent.setup();
 
-    let resolveTransform;
+    let resolveTransform!: (value?: unknown) => void;
 
-    transformProject.mockImplementation(
+    mockTransformProject.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -480,9 +515,9 @@ describe("GroupByForm", () => {
   it("allows re-submit after a cancelled in-flight request", async () => {
     const user = userEvent.setup();
 
-    let resolveTransform;
+    let resolveTransform!: (value?: unknown) => void;
 
-    transformProject.mockImplementationOnce(
+    mockTransformProject.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveTransform = resolve;
@@ -513,7 +548,7 @@ describe("GroupByForm", () => {
       page_size: 50,
     });
 
-    transformProject.mockResolvedValue({
+    mockTransformProject.mockResolvedValue({
       columns: [],
       rows: [],
       dtypes: {},
@@ -566,7 +601,7 @@ describe("GroupByForm", () => {
       page_size: 10,
     };
 
-    transformProject.mockResolvedValue(response);
+    mockTransformProject.mockResolvedValue(response);
 
     renderForm({
       pageSize: 10,
