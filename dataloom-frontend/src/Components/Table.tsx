@@ -10,7 +10,7 @@ import {
   useCallback,
 } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-import { transformProject, type TransformationInput } from "../api";
+import { transformProject, type CellValue, type TransformationInput } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import { useHistoryRefresh } from "../context/HistoryRefreshContext";
 import {
@@ -28,8 +28,8 @@ import ColumnProfileCard from "./profiling/ColumnProfileCard";
 import useColumnProfiles from "../hooks/useColumnProfiles";
 import { useToast } from "../context/ToastContext";
 
-/** A single table cell value. `undefined` arises from sparse index access. */
-type Cell = string | number | null | undefined;
+/** A single table cell value, as the API layer defines it. */
+type Cell = CellValue;
 
 /** Backend transform response: rows may be arrays or column-keyed objects. */
 interface TransformResponse {
@@ -54,48 +54,6 @@ interface InputConfig {
 interface EditingCell {
   rowIndex: number;
   cellIndex: number;
-}
-
-/** Subset of ProjectContext consumed here; the context itself is still JS. */
-interface ProjectContextValue {
-  columns: string[];
-  rows: Cell[][];
-  dtypes: Record<string, string>;
-  updateData: (
-    columns: string[],
-    rows: Cell[][],
-    options?: { dtypes?: Record<string, string>; resetColumnOrder?: boolean },
-  ) => void;
-  columnOrder: number[];
-  setColumnOrder: (order: number[]) => void;
-  dataVersion: number;
-  totalRows: number;
-  totalPages: number;
-  page: number;
-  pageSize: number;
-  isPreviewMode: boolean;
-  pendingTransform: {
-    projectId: string;
-    payload: TransformationInput;
-  } | null;
-  setPaginationData: (info: {
-    page?: number;
-    page_size?: number;
-    total_rows?: number;
-    total_pages?: number;
-  }) => void;
-  updatePreviewPage: (
-    columns: string[],
-    rows: Cell[][],
-    dtypes: Record<string, string> | undefined,
-    paginationInfo: {
-      total_rows?: number;
-      total_pages?: number;
-      page?: number;
-      page_size?: number;
-    },
-  ) => void;
-  refreshProject: (id: string, page: number, pageSize: number) => void;
 }
 
 /** Context payload carried by the right-click context menu. */
@@ -144,13 +102,13 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     setPaginationData,
     updatePreviewPage,
     refreshProject,
-  } = useProjectContext() as unknown as ProjectContextValue;
+  } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const [data, setData] = useState<Cell[][]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState("");
-  const { isOpen, position, contextData, open, close } = useContextMenu();
+  const { isOpen, position, contextData, open, close } = useContextMenu<ContextData>();
 
   const [inputConfig, setInputConfig] = useState<InputConfig | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -673,11 +631,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
         position={position}
         contextData={contextData}
         onClose={close}
-        data-testid={
-          (contextData as ContextData | null)?.type
-            ? `context-menu-${(contextData as ContextData).type}`
-            : "context-menu"
-        }
+        data-testid={contextData ? `context-menu-${contextData.type}` : "context-menu"}
         actions={(data: ContextData | null) => {
           if (!data) return null;
           if (data.type === "column")

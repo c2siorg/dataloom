@@ -49,7 +49,7 @@ interface QualityConfigPanelProps {
  * the Quality tab.
  */
 export default function QualityConfigPanel({ onClose }: QualityConfigPanelProps) {
-  const { columns } = useProjectContext() as unknown as { columns: string[] };
+  const { columns } = useProjectContext();
   const { run, loading } = useQualityView();
 
   const [method, setMethod] = useState<OutlierMethod>("iqr");

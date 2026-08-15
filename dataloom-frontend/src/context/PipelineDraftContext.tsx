@@ -64,7 +64,7 @@ export function usePipelineDraft(): PipelineDraftValue {
  * in sync. The draft resets when the workspace's project changes.
  */
 export function PipelineDraftProvider({ children }: { children: ReactNode }) {
-  const { projectId } = useProjectContext() as { projectId: string };
+  const { projectId } = useProjectContext();
 
   const [steps, setSteps] = useState<DraftStep[]>([]);
   const nextId = useRef(0);

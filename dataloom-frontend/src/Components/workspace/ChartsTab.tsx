@@ -49,11 +49,7 @@ function MetaNote({ spec }: { spec: ChartSpec }) {
  */
 export function ChartsTab() {
   const { projectId } = useParams() as { projectId: string };
-  const { columns, dtypes, dataVersion } = useProjectContext() as unknown as {
-    columns: string[];
-    dtypes: Record<string, string>;
-    dataVersion: number;
-  };
+  const { columns, dtypes, dataVersion } = useProjectContext();
   const { spec, mode, loading, error, activeKey, selectSuggestion, showHeatmap } = useChartView();
   // The chart is lazy-loaded inside Suspense, so the export resolves it from
   // this container on click rather than holding a ref to the renderer itself.

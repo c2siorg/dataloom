@@ -64,10 +64,7 @@ export function useReportView(): ReportViewValue {
  * very bytes the server sent.
  */
 export function ReportViewProvider({ children }: { children: ReactNode }) {
-  const { projectId, dataVersion } = useProjectContext() as unknown as {
-    projectId: string;
-    dataVersion: number;
-  };
+  const { projectId, dataVersion } = useProjectContext();
 
   const [sections, setSections] = useState<ReportSection[]>(DEFAULT_SECTIONS);
   const [report, setReport] = useState<GeneratedReport | null>(null);
@@ -80,6 +77,7 @@ export function ReportViewProvider({ children }: { children: ReactNode }) {
   const latestRequest = useRef(0);
 
   const generate = useCallback(async () => {
+    if (!projectId) return;
     const request = ++latestRequest.current;
     setLoading(true);
     setError(false);

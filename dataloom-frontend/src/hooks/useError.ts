@@ -2,11 +2,11 @@ import { useState } from "react";
 import { getErrorMessage } from "../utils/errorUtils";
 
 const useError = () => {
-  const [error, setError] = useState(/** @type {string | null} */ (null));
+  const [error, setError] = useState<string | null>(null);
 
   const clearError = () => setError(null);
 
-  const handleError = (err) => {
+  const handleError = (err: unknown) => {
     setError(getErrorMessage(err));
   };
 

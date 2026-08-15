@@ -1,11 +1,98 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react";
-import { getProjectDetails } from "../api";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from "react";
+import { getProjectDetails, type TransformationInput } from "../api";
 
-const ProjectContext = createContext(null);
+/** A single table cell value. `undefined` arises from sparse index access. */
+export type CellValue = string | number | null | undefined;
+
+/** Pagination metadata as the backend spells it, plus the camelCase alias. */
+export interface PaginationInfo {
+  page?: number;
+  page_size?: number;
+  total_rows?: number;
+  total_pages?: number;
+  pageSize?: number;
+}
+
+/** The table state captured on entering preview mode, restored on cancel. */
+export interface PreviewSnapshot {
+  columns: string[];
+  rows: CellValue[][];
+  dtypes: Record<string, string>;
+  totalRows: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+}
+
+/** The transform awaiting confirmation while preview mode is active. */
+export interface PendingTransform {
+  projectId: string;
+  payload: TransformationInput;
+}
+
+/** Options accepted by {@link ProjectContextValue.updateData}. */
+export interface UpdateDataOptions {
+  dtypes?: Record<string, string>;
+  resetColumnOrder?: boolean;
+}
+
+/** Project state and actions shared across the workspace. */
+export interface ProjectContextValue {
+  projectId: string | null;
+  projectName: string;
+  columns: string[];
+  rows: CellValue[][];
+  dtypes: Record<string, string>;
+  columnOrder: number[];
+  deleteProjectOrder: (projectId: string) => void;
+  loading: boolean;
+  error: string | null;
+  dataVersion: number;
+  totalRows: number;
+  totalPages: number;
+  updatePageSizePreference: (newPageSize: number) => void;
+  page: number;
+  pageSize: number;
+  refreshProject: (id?: string, targetPage?: number, preferredSize?: number) => Promise<void>;
+  updateData: (columns: string[], rows: CellValue[][], options?: UpdateDataOptions) => void;
+  setProjectInfo: (id: string | null, name?: string) => void;
+  setPaginationData: (paginationInfo: PaginationInfo) => void;
+  isPreviewMode: boolean;
+  previewSnapshot: PreviewSnapshot | null;
+  pendingTransform: PendingTransform | null;
+  setIsPreviewMode: (isPreviewMode: boolean) => void;
+  setPreviewSnapshot: (snapshot: PreviewSnapshot | null) => void;
+  setPendingTransform: (transform: PendingTransform | null) => void;
+  enterPreviewMode: (
+    previewColumns: string[],
+    previewRows: CellValue[][],
+    previewDtypes?: Record<string, string>,
+    transformInfo?: PendingTransform | null,
+    paginationInfo?: PaginationInfo,
+  ) => void;
+  updatePreviewPage: (
+    previewColumns: string[],
+    previewRows: CellValue[][],
+    previewDtypes?: Record<string, string>,
+    paginationInfo?: PaginationInfo,
+  ) => void;
+  cancelPreview: () => void;
+  confirmPreview: () => void;
+  setColumnOrder: (order: number[]) => void;
+}
+
+const ProjectContext = createContext<ProjectContextValue | null>(null);
 
 /**
  * Hook to access project state and actions.
- * @returns {{ projectId: string, columns: string[], rows: Array[], dtypes: Object.<string, string>, columnOrder: number[], setColumnOrder: Function, deleteProjectOrder: Function, loading: boolean, error: string|null, dataVersion: number, projectName: string, totalRows: number, totalPages: number, page: number, pageSize: number, refreshProject: Function, updateData: Function, setProjectInfo: Function, setPaginationData: Function, updatePageSizePreference: Function, isPreviewMode: boolean, previewSnapshot: Object|null, pendingTransform: Object|null, setIsPreviewMode: Function, setPreviewSnapshot: Function, setPendingTransform: Function, enterPreviewMode: Function, updatePreviewPage: Function, cancelPreview: Function, confirmPreview: Function }}
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useProjectContext() {
@@ -17,17 +104,17 @@ export function useProjectContext() {
 /**
  * Provides project state and data-fetching actions to the component tree.
  */
-export function ProjectProvider({ children }) {
-  const [projectId, setProjectId] = useState(null);
+export function ProjectProvider({ children }: { children: ReactNode }) {
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("");
-  const [columns, setColumns] = useState([]);
-  const [rows, setRows] = useState([]);
-  const [dtypes, setDtypes] = useState({});
+  const [columns, setColumns] = useState<string[]>([]);
+  const [rows, setRows] = useState<CellValue[][]>([]);
+  const [dtypes, setDtypes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [previewSnapshot, setPreviewSnapshot] = useState(null);
-  const [pendingTransform, setPendingTransform] = useState(null);
+  const [previewSnapshot, setPreviewSnapshot] = useState<PreviewSnapshot | null>(null);
+  const [pendingTransform, setPendingTransform] = useState<PendingTransform | null>(null);
 
   // Monotonic counter bumped on every content mutation (via updateData), used to
   // key derived caches (e.g. column profiles). Pagination does not touch it, so
@@ -47,7 +134,7 @@ export function ProjectProvider({ children }) {
   });
 
   // Initialize "columnOrders" from localStorage
-  const [columnOrders, setColumnOrders] = useState(() => {
+  const [columnOrders, setColumnOrders] = useState<Record<string, number[]>>(() => {
     try {
       const stored = localStorage.getItem("columnOrders");
       return stored ? JSON.parse(stored) : {};
@@ -83,7 +170,7 @@ export function ProjectProvider({ children }) {
     }
   }, [pageSize]);
 
-  const updatePageSizePreference = useCallback((newPageSize) => {
+  const updatePageSizePreference = useCallback((newPageSize: number) => {
     setPageSize(newPageSize);
     try {
       localStorage.setItem("pageSize", String(newPageSize));
@@ -93,7 +180,7 @@ export function ProjectProvider({ children }) {
   }, []);
 
   const refreshProject = useCallback(
-    async (id, targetPage, preferredSize) => {
+    async (id?: string, targetPage?: number, preferredSize?: number) => {
       const targetId = id || projectId;
       const fetchPage = targetPage || page;
       const targetSize = preferredSize || pageSize;
@@ -105,14 +192,17 @@ export function ProjectProvider({ children }) {
         setProjectId(data.project_id);
         setProjectName(data.filename);
         setColumns(data.columns);
-        setRows(data.rows);
+        // The endpoint types rows as unknown[][] because the backend echoes raw
+        // JSON; the table has always treated them as scalar cells.
+        setRows(data.rows as CellValue[][]);
         setDtypes(data.dtypes || {});
         setTotalRows(data.total_rows);
         setTotalPages(data.total_pages);
         setPage(data.page);
         setPageSize(data.page_size);
       } catch (err) {
-        setError(err.response?.data?.detail || err.message);
+        const apiError = err as { response?: { data?: { detail?: string } }; message?: string };
+        setError(apiError.response?.data?.detail || apiError.message || null);
       } finally {
         setLoading(false);
       }
@@ -121,7 +211,7 @@ export function ProjectProvider({ children }) {
   );
 
   const updateData = useCallback(
-    (newColumns, newRows, options = {}) => {
+    (newColumns: string[], newRows: CellValue[][], options: UpdateDataOptions = {}) => {
       setColumns(newColumns);
       setRows(newRows);
       setDataVersion((v) => v + 1);
@@ -135,19 +225,21 @@ export function ProjectProvider({ children }) {
             : !existingOrder || existingOrder.length !== newColumns.length;
         return {
           ...prev,
-          [projectId]: shouldResetColumnOrder ? newColumns.map((_, index) => index) : existingOrder,
+          [projectId]: shouldResetColumnOrder
+            ? newColumns.map((_, index) => index)
+            : (existingOrder ?? []),
         };
       });
     },
     [projectId],
   );
 
-  const setProjectInfo = useCallback((id, name) => {
+  const setProjectInfo = useCallback((id: string | null, name?: string) => {
     setProjectId(id);
     setProjectName(name || "");
   }, []);
 
-  const setPaginationData = useCallback((paginationInfo) => {
+  const setPaginationData = useCallback((paginationInfo: PaginationInfo) => {
     if (paginationInfo.total_rows !== undefined) {
       setTotalRows(paginationInfo.total_rows);
     }
@@ -170,7 +262,13 @@ export function ProjectProvider({ children }) {
   }, []);
 
   const enterPreviewMode = useCallback(
-    (previewColumns, previewRows, previewDtypes, transformInfo = null, paginationInfo = {}) => {
+    (
+      previewColumns: string[],
+      previewRows: CellValue[][],
+      previewDtypes?: Record<string, string>,
+      transformInfo: PendingTransform | null = null,
+      paginationInfo: PaginationInfo = {},
+    ) => {
       // Save the current table state into the snapshot (only on first entry;
       // a second Apply click while already in preview mode refreshes the
       // preview data but keeps the original snapshot intact).
@@ -205,7 +303,12 @@ export function ProjectProvider({ children }) {
   );
 
   const updatePreviewPage = useCallback(
-    (previewColumns, previewRows, previewDtypes, paginationInfo = {}) => {
+    (
+      previewColumns: string[],
+      previewRows: CellValue[][],
+      previewDtypes?: Record<string, string>,
+      paginationInfo: PaginationInfo = {},
+    ) => {
       setColumns(previewColumns);
       setRows(previewRows);
 
@@ -254,7 +357,7 @@ export function ProjectProvider({ children }) {
   }, [projectId, columnOrders, columns]);
 
   const setColumnOrder = useCallback(
-    (order) => {
+    (order: number[]) => {
       if (!projectId) return;
       setColumnOrders((prev) => ({
         ...prev,
@@ -264,7 +367,7 @@ export function ProjectProvider({ children }) {
     [projectId],
   );
 
-  const deleteProjectOrder = useCallback((projectId) => {
+  const deleteProjectOrder = useCallback((projectId: string) => {
     setColumnOrders((prev) => {
       const updated = { ...prev };
       delete updated[projectId];

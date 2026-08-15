@@ -5,7 +5,7 @@ import { useProjectContext } from "../../context/ProjectContext";
 import Button from "../common/Button";
 import ColumnSelect from "../common/ColumnSelect";
 import Select, { type SelectOption } from "../common/Select";
-import { columnsFor, usesAgg, type Dtypes } from "./chartFields";
+import { columnsFor, usesAgg } from "./chartFields";
 
 // "heatmap" is a builder-only option: correlation has its own renderer, so it
 // doesn't go through the chart endpoint.
@@ -45,10 +45,7 @@ interface ChartBuilderPanelProps {
  * Charts tab.
  */
 export default function ChartBuilderPanel({ onClose }: ChartBuilderPanelProps) {
-  const { columns, dtypes } = useProjectContext() as unknown as {
-    columns: string[];
-    dtypes: Dtypes;
-  };
+  const { columns, dtypes } = useProjectContext();
   const { renderChart, showHeatmap } = useChartView();
 
   const [chartType, setChartType] = useState<BuilderType>("histogram");

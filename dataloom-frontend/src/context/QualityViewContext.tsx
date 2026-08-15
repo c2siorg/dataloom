@@ -52,10 +52,7 @@ export function useQualityView(): QualityViewValue {
  * re-run, rather than re-running on every transform.
  */
 export function QualityViewProvider({ children }: { children: ReactNode }) {
-  const { projectId, dataVersion } = useProjectContext() as unknown as {
-    projectId: string;
-    dataVersion: number;
-  };
+  const { projectId, dataVersion } = useProjectContext();
 
   const [assessment, setAssessment] = useState<QualityAssessment | null>(null);
   const [loading, setLoading] = useState(false);
@@ -67,6 +64,7 @@ export function QualityViewProvider({ children }: { children: ReactNode }) {
 
   const run = useCallback(
     async (config?: QualityAssessConfig) => {
+      if (!projectId) return;
       if (config) lastConfig.current = config;
       setLoading(true);
       setError(false);
