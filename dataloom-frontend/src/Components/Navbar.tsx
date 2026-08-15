@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProjectContext } from "../context/ProjectContext";
 import { useAuth } from "../context/AuthContext";
@@ -66,7 +66,7 @@ const Navbar = () => {
     }
   };
 
-  const handleNameKeyDown = (event) => {
+  const handleNameKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
       handleSaveName();
