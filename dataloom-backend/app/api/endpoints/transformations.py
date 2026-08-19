@@ -16,6 +16,7 @@ from app.services import transformation_service as ts
 from app.services.project_service import log_transformations_or_restore
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
+from app.utils.project_locks import project_write_lock
 from app.utils.security import safe_transformation_error_detail
 
 logger = get_logger(__name__)
@@ -65,7 +66,7 @@ def _dispatch_transform(df, transformation_input):
 
 
 @router.post("/{project_id}/transform", response_model=schemas.BasicQueryResponse)
-async def transform_project(
+def transform_project(
     project_id: uuid.UUID,
     transformation_input: schemas.TransformationInput,
     preview: bool = Query(False, description="If true, return transformation data without saving."),
@@ -77,10 +78,13 @@ async def transform_project(
     """Apply a transformation to a project.
 
     Routes to the appropriate internal handler based on operation_type.
+    Preview still reads ``project.file_path``, so it shares the same lock.
     """
-    # Keep an explicit local for consistency across dispatch, persistence and
-    # logging paths. Use a defensive fallback so exception logging never
-    # introduces a secondary NameError.
+    with project_write_lock(project_id):
+        return _transform_project(project_id, transformation_input, preview, page, page_size, db, project)
+
+
+def _transform_project(project_id, transformation_input, preview, page, page_size, db, project):
     operation_type = getattr(transformation_input, "operation_type", "<unknown>")
 
     try:
