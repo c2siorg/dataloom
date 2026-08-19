@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.services import auth_service
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import read_table_safe
+from app.utils.project_locks import project_write_lock
 from app.utils.rate_limiter import RateLimiter
 
 logger = get_logger(__name__)
@@ -166,7 +167,8 @@ def load_project_df(project: models.Project) -> pd.DataFrame:
     endpoint's handling. Shared by the profiling and visualization endpoints.
     """
     try:
-        return read_table_safe(project.file_path)
+        with project_write_lock(project.project_id):
+            return read_table_safe(project.file_path)
     except HTTPException as e:
         if e.status_code == 404:
             raise HTTPException(status_code=404, detail="Project data file not found") from e
