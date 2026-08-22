@@ -128,8 +128,8 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     dataVersion,
   );
 
-  // The API types rows as unknown[][]; this component also handles the
-  // column-keyed object form, so narrow to the local superset here.
+  // The API types response rows as CellValue[][]; this component also handles
+  // the column-keyed object form, so narrow to the local superset here.
   const applyTransform = (input: TransformationInput) =>
     transformProject(projectId, input) as unknown as Promise<TransformResponse>;
 

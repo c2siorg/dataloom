@@ -3,14 +3,7 @@
  * @module api/projects
  */
 import client from "./client";
-import type { Pagination, ProjectSummary, TableResponse } from "./types";
-
-/** Backend `ProjectResponse` — full project payload with paginated rows. */
-export interface ProjectDetails extends TableResponse, Pagination {
-  filename: string;
-  file_path: string;
-  project_id: string;
-}
+import type { ProjectDetails, ProjectSummary } from "./types";
 
 /** Export options accepted by {@link exportProject}. */
 export interface ExportOptions {

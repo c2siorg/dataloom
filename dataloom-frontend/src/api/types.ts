@@ -13,7 +13,7 @@
  * A single table cell. The backend serialises every cell as a JSON scalar;
  * `undefined` arises on the client from sparse index access.
  */
-export type CellValue = string | number | null | undefined;
+export type CellValue = string | number | boolean | null | undefined;
 
 /** Tabular payload common to transform and project responses. */
 export interface TableResponse {
@@ -37,4 +37,11 @@ export interface ProjectSummary {
   name: string;
   description: string | null;
   last_modified: string;
+}
+
+/** Backend `ProjectResponse` — full project payload with paginated rows. */
+export interface ProjectDetails extends TableResponse, Pagination {
+  filename: string;
+  file_path: string;
+  project_id: string;
 }

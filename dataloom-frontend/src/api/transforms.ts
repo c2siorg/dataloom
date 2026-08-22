@@ -3,7 +3,7 @@
  * @module api/transforms
  */
 import client from "./client";
-import type { Pagination, TableResponse } from "./types";
+import type { Pagination, ProjectDetails, TableResponse } from "./types";
 
 /** Backend `BasicQueryResponse` — pagination is present on preview requests. */
 export interface TransformResult extends TableResponse, Partial<Pagination> {
@@ -75,7 +75,7 @@ export const groupByTransform = async (
  * @param projectId - The project ID.
  * @returns Updated project data with rows and columns.
  */
-export const undoLastTransformation = async (projectId: string): Promise<TransformResult> => {
+export const undoLastTransformation = async (projectId: string): Promise<ProjectDetails> => {
   const response = await client.post(`/projects/${projectId}/undo`);
   return response.data;
 };

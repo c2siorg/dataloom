@@ -7,10 +7,9 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { getProjectDetails, type TransformationInput } from "../api";
+import { getProjectDetails, type CellValue, type TransformationInput } from "../api";
 
-/** A single table cell value. `undefined` arises from sparse index access. */
-export type CellValue = string | number | null | undefined;
+export type { CellValue };
 
 /** Pagination metadata as the backend spells it, plus the camelCase alias. */
 export interface PaginationInfo {
@@ -192,9 +191,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setProjectId(data.project_id);
         setProjectName(data.filename);
         setColumns(data.columns);
-        // The endpoint types rows as unknown[][] because the backend echoes raw
-        // JSON; the table has always treated them as scalar cells.
-        setRows(data.rows as CellValue[][]);
+        setRows(data.rows);
         setDtypes(data.dtypes || {});
         setTotalRows(data.total_rows);
         setTotalPages(data.total_pages);
