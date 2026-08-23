@@ -159,6 +159,67 @@ def _looks_like_datetime(value: str) -> bool:
     return any(pattern.fullmatch(normalized) for pattern in _DATE_LIKE_PATTERNS)
 
 
+def parse_datetime_column(series: pd.Series) -> pd.Series:
+    """Parse a string column to datetime under a single inferred convention.
+
+    Columns that are already ``datetime64`` (e.g. auto-inferred at read time by
+    ``_infer_datetime_columns``) are returned as-is.  For string columns, the
+    same guards ``_infer_datetime_columns`` uses are applied: mixed-type columns
+    are refused, values are stripped before inference, and a column with evidence
+    for both DD/MM and MM/DD is refused rather than silently parsed month-first.
+
+    When mixed UTC offsets prevent a single ``pd.to_datetime`` call from
+    succeeding, each value is parsed individually so every timestamp retains its
+    local date instead of being silently shifted to UTC.
+
+    Args:
+        series: Source Series of date strings or Timestamps.
+
+    Returns:
+        The parsed datetime Series, with unparseable rows as NaT.
+
+    Raises:
+        ValueError: If the column mixes strings with other types, or mixes
+        day-first and month-first conventions.
+    """
+    # Already-datetime columns (common after _infer_datetime_columns at read
+    # time) need no further parsing.
+    if pd.api.types.is_datetime64_any_dtype(series.dtype):
+        return series
+
+    non_null = series.dropna()
+
+    if not non_null.map(lambda value: isinstance(value, str)).all():
+        raise ValueError("Column mixes strings with non-string values")
+
+    # .map over .str.strip() so an all-null column (float64 dtype, no .str
+    # accessor) does not raise; the check above guarantees every value is a str.
+    dayfirst = _infer_dayfirst(non_null.map(str.strip))
+
+    if dayfirst is None:
+        raise ValueError("Column mixes day-first and month-first date conventions")
+
+    normalized = series.map(lambda value: value.strip() if isinstance(value, str) else value)
+
+    try:
+        return pd.to_datetime(normalized, format="mixed", dayfirst=dayfirst, errors="coerce")
+    except ValueError:
+        # Mixed UTC offsets ('Z' alongside '+02:00' rows) make pandas raise
+        # instead of honoring errors="coerce".  Parse each value individually
+        # and strip the timezone so the local calendar date is preserved —
+        # normalizing to UTC would silently shift dates near midnight.
+        def _parse_single(value):
+            if not isinstance(value, str) or not value.strip():
+                return pd.NaT
+            try:
+                ts = pd.to_datetime(value.strip(), dayfirst=dayfirst)
+                return ts.tz_localize(None) if ts.tzinfo is not None else ts
+            except (ValueError, TypeError):
+                return pd.NaT
+
+        return normalized.map(_parse_single)
+
+
 def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Infer datetime columns from string/object columns.
 
