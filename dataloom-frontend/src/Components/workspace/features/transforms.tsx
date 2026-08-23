@@ -1,5 +1,6 @@
 import {
   LuArrowUpDown,
+  LuCalendar,
   LuCode,
   LuCopyMinus,
   LuDice5,
@@ -21,6 +22,7 @@ import PivotTableForm from "../../forms/PivotTableForm";
 import MeltForm from "../../forms/MeltForm";
 import CastDataTypeForm from "../../forms/CastDataTypeForm";
 import TrimWhitespaceForm from "../../forms/TrimWhitespaceForm";
+import StandardizeDatesForm from "../../forms/StandardizeDatesForm";
 import GroupByForm from "../../forms/GroupByForm";
 import StringReplaceForm from "../../forms/StringReplaceForm";
 import FillEmptyForm from "../../forms/FillEmptyForm";
@@ -44,6 +46,7 @@ registerFeature({
     { name: "GroupByForm", title: "Group By", component: GroupByForm },
     { name: "CastDataTypeForm", title: "Cast Type", component: CastDataTypeForm },
     { name: "TrimWhitespaceForm", title: "Trim Whitespace", component: TrimWhitespaceForm },
+    { name: "StandardizeDatesForm", title: "Standardize Dates", component: StandardizeDatesForm },
     { name: "StringReplaceForm", title: "Replace", component: StringReplaceForm },
     { name: "FillEmptyForm", title: "Fill Empty", component: FillEmptyForm },
     { name: "FormulaColumnForm", title: "Formula Column", component: FormulaColumnForm },
@@ -162,6 +165,17 @@ registerFeature({
       disabledInPreview: true,
       activePanel: "FormulaColumnForm",
       hover: "Add a computed column from a formula like price * quantity.",
+    },
+    {
+      ribbon: "Data",
+      group: "Transform",
+      order: 10,
+      label: "Std Dates",
+      icon: LuCalendar,
+      action: { togglePanel: "StandardizeDatesForm" },
+      disabledInPreview: true,
+      activePanel: "StandardizeDatesForm",
+      hover: "Rewrite a date column into a single consistent format.",
     },
     // Data ▸ Query
     {

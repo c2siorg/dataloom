@@ -21,6 +21,7 @@ from app.services.transformation_service import (
     fill_empty,
     pivot_table,
     rename_column,
+    standardize_dates,
     trim_whitespace,
 )
 
@@ -827,6 +828,69 @@ class TestTrimWhitespace:
     def test_trim_column_not_found(self, sample_df):
         with pytest.raises(TransformationError, match="not found"):
             trim_whitespace(sample_df, "nonexistent")
+
+
+class TestStandardizeDates:
+    def test_iso_output(self):
+        df = pd.DataFrame({"d": ["2026-05-20", "2026-03-26"]})
+        assert standardize_dates(df, "d", "iso")["d"].tolist() == ["2026-05-20", "2026-03-26"]
+
+    def test_dmy_output(self):
+        df = pd.DataFrame({"d": ["2026-05-20", "2026-03-26"]})
+        assert standardize_dates(df, "d", "dmy")["d"].tolist() == ["20-05-2026", "26-03-2026"]
+
+    def test_mdy_output(self):
+        df = pd.DataFrame({"d": ["2026-05-20", "2026-03-26"]})
+        assert standardize_dates(df, "d", "mdy")["d"].tolist() == ["05-20-2026", "03-26-2026"]
+
+    def test_mixed_formats_use_one_inferred_convention(self):
+        """26-03-2026 is unambiguously day-first, so 03/04/2026 is 3 April."""
+        df = pd.DataFrame({"d": ["2026-05-20", "03/04/2026", "26-03-2026"]})
+        result = standardize_dates(df, "d", "iso")
+        assert result["d"].tolist() == ["2026-05-20", "2026-04-03", "2026-03-26"]
+
+    def test_unparseable_values_survive_verbatim(self):
+        df = pd.DataFrame({"d": ["2026-05-20", "UNKNOWN", "Yesterday", "26-03-2026"]})
+        result = standardize_dates(df, "d", "iso")
+        assert result["d"].tolist() == ["2026-05-20", "UNKNOWN", "Yesterday", "2026-03-26"]
+
+    def test_both_conventions_raises(self):
+        df = pd.DataFrame({"d": ["26-03-2026", "03/20/2026"]})
+        with pytest.raises(TransformationError, match="conventions"):
+            standardize_dates(df, "d", "iso")
+
+    def test_nan_values_do_not_raise(self):
+        df = pd.DataFrame({"d": ["2026-05-20", np.nan, "26-03-2026"]})
+        result = standardize_dates(df, "d", "iso")
+        assert result["d"].tolist()[0] == "2026-05-20"
+        assert result["d"].tolist()[2] == "2026-03-26"
+        assert pd.isna(result["d"].iloc[1])
+
+    def test_all_null_column_does_not_raise(self):
+        df = pd.DataFrame({"d": [np.nan, np.nan]})
+        assert standardize_dates(df, "d", "iso")["d"].isna().all()
+
+    def test_mixed_type_column_raises(self):
+        df = pd.DataFrame({"d": ["2026-05-20", 20260326]})
+        with pytest.raises(TransformationError, match="non-string"):
+            standardize_dates(df, "d", "iso")
+
+    def test_column_not_found(self, sample_df):
+        with pytest.raises(TransformationError, match="not found"):
+            standardize_dates(sample_df, "nonexistent", "iso")
+
+    def test_already_datetime_column(self):
+        """Column auto-inferred to datetime64 at read time should standardize, not raise."""
+        df = pd.DataFrame({"d": pd.to_datetime(["2026-01-05", "2026-01-06", "2026-01-07"])})
+        result = standardize_dates(df, "d", "iso")
+        assert result["d"].tolist() == ["2026-01-05", "2026-01-06", "2026-01-07"]
+
+    def test_mixed_utc_offsets_preserve_local_date(self):
+        """Timestamps near midnight with positive offsets must keep their local date."""
+        df = pd.DataFrame({"d": ["2026-01-01T02:00:00+05:30", "2026-01-01T10:00:00Z"]})
+        result = standardize_dates(df, "d", "iso")
+        # The +05:30 timestamp's local date is Jan 1 — must NOT shift to Dec 31.
+        assert result["d"].tolist() == ["2026-01-01", "2026-01-01"]
 
 
 class TestDropNa:

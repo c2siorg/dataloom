@@ -49,3 +49,5 @@ export const MELT = "melt";
 export const ADD_FILE = "addFile";
 /** Add a computed column from a formula expression */
 export const ADD_FORMULA_COLUMN = "addFormulaCol";
+/** Rewrite a date column into a single consistent format */
+export const STANDARDIZE_DATES = "standardizeDates";
