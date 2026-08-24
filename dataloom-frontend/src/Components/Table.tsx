@@ -160,12 +160,13 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     refreshLogs();
   };
 
-  const handleAddRow = async (index: number) => {
+  const handleAddRow = async (index: number, position: "above" | "below") => {
     try {
       const globalIndex = (page - 1) * pageSize + index;
+      const targetIndex = position === "above" ? globalIndex : globalIndex + 1;
       const response = await applyTransform({
         operation_type: ADD_ROW,
-        row_params: { index: globalIndex },
+        row_params: { index: targetIndex },
       });
       updateTableData(response);
       refreshProject(projectId, 1, pageSize);
@@ -177,7 +178,15 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     }
   };
 
-  const handleAddColumn = (index: number) => {
+  const handleAddColumn = (index: number, position: "before" | "after") => {
+    if (position === "before" && index === 0) {
+      setToast({
+        message: "Cannot add a column before the S.No. column.",
+        type: "error",
+      });
+      return;
+    }
+
     setInputConfig({
       message: "Enter column name:",
       defaultValue: "",
@@ -194,7 +203,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
           } else {
             const displayDataIndex = index - 1;
             const baseIndex = columnOrder[displayDataIndex] as number;
-            backendIndex = baseIndex + 1;
+            backendIndex = position === "before" ? baseIndex : baseIndex + 1;
           }
           const response = await applyTransform({
             operation_type: ADD_COLUMN,
@@ -637,8 +646,11 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
           if (data.type === "column")
             return (
               <>
-                <MenuButton onClick={() => handleAddColumn(data.columnIndex)}>
-                  Add Column
+                <MenuButton onClick={() => handleAddColumn(data.columnIndex, "before")}>
+                  Add Column Before
+                </MenuButton>
+                <MenuButton onClick={() => handleAddColumn(data.columnIndex, "after")}>
+                  Add Column After
                 </MenuButton>
                 <MenuButton onClick={() => handleDeleteColumn(data.columnIndex)}>
                   Delete Column
@@ -651,7 +663,12 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
           if (data.type === "row")
             return (
               <>
-                <MenuButton onClick={() => handleAddRow(data.rowIndex)}>Add Row</MenuButton>
+                <MenuButton onClick={() => handleAddRow(data.rowIndex, "above")}>
+                  Add Row Above
+                </MenuButton>
+                <MenuButton onClick={() => handleAddRow(data.rowIndex, "below")}>
+                  Add Row Below
+                </MenuButton>
                 <MenuButton onClick={() => handleDeleteRow(data.rowIndex)}>Delete Row</MenuButton>
               </>
             );

@@ -37,7 +37,7 @@ test.describe("Table Operations", () => {
       .click({ button: "right" });
     const contextMenu = page.locator('[data-testid="context-menu-row"]');
     await contextMenu.waitFor({ state: "visible" });
-    await contextMenu.getByText("Add Row").click();
+    await contextMenu.getByRole("menuitem", { name: "Add Row Above" }).click();
     await expect(table.locator("tbody tr")).toHaveCount(6);
 
     // Delete the last row (the newly added empty row)
