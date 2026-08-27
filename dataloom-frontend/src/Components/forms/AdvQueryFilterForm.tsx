@@ -80,7 +80,7 @@ const AdvQueryFilterForm = ({ projectId, onClose, onCapture }: TransformFormProp
         <div className="flex justify-between">
           <div className="flex gap-2">
             <Button disabled={loading || saving || isPreviewMode} type="submit">
-              Submit
+              Apply
             </Button>
             {isPreviewMode && (
               <Button type="button" onClick={handleSave} disabled={saving} variant="success">

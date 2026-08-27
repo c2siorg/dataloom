@@ -107,7 +107,7 @@ const PivotTableForm = ({ projectId, onClose, onCapture }: TransformFormProps) =
         <div className="flex justify-between">
           <div className="flex gap-2">
             <Button type="submit" disabled={loading || saving || isPreviewMode}>
-              {loading ? "Submitting..." : "Submit"}
+              {loading ? "Applying..." : "Apply"}
             </Button>
             {isPreviewMode && (
               <Button type="button" onClick={handleSave} disabled={saving} variant="success">

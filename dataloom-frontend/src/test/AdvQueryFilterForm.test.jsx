@@ -66,7 +66,7 @@ describe("AdvQueryFilterForm", () => {
     renderForm();
 
     expect(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
@@ -81,7 +81,7 @@ describe("AdvQueryFilterForm", () => {
     renderForm();
 
     await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(
@@ -116,7 +116,7 @@ describe("AdvQueryFilterForm", () => {
     renderForm();
 
     await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(mockEnterPreviewMode).toHaveBeenCalledWith(
@@ -141,7 +141,7 @@ describe("AdvQueryFilterForm", () => {
     renderForm({ pageSize: 10 });
 
     await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(
@@ -159,7 +159,7 @@ describe("AdvQueryFilterForm", () => {
     });
   });
 
-  it("disables Submit while the request is pending", async () => {
+  it("disables Apply while the request is pending", async () => {
     const user = userEvent.setup();
     let resolveTransform;
 
@@ -173,9 +173,9 @@ describe("AdvQueryFilterForm", () => {
     renderForm();
 
     await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount > 10");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
-    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
 
     resolveTransform({
       columns: [],
@@ -188,7 +188,7 @@ describe("AdvQueryFilterForm", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Submit" })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: "Apply" })).not.toBeDisabled();
     });
   });
 
@@ -206,7 +206,7 @@ describe("AdvQueryFilterForm", () => {
     renderForm();
 
     await user.type(screen.getByPlaceholderText("e.g., col1 > 10 and col2 < 5"), "amount >>");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(screen.getByText("Invalid query syntax.")).toBeInTheDocument();
@@ -215,10 +215,10 @@ describe("AdvQueryFilterForm", () => {
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
-  it("disables Submit and displays Save Changes in preview mode", () => {
+  it("disables Apply and displays Save Changes in preview mode", () => {
     renderForm({ isPreviewMode: true });
 
-    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save Changes" })).toBeInTheDocument();
   });
 

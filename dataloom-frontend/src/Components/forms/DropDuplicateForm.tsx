@@ -92,7 +92,7 @@ const DropDuplicateForm = ({ projectId, onClose, onCapture }: TransformFormProps
         <div className="flex justify-between">
           <div className="flex gap-2">
             <Button type="submit" disabled={saving || isPreviewMode}>
-              Submit
+              Apply
             </Button>
             {isPreviewMode && (
               <Button type="button" onClick={handleSave} disabled={saving} variant="success">

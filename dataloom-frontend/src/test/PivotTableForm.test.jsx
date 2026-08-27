@@ -128,7 +128,7 @@ describe("PivotTableForm", () => {
     expect(screen.getByText("Column:")).toBeInTheDocument();
     expect(screen.getByText("Value:")).toBeInTheDocument();
 
-    expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
@@ -146,7 +146,7 @@ describe("PivotTableForm", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "Submit",
+        name: "Apply",
       }),
     );
 
@@ -166,7 +166,7 @@ describe("PivotTableForm", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "Submit",
+        name: "Apply",
       }),
     );
 
@@ -194,7 +194,7 @@ describe("PivotTableForm", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "Submit",
+        name: "Apply",
       }),
     );
 
@@ -249,7 +249,7 @@ describe("PivotTableForm", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "Submit",
+        name: "Apply",
       }),
     );
 
@@ -303,7 +303,7 @@ describe("PivotTableForm", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "Submit",
+        name: "Apply",
       }),
     );
 
@@ -314,14 +314,14 @@ describe("PivotTableForm", () => {
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
-  it("disables Submit and displays Save Changes in preview mode", () => {
+  it("disables Apply and displays Save Changes in preview mode", () => {
     renderForm({
       isPreviewMode: true,
     });
 
     expect(
       screen.getByRole("button", {
-        name: "Submit",
+        name: "Apply",
       }),
     ).toBeDisabled();
 
@@ -362,7 +362,7 @@ describe("PivotTableForm", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Submit",
+        name: "Apply",
       }),
     ).toBeDisabled();
   });

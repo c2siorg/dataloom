@@ -93,7 +93,7 @@ describe("DropDuplicateForm", () => {
 
     expect(screen.getByLabelText("Columns")).toBeInTheDocument();
     expect(screen.getByLabelText("Keep")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
@@ -107,7 +107,7 @@ describe("DropDuplicateForm", () => {
     const user = userEvent.setup();
     renderForm();
 
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(screen.getByText("Please select at least one column.")).toBeInTheDocument();
@@ -122,7 +122,7 @@ describe("DropDuplicateForm", () => {
 
     await user.selectOptions(screen.getByLabelText("Columns"), ["amount", "created_at"]);
     await user.selectOptions(screen.getByLabelText("Keep"), "last");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(transformProject).toHaveBeenCalledWith(
@@ -161,7 +161,7 @@ describe("DropDuplicateForm", () => {
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Columns"), ["amount"]);
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(mockEnterPreviewMode).toHaveBeenCalledWith(
@@ -202,7 +202,7 @@ describe("DropDuplicateForm", () => {
     renderForm();
 
     await user.selectOptions(screen.getByLabelText("Columns"), ["amount"]);
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
       expect(screen.getByText("Unable to drop duplicates.")).toBeInTheDocument();
@@ -211,10 +211,10 @@ describe("DropDuplicateForm", () => {
     expect(mockEnterPreviewMode).not.toHaveBeenCalled();
   });
 
-  it("disables Submit and displays Save Changes in preview mode", () => {
+  it("disables Apply and displays Save Changes in preview mode", () => {
     renderForm({ isPreviewMode: true });
 
-    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save Changes" })).toBeInTheDocument();
   });
 
@@ -235,7 +235,7 @@ describe("DropDuplicateForm", () => {
     });
 
     expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   });
 
   it("cancels preview mode when Cancel is clicked during preview", async () => {
