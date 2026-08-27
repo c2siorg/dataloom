@@ -21,7 +21,7 @@ router = APIRouter()
 
 
 @router.get("/{project_id}/charts/suggest", response_model=schemas.ChartSuggestionsResponse)
-async def suggest_charts(
+def suggest_charts(
     project_id: uuid.UUID,
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -31,7 +31,7 @@ async def suggest_charts(
 
 
 @router.get("/{project_id}/charts", response_model=schemas.ChartSpec)
-async def get_chart(
+def get_chart(
     project_id: uuid.UUID,
     chart_type: schemas.ChartType = Query(..., description="The kind of chart to build"),
     column: str | None = Query(None, description="Numeric column for a histogram"),

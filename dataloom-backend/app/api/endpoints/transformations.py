@@ -16,7 +16,7 @@ from app.services import transformation_service as ts
 from app.services.project_service import log_transformations_or_restore
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
-from app.utils.project_locks import project_write_lock
+from app.utils.project_locks import project_read_lock, project_write_lock
 from app.utils.security import safe_transformation_error_detail
 
 logger = get_logger(__name__)
@@ -78,13 +78,25 @@ def transform_project(
     """Apply a transformation to a project.
 
     Routes to the appropriate internal handler based on operation_type.
-    Preview still reads ``project.file_path``, so it shares the same lock.
+
+    A preview only reads ``project.file_path``, so it takes the shared read lock
+    and stays concurrent with other previews; a real transform rewrites the file
+    and needs the exclusive write lock.
     """
-    with project_write_lock(project_id):
+    lock = project_read_lock if preview else project_write_lock
+    with lock(project_id):
         return _transform_project(project_id, transformation_input, preview, page, page_size, db, project)
 
 
-def _transform_project(project_id, transformation_input, preview, page, page_size, db, project):
+def _transform_project(
+    project_id: uuid.UUID,
+    transformation_input: schemas.TransformationInput,
+    preview: bool,
+    page: int,
+    page_size: int,
+    db: Session,
+    project: models.Project,
+) -> dict:
     operation_type = getattr(transformation_input, "operation_type", "<unknown>")
 
     try:

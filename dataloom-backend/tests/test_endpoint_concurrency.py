@@ -16,6 +16,7 @@ These tests pin that contract two ways:
    serialize, proving the event loop is not blocked while the read runs.
 """
 
+import ast
 import asyncio
 import inspect
 import threading
@@ -29,10 +30,12 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app import models, schemas
+from app.api import dependencies, endpoints
 from app.api.dependencies import get_project_or_404, load_project_df
-from app.api.endpoints import profiling, projects, transformations
+from app.api.endpoints import pipelines, profiling, project_files, projects, transformations
 from app.main import app
-from app.utils.project_locks import project_write_lock
+from app.utils import project_locks
+from app.utils.project_locks import project_read_lock, project_write_lock
 
 
 def test_blocking_routes_are_sync_def():
@@ -81,8 +84,14 @@ def test_concurrent_transforms_for_same_project_do_not_lose_updates(monkeypatch)
         nonlocal reads
         reads += 1
         if reads == 1:
+            # Snapshot *before* stalling: the point of the test is that the slow
+            # caller holds pre-transform data while the other one races ahead.
+            # Reading after the sleep would pick up the second write and the
+            # test would pass even with no lock at all.
+            stale = current.copy()
             first_read.set()
             time.sleep(0.1)
+            return stale
         return current.copy()
 
     def _transform(df, _input):
@@ -227,3 +236,338 @@ async def test_slow_read_does_not_block_other_requests(monkeypatch):
         f"{concurrency} concurrent reads took {elapsed:.2f}s (single read {read_delay}s); "
         f"the endpoint appears to block the event loop"
     )
+
+
+def _async_route_offload_offenders() -> list[str]:
+    """Find ``async def`` routes that reach blocking work without offloading it.
+
+    A blocking call inside an ``async def`` path operation runs on the event
+    loop and stalls every other request. Worse, ``load_project_df`` and the
+    ``project_*_lock`` helpers block waiting on another *thread*, so an async
+    route that touches them freezes the whole server for every project until
+    the holder finishes.
+
+    The check is deliberately structural rather than name-based on two known
+    modules, so a new endpoint cannot reintroduce the bug somewhere else.
+    """
+    blocking = {
+        # pandas file I/O
+        "read_table_safe",
+        "save_table_safe",
+        "load_project_df",
+        "read_project_df",
+        "store_upload",
+        "store_added_file",
+        "_read_upload_df",
+        "_preview_append",
+        "_append_and_log",
+        # helpers that block on the per-project lock
+        "project_read_lock",
+        "project_write_lock",
+    }
+
+    offenders: list[str] = []
+    scanned_async_routes = 0
+    for path in sorted(Path(endpoints.__file__).parent.glob("*.py")):
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.AsyncFunctionDef):
+                continue
+            is_route = any(
+                isinstance(dec, ast.Call)
+                and isinstance(dec.func, ast.Attribute)
+                and isinstance(dec.func.value, ast.Name)
+                and dec.func.value.id == "router"
+                for dec in node.decorator_list
+            )
+            if not is_route:
+                continue
+            scanned_async_routes += 1
+
+            # Names handed to run_in_threadpool are offloaded, so they are fine.
+            offloaded = {
+                call.args[0]
+                for call in ast.walk(node)
+                if isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Name)
+                and call.func.id == "run_in_threadpool"
+                and call.args
+            }
+            for child in ast.walk(node):
+                if isinstance(child, ast.Name) and child.id in blocking and child not in offloaded:
+                    offenders.append(f"{path.name}:{child.lineno} {node.name} -> {child.id}")
+
+    # Guard against the check silently scanning nothing and passing vacuously.
+    assert scanned_async_routes >= 3, f"expected to scan several async routes, saw {scanned_async_routes}"
+    return offenders
+
+
+def test_async_routes_offload_all_blocking_work():
+    """No ``async def`` route may call blocking I/O or the project lock directly."""
+    offenders = _async_route_offload_offenders()
+    assert not offenders, (
+        "These async routes run blocking work on the event loop. Either make the "
+        "route a plain `def` (FastAPI will run it in its threadpool) or wrap the "
+        "call in run_in_threadpool:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_concurrent_reads_of_one_project_overlap(monkeypatch):
+    """The project lock must be shared for readers, not mutually exclusive.
+
+    The UI opens several profiling panels for one project at once. If reads took
+    an exclusive lock they would queue behind each other and the threadpool win
+    would be lost for the most common multi-widget load.
+
+    The barrier makes this deterministic rather than wall-clock based: it only
+    releases once all three reads are inside ``read_table_safe`` simultaneously,
+    so a serializing lock fails with BrokenBarrierError instead of a slow pass.
+    """
+    readers = 3
+    barrier = threading.Barrier(readers, timeout=5)
+    project = models.Project(
+        project_id=uuid.uuid4(),
+        name="shared-read-fixture",
+        file_path="unused.csv",
+        owner_id=uuid.uuid4(),
+    )
+
+    def _read(_path):
+        barrier.wait()
+        return pd.DataFrame({"value": [1]})
+
+    monkeypatch.setattr(dependencies, "read_table_safe", _read)
+
+    with ThreadPoolExecutor(max_workers=readers) as executor:
+        futures = [executor.submit(load_project_df, project) for _ in range(readers)]
+        frames = [f.result(timeout=5) for f in futures]
+
+    assert all(frame["value"].tolist() == [1] for frame in frames)
+
+
+def test_writes_to_different_projects_overlap():
+    """The lock is per project: two projects must never wait on each other."""
+    writers = 2
+    barrier = threading.Barrier(writers, timeout=5)
+
+    def _write(project_id: uuid.UUID) -> bool:
+        with project_write_lock(project_id):
+            barrier.wait()
+            return True
+
+    with ThreadPoolExecutor(max_workers=writers) as executor:
+        futures = [executor.submit(_write, uuid.uuid4()) for _ in range(writers)]
+        assert all(f.result(timeout=5) for f in futures)
+
+
+def test_waiting_writer_blocks_new_readers():
+    """A waiting writer takes priority, so a read stream cannot starve a save.
+
+    Without writer preference, DataLoom's own polling profiling panels could
+    keep the shared lock permanently occupied and a save would never acquire it.
+    """
+    project_id = uuid.uuid4()
+    order: list[str] = []
+    order_lock = threading.Lock()
+    reader_holding = threading.Event()
+    release_reader = threading.Event()
+
+    def _record(label: str) -> None:
+        with order_lock:
+            order.append(label)
+
+    def _first_reader():
+        with project_read_lock(project_id):
+            reader_holding.set()
+            assert release_reader.wait(timeout=5)
+        _record("reader-1")
+
+    def _writer():
+        with project_write_lock(project_id):
+            _record("writer")
+
+    def _late_reader():
+        with project_read_lock(project_id):
+            _record("reader-2")
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        first = executor.submit(_first_reader)
+        assert reader_holding.wait(timeout=5)
+
+        writer = executor.submit(_writer)
+        # Wait until the writer is actually queued, rather than sleeping blindly.
+        deadline = time.perf_counter() + 5
+        lock = project_locks._project_locks[project_id][0]
+        while lock._writers_waiting == 0 and time.perf_counter() < deadline:
+            time.sleep(0.005)
+        assert lock._writers_waiting == 1
+
+        late = executor.submit(_late_reader)
+        # The late reader must queue behind the writer even though the lock is
+        # currently held in shared mode and it could otherwise join in.
+        time.sleep(0.05)
+        assert not late.done()
+
+        release_reader.set()
+        first.result(timeout=5)
+        writer.result(timeout=5)
+        late.result(timeout=5)
+
+    assert order == ["reader-1", "writer", "reader-2"]
+
+
+def test_locks_are_released_from_the_registry():
+    """Held locks are reference-counted so a long-lived process cannot leak them."""
+    project_id = uuid.uuid4()
+    with project_read_lock(project_id):
+        assert project_id in project_locks._project_locks
+    assert project_id not in project_locks._project_locks
+
+    with project_write_lock(project_id):
+        assert project_id in project_locks._project_locks
+    assert project_id not in project_locks._project_locks
+
+
+def _append_fixture(monkeypatch):
+    """Wire _append_and_log onto an in-memory 'file' shared by both callers."""
+    project = models.Project(
+        project_id=uuid.uuid4(),
+        name="append-fixture",
+        file_path="unused.csv",
+        owner_id=uuid.uuid4(),
+    )
+    state = {"current": pd.DataFrame({"value": [0]}), "reads": 0}
+    first_read = threading.Event()
+
+    def _read_working_copy(_project):
+        state["reads"] += 1
+        if state["reads"] == 1:
+            # Snapshot before stalling, so the slow caller really does hold
+            # stale data; reading after the sleep would mask a lost update.
+            stale = state["current"].copy()
+            first_read.set()
+            time.sleep(0.1)
+            return stale
+        return state["current"].copy()
+
+    def _read_stored(_path):
+        return pd.DataFrame({"value": [1]})
+
+    def _save(df, _path):
+        state["current"] = df.copy()
+
+    monkeypatch.setattr(project_files, "read_project_df", _read_working_copy)
+    monkeypatch.setattr(project_files, "read_table_safe", _read_stored)
+    monkeypatch.setattr(project_files, "save_table_safe", _save)
+    monkeypatch.setattr(project_files, "log_transformation", lambda *args, **kwargs: None)
+    return project, state, first_read
+
+
+def test_concurrent_appends_for_same_project_do_not_lose_rows(monkeypatch):
+    """_append_and_log is a read-modify-write and must hold the exclusive lock.
+
+    Unlocked, the second append reads the pre-append working copy while the
+    first one is still mid-flight, so its save discards the first one's rows.
+    """
+    project, state, first_read = _append_fixture(monkeypatch)
+
+    def _call():
+        return project_files._append_and_log(object(), project, "stored.csv", "stored.csv", uuid.uuid4())
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(_call)
+        assert first_read.wait(timeout=1)
+        second = executor.submit(_call)
+        first.result(timeout=5)
+        second.result(timeout=5)
+
+    # One starting row plus one row from each of the two appends.
+    assert state["current"]["value"].tolist() == [0, 1, 1]
+
+
+def test_reader_waits_for_an_in_flight_append(tmp_path):
+    """An append rewrites the working copy, so readers must not see it mid-write."""
+    path = tmp_path / "data.csv"
+    path.write_text("value\n1\n")
+    project = models.Project(
+        project_id=uuid.uuid4(),
+        name="append-torn-write-fixture",
+        file_path=str(path),
+        owner_id=uuid.uuid4(),
+    )
+    write_started = threading.Event()
+    allow_finish = threading.Event()
+
+    def _slow_append():
+        # Stand in for _append_and_log's body: the lock is what is under test.
+        with project_write_lock(project.project_id):
+            path.write_text("")
+            write_started.set()
+            assert allow_finish.wait(timeout=5)
+            path.write_text("value\n1\n2\n")
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        writer = executor.submit(_slow_append)
+        assert write_started.wait(timeout=5)
+        reader = executor.submit(load_project_df, project)
+        time.sleep(0.05)
+        assert not reader.done()
+        allow_finish.set()
+        writer.result(timeout=5)
+        df = reader.result(timeout=5)
+
+    assert df["value"].tolist() == [1, 2]
+
+
+def test_concurrent_pipeline_applies_do_not_lose_updates(monkeypatch):
+    """apply_pipeline reads then writes the working copy under one lock.
+
+    Reading through load_project_df and writing afterwards would release the
+    lock in between, letting a second apply read stale data and clobber the
+    first one's result.
+    """
+    project_id = uuid.uuid4()
+    project = models.Project(
+        project_id=project_id,
+        name="pipeline-fixture",
+        file_path="unused.csv",
+        owner_id=uuid.uuid4(),
+    )
+    state = {"current": pd.DataFrame({"value": [0]}), "reads": 0}
+    first_read = threading.Event()
+
+    def _read_working_copy(_project):
+        state["reads"] += 1
+        if state["reads"] == 1:
+            # Snapshot before stalling, so the slow caller really does hold
+            # stale data; reading after the sleep would mask a lost update.
+            stale = state["current"].copy()
+            first_read.set()
+            time.sleep(0.1)
+            return stale
+        return state["current"].copy()
+
+    def _apply(_db, _project, _pipeline, df):
+        result = df.copy()
+        result.loc[0, "value"] += 1
+        state["current"] = result.copy()
+        return result
+
+    monkeypatch.setattr(pipelines, "fetch_owned_pipeline", lambda *args, **kwargs: object())
+    monkeypatch.setattr(pipelines, "fetch_owned_project", lambda *args, **kwargs: project)
+    monkeypatch.setattr(pipelines, "read_project_df", _read_working_copy)
+    monkeypatch.setattr(pipelines.pipeline_service, "apply_pipeline_to_project", _apply)
+
+    body = schemas.PipelineApplyRequest(project_id=project_id)
+
+    def _call():
+        return pipelines.apply_pipeline(uuid.uuid4(), body, object(), object())
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(_call)
+        assert first_read.wait(timeout=1)
+        second = executor.submit(_call)
+        first.result(timeout=5)
+        second.result(timeout=5)
+
+    assert state["current"]["value"].tolist() == [2]

@@ -19,9 +19,10 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session
+from starlette.concurrency import run_in_threadpool
 
 from app import database, models, schemas
-from app.api.dependencies import get_project_or_404, load_project_df
+from app.api.dependencies import get_project_or_404, load_project_df, read_project_df
 from app.services.append_service import analyze_append, append_dataframes
 from app.services.file_service import store_added_file
 from app.services.project_service import (
@@ -32,6 +33,7 @@ from app.services.project_service import (
 )
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
+from app.utils.project_locks import project_write_lock
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -72,10 +74,28 @@ def _append_and_log(
     written first, and if audit logging fails the file is restored so state
     never diverges from the log chain.
 
+    This is a read-modify-write of ``project.file_path``, so it runs under the
+    exclusive project lock: without it a concurrent transform or save could
+    interleave and lose one of the two updates, and a concurrent reader could
+    parse the file mid-write. The read inside uses ``read_project_df`` rather
+    than ``load_project_df`` because the write lock is not reentrant.
+
     Returns:
         The ProjectResponse payload for the combined data.
     """
-    df = load_project_df(project)
+    with project_write_lock(project.project_id):
+        return _append_and_log_locked(db, project, stored_path, original_filename, project_file_id)
+
+
+def _append_and_log_locked(
+    db: Session,
+    project: models.Project,
+    stored_path: str,
+    original_filename: str,
+    project_file_id: uuid.UUID,
+) -> dict:
+    """Body of :func:`_append_and_log`; assumes the project write lock is held."""
+    df = read_project_df(project)
     new_df = read_table_safe(Path(stored_path))
     combined = append_dataframes(df, new_df)
 
@@ -117,6 +137,18 @@ def _append_and_log(
     }
 
 
+def _preview_append(file: UploadFile, project: models.Project) -> dict:
+    """Parse an upload and describe how it would align with the working copy.
+
+    Blocking throughout: it parses the upload, waits on the project read lock,
+    reads the working copy, and compares the two frames. Callers on the event
+    loop must offload it.
+    """
+    new_df = _read_upload_df(file)
+    df = load_project_df(project)
+    return analyze_append(df, new_df)
+
+
 @router.post("/{project_id}/files/preview", response_model=schemas.AppendPreviewResponse)
 async def preview_add_file(
     file: UploadFile = File(...),
@@ -128,9 +160,7 @@ async def preview_add_file(
     until the client confirms via ``POST /{project_id}/files``.
     """
     await validate_upload_file(file)
-    new_df = _read_upload_df(file)
-    df = load_project_df(project)
-    return analyze_append(df, new_df)
+    return await run_in_threadpool(_preview_append, file, project)
 
 
 @router.post("/{project_id}/files", response_model=schemas.ProjectResponse)
@@ -149,13 +179,13 @@ async def add_file(
     await validate_upload_file(file)
 
     try:
-        stored_path = store_added_file(file)
+        stored_path = await run_in_threadpool(store_added_file, file)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     # Validate the stored file parses before recording anything.
     try:
-        read_table_safe(stored_path)
+        await run_in_threadpool(read_table_safe, stored_path)
     except HTTPException as e:
         with suppress(FileNotFoundError):
             stored_path.unlink()
@@ -165,7 +195,9 @@ async def add_file(
         raise
 
     project_file = create_project_file(db, project.project_id, str(stored_path), file.filename)
-    return _append_and_log(db, project, str(stored_path), file.filename, project_file.id)
+    # _append_and_log blocks on the project write lock and rewrites the working
+    # copy; keep it off the event loop.
+    return await run_in_threadpool(_append_and_log, db, project, str(stored_path), file.filename, project_file.id)
 
 
 @router.get("/{project_id}/files", response_model=list[schemas.ProjectFileResponse])
@@ -178,7 +210,7 @@ async def list_project_files(
 
 
 @router.post("/{project_id}/files/{file_id}/append", response_model=schemas.ProjectResponse)
-async def reappend_project_file(
+def reappend_project_file(
     file_id: uuid.UUID,
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),

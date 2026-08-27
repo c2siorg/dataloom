@@ -13,7 +13,7 @@ from app.config import get_settings
 from app.services import auth_service
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import read_table_safe
-from app.utils.project_locks import project_write_lock
+from app.utils.project_locks import project_read_lock
 from app.utils.rate_limiter import RateLimiter
 
 logger = get_logger(__name__)
@@ -159,18 +159,36 @@ def get_project_or_404(
     return fetch_owned_project(db, project_id, current_user)
 
 
-def load_project_df(project: models.Project) -> pd.DataFrame:
+def read_project_df(project: models.Project) -> pd.DataFrame:
     """Read a project's working copy, redacting any path from error details.
 
     ``read_table_safe`` embeds the absolute file path in its 404/500 details;
     surface a generic message to the client instead, matching the transform
-    endpoint's handling. Shared by the profiling and visualization endpoints.
+    endpoint's handling.
+
+    Takes no project lock, so it is safe to call from code already holding
+    :func:`app.utils.project_locks.project_write_lock` (which is not reentrant).
+    Unlocked callers should use :func:`load_project_df` instead.
     """
     try:
-        with project_write_lock(project.project_id):
-            return read_table_safe(project.file_path)
+        return read_table_safe(project.file_path)
     except HTTPException as e:
         if e.status_code == 404:
             raise HTTPException(status_code=404, detail="Project data file not found") from e
         logger.warning("Failed to read project file project_id=%s status=%s", project.project_id, e.status_code)
         raise HTTPException(status_code=e.status_code, detail="Could not read project data") from e
+
+
+def load_project_df(project: models.Project) -> pd.DataFrame:
+    """Read a project's working copy under the shared project read lock.
+
+    The lock keeps the read from landing mid-write while a save, transform,
+    revert, undo, append or pipeline run rewrites the file in place. It is
+    shared, so concurrent readers of the same project still overlap.
+
+    Blocks the calling thread, so callers must be plain ``def`` path operations
+    (run in FastAPI's threadpool) rather than ``async def`` ones. Shared by the
+    profiling, visualization, reporting, quality, pipeline and append endpoints.
+    """
+    with project_read_lock(project.project_id):
+        return read_project_df(project)
