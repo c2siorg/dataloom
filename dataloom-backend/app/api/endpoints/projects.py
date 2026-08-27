@@ -37,7 +37,7 @@ from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
-from app.utils.project_locks import project_write_lock
+from app.utils.project_locks import project_read_lock, project_write_lock
 from app.utils.security import validate_upload_file
 
 logger = get_logger(__name__)
@@ -122,7 +122,7 @@ def get_project_details(
     project: models.Project = Depends(get_project_or_404),
 ):
     """Fetch full project details including all rows and columns."""
-    with project_write_lock(project.project_id):
+    with project_read_lock(project.project_id):
         df = read_table_safe(project.file_path)
 
     total_rows = len(df)
@@ -246,7 +246,12 @@ def revert_to_checkpoint(
         return _revert_to_checkpoint(project_id, checkpoint_id, db, project)
 
 
-def _revert_to_checkpoint(project_id, checkpoint_id, db, project):
+def _revert_to_checkpoint(
+    project_id: uuid.UUID,
+    checkpoint_id: uuid.UUID | None,
+    db: Session,
+    project: models.Project,
+) -> dict:
     original_path = get_original_path(project.file_path)
     df = read_table_safe(original_path)
 
@@ -362,12 +367,12 @@ def export_project(
 
     native = target_fmt.extension == source_fmt.extension and not write_options.has_options()
 
-    # Snapshot under the project lock. FileResponse streams after we return,
+    # Snapshot under the shared read lock. FileResponse streams after we return,
     # so serving the live working copy could tear if a writer starts mid-download.
     with tempfile.NamedTemporaryFile(suffix=target_fmt.extension, delete=False) as tmp:
         tmp_path = tmp.name
     try:
-        with project_write_lock(project.project_id):
+        with project_read_lock(project.project_id):
             if native:
                 shutil.copyfile(project.file_path, tmp_path)
             else:
@@ -441,7 +446,11 @@ def undo_last_transformation(
         return _undo_last_transformation(project_id, project, db)
 
 
-def _undo_last_transformation(project_id, project, db):
+def _undo_last_transformation(
+    project_id: uuid.UUID,
+    project: models.Project,
+    db: Session,
+) -> dict:
     last_log = get_last_change_log(db, project_id)
     if not last_log:
         raise HTTPException(status_code=404, detail="No transformations to undo")

@@ -12,10 +12,12 @@ from app.api.dependencies import (
     fetch_owned_project,
     get_current_user,
     load_project_df,
+    read_project_df,
 )
 from app.services import pipeline_service
 from app.services.transformation_service import TransformationError
 from app.utils.pandas_helpers import dataframe_to_response
+from app.utils.project_locks import project_write_lock
 from app.utils.security import safe_transformation_error_detail
 
 router = APIRouter()
@@ -99,9 +101,14 @@ def apply_pipeline(
     pipeline = fetch_owned_pipeline(db, pipeline_id, current_user)
     project = fetch_owned_project(db, body.project_id, current_user)
 
-    df = load_project_df(project)
+    # Applying a pipeline is a read-modify-write of the working copy, so the read
+    # and the write share one exclusive lock; splitting them would let a
+    # concurrent transform slip in between and lose an update. The write lock is
+    # not reentrant, hence read_project_df rather than load_project_df.
     try:
-        result_df = pipeline_service.apply_pipeline_to_project(db, project, pipeline, df)
+        with project_write_lock(project.project_id):
+            df = read_project_df(project)
+            result_df = pipeline_service.apply_pipeline_to_project(db, project, pipeline, df)
     except TransformationError as e:
         raise HTTPException(status_code=400, detail=safe_transformation_error_detail(e)) from e
 
