@@ -34,7 +34,11 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     max_upload_size_bytes: int = 10_485_760  # 10 MB
     allowed_extensions: list[str] = [".csv", ".tsv", ".json", ".xlsx", ".parquet"]
-    cors_origins: list[str] = ["http://localhost:3200"]
+    # http://localhost:3201 covers Vite's own fallback when 3200 is already
+    # bound (e.g. a second `npm run dev`); the frontend also pins strictPort
+    # so a third conflicting instance fails loudly instead of drifting past
+    # this list.
+    cors_origins: list[str] = ["http://localhost:3200", "http://localhost:3201"]
     debug: bool = False
     jwt_secret: str
     jwt_algorithm: str = "HS256"
