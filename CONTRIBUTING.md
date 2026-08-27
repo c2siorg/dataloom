@@ -2,6 +2,17 @@
 
 Thank you for your interest in contributing to DataLoom! This document provides guidelines and instructions for contributing.
 
+## Picking Up Work
+
+You do not need to be assigned to an issue before you contribute. Assignment is not compulsory.
+
+You can start in either of these two ways:
+
+- Open a pull request for an existing issue. Link the issue in the pull request description.
+- Open a new issue for the bug or the feature, then open a pull request for it.
+
+For a large change, comment on the issue before you start. This tells the other contributors what you work on, and it prevents duplicate pull requests.
+
 ## Getting Started
 
 1. **Fork** the repository on GitHub.
