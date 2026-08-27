@@ -25,6 +25,7 @@ import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
 import DtypeBadge from "./common/DtypeBadge";
 import ColumnProfileCard from "./profiling/ColumnProfileCard";
+import TableSkeleton from "./TableSkeleton";
 import useColumnProfiles from "../hooks/useColumnProfiles";
 import { useToast } from "../context/ToastContext";
 
@@ -102,6 +103,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     setPaginationData,
     updatePreviewPage,
     refreshProject,
+    loading,
   } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const [data, setData] = useState<Cell[][]>([]);
@@ -453,11 +455,19 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     refreshProject(projectId, 1, newSize);
   };
 
+  // refreshProject sets loading on every fetch (pagination, mutations). Keep the
+  // existing table when columns are already available; skeleton only on first load.
+  const showTableSkeleton = loading && ctxColumns.length === 0;
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 min-h-0 overflow-hidden border-x border-b border-app-border shadow-sm">
         <div className="h-full overflow-auto">
-          <table
+          {showTableSkeleton ? (
+            <TableSkeleton columnCount={ctxColumns.length} rowCount={pageSize} />
+          ) : (
+            /* prettier-ignore */
+            <table
             data-testid="data-table"
             className="min-w-full bg-surface border-separate border-spacing-0"
           >
@@ -620,6 +630,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
               ))}
             </tbody>
           </table>
+          )}
         </div>
       </div>
 

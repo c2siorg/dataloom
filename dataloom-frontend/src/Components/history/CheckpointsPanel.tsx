@@ -3,6 +3,7 @@ import { deleteCheckpoint, type Checkpoint } from "../../api";
 import Modal from "../common/Modal";
 import { useToast } from "../../context/ToastContext";
 import Button from "../common/Button";
+import EmptyState from "../common/EmptyState";
 
 interface CheckpointsPanelProps {
   projectId: string;
@@ -82,7 +83,7 @@ const CheckpointsPanel = ({
             ) : (
               <tr>
                 <td colSpan={3} className="py-4 px-4 text-center text-sm text-muted-foreground">
-                  No checkpoints available
+                  <EmptyState compact title="No checkpoints available" />
                 </td>
               </tr>
             )}
