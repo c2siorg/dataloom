@@ -18,6 +18,7 @@ class Settings(BaseSettings):
         max_upload_size_bytes: Maximum allowed upload file size in bytes.
         allowed_extensions: List of permitted file extensions for upload.
         cors_origins: List of allowed CORS origin URLs.
+        cors_origin_regex: Optional regex for additional allowed CORS origins.
         debug: Enable debug mode for verbose logging.
         jwt_secret: Secret key used to sign JWT auth tokens.
         jwt_algorithm: Algorithm used to sign JWT auth tokens.
@@ -34,7 +35,8 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     max_upload_size_bytes: int = 10_485_760  # 10 MB
     allowed_extensions: list[str] = [".csv", ".tsv", ".json", ".xlsx", ".parquet"]
-    cors_origins: list[str] = ["http://localhost:3200"]
+    cors_origins: list[str] = ["http://localhost:3200", "http://localhost:3201"]
+    cors_origin_regex: str | None = r"http://localhost:32\d{2}"
     debug: bool = False
     jwt_secret: str
     jwt_algorithm: str = "HS256"
