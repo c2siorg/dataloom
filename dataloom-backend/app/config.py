@@ -35,8 +35,8 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     max_upload_size_bytes: int = 10_485_760  # 10 MB
     allowed_extensions: list[str] = [".csv", ".tsv", ".json", ".xlsx", ".parquet"]
-    cors_origins: list[str] = ["http://localhost:3200", "http://localhost:3201"]
-    cors_origin_regex: str | None = r"http://localhost:32\d{2}"
+    cors_origins: list[str] = ["http://localhost:3200"]
+    cors_origin_regex: str | None = None
     debug: bool = False
     jwt_secret: str
     jwt_algorithm: str = "HS256"

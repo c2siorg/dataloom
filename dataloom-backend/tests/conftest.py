@@ -6,6 +6,8 @@ import os
 # Auth-related settings must exist before app modules load the cached Settings.
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-for-the-dataloom-suite")
 os.environ.setdefault("COOKIE_SECURE", "false")
+# Exercise the local development CORS range while keeping the production default disabled.
+os.environ.setdefault("CORS_ORIGIN_REGEX", r"http://localhost:32\d{2}")
 
 os.environ.setdefault("SMTP_USERNAME", "test@example.com")
 os.environ.setdefault("SMTP_PASSWORD", "test-password")
