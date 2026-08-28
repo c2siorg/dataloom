@@ -70,7 +70,9 @@ app/config.py            → Pydantic BaseSettings with @lru_cache (get_settings
 app/database.py          → SQLModel engine + get_db session generator
 ```
 
-**Key pattern: original + working copy files.** Each upload creates two files: `{name}.csv` (original, never modified during transforms) and `{name}_copy.csv` (working copy). The "save" operation replays logged transformations onto the original. The "revert" operation restores from the original.
+**Key pattern: original + working copy files.** Each upload creates two files: `{name}.csv` (original, never modified during transforms) and `{name}_copy.csv` (working copy). A transform called with `preview=true` reads the working copy and writes nothing; with `preview=false` it writes the working copy and appends a change log entry. The "save" operation creates a checkpoint from the working copy as it stands and marks pending logs applied, without replaying anything. The "revert" operation rebuilds the working copy from the original, replaying logged transformations up to the chosen checkpoint, or restoring the bare original when no checkpoint is given.
+
+**Preview before persist.** A preview lives only in frontend state, so a reload (`GET /projects/get/{id}`) and a CSV export both read the working copy and an unsaved preview is discarded. Apply issues `preview=true`; Save Changes reissues the same payload with `preview=false`, and that second call is the one that persists.
 
 **Transformation service functions are pure** — they take a DataFrame and return a new DataFrame. Side effects (saving to disk, logging) are handled by the endpoint layer.
 
@@ -101,6 +103,8 @@ src/Components/          → NOTE: uppercase "C" in directory name
 **Project navigation uses URL params** (`/workspace/:projectId`), not state-based routing.
 
 **API functions return `response.data`** — callers receive the parsed body directly, not the Axios response wrapper.
+
+**Transform forms wire into preview mode** — after a successful `preview=true` request call `enterPreviewMode` from ProjectContext, and `cancelPreview` from the Cancel handler. Use the shared `usePreviewSave` hook for Save Changes; it reissues the pending transform with `preview: false` and calls `confirmPreview` on success.
 
 ### API routes
 
