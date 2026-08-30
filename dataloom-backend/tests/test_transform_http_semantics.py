@@ -51,6 +51,97 @@ def pagination_project(client, tmp_path):
     return response.json()
 
 
+@pytest.mark.parametrize(
+    "ascending,expected_ages",
+    [
+        (True, [25, 30, 30, 35]),
+        (False, [35, 30, 30, 25]),
+    ],
+)
+def test_transform_sort_orders_rows(client, project_id, ascending, expected_ages):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "sort",
+            "sort_params": {"column": "age", "ascending": ascending},
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    age_idx = data["columns"].index("age")
+    ages = [int(row[age_idx]) for row in data["rows"]]
+    assert ages == expected_ages
+
+
+def test_transform_add_row_inserts_blank_row_at_index(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={"operation_type": "addRow", "row_params": {"index": 1}},
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert data["row_count"] == 5
+    assert len(data["rows"]) == 5
+    assert data["rows"][1] == [" ", " ", " "]
+
+
+def test_transform_del_row_removes_target_row(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={"operation_type": "delRow", "row_params": {"index": 1}},
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert data["row_count"] == 3
+    name_idx = data["columns"].index("name")
+    names = [row[name_idx] for row in data["rows"]]
+    assert "Bob" not in names
+    assert names == ["Alice", "Charlie", "Alice"]
+
+
+def test_transform_rename_col_updates_columns(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "renameCol",
+            "rename_col_params": {"col_index": 1, "new_name": "years"},
+        },
+    )
+
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert "years" in data["columns"]
+    assert "age" not in data["columns"]
+
+
+def test_transform_unrecognised_operation_type_returns_422(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={"operation_type": "bogus"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_transform_missing_project_returns_404(client):
+    response = client.post(
+        "/projects/00000000-0000-0000-0000-000000000000/transform",
+        json={
+            "operation_type": "filter",
+            "parameters": {"column": "name", "condition": "=", "value": "Alice"},
+        },
+    )
+
+    assert response.status_code == 404
+
+
 def test_transform_preserves_http_exception_status(client, project_id):
     # Missing filter params should return the explicit 400 from endpoint validation.
     response = client.post(
