@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     database_url: str
     upload_dir: str = "uploads"
     max_upload_size_bytes: int = 10_485_760  # 10 MB
-    allowed_extensions: list[str] = [".csv", ".tsv", ".json", ".xlsx", ".parquet"]
+    allowed_extensions: list[str] = [".csv", ".tsv", ".json", ".xls", ".xlsx", ".parquet"]
     # http://localhost:3201 covers Vite's own fallback when 3200 is already
     # bound (e.g. a second `npm run dev`); the frontend also pins strictPort
     # so a third conflicting instance fails loudly instead of drifting past
