@@ -1,5 +1,5 @@
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-export const ACCEPTED_EXTENSIONS = [".csv", ".tsv", ".json", ".xlsx", ".parquet"];
+export const ACCEPTED_EXTENSIONS = [".csv", ".tsv", ".json", ".xls", ".xlsx", ".parquet"];
 
 /** Outcome of `validateFile`. `error` is present only when `valid` is false. */
 export interface FileValidationResult {
