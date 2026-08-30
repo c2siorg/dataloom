@@ -29,6 +29,8 @@ def _encode(df: pd.DataFrame, ext: str) -> bytes:
         return df.to_csv(sep="\t", index=False).encode()
     if ext == ".json":
         return df.to_json(orient="records").encode()
+    if ext == ".xls":
+        return (Path(__file__).parent / "fixtures" / "sample.xls").read_bytes()
     if ext == ".xlsx":
         buf = BytesIO()
         df.to_excel(buf, index=False)
@@ -52,7 +54,7 @@ def _upload(client, content: bytes, filename: str):
 
 
 class TestUploadEachFormat:
-    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xlsx", ".parquet"])
+    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xls", ".xlsx", ".parquet"])
     def test_upload_returns_correct_shape(self, client, ext):
         response = _upload(client, _encode(SAMPLE, ext), f"data{ext}")
 
@@ -104,6 +106,14 @@ class TestExportNativeFormat:
         result = pd.read_excel(BytesIO(response.content))
         assert result["name"].tolist() == ["Alice", "Bob", "Charlie"]
 
+    def test_export_to_xls_is_rejected_with_clear_message(self, client):
+        project_id = _upload(client, _encode(SAMPLE, ".csv"), "data.csv").json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export", params={"format": "xls"})
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Legacy .xls files are read-only; export as .xlsx instead."
+
 
 def _decode(content: bytes, ext: str) -> pd.DataFrame:
     """Parse downloaded export bytes for the given target format."""
@@ -123,7 +133,7 @@ def _decode(content: bytes, ext: str) -> pd.DataFrame:
 class TestExportConversionMatrix:
     """Any supported source format must be exportable to any target format."""
 
-    @pytest.mark.parametrize("source_ext", [".csv", ".tsv", ".json", ".xlsx", ".parquet"])
+    @pytest.mark.parametrize("source_ext", [".csv", ".tsv", ".json", ".xls", ".xlsx", ".parquet"])
     @pytest.mark.parametrize("target", ["csv", "tsv", "json", "xlsx", "parquet"])
     def test_convert(self, client, source_ext, target):
         project_id = _upload(client, _encode(SAMPLE, source_ext), f"data{source_ext}").json()["project_id"]

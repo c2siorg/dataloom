@@ -53,7 +53,7 @@ class TestStoreUploadExtension:
             # Should not raise
             store_upload(file)
 
-    @pytest.mark.parametrize("filename", ["data.tsv", "data.json", "report.xlsx", "data.parquet"])
+    @pytest.mark.parametrize("filename", ["data.tsv", "data.json", "report.xls", "report.xlsx", "data.parquet"])
     def test_supported_formats_are_accepted(self, filename, tmp_path):
         """Every registered non-CSV format must pass extension validation."""
         file = MockUploadFile(filename)
@@ -105,17 +105,17 @@ class TestCopyOriginalPaths:
     recoverable from it for any supported format. This is the exact bug the
     refactor fixed (the old code hardcoded .csv)."""
 
-    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xlsx", ".parquet"])
+    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xls", ".xlsx", ".parquet"])
     def test_copy_path_preserves_extension(self, ext):
         original = Path(f"/uploads/abc123_data{ext}")
         assert _copy_path_for(original) == Path(f"/uploads/abc123_data_copy{ext}")
 
-    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xlsx", ".parquet"])
+    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xls", ".xlsx", ".parquet"])
     def test_original_recovered_from_copy(self, ext):
         copy = f"/uploads/abc123_data_copy{ext}"
         assert get_original_path(copy) == Path(f"/uploads/abc123_data{ext}")
 
-    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xlsx", ".parquet"])
+    @pytest.mark.parametrize("ext", [".csv", ".tsv", ".json", ".xls", ".xlsx", ".parquet"])
     def test_round_trip_is_stable(self, ext):
         original = Path(f"/uploads/x_report{ext}")
         assert get_original_path(str(_copy_path_for(original))) == original

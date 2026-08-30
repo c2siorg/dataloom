@@ -45,7 +45,10 @@ class MockUploadFileNoSize:
 
 class TestValidateUploadFile:
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("filename", ["data.csv", "data.tsv", "data.json", "data.xlsx", "data.parquet"])
+    @pytest.mark.parametrize(
+        "filename",
+        ["data.csv", "data.tsv", "data.json", "data.xls", "data.xlsx", "data.parquet"],
+    )
     async def test_supported_formats_accepted(self, filename):
         file = MockUploadFile(filename)
         await validate_upload_file(file)
