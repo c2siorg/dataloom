@@ -17,6 +17,7 @@ dependencies = [
     "pyjwt>=2.13.0",
     "pydantic[email]>=2.12.5",
     "openpyxl>=3.1.5",
+    "xlrd>=2.0.2",
     "pyarrow>=24.0.0",
     "regex>=2026.7.19",
     "reportlab>=5.0.0",
