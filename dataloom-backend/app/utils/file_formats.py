@@ -148,7 +148,16 @@ def _write_json(df: pd.DataFrame, path: Path, *_ignored) -> None:
     df.to_json(path, orient="records", indent=2)
 
 
-# --- XLSX -----------------------------------------------------------------
+# --- Excel ----------------------------------------------------------------
+
+
+def _read_xls(path: Path) -> pd.DataFrame:
+    # xlrd is the only supported pandas engine for legacy binary workbooks.
+    return pd.read_excel(path, engine="xlrd")
+
+
+def _write_xls(df: pd.DataFrame, path: Path, *_ignored) -> None:
+    raise ValueError("Legacy .xls files are read-only; export as .xlsx instead.")
 
 
 def _read_xlsx(path: Path) -> pd.DataFrame:
@@ -186,6 +195,7 @@ _FORMATS: dict[str, FileFormat] = {
         FileFormat(".csv", _read_csv, _write_csv, "text/csv"),
         FileFormat(".tsv", _read_tsv, _write_tsv, "text/tab-separated-values"),
         FileFormat(".json", _read_json, _write_json, "application/json"),
+        FileFormat(".xls", _read_xls, _write_xls, "application/vnd.ms-excel"),
         FileFormat(
             ".xlsx",
             _read_xlsx,

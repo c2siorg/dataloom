@@ -14,7 +14,7 @@ def read_table_safe(path: Path) -> pd.DataFrame:
     """Read a dataset file safely, dispatching on its format, with error handling.
 
     The format is resolved from the file extension via the format registry, so
-    CSV/TSV/JSON/XLSX/Parquet all flow through this single helper.
+    CSV/TSV/JSON/XLS/XLSX/Parquet all flow through this single helper.
 
     Datetime-like string columns are inferred immediately after reading so all
     downstream consumers, including profiling and response building, receive
