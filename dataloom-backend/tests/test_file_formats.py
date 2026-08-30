@@ -12,10 +12,26 @@ from app.utils.pandas_helpers import read_table_safe, save_table_safe
 
 class TestRegistry:
     def test_supported_extensions(self):
-        assert set(supported_extensions()) == {".csv", ".tsv", ".json", ".xlsx", ".parquet"}
+        assert set(supported_extensions()) == {".csv", ".tsv", ".json", ".xls", ".xlsx", ".parquet"}
 
     def test_get_format_is_case_insensitive(self):
         assert get_format("DATA.CSV").extension == ".csv"
+
+    def test_xls_uses_legacy_excel_media_type(self):
+        assert get_format("report.xls").media_type == "application/vnd.ms-excel"
+
+    def test_xls_reader_selects_xlrd(self, tmp_path, monkeypatch):
+        path = tmp_path / "report.xls"
+        expected = pd.DataFrame({"name": ["Alice"]})
+
+        def fake_read_excel(actual_path, *, engine):
+            assert actual_path == path
+            assert engine == "xlrd"
+            return expected
+
+        monkeypatch.setattr(pd, "read_excel", fake_read_excel)
+
+        assert get_format(path).read(path) is expected
 
     def test_get_format_unsupported_raises(self):
         with pytest.raises(ValueError, match="Unsupported file format '.txt'"):
@@ -97,6 +113,15 @@ class TestRoundTrip:
         save_table_safe(df, path, TableWriteOptions(delimiter="colon", include_header=False, encoding="utf-16"))
 
         assert json.loads(path.read_text()) == [{"name": "Alice"}]
+
+    def test_xls_write_is_rejected_with_clear_message(self, tmp_path):
+        df = pd.DataFrame({"name": ["Alice"]})
+
+        with pytest.raises(HTTPException) as exc:
+            save_table_safe(df, tmp_path / "data.xls")
+
+        assert exc.value.status_code == 400
+        assert exc.value.detail == "Legacy .xls files are read-only; export as .xlsx instead."
 
     def test_parquet_write_survives_mixed_type_column(self, tmp_path):
         """A mixed-type object column must not crash the parquet writer.
