@@ -35,25 +35,34 @@ Before you begin, ensure you have the following installed on your machine:
 * **PostgreSQL**: [Download PostgreSQL](https://www.postgresql.org/download/)
 
 ### Database Setup
-DataLoom requires a PostgreSQL database to run. 
-1. Install PostgreSQL from the official link above and start the service.
-2. Create a new database specifically for this project named `dataloom`.
-   - *Via Command Line (psql):* 
+DataLoom requires a PostgreSQL database to run.
+
+**Quick start (Docker):** From the repository root, start the bundled Postgres container:
+
+```bash
+docker compose up -d db
+```
+
+The default `DATABASE_URL` in `.env.example` matches this container (`postgres` / `postgres` on port 5432, database `dataloom`).
+
+**Alternative (manual install):** Install PostgreSQL from the [official downloads](https://www.postgresql.org/download/) and start the service. Create a database named `dataloom`:
+   - *Via Command Line (psql):*
      ```bash
      psql -U postgres -c "CREATE DATABASE dataloom;"
      ```
    - *Via pgAdmin:* Right-click "Databases" -> Create -> Database -> Name it `dataloom`.
 
+If you use different credentials, update `DATABASE_URL` in your `.env` file accordingly.
+
 ### Backend Setup
 
 ```bash
 cd dataloom-backend
-cp .env.example .env          # Configure DB credentials
+cp .env.example .env
 uv sync
 ```
 
-Edit the newly created `.env` file and set your `DATABASE_URL` to point to your running PostgreSQL instance. An example standard local connection string is:
-`DATABASE_URL="postgresql://postgres:<your_password>@localhost:5432/dataloom"`
+If you followed the Docker quick start in [Database Setup](#database-setup), the default `DATABASE_URL` in `.env` already points at the container—no edits needed. For a manually installed Postgres instance, set `DATABASE_URL` to match your credentials (for example, `postgresql://postgres:postgres@localhost:5432/dataloom`).
 
 Start the backend development server:
 
@@ -102,11 +111,7 @@ The frontend development server will start at `http://localhost:3200`.
 
 End-to-end tests use [Playwright](https://playwright.dev/) and exercise the full stack (frontend + backend + database).
 
-Make sure PostgreSQL is running (via Docker Compose or natively):
-
-```bash
-docker compose up -d db
-```
+Make sure PostgreSQL is running—see [Database Setup](#database-setup).
 
 From the repository root:
 
