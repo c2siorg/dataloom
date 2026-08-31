@@ -34,7 +34,7 @@ A web-based GUI for data wrangling — manage and transform tabular datasets (CS
 
 ```bash
 cd dataloom-backend
-cp .env.example .env          # Configure DB credentials
+cp .env.example .env
 uv sync
 uv run uvicorn app.main:app --reload --port 4200
 ```
