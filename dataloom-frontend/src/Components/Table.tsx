@@ -25,6 +25,7 @@ import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
 import DtypeBadge from "./common/DtypeBadge";
 import ColumnProfileCard from "./profiling/ColumnProfileCard";
+import TableSkeleton from "./common/TableSkeleton";
 import useColumnProfiles from "../hooks/useColumnProfiles";
 import { useToast } from "../context/ToastContext";
 
@@ -102,6 +103,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     setPaginationData,
     updatePreviewPage,
     refreshProject,
+    loading,
   } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const [data, setData] = useState<Cell[][]>([]);
@@ -457,169 +459,182 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 min-h-0 overflow-hidden border-x border-b border-app-border shadow-sm">
         <div className="h-full overflow-auto">
-          <table
-            data-testid="data-table"
-            className="min-w-full bg-surface border-separate border-spacing-0"
-          >
-            <thead className="sticky top-0 z-20 bg-surface">
-              {showColumnProfiles && (
+          {loading && ctxRows.length === 0 ? (
+            // Only stand in when there is nothing to show. Every mutation
+            // handler refreshes after updating the grid in place, and swapping
+            // populated rows for a skeleton there would flash the whole table.
+            // ctxColumns still survives a refresh, so the column count is real
+            // whenever the schema is already known.
+            <TableSkeleton
+              columnCount={ctxColumns.length}
+              rowCount={pageSize}
+              showColumnProfiles={showColumnProfiles}
+            />
+          ) : (
+            <table
+              data-testid="data-table"
+              className="min-w-full bg-surface border-separate border-spacing-0"
+            >
+              <thead className="sticky top-0 z-20 bg-surface">
+                {showColumnProfiles && (
+                  <tr>
+                    {columns.map((column, columnIndex) => {
+                      const isSerialNumber = columnIndex === 0;
+                      return (
+                        <th
+                          key={columnIndex}
+                          className={`align-top border-b border-r border-app-border ${
+                            isSerialNumber
+                              ? "w-16 sticky left-0 z-10 bg-surface"
+                              : "bg-surface min-w-35"
+                          }`}
+                        >
+                          {!isSerialNumber && (
+                            <ColumnProfileCard
+                              profile={profiles[column] ?? null}
+                              loading={profilesLoading && !profiles[column]}
+                            />
+                          )}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                )}
                 <tr>
                   {columns.map((column, columnIndex) => {
                     const isSerialNumber = columnIndex === 0;
+                    const isDragged = !isSerialNumber && draggedColIndex === columnIndex - 1;
+                    const isDropTarget = !isSerialNumber && hoveredTargetIndex === columnIndex - 1;
                     return (
                       <th
                         key={columnIndex}
-                        className={`align-top border-b border-r border-app-border ${
-                          isSerialNumber
-                            ? "w-16 sticky left-0 z-10 bg-surface"
-                            : "bg-surface min-w-35"
-                        }`}
+                        className={`h-6 px-0.5 py-0 border-r border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
+                          isDropTarget ? "ring-2 ring-blue-400" : ""
+                        } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
+                        onContextMenu={(e) => {
+                          if (!isPreviewMode) {
+                            open(e, { type: "column", columnIndex });
+                          }
+                        }}
                       >
-                        {!isSerialNumber && (
-                          <ColumnProfileCard
-                            profile={profiles[column] ?? null}
-                            loading={profilesLoading && !profiles[column]}
-                          />
-                        )}
+                        <button
+                          type="button"
+                          className={`w-full text-left text-muted-foreground hover:text-foreground hover:bg-surface-hover rounded-md transition-colors duration-150 ${
+                            isSerialNumber ? "" : "cursor-grab active:cursor-grabbing"
+                          } ${isDragged ? "opacity-50" : ""}`}
+                          draggable={!isSerialNumber}
+                          onDragStart={(event) => {
+                            if (isSerialNumber) return;
+                            setDraggedColIndex(columnIndex - 1);
+                            event.dataTransfer.effectAllowed = "move";
+                          }}
+                          onDragOver={(event) => {
+                            if (isSerialNumber) return;
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = "move";
+                            setHoveredTargetIndex(columnIndex - 1);
+                          }}
+                          onDrop={(event) => {
+                            if (isSerialNumber) return;
+                            event.preventDefault();
+                            if (draggedColIndex === null) return;
+                            const source = draggedColIndex;
+                            const target = columnIndex - 1;
+                            if (source === target) {
+                              setHoveredTargetIndex(null);
+                              return;
+                            }
+                            const newOrder = [...safeOrder];
+                            const [moved] = newOrder.splice(source, 1);
+                            newOrder.splice(target, 0, moved as number);
+                            setColumnOrder(newOrder);
+                            setDraggedColIndex(null);
+                            setHoveredTargetIndex(null);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedColIndex(null);
+                            setHoveredTargetIndex(null);
+                          }}
+                        >
+                          {column}
+                        </button>
                       </th>
                     );
                   })}
                 </tr>
-              )}
-              <tr>
-                {columns.map((column, columnIndex) => {
-                  const isSerialNumber = columnIndex === 0;
-                  const isDragged = !isSerialNumber && draggedColIndex === columnIndex - 1;
-                  const isDropTarget = !isSerialNumber && hoveredTargetIndex === columnIndex - 1;
-                  return (
-                    <th
-                      key={columnIndex}
-                      className={`h-6 px-0.5 py-0 border-r border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
-                        isDropTarget ? "ring-2 ring-blue-400" : ""
-                      } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
-                      onContextMenu={(e) => {
-                        if (!isPreviewMode) {
-                          open(e, { type: "column", columnIndex });
-                        }
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className={`w-full text-left text-muted-foreground hover:text-foreground hover:bg-surface-hover rounded-md transition-colors duration-150 ${
-                          isSerialNumber ? "" : "cursor-grab active:cursor-grabbing"
-                        } ${isDragged ? "opacity-50" : ""}`}
-                        draggable={!isSerialNumber}
-                        onDragStart={(event) => {
-                          if (isSerialNumber) return;
-                          setDraggedColIndex(columnIndex - 1);
-                          event.dataTransfer.effectAllowed = "move";
-                        }}
-                        onDragOver={(event) => {
-                          if (isSerialNumber) return;
-                          event.preventDefault();
-                          event.dataTransfer.dropEffect = "move";
-                          setHoveredTargetIndex(columnIndex - 1);
-                        }}
-                        onDrop={(event) => {
-                          if (isSerialNumber) return;
-                          event.preventDefault();
-                          if (draggedColIndex === null) return;
-                          const source = draggedColIndex;
-                          const target = columnIndex - 1;
-                          if (source === target) {
-                            setHoveredTargetIndex(null);
-                            return;
+                <tr>
+                  {columns.map((column, columnIndex) => {
+                    const isSerialNumber = columnIndex === 0;
+                    const isDropTarget = !isSerialNumber && hoveredTargetIndex === columnIndex - 1;
+                    return (
+                      <th
+                        key={columnIndex}
+                        className={`h-5 px-0.5 py-0 border-b border-r border-app-border text-left text-[10px] leading-none ${
+                          isDropTarget ? "ring-2 ring-blue-400" : ""
+                        } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
+                        onContextMenu={(e) => open(e, { type: "column", columnIndex })}
+                      >
+                        {!isSerialNumber && dtypes[column] ? (
+                          // empty className strips DtypeBadge's default ml-1.5 so the
+                          // badge fills the dtype row flush; undefined would re-add it
+                          <DtypeBadge dtype={dtypes[column]} className="" />
+                        ) : null}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+
+              <tbody>
+                {data.map((row, rowIndex) => (
+                  <tr
+                    key={rowIndex}
+                    className="hover:bg-surface-hover transition-colors duration-150"
+                  >
+                    {row.map((cell, cellIndex) => (
+                      <td
+                        key={cellIndex}
+                        className={`h-6 px-0.5 py-0 text-xs border-b border-r border-app-border ${
+                          cellIndex === 0
+                            ? "w-16 sticky left-0 z-10 bg-surface text-center font-medium text-muted-foreground"
+                            : "text-foreground"
+                        }`}
+                        onContextMenu={(e) => {
+                          if (!isPreviewMode) {
+                            open(e, { type: "row", rowIndex });
                           }
-                          const newOrder = [...safeOrder];
-                          const [moved] = newOrder.splice(source, 1);
-                          newOrder.splice(target, 0, moved as number);
-                          setColumnOrder(newOrder);
-                          setDraggedColIndex(null);
-                          setHoveredTargetIndex(null);
-                        }}
-                        onDragEnd={() => {
-                          setDraggedColIndex(null);
-                          setHoveredTargetIndex(null);
                         }}
                       >
-                        {column}
-                      </button>
-                    </th>
-                  );
-                })}
-              </tr>
-              <tr>
-                {columns.map((column, columnIndex) => {
-                  const isSerialNumber = columnIndex === 0;
-                  const isDropTarget = !isSerialNumber && hoveredTargetIndex === columnIndex - 1;
-                  return (
-                    <th
-                      key={columnIndex}
-                      className={`h-5 px-0.5 py-0 border-b border-r border-app-border text-left text-[10px] leading-none ${
-                        isDropTarget ? "ring-2 ring-blue-400" : ""
-                      } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
-                      onContextMenu={(e) => open(e, { type: "column", columnIndex })}
-                    >
-                      {!isSerialNumber && dtypes[column] ? (
-                        // empty className strips DtypeBadge's default ml-1.5 so the
-                        // badge fills the dtype row flush; undefined would re-add it
-                        <DtypeBadge dtype={dtypes[column]} className="" />
-                      ) : null}
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-
-            <tbody>
-              {data.map((row, rowIndex) => (
-                <tr
-                  key={rowIndex}
-                  className="hover:bg-surface-hover transition-colors duration-150"
-                >
-                  {row.map((cell, cellIndex) => (
-                    <td
-                      key={cellIndex}
-                      className={`h-6 px-0.5 py-0 text-xs border-b border-r border-app-border ${
-                        cellIndex === 0
-                          ? "w-16 sticky left-0 z-10 bg-surface text-center font-medium text-muted-foreground"
-                          : "text-foreground"
-                      }`}
-                      onContextMenu={(e) => {
-                        if (!isPreviewMode) {
-                          open(e, { type: "row", rowIndex });
-                        }
-                      }}
-                    >
-                      {editingCell &&
-                      editingCell.rowIndex === rowIndex &&
-                      editingCell.cellIndex === cellIndex ? (
-                        <input
-                          type="text"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
-                          className="w-full p-1 border border-app-border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-                          onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
-                        />
-                      ) : (
-                        <div
-                          onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
-                          className={
-                            cellIndex !== 0
-                              ? "cursor-pointer hover:bg-elevated px-1 py-0.5 rounded"
-                              : ""
-                          }
-                        >
-                          {cell}
-                        </div>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        {editingCell &&
+                        editingCell.rowIndex === rowIndex &&
+                        editingCell.cellIndex === cellIndex ? (
+                          <input
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={() => handleEditCell(rowIndex, cellIndex, editValue)}
+                            className="w-full p-1 border border-app-border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                            onKeyDown={(e) => handleInputKeyDown(e, rowIndex, cellIndex)}
+                          />
+                        ) : (
+                          <div
+                            onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
+                            className={
+                              cellIndex !== 0
+                                ? "cursor-pointer hover:bg-elevated px-1 py-0.5 rounded"
+                                : ""
+                            }
+                          >
+                            {cell}
+                          </div>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

@@ -19,6 +19,7 @@ import {
 } from "../api";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
+import EmptyState from "./common/EmptyState";
 import { UploadCloud, FileText, X, Pencil, Search } from "lucide-react";
 import { FaRegEdit, FaRegTrashAlt } from "react-icons/fa";
 import { CiMenuKebab } from "react-icons/ci";
@@ -158,39 +159,41 @@ const NewProjectCard = ({ onClick }: { onClick: () => void }) => (
 
 const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.join(",");
 
-const EmptyState = ({ onClick }: { onClick: () => void }) => (
-  <div className="flex flex-col items-center justify-center py-16 px-6 rounded-xl border-2 border-dashed border-app-border bg-surface text-center">
-    <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-50">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-8 w-8 text-blue-400"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        aria-hidden="true"
+const NoProjectsIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-8 w-8 text-blue-400"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    aria-hidden="true"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+    />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v4m-2-2h4" />
+  </svg>
+);
+
+const NoProjectsEmptyState = ({ onClick }: { onClick: () => void }) => (
+  <EmptyState
+    icon={NoProjectsIcon}
+    title="No projects yet"
+    description="Upload a dataset to get started. Your recent projects will appear here."
+    action={
+      <button
+        type="button"
+        data-testid="new-project-card"
+        onClick={onClick}
+        className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors duration-150 shadow-sm"
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-        />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 11v4m-2-2h4" />
-      </svg>
-    </div>
-    <h3 className="text-lg font-semibold text-foreground mb-1">No projects yet</h3>
-    <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-      Upload a dataset to get started. Your recent projects will appear here.
-    </p>
-    <button
-      type="button"
-      data-testid="new-project-card"
-      onClick={onClick}
-      className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors duration-150 shadow-sm"
-    >
-      Create your first project
-    </button>
-  </div>
+        Create your first project
+      </button>
+    }
+  />
 );
 
 interface DeleteConfirmState {
@@ -579,7 +582,7 @@ const HomeScreen = () => {
         </div>
 
         {recentProjects.length === 0 && !isSearching ? (
-          <EmptyState onClick={handleNewProjectClick} />
+          <NoProjectsEmptyState onClick={handleNewProjectClick} />
         ) : (
           renderProjectGrid()
         )}

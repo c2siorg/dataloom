@@ -1,4 +1,5 @@
 import type { LogEntry } from "../../api";
+import EmptyState from "../common/EmptyState";
 
 interface LogsPanelProps {
   logs: LogEntry[];
@@ -44,8 +45,8 @@ const LogsPanel = ({ logs }: LogsPanelProps) => {
               ))
             ) : (
               <tr>
-                <td colSpan={4} className="py-4 px-4 text-center text-sm text-muted-foreground">
-                  No logs available
+                <td colSpan={4}>
+                  <EmptyState variant="inline" title="No logs available" />
                 </td>
               </tr>
             )}
