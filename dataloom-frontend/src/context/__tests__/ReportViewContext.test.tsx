@@ -59,7 +59,7 @@ describe("ReportViewContext", () => {
     });
 
     await waitFor(() => expect(getProjectReport).toHaveBeenCalled());
-    const [, sections] = getProjectReport.mock.calls[0];
+    const [, sections] = getProjectReport.mock.calls[0]!;
     expect([...(sections as string[])].sort()).toEqual(["profiles", "provenance"]);
   });
 
