@@ -1,5 +1,5 @@
 import { captureStep, type TransformFormProps } from "./transformFormProps";
-import { useState, FormEvent } from "react";
+import { useState, useEffect, useRef, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { TRIM_WHITESPACE } from "../../constants/operationTypes";
 import { useProjectContext } from "../../context/ProjectContext";
@@ -15,6 +15,16 @@ const TrimWhitespaceForm = ({ projectId, onClose, onCapture }: TransformFormProp
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
   const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
+
+  // The panel can be closed while a preview request is still in flight; dropping
+  // the late response keeps it from entering preview mode for a dismissed form.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -42,6 +52,7 @@ const TrimWhitespaceForm = ({ projectId, onClose, onCapture }: TransformFormProp
         page: 1,
         pageSize,
       });
+      if (!mounted.current) return;
       enterPreviewMode(
         response.columns,
         response.rows,
