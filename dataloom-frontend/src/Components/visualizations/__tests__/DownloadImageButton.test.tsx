@@ -26,7 +26,7 @@ describe("DownloadImageButton", () => {
     fireEvent.click(button());
 
     await waitFor(() => expect(downloadChartAsPng).toHaveBeenCalledOnce());
-    const [exported, title] = downloadChartAsPng.mock.calls[0];
+    const [exported, title] = downloadChartAsPng.mock.calls[0]!;
     expect(exported).toBe(chart);
     expect(title).toBe("Count by Qty");
   });
