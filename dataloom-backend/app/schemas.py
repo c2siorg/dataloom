@@ -46,6 +46,7 @@ class OperationType(StrEnum):
     stringReplace = "stringReplace"
     addFile = "addFile"
     addFormulaCol = "addFormulaCol"
+    standardizeDates = "standardizeDates"
 
 
 class DropDup(StrEnum):
@@ -206,6 +207,21 @@ class CastDataTypeParams(BaseModel):
     target_type: DataType
 
 
+class DateOutputFormat(StrEnum):
+    """Supported output formats for date standardization."""
+
+    iso = "iso"
+    dmy = "dmy"
+    mdy = "mdy"
+
+
+class StandardizeDatesParams(BaseModel):
+    """Parameters for standardizing the date format of a column."""
+
+    column: str
+    output_format: DateOutputFormat
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -362,6 +378,7 @@ class TransformationInput(BaseModel):
     sample_params: SampleParams | None = None
     string_replace_params: StringReplaceParams | None = None
     formula_col_params: FormulaColumnParams | None = None
+    standardize_dates_params: StandardizeDatesParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
