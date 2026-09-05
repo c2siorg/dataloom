@@ -22,6 +22,10 @@ interface RevertResponse {
   columns: string[];
   rows: CellValue[][];
   dtypes: Record<string, string>;
+  total_rows?: number;
+  total_pages?: number;
+  page?: number;
+  page_size?: number;
 }
 
 interface ToastState {
@@ -50,7 +54,7 @@ export function LogsTab() {
 /** Checkpoints tab — lists checkpoints and handles revert/delete. */
 export function CheckpointsTab() {
   const { projectId } = useParams() as { projectId: string };
-  const { updateData } = useProjectContext();
+  const { updateData, setPaginationData, page, pageSize } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const { checkpointsToken } = useHistoryRefreshTokens();
   const [checkpoints, setCheckpoints] = useState<CheckpointEntry[] | null>(null);
@@ -86,11 +90,17 @@ export function CheckpointsTab() {
       message: "Are you sure you want to revert to this checkpoint?",
       onConfirm: async () => {
         try {
-          const response = (await revertToCheckpoint(projectId, checkpointId)) as RevertResponse;
+          const response = (await revertToCheckpoint(
+            projectId,
+            checkpointId,
+            page,
+            pageSize,
+          )) as RevertResponse;
           updateData(response.columns, response.rows, {
             dtypes: response.dtypes,
             resetColumnOrder: false,
           });
+          setPaginationData(response);
           // Reverting un-applies later logs, so refresh any open Logs tab.
           refreshLogs();
           setToast({ message: "Project reverted successfully!", type: "success" });

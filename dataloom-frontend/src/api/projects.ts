@@ -76,10 +76,18 @@ export const getRecentProjects = async (): Promise<ProjectSummary[]> => {
  * @param commitMessage - Description of changes.
  * @returns Updated project response.
  */
-export const saveProject = async (projectId: string, commitMessage: string) => {
-  const response = await client.post(
-    `/projects/${projectId}/save?commit_message=${encodeURIComponent(commitMessage)}`,
-  );
+export const saveProject = async (
+  projectId: string,
+  commitMessage: string,
+  page?: number,
+  pageSize?: number,
+): Promise<ProjectDetails> => {
+  const params = new URLSearchParams();
+  params.append("commit_message", commitMessage);
+  if (page !== undefined) params.append("page", String(page));
+  if (pageSize !== undefined) params.append("page_size", String(pageSize));
+
+  const response = await client.post(`/projects/${projectId}/save?${params.toString()}`);
   return response.data;
 };
 
@@ -89,8 +97,18 @@ export const saveProject = async (projectId: string, commitMessage: string) => {
  * @param checkpointId - The checkpoint ID to revert to.
  * @returns Reverted project response.
  */
-export const revertToCheckpoint = async (projectId: string, checkpointId: string) => {
-  const response = await client.post(`/projects/${projectId}/revert?checkpoint_id=${checkpointId}`);
+export const revertToCheckpoint = async (
+  projectId: string,
+  checkpointId: string,
+  page?: number,
+  pageSize?: number,
+) => {
+  const params = new URLSearchParams();
+  params.append("checkpoint_id", checkpointId);
+  if (page !== undefined) params.append("page", String(page));
+  if (pageSize !== undefined) params.append("page_size", String(pageSize));
+
+  const response = await client.post(`/projects/${projectId}/revert?${params.toString()}`);
   return response.data;
 };
 

@@ -7,7 +7,8 @@ const previewAddFile = vi.fn();
 const addFileToProject = vi.fn();
 const getProjectFiles = vi.fn();
 const reappendProjectFile = vi.fn();
-const refreshProject = vi.fn();
+const updateData = vi.fn();
+const setPaginationData = vi.fn();
 const refreshLogs = vi.fn();
 const showToast = vi.fn();
 
@@ -18,7 +19,7 @@ vi.mock("../../../api/projectFiles", () => ({
   reappendProjectFile: (...args: unknown[]) => reappendProjectFile(...args),
 }));
 vi.mock("../../../context/ProjectContext", () => ({
-  useProjectContext: () => ({ refreshProject, pageSize: 50 }),
+  useProjectContext: () => ({ page: 1, pageSize: 50, updateData, setPaginationData }),
 }));
 vi.mock("../../../context/HistoryRefreshContext", () => ({
   useHistoryRefresh: () => ({ refreshLogs }),
@@ -74,17 +75,31 @@ describe("AddFilePanel", () => {
     expect(screen.getByText(/"id" type differs: int vs\s+str/)).toBeInTheDocument();
   });
 
-  it("appends on confirm and refreshes project data, logs, and inventory", async () => {
+  it("appends on confirm and updates the table from the paginated response", async () => {
     previewAddFile.mockResolvedValue(PREVIEW);
-    addFileToProject.mockResolvedValue({ total_rows: 5, columns: ["name", "age", "city"] });
+    addFileToProject.mockResolvedValue({
+      total_rows: 5,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+      columns: ["name", "age", "city"],
+      rows: [["Dana", null, "Paris"]],
+    });
     renderPanel();
 
     chooseFile();
     await waitFor(() => expect(appendButton()).toBeEnabled());
     fireEvent.click(appendButton());
 
-    await waitFor(() => expect(addFileToProject).toHaveBeenCalledWith("p1", expect.any(File)));
-    expect(refreshProject).toHaveBeenCalledWith("p1", 1, 50);
+    await waitFor(() =>
+      expect(addFileToProject).toHaveBeenCalledWith("p1", expect.any(File), 1, 50),
+    );
+    expect(updateData).toHaveBeenCalledWith(["name", "age", "city"], [["Dana", null, "Paris"]], {
+      resetColumnOrder: false,
+    });
+    expect(setPaginationData).toHaveBeenCalledWith(
+      expect.objectContaining({ total_rows: 5, page: 1, page_size: 50 }),
+    );
     expect(refreshLogs).toHaveBeenCalled();
     expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/Appended 2 row/), "success");
     // Selection resets so the same flow can be repeated for another file.
@@ -115,14 +130,21 @@ describe("AddFilePanel", () => {
 
   it("lists the inventory and re-appends from it", async () => {
     getProjectFiles.mockResolvedValue(INVENTORY);
-    reappendProjectFile.mockResolvedValue({ total_rows: 5, columns: ["name"] });
+    reappendProjectFile.mockResolvedValue({
+      total_rows: 5,
+      total_pages: 1,
+      page: 1,
+      page_size: 50,
+      columns: ["name"],
+      rows: [["Dana"]],
+    });
     renderPanel();
 
     const reappend = await screen.findByRole("button", { name: /re-append/i });
     fireEvent.click(reappend);
 
-    await waitFor(() => expect(reappendProjectFile).toHaveBeenCalledWith("p1", "f1"));
-    expect(refreshProject).toHaveBeenCalled();
+    await waitFor(() => expect(reappendProjectFile).toHaveBeenCalledWith("p1", "f1", 1, 50));
+    expect(updateData).toHaveBeenCalledWith(["name"], [["Dana"]], { resetColumnOrder: false });
     expect(showToast).toHaveBeenCalledWith('Re-appended "feb.csv".', "success");
   });
 });

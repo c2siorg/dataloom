@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { getProjectDetails, type CellValue, type TransformationInput } from "../api";
+import { clampPageSize, DEFAULT_PAGE_SIZE } from "../utils/pagination";
 
 export type { CellValue };
 
@@ -125,10 +126,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(() => {
     try {
-      const stored = localStorage.getItem("pageSize");
-      return stored ? parseInt(stored, 10) : 50;
+      // Clamp on read, not just on write: a user who hit the pre-fix bug may
+      // already have an out-of-range value (e.g. a dataset's full row count)
+      // persisted from before the backend enforced ge=1, le=100. Hydrating it
+      // unclamped would send an out-of-range page_size on the very next
+      // request and get a 422 back.
+      return clampPageSize(localStorage.getItem("pageSize"));
     } catch {
-      return 50;
+      return DEFAULT_PAGE_SIZE;
     }
   });
 
@@ -169,13 +174,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [pageSize]);
 
+  // Clamp here too, not just on hydration: this is the write path for the user's
+  // stored preference, so an out-of-range caller would otherwise put a value the
+  // backend rejects (422) into both state and localStorage. Persistence is left
+  // entirely to the effect above, which fires on every pageSize change.
   const updatePageSizePreference = useCallback((newPageSize: number) => {
-    setPageSize(newPageSize);
-    try {
-      localStorage.setItem("pageSize", String(newPageSize));
-    } catch {
-      // localStorage unavailable — fail silently
-    }
+    setPageSize(clampPageSize(newPageSize));
   }, []);
 
   const refreshProject = useCallback(
@@ -250,11 +254,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
 
     if (paginationInfo.page_size !== undefined) {
-      setPageSize(paginationInfo.page_size);
+      setPageSize(clampPageSize(paginationInfo.page_size));
     }
 
     if (paginationInfo.pageSize !== undefined) {
-      setPageSize(paginationInfo.pageSize);
+      setPageSize(clampPageSize(paginationInfo.pageSize));
     }
   }, []);
 

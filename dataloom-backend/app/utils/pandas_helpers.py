@@ -1,5 +1,6 @@
 """Pandas utility functions for safe multi-format I/O and response building."""
 
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -321,3 +322,49 @@ def dataframe_to_response(df: pd.DataFrame) -> dict[str, Any]:
         "row_count": len(rows),
         "dtypes": dtypes,
     }
+
+
+def paginate_dataframe(df: pd.DataFrame, page: int, page_size: int) -> tuple[pd.DataFrame, dict[str, int]]:
+    """Paginate a DataFrame and return the slice alongside pagination metadata.
+
+    Inputs are normalized defensively rather than trusted. Every current call
+    site validates them through FastAPI (``ge=1, le=100``), but this is a shared
+    public helper called directly by tests and potentially by future callers
+    that do not come through a validated query param, so out-of-range values
+    must not raise:
+
+    - ``page`` below 1 is treated as 1; above the last page it clamps down to
+      the last page (as it already did).
+    - ``page_size`` below 1 is treated as 1, so a zero cannot divide by zero.
+
+    Values inside the valid range are returned unchanged.
+
+    Args:
+        df: The DataFrame to paginate.
+        page: The requested 1-indexed page number.
+        page_size: The number of rows per page.
+
+    Returns:
+        A tuple of (sliced_df, pagination_dict) where pagination_dict contains
+        total_rows, total_pages, page, and page_size. The reported ``page`` and
+        ``page_size`` are the normalized values actually used for the slice.
+    """
+    effective_page_size = max(1, page_size)
+    requested_page = max(1, page)
+
+    total_rows = len(df)
+    total_pages = max(1, math.ceil(total_rows / effective_page_size))
+    effective_page = min(requested_page, total_pages)
+
+    start = (effective_page - 1) * effective_page_size
+    end = start + effective_page_size
+    sliced_df = df.iloc[start:end]
+
+    pagination = {
+        "total_rows": total_rows,
+        "total_pages": total_pages,
+        "page": effective_page,
+        "page_size": effective_page_size,
+    }
+
+    return sliced_df, pagination
