@@ -9,7 +9,14 @@ import {
   type KeyboardEvent,
   useCallback,
 } from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { transformProject, type CellValue, type TransformationInput } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import { useHistoryRefresh } from "../context/HistoryRefreshContext";
@@ -20,6 +27,7 @@ import {
   DELETE_COLUMN,
   DELETE_ROW,
   RENAME_COLUMN,
+  SORT,
 } from "../constants/operationTypes";
 import InputDialog from "./common/InputDialog";
 import Toast from "./common/Toast";
@@ -28,6 +36,7 @@ import ColumnProfileCard from "./profiling/ColumnProfileCard";
 import TableSkeleton from "./common/TableSkeleton";
 import useColumnProfiles from "../hooks/useColumnProfiles";
 import { useToast } from "../context/ToastContext";
+import { usePanel } from "../context/PanelContext";
 
 /** A single table cell value, as the API layer defines it. */
 type Cell = CellValue;
@@ -100,12 +109,15 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     pageSize,
     isPreviewMode,
     pendingTransform,
+    enterPreviewMode,
+    cancelPreview,
     setPaginationData,
     updatePreviewPage,
     refreshProject,
     loading,
   } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
+  const { openPanel } = usePanel();
   const [data, setData] = useState<Cell[][]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
@@ -119,6 +131,17 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
   const [hoveredTargetIndex, setHoveredTargetIndex] = useState<number | null>(null);
 
   const [previewLoading, setPreviewLoading] = useState(false);
+  // Derived from the pending preview, so a sort applied from the panel shows it too.
+  const sortPayload = pendingTransform?.payload;
+  const sortCriteria =
+    sortPayload?.operation_type === SORT
+      ? (
+          sortPayload.sort_params as
+            | { criteria?: { column: string; ascending: boolean }[] }
+            | undefined
+        )?.criteria
+      : undefined;
+  const headerSort = sortCriteria?.length === 1 ? sortCriteria[0] : undefined;
   const previewRequestIdRef = useRef(0);
 
   // Per-column profiles for the "Columns" toggle. dataVersion is the change
@@ -365,6 +388,28 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     }
   };
 
+  const handleHeaderSort = async (column: string) => {
+    // Inert while something else owns the grid: an open menu, a cell edit, a refresh or preview
+    // request in flight, or another form's preview. A header sort is the one this grid owns.
+    if (isOpen || editingCell || loading || previewLoading || (isPreviewMode && !headerSort))
+      return;
+    if (headerSort?.column === column && !headerSort.ascending) return cancelPreview();
+
+    const ascending = headerSort?.column !== column;
+    const payload = { operation_type: SORT, sort_params: { criteria: [{ column, ascending }] } };
+    setPreviewLoading(true);
+    try {
+      const res = await transformProject(projectId, payload, { preview: true, page: 1, pageSize });
+      enterPreviewMode(res.columns, res.rows, res.dtypes, { projectId, payload }, res);
+      // The Sort panel carries Save Changes and Cancel for the pending preview.
+      openPanel("SortForm");
+    } catch {
+      setToast({ message: "Failed to sort column. Please try again.", type: "error" });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const handleCellClick = (rowIndex: number, cellIndex: number, cellValue: Cell) => {
     if (isPreviewMode) return;
 
@@ -505,12 +550,20 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                     const isSerialNumber = columnIndex === 0;
                     const isDragged = !isSerialNumber && draggedColIndex === columnIndex - 1;
                     const isDropTarget = !isSerialNumber && hoveredTargetIndex === columnIndex - 1;
+                    const sortDir =
+                      !isSerialNumber && headerSort?.column === column
+                        ? headerSort.ascending
+                          ? "ascending"
+                          : "descending"
+                        : undefined;
+                    const SortIcon = sortDir === "ascending" ? ArrowUp : ArrowDown;
                     return (
                       <th
                         key={columnIndex}
                         className={`h-6 px-0.5 py-0 border-r border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
                           isDropTarget ? "ring-2 ring-blue-400" : ""
                         } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
+                        aria-sort={sortDir}
                         onContextMenu={(e) => {
                           if (!isPreviewMode) {
                             open(e, { type: "column", columnIndex });
@@ -523,6 +576,9 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                             isSerialNumber ? "" : "cursor-grab active:cursor-grabbing"
                           } ${isDragged ? "opacity-50" : ""}`}
                           draggable={!isSerialNumber}
+                          onClick={() => {
+                            if (!isSerialNumber) handleHeaderSort(column);
+                          }}
                           onDragStart={(event) => {
                             if (isSerialNumber) return;
                             setDraggedColIndex(columnIndex - 1);
@@ -557,6 +613,9 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                           }}
                         >
                           {column}
+                          {sortDir && (
+                            <SortIcon className="inline w-3 h-3 ml-1" aria-hidden="true" />
+                          )}
                         </button>
                       </th>
                     );
