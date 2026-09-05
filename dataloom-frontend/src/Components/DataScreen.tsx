@@ -20,9 +20,14 @@ import "./workspace/features/quality";
 import "./workspace/features/addFile";
 import "./workspace/features/pipelines";
 import "./workspace/features/report";
+import { SUMMARY_TAB } from "./workspace/SummaryTab";
 import WorkspaceTabBar from "./workspace/WorkspaceTabBar";
 import RightPanel from "./workspace/RightPanel";
 import MenuNavbar from "./MenuNavbar";
+
+// First entry is the tab active on load.
+// eslint-disable-next-line react-refresh/only-export-components
+export const INITIAL_TABS = [DATASET_TAB, SUMMARY_TAB];
 
 function WorkspaceContent({ projectId }: { projectId: string }) {
   const { activeTab, openTab } = useWorkspaceTabs();
@@ -82,7 +87,7 @@ export default function DataScreen() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <WorkspaceTabsProvider projectId={projectId} initialTabs={[DATASET_TAB]}>
+      <WorkspaceTabsProvider projectId={projectId} initialTabs={INITIAL_TABS}>
         <PanelProvider>
           <HistoryRefreshProvider>
             <ColumnProfilesProvider>

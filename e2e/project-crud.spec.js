@@ -14,6 +14,8 @@ test.describe("Project CRUD", () => {
     await expect(table.locator("thead")).toContainText("city");
     await expect(table.locator("thead")).toContainText("score");
     await expect(table.locator("tbody tr")).toHaveCount(5);
+    await expect(page.getByTestId("workspace-tab-summary")).toBeVisible();
+    await expect(table.getByTestId("column-profile-card").first()).toBeVisible();
   });
 
   test("project appears on the homescreen after creation", async ({

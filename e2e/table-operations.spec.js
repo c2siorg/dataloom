@@ -55,7 +55,9 @@ test.describe("Table Operations", () => {
   test("rename a column via context menu", async ({ page, projectId }) => {
     const table = page.locator('[data-testid="data-table"]');
 
-    await table.locator("thead th").nth(1).click({ button: "right" });
+    await table
+      .getByRole("button", { name: "name", exact: true })
+      .click({ button: "right" });
     const contextMenu = page.locator('[data-testid="context-menu-column"]');
     await contextMenu.waitFor({ state: "visible" });
     await contextMenu.getByText("Rename Column").click();
@@ -65,10 +67,11 @@ test.describe("Table Operations", () => {
     await dialog.locator('input[type="text"]').fill("full_name");
     await dialog.getByRole("button", { name: "OK" }).click();
 
-    const renamedHeader = table.locator("thead th").nth(1);
-    await expect(renamedHeader).toContainText("full_name");
-    await expect(renamedHeader.getByText("name", { exact: true })).toHaveCount(
-      0,
-    );
+    await expect(
+      table.getByRole("button", { name: "full_name", exact: true }),
+    ).toBeVisible();
+    await expect(
+      table.getByRole("button", { name: "name", exact: true }),
+    ).toHaveCount(0);
   });
 });
