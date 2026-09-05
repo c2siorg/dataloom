@@ -6,6 +6,7 @@ import {
   previewAddFile,
   reappendProjectFile,
   type AppendPreview,
+  type AppendResult,
   type ProjectFileEntry,
 } from "../../api/projectFiles";
 import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
@@ -31,7 +32,7 @@ const errorDetail = (err: unknown, fallback: string): string =>
  * re-applied from there, so an added file is never lost.
  */
 const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () => void }) => {
-  const { refreshProject, pageSize } = useProjectContext();
+  const { pageSize, page, updateData, setPaginationData } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const { showToast } = useToast();
   const { error, clearError, handleError } = useError();
@@ -91,8 +92,9 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
     }
   };
 
-  const afterAppend = async (message: string) => {
-    await refreshProject(projectId, 1, pageSize);
+  const afterAppend = async (message: string, response: AppendResult) => {
+    updateData(response.columns, response.rows, { resetColumnOrder: false });
+    setPaginationData(response);
     refreshLogs();
     await loadInventory();
     showToast(message, "success");
@@ -104,11 +106,11 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
     clearError();
     setSubmitting(true);
     try {
-      await addFileToProject(projectId, file);
+      const response = await addFileToProject(projectId, file, page, pageSize);
       const newColsNote =
         preview.new_columns.length > 0 ? `, added ${preview.new_columns.length} new column(s)` : "";
       resetSelection();
-      await afterAppend(`Appended ${preview.incoming_row_count} row(s)${newColsNote}.`);
+      await afterAppend(`Appended ${preview.incoming_row_count} row(s)${newColsNote}.`, response);
     } catch (err) {
       handleError(err);
       showToast(errorDetail(err, "Failed to append the file."), "error");
@@ -121,8 +123,8 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
     clearError();
     setSubmitting(true);
     try {
-      await reappendProjectFile(projectId, entry.id);
-      await afterAppend(`Re-appended "${entry.original_filename}".`);
+      const response = await reappendProjectFile(projectId, entry.id, page, pageSize);
+      await afterAppend(`Re-appended "${entry.original_filename}".`, response);
     } catch (err) {
       handleError(err);
       showToast(errorDetail(err, "Failed to re-append the file."), "error");

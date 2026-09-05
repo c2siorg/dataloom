@@ -36,7 +36,7 @@ from app.services.project_service import (
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
+from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, save_table_safe
 from app.utils.project_locks import project_read_lock, project_write_lock
 from app.utils.security import validate_upload_file
 
@@ -55,6 +55,8 @@ async def upload_project(
     file: UploadFile = File(...),
     projectName: str = Form(...),
     projectDescription: str = Form(...),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -80,17 +82,14 @@ async def upload_project(
 
     project = create_project(db, projectName, str(copy_path), projectDescription, current_user.id)
 
-    total_rows = len(df)
-    resp = dataframe_to_response(df)
+    response_df, pagination = paginate_dataframe(df, page, page_size)
+    resp = dataframe_to_response(response_df)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
-        "page": 1,
-        "page_size": total_rows,
-        "total_rows": total_rows,
-        "total_pages": 1,
         **resp,
+        **pagination,
     }
 
 
@@ -186,6 +185,8 @@ async def rename_project_endpoint(
 def save_project(
     project_id: uuid.UUID,
     commit_message: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -214,18 +215,15 @@ def save_project(
         # Create checkpoint (marks logs as applied)
         checkpoint = create_checkpoint(db, project_id, commit_message)
 
-    total_rows = len(df)
-    resp = dataframe_to_response(df)
+    response_df, pagination = paginate_dataframe(df, page, page_size)
+    resp = dataframe_to_response(response_df)
     logger.info("Project saved: id=%s, checkpoint=%s", project_id, checkpoint.id)
     return {
         "filename": project.name,
         "file_path": str(project.file_path),
         "project_id": project.project_id,
-        "page": 1,
-        "page_size": total_rows,
-        "total_rows": total_rows,
-        "total_pages": 1,
         **resp,
+        **pagination,
     }
 
 
@@ -233,6 +231,8 @@ def save_project(
 def revert_to_checkpoint(
     project_id: uuid.UUID,
     checkpoint_id: uuid.UUID = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -243,12 +243,14 @@ def revert_to_checkpoint(
     uploaded state.
     """
     with project_write_lock(project_id):
-        return _revert_to_checkpoint(project_id, checkpoint_id, db, project)
+        return _revert_to_checkpoint(project_id, checkpoint_id, page, page_size, db, project)
 
 
 def _revert_to_checkpoint(
     project_id: uuid.UUID,
     checkpoint_id: uuid.UUID | None,
+    page: int,
+    page_size: int,
     db: Session,
     project: models.Project,
 ) -> dict:
@@ -307,18 +309,15 @@ def _revert_to_checkpoint(
         db.rollback()
         raise
 
-    total_rows = len(df)
-    resp = dataframe_to_response(df)
+    response_df, pagination = paginate_dataframe(df, page, page_size)
+    resp = dataframe_to_response(response_df)
     logger.info("Project reverted: id=%s, checkpoint_id=%s", project_id, checkpoint_id)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
-        "page": 1,
-        "page_size": total_rows,
-        "total_rows": total_rows,
-        "total_pages": 1,
         **resp,
+        **pagination,
     }
 
 
@@ -434,6 +433,8 @@ async def delete_project_endpoint(
 @router.post("/{project_id}/undo", response_model=schemas.ProjectResponse)
 def undo_last_transformation(
     project_id: uuid.UUID,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     project: models.Project = Depends(get_project_or_404),
     db: Session = Depends(database.get_db),
 ):
@@ -443,11 +444,13 @@ def undo_last_transformation(
     by replaying all remaining logs onto the original file.
     """
     with project_write_lock(project_id):
-        return _undo_last_transformation(project_id, project, db)
+        return _undo_last_transformation(project_id, page, page_size, project, db)
 
 
 def _undo_last_transformation(
     project_id: uuid.UUID,
+    page: int,
+    page_size: int,
     project: models.Project,
     db: Session,
 ) -> dict:
@@ -473,7 +476,8 @@ def _undo_last_transformation(
     save_table_safe(df, project.file_path)
     db.commit()
 
-    resp = dataframe_to_response(df)
+    response_df, pagination = paginate_dataframe(df, page, page_size)
+    resp = dataframe_to_response(response_df)
     logger.info(
         "Undo: project_id=%s, removed log_id=%s, remaining_logs=%d",
         project_id,
@@ -484,11 +488,8 @@ def _undo_last_transformation(
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
-        "page": 1,
-        "page_size": len(df),
-        "total_rows": len(df),
-        "total_pages": 1,
         **resp,
+        **pagination,
     }
 
 
