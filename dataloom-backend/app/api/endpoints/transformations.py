@@ -3,7 +3,6 @@
 All transformations are handled through a single unified /transform endpoint.
 """
 
-import math
 import re
 import uuid
 
@@ -15,7 +14,7 @@ from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
 from app.services.project_service import log_transformations_or_restore
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
+from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, save_table_safe
 from app.utils.project_locks import project_read_lock, project_write_lock
 from app.utils.security import safe_transformation_error_detail
 
@@ -120,24 +119,7 @@ def _transform_project(
                 [(operation_type, transformation_input.dict())],
             )
 
-        response_df = result_df
-        pagination = {}
-
-        if preview:
-            total_rows = len(result_df)
-            total_pages = max(1, math.ceil(total_rows / page_size))
-            effective_page = min(page, total_pages)
-
-            start = (effective_page - 1) * page_size
-            end = start + page_size
-            response_df = result_df.iloc[start:end]
-
-            pagination = {
-                "total_rows": total_rows,
-                "total_pages": total_pages,
-                "page": effective_page,
-                "page_size": page_size,
-            }
+        response_df, pagination = paginate_dataframe(result_df, page, page_size)
 
         resp = dataframe_to_response(response_df)
 

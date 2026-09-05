@@ -17,7 +17,7 @@ import uuid
 from contextlib import suppress
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlmodel import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -32,7 +32,7 @@ from app.services.project_service import (
     log_transformation,
 )
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, read_table_safe, save_table_safe
+from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, save_table_safe
 from app.utils.project_locks import project_write_lock
 from app.utils.security import validate_upload_file
 
@@ -67,6 +67,8 @@ def _append_and_log(
     stored_path: str,
     original_filename: str,
     project_file_id: uuid.UUID,
+    page: int,
+    page_size: int,
 ) -> dict:
     """Append a stored inventory file onto the working copy and log it.
 
@@ -84,7 +86,7 @@ def _append_and_log(
         The ProjectResponse payload for the combined data.
     """
     with project_write_lock(project.project_id):
-        return _append_and_log_locked(db, project, stored_path, original_filename, project_file_id)
+        return _append_and_log_locked(db, project, stored_path, original_filename, project_file_id, page, page_size)
 
 
 def _append_and_log_locked(
@@ -93,6 +95,8 @@ def _append_and_log_locked(
     stored_path: str,
     original_filename: str,
     project_file_id: uuid.UUID,
+    page: int,
+    page_size: int,
 ) -> dict:
     """Body of :func:`_append_and_log`; assumes the project write lock is held."""
     df = read_project_df(project)
@@ -123,17 +127,14 @@ def _append_and_log_locked(
             )
         raise
 
-    total_rows = len(combined)
-    resp = dataframe_to_response(combined)
+    response_df, pagination = paginate_dataframe(combined, page, page_size)
+    resp = dataframe_to_response(response_df)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
-        "page": 1,
-        "page_size": total_rows,
-        "total_rows": total_rows,
-        "total_pages": 1,
         **resp,
+        **pagination,
     }
 
 
@@ -166,6 +167,8 @@ async def preview_add_file(
 @router.post("/{project_id}/files", response_model=schemas.ProjectResponse)
 async def add_file(
     file: UploadFile = File(...),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -197,7 +200,9 @@ async def add_file(
     project_file = create_project_file(db, project.project_id, str(stored_path), file.filename)
     # _append_and_log blocks on the project write lock and rewrites the working
     # copy; keep it off the event loop.
-    return await run_in_threadpool(_append_and_log, db, project, str(stored_path), file.filename, project_file.id)
+    return await run_in_threadpool(
+        _append_and_log, db, project, str(stored_path), file.filename, project_file.id, page, page_size
+    )
 
 
 @router.get("/{project_id}/files", response_model=list[schemas.ProjectFileResponse])
@@ -212,6 +217,8 @@ async def list_project_files(
 @router.post("/{project_id}/files/{file_id}/append", response_model=schemas.ProjectResponse)
 def reappend_project_file(
     file_id: uuid.UUID,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -232,4 +239,6 @@ def reappend_project_file(
         project_file.file_path,
         project_file.original_filename,
         project_file.id,
+        page,
+        page_size,
     )

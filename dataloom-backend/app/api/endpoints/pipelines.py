@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session
 
@@ -16,7 +16,7 @@ from app.api.dependencies import (
 )
 from app.services import pipeline_service
 from app.services.transformation_service import TransformationError
-from app.utils.pandas_helpers import dataframe_to_response
+from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe
 from app.utils.project_locks import project_write_lock
 from app.utils.security import safe_transformation_error_detail
 
@@ -94,6 +94,8 @@ def check_pipeline(
 def apply_pipeline(
     pipeline_id: uuid.UUID,
     body: schemas.PipelineApplyRequest,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -112,9 +114,11 @@ def apply_pipeline(
     except TransformationError as e:
         raise HTTPException(status_code=400, detail=safe_transformation_error_detail(e)) from e
 
-    resp = dataframe_to_response(result_df)
+    response_df, pagination = paginate_dataframe(result_df, page, page_size)
+    resp = dataframe_to_response(response_df)
     return {
         "project_id": project.project_id,
         "operation_type": "pipeline",
         **resp,
+        **pagination,
     }

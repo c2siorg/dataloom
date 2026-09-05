@@ -3,6 +3,7 @@
  * @module api/pipelines
  */
 import client from "./client";
+import type { CellValue } from "./types";
 
 /** A step to save into a pipeline: an operation plus its serialized parameters. */
 export interface PipelineStepInput {
@@ -41,7 +42,12 @@ export interface DeleteResult {
 /** Response of applying a pipeline (same shape as a transform response). */
 export interface PipelineApplyResult {
   row_count: number;
+  total_rows?: number;
+  total_pages?: number;
+  page?: number;
+  page_size?: number;
   columns: string[];
+  rows: CellValue[][];
 }
 
 /**
@@ -103,7 +109,15 @@ export const checkDraftPipelineSteps = async (
 export const applyPipeline = async (
   pipelineId: string,
   projectId: string,
+  page?: number,
+  pageSize?: number,
 ): Promise<PipelineApplyResult> => {
-  const response = await client.post(`/pipelines/${pipelineId}/apply`, { project_id: projectId });
+  const params = new URLSearchParams();
+  if (page !== undefined) params.append("page", String(page));
+  if (pageSize !== undefined) params.append("page_size", String(pageSize));
+
+  const response = await client.post(`/pipelines/${pipelineId}/apply?${params.toString()}`, {
+    project_id: projectId,
+  });
   return response.data;
 };

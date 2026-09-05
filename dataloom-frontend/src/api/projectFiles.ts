@@ -4,6 +4,7 @@
  * @module api/projectFiles
  */
 import client from "./client";
+import type { CellValue } from "./types";
 
 /** A matched column whose simplified dtype differs between the two files. */
 export interface DtypeClash {
@@ -31,8 +32,12 @@ export interface ProjectFileEntry {
 
 /** The fields of the append response the panel consumes. */
 export interface AppendResult {
-  total_rows: number;
+  total_rows?: number;
+  total_pages?: number;
+  page?: number;
+  page_size?: number;
   columns: string[];
+  rows: CellValue[][];
 }
 
 const asForm = (file: File): FormData => {
@@ -62,8 +67,20 @@ export const previewAddFile = async (projectId: string, file: File): Promise<App
  * @param file - The file to append.
  * @returns The combined project data.
  */
-export const addFileToProject = async (projectId: string, file: File): Promise<AppendResult> => {
-  const response = await client.post<AppendResult>(`/projects/${projectId}/files`, asForm(file));
+export const addFileToProject = async (
+  projectId: string,
+  file: File,
+  page?: number,
+  pageSize?: number,
+): Promise<AppendResult> => {
+  const params = new URLSearchParams();
+  if (page !== undefined) params.append("page", String(page));
+  if (pageSize !== undefined) params.append("page_size", String(pageSize));
+
+  const response = await client.post<AppendResult>(
+    `/projects/${projectId}/files?${params.toString()}`,
+    asForm(file),
+  );
   return response.data;
 };
 
@@ -87,7 +104,15 @@ export const getProjectFiles = async (projectId: string): Promise<ProjectFileEnt
 export const reappendProjectFile = async (
   projectId: string,
   fileId: string,
+  page?: number,
+  pageSize?: number,
 ): Promise<AppendResult> => {
-  const response = await client.post<AppendResult>(`/projects/${projectId}/files/${fileId}/append`);
+  const params = new URLSearchParams();
+  if (page !== undefined) params.append("page", String(page));
+  if (pageSize !== undefined) params.append("page_size", String(pageSize));
+
+  const response = await client.post<AppendResult>(
+    `/projects/${projectId}/files/${fileId}/append?${params.toString()}`,
+  );
   return response.data;
 };

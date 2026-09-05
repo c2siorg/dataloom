@@ -13,12 +13,16 @@ const API_BASE = process.env.API_BASE_URL ?? "http://localhost:4200";
  * @param {import('@playwright/test').Page} page
  * @param {string} projectName
  * @param {string} [description="E2E test project"]
+ * @param {string} [filePath=SAMPLE_CSV] Dataset to upload — defaults to the
+ *   5-row fixture most specs use; pass another fixture (e.g. one with enough
+ *   rows to span several pages) for tests that need a specific shape.
  * @returns {Promise<string>} The project ID extracted from the URL
  */
 export async function createProject(
   page,
   projectName,
   description = "E2E test project",
+  filePath = SAMPLE_CSV,
 ) {
   await page.goto("/projects");
   await page
@@ -30,7 +34,7 @@ export async function createProject(
 
   // Fill in project details
   await page.locator('[data-testid="project-name-input"]').fill(projectName);
-  await page.locator('[data-testid="file-input"]').setInputFiles(SAMPLE_CSV);
+  await page.locator('[data-testid="file-input"]').setInputFiles(filePath);
   await page
     .locator('[data-testid="project-description-input"]')
     .fill(description);

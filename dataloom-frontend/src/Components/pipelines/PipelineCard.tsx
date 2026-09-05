@@ -19,7 +19,7 @@ export function PipelineCard({
   projectId: string;
   onDeleted: () => void | Promise<void>;
 }) {
-  const { refreshProject } = useProjectContext();
+  const { updateData, setPaginationData, page, pageSize } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -46,9 +46,10 @@ export function PipelineCard({
   const handleApply = async () => {
     setBusy(true);
     try {
-      await applyPipeline(pipeline.id, projectId);
+      const response = await applyPipeline(pipeline.id, projectId, page, pageSize);
       showToast(`Pipeline "${pipeline.name}" applied.`, "success");
-      refreshProject();
+      updateData(response.columns, response.rows, { resetColumnOrder: false });
+      setPaginationData(response);
       refreshLogs();
     } catch (err) {
       showToast(getErrorMessage(err, "Failed to apply pipeline."), "error");

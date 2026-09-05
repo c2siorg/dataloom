@@ -58,7 +58,8 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
   const [activeTab, setActiveTab] = useState("File");
   const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
 
-  const { updateData, refreshProject, pageSize, projectName, isPreviewMode } = useProjectContext();
+  const { updateData, page, pageSize, setPaginationData, projectName, isPreviewMode } =
+    useProjectContext();
   const { activePanel, openPanel, togglePanel, closePanel } = usePanel();
   const { openTab, activeTabId } = useWorkspaceTabs();
   const { refreshLogs, refreshCheckpoints } = useHistoryRefresh();
@@ -96,7 +97,10 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
     }
     setIsInputOpen(false);
     try {
-      await saveProject(projectId, message);
+      const response = await saveProject(projectId, message, page, pageSize);
+      // Use the paginated response to update the table immediately instead of a full reload
+      updateData(response.columns, response.rows, { resetColumnOrder: false });
+      setPaginationData(response);
       // Saving creates a checkpoint and marks pending logs as applied.
       refreshCheckpoints();
       refreshLogs();
@@ -108,10 +112,10 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
 
   const handleUndo = async () => {
     try {
-      await undoLastTransformation(projectId);
+      const response = await undoLastTransformation(projectId, page, pageSize);
       closePanel();
-      updateData([], [], { resetColumnOrder: false });
-      await refreshProject(projectId, 1, pageSize);
+      updateData(response.columns, response.rows, { resetColumnOrder: false });
+      setPaginationData(response);
       // Undo removes the last log entry.
       refreshLogs();
       setToast({ message: "Last transformation undone!", type: "success" });
