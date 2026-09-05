@@ -76,12 +76,18 @@ const mockEnterPreviewMode = vi.fn();
 const mockCancelPreview = vi.fn();
 const mockHandleSave = vi.fn();
 
-const renderForm = ({ isPreviewMode = false, onClose = vi.fn(), saving = false } = {}) => {
+const renderForm = ({
+  isPreviewMode = false,
+  onClose = vi.fn(),
+  saving = false,
+  pendingTransform = null as unknown,
+} = {}) => {
   mockUseProjectContext.mockReturnValue({
     isPreviewMode,
     pageSize: 50,
     enterPreviewMode: mockEnterPreviewMode,
     cancelPreview: mockCancelPreview,
+    pendingTransform,
   });
 
   mockUsePreviewSave.mockReturnValue({
@@ -113,6 +119,22 @@ describe("SortForm", () => {
     expect(screen.getByLabelText("Order")).toHaveValue("true");
     expect(screen.getByRole("button", { name: "Apply Sort" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("shows the sort already pending from a column header", () => {
+    renderForm({
+      isPreviewMode: true,
+      pendingTransform: {
+        projectId: "project-123",
+        payload: {
+          operation_type: SORT,
+          sort_params: { criteria: [{ column: "amount", ascending: false }] },
+        },
+      },
+    });
+
+    expect(screen.getByTestId("sort-column")).toHaveValue("amount");
+    expect(screen.getByLabelText("Order")).toHaveValue("false");
   });
 
   it("adds a new sort criterion row", async () => {

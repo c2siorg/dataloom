@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import Table from "../Components/Table";
 import { transformProject } from "../api";
 import { ToastProvider } from "../context/ToastContext";
+import { PanelProvider } from "../context/PanelContext";
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(() =>
@@ -55,9 +56,11 @@ beforeEach(() => {
 
 const renderTable = () =>
   render(
-    <ToastProvider>
-      <Table projectId="test-id" />
-    </ToastProvider>,
+    <PanelProvider>
+      <ToastProvider>
+        <Table projectId="test-id" />
+      </ToastProvider>
+    </PanelProvider>,
   );
 
 describe("Table Context Menu Actions", () => {

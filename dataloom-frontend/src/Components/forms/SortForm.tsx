@@ -1,5 +1,5 @@
-import { captureStep, type TransformFormProps } from "./transformFormProps";
-import { useState, useCallback, FormEvent } from "react";
+import { captureStep, sortCriteriaOf, type TransformFormProps } from "./transformFormProps";
+import { useState, useCallback, useEffect, FormEvent } from "react";
 import { transformProject } from "../../api";
 import { SORT } from "../../constants/operationTypes";
 import useError from "../../hooks/useError";
@@ -21,16 +21,25 @@ interface SortCriterion {
   ascending: boolean;
 }
 
+const withId = (c: Omit<SortCriterion, "id">, i: number): SortCriterion => ({ id: i + 1, ...c });
+
 /**
  * SortForm component for multi-column sorting.
  * Allows users to add, remove, and reorder multiple sort criteria.
  */
 const SortForm = ({ projectId, onClose, onCapture }: TransformFormProps) => {
-  const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview } = useProjectContext();
-  const [criteria, setCriteria] = useState<SortCriterion[]>([
-    { id: 1, column: "", ascending: true },
-  ]);
-  const [nextId, setNextId] = useState(2);
+  const { pageSize, isPreviewMode, enterPreviewMode, cancelPreview, pendingTransform } =
+    useProjectContext();
+  // A sort started from a column header is already pending when the panel opens; show it
+  // (not when capturing a pipeline step, which is unrelated to the grid's preview).
+  const pending = onCapture ? undefined : sortCriteriaOf(pendingTransform?.payload);
+  const [criteria, setCriteria] = useState<SortCriterion[]>(
+    () => pending?.map(withId) ?? [{ id: 1, column: "", ascending: true }],
+  );
+  const [nextId, setNextId] = useState(criteria.length + 1);
+  useEffect(() => {
+    if (pending) setCriteria(pending.map(withId));
+  }, [pending]);
   const [loading, setLoading] = useState(false);
   const { error, setError, clearError, handleError } = useError();
   const { saving, handleSave } = usePreviewSave({ clearError, handleError, onClose });
