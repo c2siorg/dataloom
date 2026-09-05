@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import Table from "../Components/Table";
 import { ToastProvider } from "../context/ToastContext";
+import { PanelProvider } from "../context/PanelContext";
 
 vi.mock("../api", () => ({
   transformProject: vi.fn(),
@@ -42,9 +43,11 @@ vi.mock("../context/HistoryRefreshContext", () => ({
 
 const renderTable = (showColumnProfiles = false) =>
   render(
-    <ToastProvider>
-      <Table projectId="test-id" showColumnProfiles={showColumnProfiles} />
-    </ToastProvider>,
+    <PanelProvider>
+      <ToastProvider>
+        <Table projectId="test-id" showColumnProfiles={showColumnProfiles} />
+      </ToastProvider>
+    </PanelProvider>,
   );
 
 /** Render the first-load state: fetching, with no rows on screen yet. */
