@@ -41,8 +41,8 @@ export const transformProject = async (
 ): Promise<TransformResult> => {
   const params = {
     ...(preview ? { preview: true } : {}),
-    ...(preview && page !== undefined ? { page } : {}),
-    ...(preview && pageSize !== undefined ? { page_size: pageSize } : {}),
+    ...(page !== undefined ? { page } : {}),
+    ...(pageSize !== undefined ? { page_size: pageSize } : {}),
   };
 
   const response = await client.post(`/projects/${projectId}/transform`, transformationInput, {
@@ -73,9 +73,19 @@ export const groupByTransform = async (
  * Undo the most recent transformation for a project.
  * Removes the last log entry and rebuilds data from original + remaining logs.
  * @param projectId - The project ID.
+ * @param page - Current page.
+ * @param pageSize - Elements per page.
  * @returns Updated project data with rows and columns.
  */
-export const undoLastTransformation = async (projectId: string): Promise<ProjectDetails> => {
-  const response = await client.post(`/projects/${projectId}/undo`);
+export const undoLastTransformation = async (
+  projectId: string,
+  page?: number,
+  pageSize?: number,
+): Promise<ProjectDetails> => {
+  const params = new URLSearchParams();
+  if (page !== undefined) params.append("page", String(page));
+  if (pageSize !== undefined) params.append("page_size", String(pageSize));
+
+  const response = await client.post(`/projects/${projectId}/undo?${params.toString()}`);
   return response.data;
 };
