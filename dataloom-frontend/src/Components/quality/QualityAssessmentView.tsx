@@ -20,6 +20,7 @@ const OPERATION_ACTION: Record<string, { panel: string; label: string }> = {
   castDataType: { panel: "CastDataTypeForm", label: "Cast type" },
   trimWhitespace: { panel: "TrimWhitespaceForm", label: "Trim whitespace" },
   stringReplace: { panel: "StringReplaceForm", label: "Replace values" },
+  standardizeDates: { panel: "StandardizeDatesForm", label: "Standardize dates" },
 };
 
 const SEVERITY_STYLE: Record<IssueSeverity, { label: string; dot: string; badge: string }> = {

@@ -14,7 +14,7 @@ import pandas as pd
 from app.schemas import FillStrategy, MeltParams, OperationType
 from app.services.append_service import append_dataframes
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import read_table_safe
+from app.utils.pandas_helpers import parse_datetime_column, read_table_safe
 from app.utils.security import prepare_formula_expression, validate_query_string
 
 logger = get_logger(__name__)
@@ -593,6 +593,55 @@ def trim_whitespace(df: pd.DataFrame, column: str) -> pd.DataFrame:
     return df
 
 
+_DATE_OUTPUT_PATTERNS = {
+    "iso": "%Y-%m-%d",
+    "dmy": "%d-%m-%Y",
+    "mdy": "%m-%d-%Y",
+}
+
+
+def standardize_dates(df: pd.DataFrame, column: str, output_format: str) -> pd.DataFrame:
+    """Rewrite a date column into a single output format.
+
+    The column is parsed under one inferred day/month convention rather than
+    row by row, so a column that mixes DD/MM and MM/DD rows is refused instead
+    of being half-corrupted. Values that do not parse (placeholders like
+    "UNKNOWN") keep their original text rather than becoming NaN.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to standardize.
+        output_format: One of "iso", "dmy", "mdy".
+
+    Returns:
+        DataFrame with the column rewritten in the requested format.
+
+    Raises:
+        TransformationError: If the column is missing, the output format is
+        unsupported, or the column cannot be parsed unambiguously.
+    """
+    df = df.copy()
+
+    if column not in df.columns:
+        raise TransformationError(f"Column '{column}' not found")
+
+    pattern = _DATE_OUTPUT_PATTERNS.get(output_format)
+
+    if pattern is None:
+        raise TransformationError(f"Unsupported output format: {output_format}")
+
+    try:
+        parsed = parse_datetime_column(df[column])
+    except ValueError as e:
+        raise TransformationError(f"Cannot standardize dates in '{column}': {e}") from e
+
+    formatted = parsed.dt.strftime(pattern)
+    # strftime renders NaT as NaN, which would destroy unparseable values.
+    df[column] = formatted.where(parsed.notna(), df[column])
+
+    return df
+
+
 def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
     """Replace occurrences of a substring in a column.
 
@@ -1141,6 +1190,16 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
         params_field="formula_col_params",
         missing_error="Formula column parameters required",
         build_args=lambda d: (d["formula_col_params"]["column_name"], d["formula_col_params"]["expression"]),
+    ),
+    OperationType.standardizeDates: TransformationSpec(
+        func="standardize_dates",
+        label="Standardize dates",
+        params_field="standardize_dates_params",
+        missing_error="Standardize dates parameters required",
+        build_args=lambda d: (
+            d["standardize_dates_params"]["column"],
+            d["standardize_dates_params"]["output_format"],
+        ),
     ),
 }
 

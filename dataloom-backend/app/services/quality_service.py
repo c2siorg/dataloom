@@ -427,7 +427,7 @@ def suggest_remediations(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
         elif issue.get("subtype") == "casing":
             suggestion, operation = f"Standardize casing in '{column}'", "stringReplace"
         else:
-            suggestion, operation = f"Standardize the date format in '{column}'", None
+            suggestion, operation = f"Standardize the date format in '{column}'", "standardizeDates"
         remediations.append(
             {
                 "issue_type": issue_type,

@@ -240,6 +240,11 @@ class TestRemediations:
         assert "dropping" in rem["suggestion"]
         assert rem["operation"] is None
 
+    def test_date_format_remediation_maps_to_standardize_dates(self):
+        df = pd.DataFrame({"d": ["2024-01-05", "2024-01-06", "05/01/2024", "2024-01-08"]})
+        remediations = qs.suggest_remediations(qs.detect_inconsistent_formats(df))
+        assert remediations[0]["operation"] == "standardizeDates"
+
     def test_casing_issue_on_column_named_whitespace(self):
         """Sub-case dispatch must not string-match column names in the detail."""
         df = pd.DataFrame({"whitespace_count": ["High", "high", "HIGH", "low"]})
