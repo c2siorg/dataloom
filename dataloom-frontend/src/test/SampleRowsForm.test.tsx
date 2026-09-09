@@ -179,7 +179,7 @@ describe("SampleRowsForm", () => {
       );
     });
 
-    const [, payload] = mockTransformProject.mock.calls[0];
+    const [, payload] = mockTransformProject.mock.calls[0]!;
 
     expect(payload.sample_params.random_seed).toBeGreaterThanOrEqual(0);
     expect(payload.sample_params.random_seed).toBeLessThanOrEqual(4294967295);

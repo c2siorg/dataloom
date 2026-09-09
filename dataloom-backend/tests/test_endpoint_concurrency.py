@@ -472,7 +472,7 @@ def test_concurrent_appends_for_same_project_do_not_lose_rows(monkeypatch):
     project, state, first_read = _append_fixture(monkeypatch)
 
     def _call():
-        return project_files._append_and_log(object(), project, "stored.csv", "stored.csv", uuid.uuid4())
+        return project_files._append_and_log(object(), project, "stored.csv", "stored.csv", uuid.uuid4(), 1, 50)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         first = executor.submit(_call)
@@ -561,7 +561,7 @@ def test_concurrent_pipeline_applies_do_not_lose_updates(monkeypatch):
     body = schemas.PipelineApplyRequest(project_id=project_id)
 
     def _call():
-        return pipelines.apply_pipeline(uuid.uuid4(), body, object(), object())
+        return pipelines.apply_pipeline(uuid.uuid4(), body, 1, 50, object(), object())
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         first = executor.submit(_call)
