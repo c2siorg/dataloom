@@ -25,22 +25,23 @@ export interface ProfilingMenuItem {
 const slug = (label: string) => label.toLowerCase().replace(/\s+/g, "-");
 
 /**
- * Toggle the inline column-profile row.
+ * Show the inline column-profile row, or toggle it when already on the grid.
  *
  * Shared by the ribbon and the tab bar dropdown so the behaviour is defined
  * once. The profiles render inside the DataSet table, so that tab is opened (or
- * refocused) in both directions: gating the open on the current toggle state
+ * refocused) regardless of the toggle state: gating the open on it
  * meant closing the tab while profiles were on left the next click flipping the
  * flag with nothing visible happening, and no obvious way back to the data.
  */
 export function useColumnProfilesAction(): () => void {
-  const { openTab } = useWorkspaceTabs();
-  const { toggleColumnProfiles } = useColumnProfilesView();
+  const { activeTabId, openTab } = useWorkspaceTabs();
+  const { showColumnProfiles, toggleColumnProfiles } = useColumnProfilesView();
 
   return useCallback(() => {
+    const onGrid = activeTabId === DATASET_TAB.id;
     openTab(DATASET_TAB);
-    toggleColumnProfiles();
-  }, [openTab, toggleColumnProfiles]);
+    if (onGrid || !showColumnProfiles) toggleColumnProfiles();
+  }, [activeTabId, openTab, showColumnProfiles, toggleColumnProfiles]);
 }
 
 /**

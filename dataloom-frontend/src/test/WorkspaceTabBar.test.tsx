@@ -1,17 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { WorkspaceTabsProvider, useWorkspaceTabs } from "../context/WorkspaceTabsContext";
+import {
+  WorkspaceTabsProvider,
+  useWorkspaceTabs,
+  type WorkspaceTab,
+} from "../context/WorkspaceTabsContext";
+import { INITIAL_TABS } from "../Components/DataScreen";
 import { PanelProvider } from "../context/PanelContext";
 import { ColumnProfilesProvider, useColumnProfilesView } from "../context/ColumnProfilesContext";
 import WorkspaceTabBar from "../Components/workspace/WorkspaceTabBar";
 import type { ReactNode } from "react";
-
-// The dropdown is derived from the feature registry, which fills at import
-// time — the same modules DataScreen pulls in to populate the ribbon.
-import "../Components/workspace/features/profiling";
-import "../Components/workspace/features/charts";
-import "../Components/workspace/features/quality";
 
 const DATASET = { id: "dataset", title: "DataSet", type: "dataset", closeable: true };
 const PINNED = { id: "pinned", title: "Pinned", type: "x", closeable: false };
@@ -28,7 +27,7 @@ function ProfilesProbe() {
   return <span data-testid="profiles-on">{String(showColumnProfiles)}</span>;
 }
 
-function renderBar(initialTabs: (typeof DATASET)[], children?: ReactNode) {
+function renderBar(initialTabs: WorkspaceTab[], children?: ReactNode) {
   return render(
     <WorkspaceTabsProvider projectId="p1" initialTabs={initialTabs}>
       <PanelProvider>
@@ -44,6 +43,14 @@ function renderBar(initialTabs: (typeof DATASET)[], children?: ReactNode) {
 }
 
 describe("WorkspaceTabBar", () => {
+  it("opens DataSet and Summary on load, grid active, profiles on", () => {
+    renderBar(INITIAL_TABS);
+
+    expect(screen.getByTestId("workspace-tab-summary")).toBeInTheDocument();
+    expect(screen.getByTestId("active-id")).toHaveTextContent("dataset");
+    expect(screen.getByTestId("profiles-on")).toHaveTextContent("true");
+  });
+
   it("renders a tab per entry", () => {
     renderBar([DATASET, { id: "a", title: "Pivot", type: "x", closeable: true }]);
     expect(screen.getByTestId("workspace-tab-dataset")).toBeInTheDocument();
@@ -135,7 +142,7 @@ describe("WorkspaceTabBar", () => {
   });
 
   describe("Column Profiles option", () => {
-    it("opens the DataSet tab and turns profiles on", async () => {
+    it("opens the DataSet tab and keeps profiles on", async () => {
       const user = userEvent.setup();
       renderBar([DATASET, { id: "a", title: "Pivot", type: "x", closeable: true }]);
       await user.click(screen.getByTestId("workspace-tab-a"));
@@ -147,37 +154,48 @@ describe("WorkspaceTabBar", () => {
       expect(screen.getByTestId("profiles-on")).toHaveTextContent("true");
     });
 
-    it("turns profiles back off on a second use", async () => {
+    it("toggles profiles when already on the DataSet tab", async () => {
       const user = userEvent.setup();
       renderBar([DATASET]);
 
       await user.click(screen.getByTestId("workspace-tab-add"));
       await user.click(screen.getByTestId("workspace-add-tab-option-column-profiles"));
+      expect(screen.getByTestId("profiles-on")).toHaveTextContent("false");
+
       await user.click(screen.getByTestId("workspace-tab-add"));
       await user.click(screen.getByTestId("workspace-add-tab-option-column-profiles"));
+      expect(screen.getByTestId("profiles-on")).toHaveTextContent("true");
+    });
+
+    it("keeps profiles off across a tab switch", async () => {
+      const user = userEvent.setup();
+      renderBar(INITIAL_TABS);
+
+      await user.click(screen.getByTestId("workspace-tab-add"));
+      await user.click(screen.getByTestId("workspace-add-tab-option-column-profiles"));
+      await user.click(screen.getByTestId("workspace-tab-summary"));
+      await user.click(screen.getByTestId("workspace-tab-dataset"));
 
       expect(screen.getByTestId("profiles-on")).toHaveTextContent("false");
     });
 
-    it("reopens a closed DataSet tab even when profiles are already on", async () => {
+    it("reopens a closed DataSet tab with profiles on", async () => {
       const user = userEvent.setup();
-      const summary = { id: "summary", title: "Summary", type: "summary", closeable: true };
-      renderBar([DATASET, summary]);
+      renderBar(INITIAL_TABS);
 
-      // Profiles on, move away, then close the DataSet tab.
-      await user.click(screen.getByTestId("workspace-tab-add"));
-      await user.click(screen.getByTestId("workspace-add-tab-option-column-profiles"));
+      // Profiles are on; move away, then close the DataSet tab.
       await user.click(screen.getByTestId("workspace-tab-summary"));
       await user.click(screen.getByTestId("workspace-tab-close-dataset"));
       expect(screen.queryByTestId("workspace-tab-dataset")).not.toBeInTheDocument();
 
-      // One click must bring the table back, rather than silently flipping the
-      // flag and leaving no visible route to the data.
+      // One click must bring the table back with the row showing, rather than
+      // silently flipping the flag and leaving no visible route to the data.
       await user.click(screen.getByTestId("workspace-tab-add"));
       await user.click(screen.getByTestId("workspace-add-tab-option-column-profiles"));
 
       expect(screen.getByTestId("workspace-tab-dataset")).toBeInTheDocument();
       expect(screen.getByTestId("active-id")).toHaveTextContent("dataset");
+      expect(screen.getByTestId("profiles-on")).toHaveTextContent("true");
     });
   });
 

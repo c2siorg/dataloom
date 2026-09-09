@@ -177,7 +177,7 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
       icon: LuColumns3,
       onClick: handleToggleColumnProfiles,
       active: showColumnProfiles,
-      hover: "View the profile of each column.",
+      hover: "Show or hide the profile of each column.",
     },
   ];
 

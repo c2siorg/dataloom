@@ -53,8 +53,8 @@ test.describe("Pagination — revert on a multi-page project", () => {
     await expect(pageInput).toHaveValue("2");
     await expect(table.locator("tbody tr")).toHaveCount(12);
     // Ascending sort by id puts 51-62 on this page.
-    await expect(table).toContainText("Row 62");
-    await expect(table).not.toContainText("Row 1 ");
+    await expect(table.locator("tbody")).toContainText("Row 62");
+    await expect(table.locator("tbody")).not.toContainText("Row 1 ");
 
     // Revert while parked on page 2 of 2.
     await page.locator('[data-testid="toolbar-checkpoints"]').click();
@@ -77,7 +77,7 @@ test.describe("Pagination — revert on a multi-page project", () => {
     await expect(table.locator("tbody tr")).toHaveCount(12);
     await expect(pageInput).toHaveValue("2");
     await expect(page.getByText("of 2")).toBeVisible();
-    await expect(table).toContainText("Row 62");
-    await expect(table).not.toContainText("Row 1 ");
+    await expect(table.locator("tbody")).toContainText("Row 62");
+    await expect(table.locator("tbody")).not.toContainText("Row 1 ");
   });
 });

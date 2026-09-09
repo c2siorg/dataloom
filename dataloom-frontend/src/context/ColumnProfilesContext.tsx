@@ -26,7 +26,7 @@ export function useColumnProfilesView(): ColumnProfilesContextValue {
 
 /** Holds whether the DataSet table shows its inline column-profile row. */
 export function ColumnProfilesProvider({ children }: { children: ReactNode }) {
-  const [showColumnProfiles, setShowColumnProfiles] = useState(false);
+  const [showColumnProfiles, setShowColumnProfiles] = useState(true);
   const toggleColumnProfiles = useCallback(() => setShowColumnProfiles((v) => !v), []);
 
   const value = useMemo<ColumnProfilesContextValue>(
