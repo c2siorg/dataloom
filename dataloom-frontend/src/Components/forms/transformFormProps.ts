@@ -8,6 +8,7 @@
  * of previewing it against the current project.
  */
 import type { PanelProps } from "../workspace/featureRegistry";
+import { SORT } from "../../constants/operationTypes";
 
 export interface CaptureStep {
   action_type: string;
@@ -21,6 +22,13 @@ export interface TransformFormProps extends PanelProps {
 
 /** A transform payload: the operation plus its op-specific params bag. */
 export type CapturablePayload = Record<string, unknown> & { operation_type: string };
+
+/** The sort criteria a pending transform carries, or undefined when it is not a sort. */
+export const sortCriteriaOf = (payload: CapturablePayload | undefined) =>
+  payload?.operation_type === SORT
+    ? (payload.sort_params as { criteria?: { column: string; ascending: boolean }[] } | undefined)
+        ?.criteria
+    : undefined;
 
 /**
  * Hand a validated payload to the pipeline builder instead of applying it.
