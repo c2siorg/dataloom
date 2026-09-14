@@ -1,14 +1,6 @@
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import {
-  useState,
-  useEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-  type KeyboardEvent,
-  useCallback,
-} from "react";
+import { useState, useMemo, useRef, type ReactNode, type KeyboardEvent, useCallback } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -119,8 +111,6 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
   } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const { openPanel } = usePanel();
-  const [data, setData] = useState<Cell[][]>([]);
-  const [columns, setColumns] = useState<string[]>([]);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState("");
   const { isOpen, position, contextData, open, close } = useContextMenu<ContextData>();
@@ -155,22 +145,24 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     return columnOrder.length === ctxColumns.length ? columnOrder : ctxColumns.map((_, i) => i);
   }, [columnOrder, ctxColumns]);
 
-  useEffect(() => {
-    if (ctxColumns.length > 0 && ctxRows.length > 0) {
-      setColumns(["S.No.", ...safeOrder.map((i) => ctxColumns[i] as string)]);
-      setData(
-        ctxRows.map((row, index) => [
-          (page - 1) * pageSize + index + 1,
-          ...safeOrder.map((i) => row[i]),
-        ]),
-      );
-    }
-  }, [ctxColumns, ctxRows, page, pageSize, columnOrder, safeOrder]);
+  const columns = useMemo(
+    () =>
+      ctxColumns.length === 0 ? [] : ["S.No.", ...safeOrder.map((i) => ctxColumns[i] as string)],
+    [ctxColumns, safeOrder],
+  );
+
+  const data = useMemo(
+    () =>
+      ctxRows.map((row, index) => [
+        (page - 1) * pageSize + index + 1,
+        ...safeOrder.map((i) => row[i]),
+      ]),
+    [ctxRows, page, pageSize, safeOrder],
+  );
 
   const updateTableData = (response: TransformResponse) => {
     const { columns, rows, dtypes: newDtypes } = response;
-    setColumns(["S.No.", ...columns]);
-    setData(normalizeRows(rows).map((row, index) => [index + 1, ...row]));
+    setPaginationData({ page: 1 });
     // updateData resets the saved column order when the column count changes,
     // which covers add/delete column; rename and row ops keep the order.
     updateData(columns, normalizeRows(rows), { dtypes: newDtypes });
