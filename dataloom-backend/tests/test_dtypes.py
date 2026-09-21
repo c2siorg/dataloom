@@ -1,9 +1,17 @@
 """Tests for dtype mapping and dataframe_to_response dtypes field."""
 
+import random
+
 import pandas as pd
 import pytest
 
-from app.utils.pandas_helpers import _infer_datetime_columns, dataframe_to_response, map_dtype
+from app.utils.pandas_helpers import (
+    _DATETIME_SAMPLE_SIZE,
+    _infer_datetime_columns,
+    _sample_rules_out_datetime,
+    dataframe_to_response,
+    map_dtype,
+)
 
 
 @pytest.fixture
@@ -322,3 +330,123 @@ class TestInferDatetimeColumns:
 
         assert pd.api.types.is_datetime64_any_dtype(result["created_at"])
         assert result.at[0, "created_at"] == pd.Timestamp("2024-01-10 10:30:00")
+
+
+def _dates(count, start="2024-01-01"):
+    return [str(day.date()) for day in pd.date_range(start, periods=count, freq="D")]
+
+
+def _notes(count):
+    return [f"note {index}" for index in range(count)]
+
+
+class TestSampledPreGate:
+    """Columns larger than the sample size take the pre-gate path.
+
+    The existing TestInferDatetimeColumns cases all use a handful of rows, so
+    they bypass the gate entirely. These use more rows than the sample size.
+    """
+
+    def test_large_text_column_stays_text(self):
+        df = pd.DataFrame({"notes": _notes(5000)})
+
+        result = _infer_datetime_columns(df)
+
+        assert result["notes"].dtype == df["notes"].dtype
+        assert not pd.api.types.is_datetime64_any_dtype(result["notes"])
+
+    def test_large_date_column_still_converts(self):
+        df = pd.DataFrame({"event_date": _dates(5000)})
+
+        result = _infer_datetime_columns(df)
+
+        assert pd.api.types.is_datetime64_any_dtype(result["event_date"])
+
+    def test_converts_at_exact_threshold_when_shuffled(self):
+        values = _dates(4000) + _notes(1000)
+        random.Random(0).shuffle(values)
+        df = pd.DataFrame({"event_date": values})
+
+        result = _infer_datetime_columns(df)
+
+        assert pd.api.types.is_datetime64_any_dtype(result["event_date"])
+
+    def test_does_not_convert_just_below_threshold(self):
+        values = _dates(3950) + _notes(1050)
+        random.Random(0).shuffle(values)
+        df = pd.DataFrame({"event_date": values})
+
+        result = _infer_datetime_columns(df)
+
+        assert not pd.api.types.is_datetime64_any_dtype(result["event_date"])
+
+    def test_converts_when_junk_is_clustered_at_the_top(self):
+        # A head-based sample would see only notes and wrongly reject.
+        df = pd.DataFrame({"event_date": _notes(1000) + _dates(4000)})
+
+        result = _infer_datetime_columns(df)
+
+        assert pd.api.types.is_datetime64_any_dtype(result["event_date"])
+
+    def test_large_mixed_type_column_stays_object(self):
+        df = pd.DataFrame({"value": [*_dates(5000), 123]})
+
+        result = _infer_datetime_columns(df)
+
+        assert not pd.api.types.is_datetime64_any_dtype(result["value"])
+        assert result.at[5000, "value"] == 123
+
+    def test_large_column_with_both_date_conventions_stays_text(self):
+        values = ["13/01/2024", "01/13/2024"] * 2500
+        df = pd.DataFrame({"event_date": values})
+
+        result = _infer_datetime_columns(df)
+
+        assert not pd.api.types.is_datetime64_any_dtype(result["event_date"])
+
+    def test_inference_is_deterministic_across_calls(self):
+        values = _dates(4000) + _notes(1000)
+        random.Random(0).shuffle(values)
+        df = pd.DataFrame({"event_date": values, "notes": _notes(5000)})
+
+        first = _infer_datetime_columns(df)
+        second = _infer_datetime_columns(df)
+
+        assert first.dtypes.to_dict() == second.dtypes.to_dict()
+
+    def test_rare_conflicting_conventions_yield_same_result_as_bypassed_gate(self, monkeypatch):
+        values = ["05/06/2024"] * 5000 + ["13/01/2024", "01/13/2024"]
+        random.Random(0).shuffle(values)
+        df = pd.DataFrame({"event_date": values})
+
+        result_with_gate = _infer_datetime_columns(df)
+
+        monkeypatch.setattr("app.utils.pandas_helpers._sample_rules_out_datetime", lambda x: False)
+        result_without_gate = _infer_datetime_columns(df)
+
+        assert not pd.api.types.is_datetime64_any_dtype(result_with_gate["event_date"])
+        assert result_with_gate["event_date"].tolist() == result_without_gate["event_date"].tolist()
+        assert result_with_gate.dtypes.to_dict() == result_without_gate.dtypes.to_dict()
+
+
+class TestSampleRulesOutDatetime:
+    def test_small_column_is_never_ruled_out(self):
+        non_null = pd.Series(_notes(_DATETIME_SAMPLE_SIZE))
+
+        assert _sample_rules_out_datetime(non_null) is False
+
+    def test_large_text_column_is_ruled_out(self):
+        assert _sample_rules_out_datetime(pd.Series(_notes(5000))) is True
+
+    def test_large_date_column_is_not_ruled_out(self):
+        assert _sample_rules_out_datetime(pd.Series(_dates(5000))) is False
+
+    def test_non_string_values_rule_the_column_out(self):
+        non_null = pd.Series([*_dates(5000), *range(5000)])
+
+        assert _sample_rules_out_datetime(non_null) is True
+
+    def test_conflicting_date_conventions_rule_the_column_out(self):
+        non_null = pd.Series(["13/01/2024", "01/13/2024"] * 2500)
+
+        assert _sample_rules_out_datetime(non_null) is True
