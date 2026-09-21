@@ -116,6 +116,21 @@ _DATE_LIKE_PATTERNS = (
 
 _AMBIGUOUS_NUMERIC_DATE = re.compile(r"(\d{1,2})([./-])(\d{1,2})\2\d{4}")
 
+# Minimum share of a column's non-null values that must look like dates, and
+# must then parse, before the column is converted.
+_MIN_DATETIME_RATE = 0.8
+
+# Sampled pre-gate: columns longer than the sample size are screened on a
+# fixed-seed random sample before the full-column scan runs. The seed keeps
+# inference reproducible — the same file must always yield the same dtypes.
+_DATETIME_SAMPLE_SIZE = 1000
+_DATETIME_SAMPLE_SEED = 20260919
+
+# The sample rejects well below _MIN_DATETIME_RATE so sampling error can never
+# rule out a column the full check would have converted: the standard error of
+# a 1,000-value sample at 80% is about 1.3 percentage points.
+_DATETIME_GATE_RATE = 0.5
+
 
 def _infer_dayfirst(values: pd.Series) -> bool | None:
     """Infer day-first vs month-first convention from unambiguous rows.
@@ -160,6 +175,44 @@ def _looks_like_datetime(value: str) -> bool:
     return any(pattern.fullmatch(normalized) for pattern in _DATE_LIKE_PATTERNS)
 
 
+def _sample_rules_out_datetime(non_null: pd.Series) -> bool:
+    """Pre-screen a large column on a sample of its values.
+
+    True means the full check would also reject; False means nothing.
+
+    The gate is one-sided by design: it can only let ``_infer_datetime_columns``
+    skip a column early, never convert one. Conversion stays entirely with the
+    full-column rules.
+
+    Columns at or below the sample size return False — sampling them would
+    just do the same work twice.
+
+    Args:
+        non_null: The column's non-null values.
+
+    Returns:
+        True if the sample alone proves the column cannot be converted.
+    """
+    if len(non_null) <= _DATETIME_SAMPLE_SIZE:
+        return False
+
+    sample = non_null.sample(_DATETIME_SAMPLE_SIZE, random_state=_DATETIME_SAMPLE_SEED)
+
+    # A non-string anywhere in the sample is a non-string in the column, which
+    # the full path's mixed-type guard refuses outright.
+    if not sample.map(lambda value: isinstance(value, str)).all():
+        return True
+
+    normalized_sample = sample.map(str.strip)
+
+    if normalized_sample.map(_looks_like_datetime).mean() < _DATETIME_GATE_RATE:
+        return True
+
+    # Both DD/MM and MM/DD evidence in the sample means both are in the column,
+    # so the full path's _infer_dayfirst would return None and skip it too.
+    return _infer_dayfirst(normalized_sample) is None
+
+
 def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Infer datetime columns from string/object columns.
 
@@ -172,6 +225,10 @@ def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
     of allowing pandas to infer each row independently. Columns containing
     mixed UTC offsets are normalized to UTC when pandas cannot represent them
     directly using a single timezone-aware dtype.
+
+    Columns longer than the sample size are pre-screened on a fixed-seed random
+    sample that can only rule a column out; the full-column rules below remain
+    the only way a column is converted, so results are unchanged.
 
     Args:
         df: Source DataFrame.
@@ -189,6 +246,9 @@ def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
         if non_null.empty:
             continue
 
+        if _sample_rules_out_datetime(non_null):
+            continue
+
         string_mask = non_null.map(lambda value: isinstance(value, str))
         string_values = non_null[string_mask]
 
@@ -203,7 +263,7 @@ def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
         normalized_values = string_values.str.strip()
         date_like_rate = normalized_values.map(_looks_like_datetime).mean()
 
-        if date_like_rate < 0.8:
+        if date_like_rate < _MIN_DATETIME_RATE:
             continue
 
         dayfirst = _infer_dayfirst(normalized_values)
@@ -245,7 +305,7 @@ def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
         # reflects the complete column rather than only the date-shaped subset.
         parse_success_rate = converted[df[col].notna()].notna().mean()
 
-        if parse_success_rate >= 0.8:
+        if parse_success_rate >= _MIN_DATETIME_RATE:
             df[col] = converted
 
     return df
