@@ -36,7 +36,13 @@ from app.services.project_service import (
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, save_table_safe
+from app.utils.pandas_helpers import (
+    dataframe_to_response,
+    dataset_file_stats,
+    paginate_dataframe,
+    read_table_safe,
+    save_table_safe,
+)
 from app.utils.project_locks import project_read_lock, project_write_lock
 from app.utils.security import validate_upload_file
 
@@ -149,17 +155,29 @@ def recent_projects(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Get the current user's most recently modified projects."""
+    """Get the current user's most recently modified projects.
+
+    Each entry also carries the working copy's size and shape for the project
+    cards. A project whose file is missing or unreadable is still returned,
+    with those fields null.
+    """
     projects = get_recent_projects(db, owner_id=current_user.id, limit=10)
-    return [
-        schemas.LastResponse(
-            project_id=p.project_id,
-            name=p.name,
-            description=p.description,
-            last_modified=p.last_modified,
+    result = []
+    for p in projects:
+        stats = dataset_file_stats(Path(p.file_path))
+        result.append(
+            schemas.LastResponse(
+                project_id=p.project_id,
+                name=p.name,
+                description=p.description,
+                last_modified=p.last_modified,
+                upload_date=p.upload_date,
+                file_size_bytes=stats.file_size_bytes,
+                row_count=stats.row_count,
+                column_count=stats.column_count,
+            )
         )
-        for p in projects
-    ]
+    return result
 
 
 @router.patch("/{project_id}/rename", response_model=schemas.RenameProjectResponse)

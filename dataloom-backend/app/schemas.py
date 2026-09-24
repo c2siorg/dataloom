@@ -653,12 +653,20 @@ class LogResponse(BaseModel):
 
 
 class LastResponse(BaseModel):
-    """Response for recently modified projects."""
+    """Response for recently modified projects.
+
+    The dataset fields describe the working copy on disk. They are ``None``
+    when the endpoint does not compute them or the file cannot be read.
+    """
 
     project_id: uuid.UUID
     name: str
     description: str | None
     last_modified: datetime.datetime
+    upload_date: datetime.datetime | None = None
+    file_size_bytes: int | None = None
+    row_count: int | None = None
+    column_count: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
