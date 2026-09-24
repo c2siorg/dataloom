@@ -2,6 +2,7 @@
 
 import math
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,18 @@ import pandas as pd
 from fastapi import HTTPException
 
 from app.utils.file_formats import TableWriteOptions, get_format
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class DatasetFileStats:
+    """Size and shape of a dataset file; ``None`` for anything that could not be read."""
+
+    file_size_bytes: int | None = None
+    row_count: int | None = None
+    column_count: int | None = None
 
 
 def read_table_safe(path: Path) -> pd.DataFrame:
@@ -40,6 +53,32 @@ def read_table_safe(path: Path) -> pd.DataFrame:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}") from e
+
+
+def dataset_file_stats(path: Path) -> DatasetFileStats:
+    """Return the size and shape of a dataset file without raising.
+
+    The format is resolved via the registry like :func:`read_table_safe`, but a
+    missing or unreadable file yields ``None`` fields instead of an error, so a
+    summary payload such as the project cards can degrade one entry rather than
+    fail the whole response.
+
+    Args:
+        path: Path to the dataset file.
+
+    Returns:
+        DatasetFileStats with whatever could be determined.
+    """
+    try:
+        file_size_bytes = path.stat().st_size
+    except OSError:
+        return DatasetFileStats()
+    try:
+        df = get_format(path).read(path)
+    except Exception as e:
+        logger.warning("Could not read dataset stats for %s: %s", path, e)
+        return DatasetFileStats(file_size_bytes=file_size_bytes)
+    return DatasetFileStats(file_size_bytes=file_size_bytes, row_count=len(df), column_count=len(df.columns))
 
 
 def save_table_safe(
