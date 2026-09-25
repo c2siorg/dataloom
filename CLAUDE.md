@@ -64,6 +64,7 @@ app/services/            → Business logic layer
 app/utils/
   security.py            → Filename sanitization, upload validation, query injection prevention
   pandas_helpers.py      → Safe CSV I/O, DataFrame-to-response conversion
+  df_cache.py            → Process-local LRU cache of parsed DataFrames, keyed on path/mtime/size
 app/models.py            → SQLModel ORM (Project, ProjectChangeLog, Checkpoint)
 app/schemas.py           → Pydantic request/response schemas + enums
 app/config.py            → Pydantic BaseSettings with @lru_cache (get_settings())

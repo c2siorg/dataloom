@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 from app.config import get_settings
+from app.utils import df_cache
 from app.utils.file_formats import supported_extensions
 from app.utils.logging import get_logger
 from app.utils.security import resolve_upload_path, sanitize_filename
@@ -132,6 +133,9 @@ def get_original_path(copy_path: str) -> Path:
 def delete_project_files(copy_path: str) -> None:
     """Delete both the working copy and original file for a project.
 
+    Invalidates both paths in the DataFrame cache; the files are gone either
+    way, but this keeps memory from holding entries for deleted projects.
+
     Args:
         copy_path: Path to the ``_copy`` working file.
     """
@@ -143,3 +147,5 @@ def delete_project_files(copy_path: str) -> None:
             logger.info("Deleted file: %s", path)
         except FileNotFoundError:
             logger.warning("File already missing: %s", path)
+        finally:
+            df_cache.invalidate(path)
