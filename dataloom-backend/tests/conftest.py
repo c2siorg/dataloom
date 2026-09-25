@@ -21,6 +21,7 @@ from app import models  # noqa: E402
 from app.database import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services.auth_service import create_access_token  # noqa: E402
+from app.utils import df_cache  # noqa: E402
 
 # Use SQLite for tests
 TEST_DATABASE_URL = "sqlite:///./test.db"
@@ -54,6 +55,17 @@ def setup_database():
     SQLModel.metadata.create_all(bind=engine)
     yield
     SQLModel.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _clear_df_cache():
+    """Reset the DataFrame read cache before each test.
+
+    Prevents a cached entry (or a `DF_CACHE_*` setting change) from one test
+    leaking into the next.
+    """
+    df_cache.clear()
+    yield
 
 
 @pytest.fixture

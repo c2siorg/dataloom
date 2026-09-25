@@ -28,6 +28,9 @@ class Settings(BaseSettings):
         smtp_username: Username/email used for SMTP authentication.
         smtp_password: Password or app-specific password for SMTP authentication.
         smtp_from_email: Default sender email address for outgoing emails.
+        df_cache_enabled: Whether parsed DataFrames are cached in-process.
+        df_cache_max_bytes: Maximum total resident size of cached DataFrames.
+        df_cache_max_entries: Maximum number of cached DataFrames.
     """
 
     database_url: str
@@ -53,6 +56,9 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_max_requests: int = 20
     rate_limit_window_seconds: int = 300
+    df_cache_enabled: bool = True
+    df_cache_max_bytes: int = 268435456
+    df_cache_max_entries: int = 16
 
     model_config = {
         "env_file": ".env",

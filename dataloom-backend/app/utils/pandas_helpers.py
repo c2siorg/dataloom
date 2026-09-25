@@ -8,10 +8,21 @@ from typing import Any
 import pandas as pd
 from fastapi import HTTPException
 
+from app.config import get_settings
+from app.utils import df_cache
 from app.utils.file_formats import TableWriteOptions, get_format
 
 
-def read_table_safe(path: Path) -> pd.DataFrame:
+def _read_and_infer(path: Path) -> pd.DataFrame:
+    """Parse a dataset file and infer its datetime columns.
+
+    Split out of :func:`read_table_safe` so it can be handed to the DataFrame
+    cache as a plain ``path -> DataFrame`` loader.
+    """
+    return _infer_datetime_columns(get_format(path).read(path))
+
+
+def read_table_safe(path: Path, *, use_cache: bool = True) -> pd.DataFrame:
     """Read a dataset file safely, dispatching on its format, with error handling.
 
     The format is resolved from the file extension via the format registry, so
@@ -23,6 +34,10 @@ def read_table_safe(path: Path) -> pd.DataFrame:
 
     Args:
         path: Path to the dataset file.
+        use_cache: Whether a cache hit may satisfy this read. Callers reading a
+            throwaway file (e.g. a temp upload) should pass ``False``, since
+            caching it would only cost memory for an entry no one will look up
+            again.
 
     Returns:
         DataFrame with the file contents.
@@ -32,8 +47,9 @@ def read_table_safe(path: Path) -> pd.DataFrame:
             invalid for the format, 500 otherwise.
     """
     try:
-        df = get_format(path).read(path)
-        return _infer_datetime_columns(df)
+        if use_cache and get_settings().df_cache_enabled:
+            return df_cache.get_df_cache().get_or_load(path, _read_and_infer)
+        return _read_and_infer(path)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"File not found: {path}") from None
     except ValueError as e:
@@ -49,6 +65,10 @@ def save_table_safe(
 ) -> None:
     """Save a DataFrame safely, dispatching on the destination file's format.
 
+    Always invalidates any cached read of ``path``, including on a failed or
+    partial write, so a subsequent read never serves data older than the write
+    attempt.
+
     Args:
         df: DataFrame to save.
         path: Destination file path; its extension selects the writer.
@@ -63,6 +83,8 @@ def save_table_safe(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}") from e
+    finally:
+        df_cache.invalidate(path)
 
 
 def map_dtype(dtype) -> str:

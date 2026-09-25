@@ -53,7 +53,7 @@ def _read_upload_df(file: UploadFile):
         shutil.copyfileobj(file.file, tmp)
         tmp_path = Path(tmp.name)
     try:
-        return read_table_safe(tmp_path)
+        return read_table_safe(tmp_path, use_cache=False)
     except HTTPException as e:
         raise HTTPException(status_code=400, detail=f"Could not parse the uploaded {suffix} file.") from e
     finally:
