@@ -12,9 +12,20 @@ from sqlmodel import Session
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
-from app.services.project_service import log_transformations_or_restore
+from app.services.project_service import (
+    delete_project_column_metadata,
+    log_transformations_or_restore,
+    rename_project_column_metadata,
+    update_project_column_metadata,
+)
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, save_table_safe
+from app.utils.pandas_helpers import (
+    dataframe_to_response,
+    map_dtype,
+    paginate_dataframe,
+    read_table_safe,
+    save_table_safe,
+)
 from app.utils.project_locks import project_read_lock, project_write_lock
 from app.utils.security import safe_transformation_error_detail
 
@@ -111,6 +122,43 @@ def _transform_project(
 
         if not preview and not is_noop_cell_edit:
             save_table_safe(result_df, project.file_path)
+            if operation_type == schemas.OperationType.addCol:
+                add_params = transformation_input.add_col_params
+                update_project_column_metadata(
+                    db,
+                    project_id,
+                    add_params.name,
+                    map_dtype(result_df[add_params.name].dtype),
+                )
+
+            elif operation_type == schemas.OperationType.delCol:
+                del_params = transformation_input.del_col_params
+                deleted_column = df.columns[del_params.index]
+                delete_project_column_metadata(
+                    db,
+                    project_id,
+                    deleted_column,
+                )
+
+            elif operation_type == schemas.OperationType.renameCol:
+                rename_params = transformation_input.rename_col_params
+                old_name = df.columns[rename_params.col_index]
+                rename_project_column_metadata(
+                    db,
+                    project_id,
+                    old_name,
+                    rename_params.new_name,
+                )
+
+            elif operation_type == schemas.OperationType.castDataType:
+                cast_params = transformation_input.cast_data_type_params
+                update_project_column_metadata(
+                    db,
+                    project_id,
+                    cast_params.column,
+                    map_dtype(result_df[cast_params.column].dtype),
+                )
+
             log_transformations_or_restore(
                 db,
                 project_id,

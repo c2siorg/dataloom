@@ -7,9 +7,12 @@ import uuid
 import pandas as pd
 import pytest
 
+from app import models
+
 from app.services.transformation_service import (
     TransformationError,
     apply_logged_transformation,
+    apply_metadata_transformation,
     cast_data_type,
     rename_column,
 )
@@ -116,9 +119,6 @@ class TestCastDataType:
             cast_data_type(sample_df, "nonexistent", "string")
 
 
-# --- Log Replay Tests ---
-
-
 class TestLogReplay:
     def test_replay_rename_column(self, sample_df):
         details = {"rename_col_params": {"col_index": 0, "new_name": "full_name"}}
@@ -130,6 +130,156 @@ class TestLogReplay:
         result = apply_logged_transformation(sample_df, "castDataType", details)
         assert str(result.iloc[0]["age"]) == "30"
 
+    def test_replay_metadata_add_column(self, sample_df):
+        metadata = {
+            "name": "str",
+            "age": "int",
+            "city": "str",
+        }
+
+        details = {
+            "add_col_params": {
+                "index": 3,
+                "name": "country",
+            }
+        }
+
+        df_after = apply_logged_transformation(
+            sample_df,
+            "addCol",
+            details,
+        )
+
+        result = apply_metadata_transformation(
+            metadata,
+            "addCol",
+            details,
+            sample_df,
+            df_after,
+        )
+
+        assert result == {
+            "name": "str",
+            "age": "int",
+            "city": "str",
+            "country": "str",
+        }
+        assert metadata == {
+            "name": "str",
+            "age": "int",
+            "city": "str",
+        }
+
+    def test_replay_metadata_delete_column(self, sample_df):
+        metadata = {
+            "name": "str",
+            "age": "int",
+            "city": "str",
+        }
+
+        details = {
+            "del_col_params": {
+                "index": 1,
+            }
+        }
+
+        df_after = apply_logged_transformation(
+            sample_df,
+            "delCol",
+            details,
+        )
+
+        result = apply_metadata_transformation(
+            metadata,
+            "delCol",
+            details,
+            sample_df,
+            df_after,
+        )
+
+        assert result == {
+            "name": "str",
+            "city": "str",
+        }
+
+    def test_replay_metadata_rename_column(self, sample_df):
+        metadata = {
+            "name": "str",
+            "age": "int",
+            "city": "str",
+        }
+
+        details = {
+            "rename_col_params": {
+                "col_index": 0,
+                "new_name": "full_name",
+            }
+        }
+
+        df_after = apply_logged_transformation(
+            sample_df,
+            "renameCol",
+            details,
+        )
+
+        result = apply_metadata_transformation(
+            metadata,
+            "renameCol",
+            details,
+            sample_df,
+            df_after,
+        )
+
+        assert result == {
+            "full_name": "str",
+            "age": "int",
+            "city": "str",
+        }
+
+    @pytest.mark.parametrize(
+        ("target_type", "expected_dtype"),
+        [
+            ("string", "str"),
+            ("integer", "int"),
+            ("float", "float"),
+            ("boolean", "bool"),
+            ("datetime", "datetime"),
+        ],
+    )
+    def test_replay_metadata_cast_column(
+        self,
+        sample_df,
+        target_type,
+        expected_dtype,
+    ):
+        metadata = {
+            "name": "str",
+            "age": "int",
+            "city": "str",
+        }
+
+        details = {
+            "cast_data_type_params": {
+                "column": "age",
+                "target_type": target_type,
+            }
+        }
+
+        df_after = apply_logged_transformation(
+            sample_df,
+            "castDataType",
+            details,
+        )
+
+        result = apply_metadata_transformation(
+            metadata,
+            "castDataType",
+            details,
+            sample_df,
+            df_after,
+        )
+
+        assert result["age"] == expected_dtype
 
 class TestAddDeleteColumnEndpoint:
     def test_add_column_with_name_returns_200(self, client, sample_csv, db):
@@ -288,6 +438,143 @@ class TestTransformEndpoint:
         assert response.status_code == 200
         assert response.json()["columns"] == expected_columns
 
+    def test_cast_to_string_preserves_dtype_after_reload(
+        self,
+        client,
+        uploaded_project,
+    ):
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "addCol",
+                "add_col_params": {"index": 3, "name": "new"},
+            },
+        )
+        assert response.status_code == 200
+
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "castDataType",
+                "cast_data_type_params": {
+                    "column": "new",
+                    "target_type": "string",
+                },
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["dtypes"]["new"] == "str"
+
+        response = client.get(f"/projects/get/{uploaded_project}")
+        assert response.status_code == 200
+        assert response.json()["dtypes"]["new"] == "str"
+
+    def test_undo_restores_column_metadata(self, client, uploaded_project):
+        # Add a new column and explicitly cast it to string.
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "addCol",
+                "add_col_params": {
+                    "index": 3,
+                    "name": "new",
+                },
+            },
+        )
+        assert response.status_code == 200
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "castDataType",
+                "cast_data_type_params": {
+                    "column": "new",
+                    "target_type": "string",
+                },
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["dtypes"]["new"] == "str"
+        # Undo the cast.
+        response = client.post(
+            f"/projects/{uploaded_project}/undo",
+        )
+        assert response.status_code == 200
+        assert response.json()["dtypes"]["new"] == "str"
+        # Undo the add.
+        response = client.post(
+            f"/projects/{uploaded_project}/undo",
+        )
+        assert response.status_code == 200
+        assert "new" not in response.json()["columns"]
+        assert "new" not in response.json()["dtypes"]
+        # Verify the persisted project state.
+        response = client.get(f"/projects/get/{uploaded_project}")
+        assert response.status_code == 200
+        assert "new" not in response.json()["columns"]
+        assert "new" not in response.json()["dtypes"]
+
+    def test_revert_to_original_restores_column_metadata(
+        self,
+        client,
+        uploaded_project,
+        db,
+    ):
+        # Add a new column and explicitly cast it to string.
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "addCol",
+                "add_col_params": {
+                    "index": 3,
+                    "name": "new",
+                },
+            },
+        )
+        assert response.status_code == 200
+
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "castDataType",
+                "cast_data_type_params": {
+                    "column": "new",
+                    "target_type": "string",
+                },
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["dtypes"]["new"] == "str"
+
+        # Revert to the original uploaded state.
+        response = client.post(
+            f"/projects/{uploaded_project}/revert",
+        )
+        assert response.status_code == 200
+
+        assert "new" not in response.json()["columns"]
+        assert "new" not in response.json()["dtypes"]
+
+        metadata = (
+            db.query(models.ProjectColumnMetadata)
+            .filter(
+                models.ProjectColumnMetadata.project_id == uuid.UUID(uploaded_project),
+            )
+            .all()
+        )
+
+        assert "new" not in {
+            item.column_name
+            for item in metadata
+        }
+
+        # Verify persisted metadata after reload.
+        response = client.get(f"/projects/get/{uploaded_project}")
+        assert response.status_code == 200
+        assert "new" not in response.json()["columns"]
+        assert "new" not in response.json()["dtypes"]
+
+
+
     @pytest.mark.parametrize(
         "col_params,expected_status",
         [
@@ -313,6 +600,185 @@ class TestTransformEndpoint:
         assert response.status_code == expected_status
 
 
+    def test_add_column_persists_metadata(self, client, uploaded_project):
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "addCol",
+                "add_col_params": {
+                    "index": 3,
+                    "name": "new_column",
+                },
+            },
+        )
+
+        assert response.status_code == 200
+
+        response = client.get(f"/projects/get/{uploaded_project}")
+
+        assert response.status_code == 200
+        assert response.json()["dtypes"]["new_column"] == "str"
+
+
+    def test_delete_column_removes_metadata(self, client, uploaded_project):
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "addCol",
+                "add_col_params": {
+                    "index": 3,
+                    "name": "new_column",
+                },
+            },
+        )
+
+        assert response.status_code == 200
+
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "delCol",
+                "del_col_params": {
+                    "index": 3,
+                },
+            },
+        )
+
+        assert response.status_code == 200
+
+        response = client.get(f"/projects/get/{uploaded_project}")
+
+        assert response.status_code == 200
+        assert "new_column" not in response.json()["dtypes"]
+
+
+    def test_rename_column_moves_metadata(
+        self,
+        client,
+        uploaded_project,
+    ):
+        response = client.get(f"/projects/get/{uploaded_project}")
+
+        assert response.status_code == 200
+
+        original_dtypes = response.json()["dtypes"]
+        original_name = list(original_dtypes.keys())[0]
+        original_dtype = original_dtypes[original_name]
+
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "renameCol",
+                "rename_col_params": {
+                    "col_index": 0,
+                    "new_name": "renamed_column",
+                },
+            },
+        )
+
+        assert response.status_code == 200
+
+        response = client.get(f"/projects/get/{uploaded_project}")
+
+        assert response.status_code == 200
+        assert response.json()["dtypes"]["renamed_column"] == original_dtype
+        assert original_name not in response.json()["dtypes"]
+
+
+    def test_revert_to_checkpoint_restores_column_metadata(
+        self,
+        client,
+        uploaded_project,
+        db,
+    ):
+        # Add a new column.
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "addCol",
+                "add_col_params": {
+                    "index": 3,
+                    "name": "new",
+                },
+            },
+        )
+        assert response.status_code == 200
+
+        # Cast it to string.
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "castDataType",
+                "cast_data_type_params": {
+                    "column": "new",
+                    "target_type": "string",
+                },
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["dtypes"]["new"] == "str"
+
+        # Save the current state as a checkpoint.
+        response = client.post(
+            f"/projects/{uploaded_project}/save",
+            params={"commit_message": "String column checkpoint"},
+        )
+        assert response.status_code == 200
+
+        checkpoint = (
+            db.query(models.Checkpoint)
+            .filter(
+                models.Checkpoint.project_id == uuid.UUID(uploaded_project),
+            )
+            .order_by(models.Checkpoint.created_at.desc())
+            .first()
+        )
+
+        assert checkpoint is not None
+
+        # Change the column after the checkpoint.
+        response = client.post(
+            f"/projects/{uploaded_project}/transform",
+            json={
+                "operation_type": "castDataType",
+                "cast_data_type_params": {
+                    "column": "new",
+                    "target_type": "integer",
+                },
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["dtypes"]["new"] == "int"
+
+        # Revert to the saved checkpoint.
+        response = client.post(
+            f"/projects/{uploaded_project}/revert",
+            params={"checkpoint_id": str(checkpoint.id)},
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+
+        assert "new" in data["columns"]
+        assert data["dtypes"]["new"] == "str"
+
+        # Verify the persisted metadata, not only the API response.
+        metadata = (
+            db.query(models.ProjectColumnMetadata)
+            .filter(
+                models.ProjectColumnMetadata.project_id
+                == uuid.UUID(uploaded_project),
+            )
+            .all()
+        )
+
+        metadata_by_column = {
+            item.column_name: item.column_dtype
+            for item in metadata
+        }
+
+        assert metadata_by_column["new"] == "str"
+
 # --- Project Endpoint Integration Tests ---
 
 
@@ -326,6 +792,30 @@ class TestProjectEndpoints:
             )
         assert response.status_code == 200
         return response.json()["project_id"]
+
+    def test_upload_persists_column_metadata(self, client, sample_csv, db):
+        from app.models import ProjectColumnMetadata
+
+        project_id = uuid.UUID(
+            self._upload_project(client, sample_csv, name="Metadata Test")
+        )
+
+        metadata = (
+            db.query(ProjectColumnMetadata)
+            .filter(ProjectColumnMetadata.project_id == project_id)
+            .all()
+        )
+
+        metadata_by_column = {
+            item.column_name: item.column_dtype
+            for item in metadata
+        }
+
+        assert metadata_by_column == {
+            "name": "str",
+            "age": "int",
+            "city": "str",
+        }
 
     def test_recent_projects_returns_list(self, client, sample_csv, db):
         project_id = self._upload_project(client, sample_csv, name="Recent Test")
