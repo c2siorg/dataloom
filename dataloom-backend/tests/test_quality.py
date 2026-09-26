@@ -144,6 +144,45 @@ class TestValidatePatterns:
         with pytest.raises(ValueError, match="budget"):
             qs.validate_patterns(df, [{"column": "a", "pattern": r"(a|a)+b"}])
 
+    def test_skips_missing_values_before_regex_mapping(self, monkeypatch):
+        real_compile = qs.regex.compile
+        evaluated_values = []
+
+        class SpyPattern:
+            def __init__(self, pattern):
+                self._pattern = pattern
+
+            def fullmatch(self, value, timeout=None):
+                evaluated_values.append(value)
+                return self._pattern.fullmatch(value, timeout=timeout)
+
+        def compile(pattern):
+            return SpyPattern(real_compile(pattern))
+
+        monkeypatch.setattr(qs.regex, "compile", compile)
+
+        df = pd.DataFrame(
+            {
+                "sku": [
+                    None,
+                    "N/A",
+                    "bad",
+                    "12",
+                    "34",
+                ]
+            }
+        )
+
+        issues = qs.validate_patterns(
+            df,
+            [{"column": "sku", "pattern": r"\d+"}],
+        )
+
+        assert evaluated_values == ["bad", "12", "34"]
+        assert len(issues) == 1
+        assert issues[0]["count"] == 1
+        assert issues[0]["sample_rows"] == [2]
+
 
 class TestDetectInconsistentFormats:
     def test_whitespace(self):

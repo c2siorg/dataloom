@@ -306,7 +306,13 @@ def validate_patterns(df: pd.DataFrame, rules: list[dict[str, Any]]) -> list[dic
 
         series = _coerce_sentinels(df[column])
         try:
-            mask = series.notna() & series.map(_fails)
+            non_missing = series.notna()
+            mask = pd.Series(False, index=series.index, dtype=bool)
+
+            if non_missing.any():
+                valid_values = series.loc[non_missing]
+                failures = valid_values.map(_fails)
+                mask.loc[non_missing] = failures.to_numpy()
         except TimeoutError:
             raise ValueError(
                 f"Pattern rules exceeded the {PATTERN_TIME_BUDGET_SECONDS:g}s evaluation budget "
