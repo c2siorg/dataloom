@@ -14,7 +14,7 @@ import pandas as pd
 from app.schemas import FillStrategy, MeltParams, OperationType
 from app.services.append_service import append_dataframes
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import read_table_safe
+from app.utils.pandas_helpers import map_dtype, read_table_safe
 from app.utils.security import prepare_formula_expression, validate_query_string
 
 logger = get_logger(__name__)
@@ -1190,6 +1190,100 @@ def operation_summary(action_type: str, action_details: dict, max_length: int = 
     summary = ", ".join(parts)
     return summary if len(summary) <= max_length else summary[: max_length - 1] + "…"
 
+def apply_metadata_transformation(
+    metadata: dict[str, str],
+    action_type: str,
+    action_details: dict,
+    df_before: pd.DataFrame,
+    df_after: pd.DataFrame,
+) -> dict[str, str]:
+    """Replay a transformation against persisted column metadata.
+
+    Args:
+        metadata: Current project column metadata mapping.
+        action_type: Transformation operation type.
+        action_details: Serialized transformation parameters.
+        df_before: DataFrame state before the transformation.
+        df_after: DataFrame state after the transformation.
+
+    Returns:
+        A new metadata mapping representing the state after the transformation.
+
+    Raises:
+        TransformationError: If an index-based column operation refers to an
+            invalid column.
+    """
+    result = metadata.copy()
+
+    # Preserve semantic metadata for columns that survive the transformation.
+    # Infer metadata only for genuinely new columns.
+    surviving_columns = set(df_after.columns)
+
+    result = {
+        column_name: column_dtype
+        for column_name, column_dtype in result.items()
+        if column_name in surviving_columns
+    }
+
+    for column_name in df_after.columns:
+        if column_name not in result:
+            result[column_name] = map_dtype(df_after[column_name].dtype)
+
+    if action_type == OperationType.addCol:
+        params = _col_params(action_details, "add_col_params")
+        result[params["name"]] = "str"
+
+    elif action_type == OperationType.delCol:
+        params = _col_params(action_details, "del_col_params")
+        index = params["index"]
+
+        if index < 0 or index >= len(df_before.columns):
+            raise TransformationError(
+                f"Column index {index} out of range "
+                f"(0-{len(df_before.columns) - 1})"
+            )
+
+        column_name = df_before.columns[index]
+        result.pop(column_name, None)
+
+    elif action_type == OperationType.renameCol:
+        params = action_details["rename_col_params"]
+        index = params["col_index"]
+        new_name = params["new_name"]
+
+        if index < 0 or index >= len(df_before.columns):
+            raise TransformationError(
+                f"Column index {index} is out of range "
+                f"(DataFrame has {len(df_before.columns)} columns)."
+            )
+
+        old_name = df_before.columns[index]
+
+        if old_name in result:
+            result[new_name] = result.pop(old_name)
+
+    elif action_type == OperationType.castDataType:
+        params = action_details["cast_data_type_params"]
+        column = params["column"]
+        target_type = params["target_type"]
+
+        dtype_mapping = {
+            "string": "str",
+            "integer": "int",
+            "float": "float",
+            "boolean": "bool",
+            "datetime": "datetime",
+        }
+
+        if target_type not in dtype_mapping:
+            raise TransformationError(
+                f"Unsupported target type: {target_type}"
+            )
+
+        if column in result:
+            result[column] = dtype_mapping[target_type]
+
+    return result
 
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
     """Replay a logged transformation from its serialized form.

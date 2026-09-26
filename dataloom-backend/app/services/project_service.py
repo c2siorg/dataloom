@@ -13,7 +13,7 @@ from sqlmodel import Session
 from app import models
 from app.services import report_service, transformation_service
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import save_table_safe
+from app.utils.pandas_helpers import map_dtype, save_table_safe
 
 logger = get_logger(__name__)
 
@@ -44,6 +44,22 @@ def create_project(
     logger.info("Created project: id=%s, name=%s", project.project_id, name)
     return project
 
+
+def create_project_column_metadata(
+    db: Session,
+    project_id: uuid.UUID,
+    df: pd.DataFrame,
+) -> None:
+    """Persist the initial semantic dtype for every project column."""
+    for column_name, dtype in df.dtypes.items():
+        db.add(
+            models.ProjectColumnMetadata(
+                project_id=project_id,
+                column_name=column_name,
+                column_dtype=map_dtype(dtype),
+            )
+        )
+    db.commit()
 
 def create_project_file(
     db: Session,
@@ -91,6 +107,117 @@ def get_project_files(db: Session, project_id: uuid.UUID) -> list[models.Project
         .all()
     )
 
+def get_project_column_metadata(
+    db: Session,
+    project_id: uuid.UUID,
+) -> dict[str, str]:
+    """Fetch persisted semantic dtypes for a project's columns."""
+    metadata = (
+        db.query(models.ProjectColumnMetadata)
+        .filter(models.ProjectColumnMetadata.project_id == project_id)
+        .all()
+    )
+
+    return {
+        item.column_name: item.column_dtype
+        for item in metadata
+    }
+
+def delete_project_column_metadata(
+    db: Session,
+    project_id: uuid.UUID,
+    column_name: str,
+) -> None:
+    """Delete persisted metadata for one project column."""
+    db.query(models.ProjectColumnMetadata).filter(
+        models.ProjectColumnMetadata.project_id == project_id,
+        models.ProjectColumnMetadata.column_name == column_name,
+    ).delete(synchronize_session=False)
+
+
+def rename_project_column_metadata(
+    db: Session,
+    project_id: uuid.UUID,
+    old_name: str,
+    new_name: str,
+) -> None:
+    """Move persisted metadata from one column name to another."""
+    metadata = (
+        db.query(models.ProjectColumnMetadata)
+        .filter(
+            models.ProjectColumnMetadata.project_id == project_id,
+            models.ProjectColumnMetadata.column_name == old_name,
+        )
+        .first()
+    )
+
+    if metadata is not None:
+        metadata.column_name = new_name
+
+
+def update_project_column_metadata(
+    db: Session,
+    project_id: uuid.UUID,
+    column_name: str,
+    column_dtype: str,
+) -> None:
+    """Update the persisted semantic dtype for one project column."""
+    metadata = (
+        db.query(models.ProjectColumnMetadata)
+        .filter(
+            models.ProjectColumnMetadata.project_id == project_id,
+            models.ProjectColumnMetadata.column_name == column_name,
+        )
+        .first()
+    )
+
+    if metadata is None:
+        db.add(
+            models.ProjectColumnMetadata(
+                project_id=project_id,
+                column_name=column_name,
+                column_dtype=column_dtype,
+            )
+        )
+    else:
+        metadata.column_dtype = column_dtype
+
+    db.flush()
+
+def reconstruct_project_state(
+    original_path: str,
+    logs: Sequence[models.ProjectChangeLog],
+) -> tuple[pd.DataFrame, dict[str, str]]:
+    """Rebuild a project's DataFrame and column metadata from its original file.
+
+    DataFrame transformations and metadata transformations are replayed in the
+    same order so the two representations remain synchronized.
+    """
+    from app.utils.pandas_helpers import read_table_safe
+
+    df = read_table_safe(original_path)
+
+    metadata = {
+        column_name: map_dtype(dtype)
+        for column_name, dtype in df.dtypes.items()
+    }
+
+    for log in logs:
+        df_before = df
+        df = transformation_service.apply_logged_transformation(
+            df,
+            log.action_type,
+            log.action_details,
+        )
+        metadata = transformation_service.apply_metadata_transformation(
+            metadata,
+            log.action_type,
+            log.action_details,
+            df_before,
+            df,
+        )
+
+    return df, metadata
 
 def get_project_file(db: Session, file_id: uuid.UUID, project_id: uuid.UUID) -> models.ProjectFile | None:
     """Fetch a single inventory file scoped to a project.
@@ -256,6 +383,7 @@ def log_transformations_or_restore(
     try:
         log_transformations(db, project_id, entries)
     except Exception:
+        db.rollback()
         try:
             save_table_safe(original_df, file_path)
         except Exception:

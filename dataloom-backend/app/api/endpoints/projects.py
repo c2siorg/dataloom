@@ -23,6 +23,9 @@ from app.services.file_service import delete_project_files, get_original_path, s
 from app.services.project_service import (
     create_checkpoint,
     create_project,
+    create_project_column_metadata,
+    get_project_column_metadata,
+    reconstruct_project_state,
     delete_change_log,
     delete_project,
     get_last_change_log,
@@ -33,10 +36,19 @@ from app.services.project_service import (
     search_projects,
     update_project,
 )
-from app.services.transformation_service import apply_logged_transformation
+from app.services.transformation_service import (
+    apply_logged_transformation,
+    apply_metadata_transformation,
+)
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, save_table_safe
+from app.utils.pandas_helpers import (
+    dataframe_to_response,
+    map_dtype,
+    paginate_dataframe,
+    read_table_safe,
+    save_table_safe,
+)
 from app.utils.project_locks import project_read_lock, project_write_lock
 from app.utils.security import validate_upload_file
 
@@ -82,6 +94,8 @@ async def upload_project(
 
     project = create_project(db, projectName, str(copy_path), projectDescription, current_user.id)
 
+    create_project_column_metadata(db, project.project_id, df)
+
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
     return {
@@ -118,6 +132,7 @@ def list_projects(
 def get_project_details(
     page: int = 1,
     pageSize: int = 50,
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Fetch full project details including all rows and columns."""
@@ -131,7 +146,13 @@ def get_project_details(
     end = start + pageSize
     paginated_df = df.iloc[start:end]
 
+    dtypes = get_project_column_metadata(db, project.project_id)
+
     resp = dataframe_to_response(paginated_df)
+    resp["dtypes"] = {
+        column: dtypes.get(column, dtype)
+        for column, dtype in resp["dtypes"].items()
+    }
     return {
         "filename": project.name,
         "file_path": project.file_path,
@@ -257,6 +278,11 @@ def _revert_to_checkpoint(
     original_path = get_original_path(project.file_path)
     df = read_table_safe(original_path)
 
+    metadata = {
+        column_name: map_dtype(dtype)
+        for column_name, dtype in df.dtypes.items()
+    }
+
     if checkpoint_id is not None:
         checkpoint = (
             db.query(models.Checkpoint)
@@ -292,10 +318,37 @@ def _revert_to_checkpoint(
         )
 
         for log in logs:
-            df = apply_logged_transformation(df, log.action_type, log.action_details)
+            df_before = df
+
+            df = apply_logged_transformation(
+                df,
+                log.action_type,
+                log.action_details,
+            )
+
+            metadata = apply_metadata_transformation(
+                metadata,
+                log.action_type,
+                log.action_details,
+                df_before,
+                df,
+            )
 
     # Write file first — if this fails, DB is unchanged and state remains consistent.
     save_table_safe(df, project.file_path)
+
+    db.query(models.ProjectColumnMetadata).filter(
+        models.ProjectColumnMetadata.project_id == project_id,
+    ).delete(synchronize_session=False)
+
+    for column_name, column_dtype in metadata.items():
+        db.add(
+            models.ProjectColumnMetadata(
+                project_id=project_id,
+                column_name=column_name,
+                column_dtype=column_dtype,
+            )
+        )
     # Clear unapplied logs so a subsequent save cannot re-apply stale
     # transformations on top of the reverted file state.
     # Applies to all reverts (full and partial) to prevent stale log replay.
@@ -461,7 +514,6 @@ def _undo_last_transformation(
     delete_change_log(db, last_log)
 
     original_path = get_original_path(project.file_path)
-    df = read_table_safe(original_path)
 
     remaining_logs = (
         db.query(models.ProjectChangeLog)
@@ -470,10 +522,26 @@ def _undo_last_transformation(
         .all()
     )
 
-    for log in remaining_logs:
-        df = apply_logged_transformation(df, log.action_type, log.action_details)
+    df, metadata = reconstruct_project_state(
+        original_path,
+        remaining_logs,
+    )
 
     save_table_safe(df, project.file_path)
+
+    db.query(models.ProjectColumnMetadata).filter(
+        models.ProjectColumnMetadata.project_id == project_id,
+    ).delete(synchronize_session=False)
+
+    for column_name, column_dtype in metadata.items():
+        db.add(
+            models.ProjectColumnMetadata(
+                project_id=project_id,
+                column_name=column_name,
+                column_dtype=column_dtype,
+            )
+        )
+
     db.commit()
 
     response_df, pagination = paginate_dataframe(df, page, page_size)

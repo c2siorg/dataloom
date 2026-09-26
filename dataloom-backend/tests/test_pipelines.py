@@ -335,6 +335,69 @@ class TestAuthIsolation:
 class TestLogTransformationsOrRestore:
     """The shared compensating write used by both the transform and the apply path."""
 
+    def test_rolls_back_database_changes_when_logging_fails(
+        self,
+        db,
+        project_id,
+        monkeypatch,
+    ):
+        project = (
+            db.query(models.Project)
+            .filter(models.Project.project_id == uuid.UUID(project_id))
+            .first()
+        )
+
+        db.add(
+            models.ProjectColumnMetadata(
+                project_id=project.project_id,
+                column_name="new",
+                column_dtype="str",
+            )
+        )
+        db.commit()
+
+        original_df = read_table_safe(project.file_path)
+
+        # Simulate metadata being changed during the transformation.
+        metadata = (
+            db.query(models.ProjectColumnMetadata)
+            .filter(
+                models.ProjectColumnMetadata.project_id == project.project_id,
+                models.ProjectColumnMetadata.column_name == "new",
+            )
+            .first()
+        )
+        metadata.column_dtype = "int"
+        db.flush()
+
+        # Make the logging transaction fail.
+        def boom(*args, **kwargs):
+            raise RuntimeError("db log failure")
+
+        monkeypatch.setattr(project_service, "log_transformations", boom)
+
+        with pytest.raises(RuntimeError, match="db log failure"):
+            log_transformations_or_restore(
+                db,
+                project.project_id,
+                project.file_path,
+                original_df,
+                [("castDataType", {"column": "new", "target_type": "integer"})],
+            )
+
+        db.expire_all()
+
+        metadata = (
+            db.query(models.ProjectColumnMetadata)
+            .filter(
+                models.ProjectColumnMetadata.project_id == project.project_id,
+                models.ProjectColumnMetadata.column_name == "new",
+            )
+            .first()
+        )
+
+        assert metadata.column_dtype == "str"
+
     def test_logs_every_entry_in_order(self, db, project_id):
         project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
         df = read_table_safe(project.file_path)
