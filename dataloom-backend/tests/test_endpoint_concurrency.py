@@ -46,6 +46,7 @@ def test_blocking_routes_are_sync_def():
         projects.revert_to_checkpoint,
         projects.export_project,
         projects.undo_last_transformation,
+        projects.redo_last_transformation,
         transformations.transform_project,
         profiling.get_dataset_summary,
         profiling.get_column_profile,
@@ -105,8 +106,7 @@ def test_concurrent_transforms_for_same_project_do_not_lose_updates(monkeypatch)
 
     monkeypatch.setattr(transformations, "read_table_safe", _read)
     monkeypatch.setattr(transformations, "_dispatch_transform", _transform)
-    monkeypatch.setattr(transformations, "save_table_safe", _save)
-    monkeypatch.setattr(transformations, "log_transformations_or_restore", lambda *_args: None)
+    monkeypatch.setattr(transformations, "commit_undoable_change", lambda _db, _project, df, _entries: _save(df, None))
 
     def _call_transform():
         return transformations.transform_project(project_id, transformation_input, False, 1, 50, object(), project)
@@ -458,8 +458,7 @@ def _append_fixture(monkeypatch):
 
     monkeypatch.setattr(project_files, "read_project_df", _read_working_copy)
     monkeypatch.setattr(project_files, "read_table_safe", _read_stored)
-    monkeypatch.setattr(project_files, "save_table_safe", _save)
-    monkeypatch.setattr(project_files, "log_transformation", lambda *args, **kwargs: None)
+    monkeypatch.setattr(project_files, "commit_undoable_change", lambda _db, _project, df, _entries: _save(df, None))
     return project, state, first_read
 
 

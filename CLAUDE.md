@@ -65,13 +65,15 @@ app/utils/
   security.py            → Filename sanitization, upload validation, query injection prevention
   pandas_helpers.py      → Safe CSV I/O, DataFrame-to-response conversion
   df_cache.py            → Process-local LRU cache of parsed DataFrames, keyed on path/mtime/size
-app/models.py            → SQLModel ORM (Project, ProjectChangeLog, Checkpoint)
+app/models.py            → SQLModel ORM (Project, ProjectChangeLog, Checkpoint, UndoStep)
 app/schemas.py           → Pydantic request/response schemas + enums
 app/config.py            → Pydantic BaseSettings with @lru_cache (get_settings())
 app/database.py          → SQLModel engine + get_db session generator
 ```
 
 **Key pattern: original + working copy files.** Each upload creates two files: `{name}.csv` (original, never modified during transforms) and `{name}_copy.csv` (working copy). A transform called with `preview=true` reads the working copy and writes nothing; with `preview=false` it writes the working copy and appends a change log entry. The "save" operation creates a checkpoint from the working copy as it stands and marks pending logs applied, without replaying anything. The "revert" operation rebuilds the working copy from the original, replaying logged transformations up to the chosen checkpoint, or restoring the bare original when no checkpoint is given.
+
+**Undo and redo use snapshots, not replay.** Every logged write (a transform, a whole pipeline Run, a file append) goes through `project_service.commit_undoable_change`: it byte-copies the working copy to `{upload_dir}/snapshots/{project_id}/` first, then writes, logs, and records one `UndoStep` whose change-log rows carry its `undo_step_id`. Undo restores that snapshot atomically (temp file + `os.replace`) and deletes the step's rows; redo restores the snapshot taken at undo time and re-inserts the rows from `UndoStep.entries`. Undo/redo cover unsaved work only — Save and Revert clear them — and a new logged change clears redo. Past `undo_snapshot_limit` (default 20; `0` disables) and for rows logged before undo steps existed, undo falls back to replaying the change log from the original. Snapshot files are deleted only after the commit that stops referencing them.
 
 **Preview before persist.** A preview lives only in frontend state, so a reload (`GET /projects/get/{id}`) and a CSV export both read the working copy and an unsaved preview is discarded. Apply issues `preview=true`; Save Changes reissues the same payload with `preview=false`, and that second call is the one that persists.
 
@@ -119,6 +121,9 @@ src/Components/          → NOTE: uppercase "C" in directory name
 | POST | /projects/{id}/save | Save checkpoint |
 | POST | /projects/{id}/revert | Revert to checkpoint |
 | POST | /projects/{id}/transform | Apply transform (basic or complex) |
+| POST | /projects/{id}/undo | Undo the last unsaved action (404 when nothing is unsaved) |
+| POST | /projects/{id}/redo | Redo the last undone action (404 when nothing to redo) |
+| GET | /projects/{id}/undo-state | `{can_undo, can_redo}` for enabling the buttons |
 | GET | /logs/{project_id} | Change logs for project |
 | GET | /logs/checkpoints/{project_id} | Checkpoint list for project |
 
@@ -129,6 +134,7 @@ The single `/transform` endpoint dispatches to basic or complex handlers based o
 - **Project** → `projects` table: id, name, description, file_path, timestamps
 - **ProjectChangeLog** → `user_logs` table: logged transformations with `applied` flag and optional `checkpoint_id`
 - **Checkpoint** → `checkpoints` table: save points that mark sets of applied transformations
+- **UndoStep** → `undo_steps` table: one user action's unsaved work (`done` or `undone`), its log entries, and its before/after snapshot paths; `user_logs.undo_step_id` links rows to it
 
 ## Conventions
 

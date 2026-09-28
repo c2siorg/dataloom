@@ -15,14 +15,13 @@ from sqlmodel import Session
 
 from app import models
 from app.schemas import PipelineCompatibilityResponse, PipelineStepInput
-from app.services.project_service import log_transformations_or_restore
+from app.services.project_service import commit_undoable_change
 from app.services.transformation_service import (
     TRANSFORMATION_REGISTRY,
     TransformationError,
     apply_logged_transformation,
 )
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import save_table_safe
 from app.utils.security import safe_transformation_error_detail
 
 logger = get_logger(__name__)
@@ -180,10 +179,11 @@ def apply_pipeline_to_project(
 ) -> pd.DataFrame:
     """Replay a pipeline onto a project's working copy and log every step.
 
-    Logging each step as a change-log row is what keeps save, undo and
-    checkpoint replay working on a pipeline run exactly as on a manual
-    transform. The caller supplies the loaded DataFrame so the file is read
-    through the endpoint layer's redacting reader.
+    Logging each step as a change-log row is what keeps save and checkpoint
+    replay working on a pipeline run exactly as on a manual transform. The
+    rows are logged as one undo step, so a single Undo reverses the whole Run.
+    The caller supplies the loaded DataFrame so the file is read through the
+    endpoint layer's redacting reader.
 
     Args:
         db: Database session.
@@ -199,6 +199,5 @@ def apply_pipeline_to_project(
     """
     steps = pipeline_steps(pipeline)
     result_df = apply_pipeline(df, steps)
-    save_table_safe(result_df, project.file_path)
-    log_transformations_or_restore(db, project.project_id, project.file_path, df, steps)
+    commit_undoable_change(db, project, result_df, steps)
     return result_df

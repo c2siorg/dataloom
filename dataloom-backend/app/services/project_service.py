@@ -11,7 +11,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app import models
+from app.config import get_settings
 from app.services import report_service, transformation_service
+from app.services.file_service import restore_snapshot, take_snapshot, unlink_snapshots
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import save_table_safe
 
@@ -136,8 +138,9 @@ def get_recent_projects(db: Session, owner_id: uuid.UUID, limit: int = 3) -> lis
 def delete_project(db: Session, project: models.Project) -> None:
     """Delete a project record from the database.
 
-    Associated logs are deleted before checkpoints because applied logs can
-    reference checkpoints directly.
+    Associated logs are deleted before checkpoints and undo steps because logs
+    can reference both directly. Snapshot files are the caller's to remove,
+    after this commits.
 
     Args:
         db: Database session.
@@ -151,6 +154,9 @@ def delete_project(db: Session, project: models.Project) -> None:
             db.query(models.ProjectChangeLog)
             .filter(models.ProjectChangeLog.project_id == project_id)
             .delete(synchronize_session=False)
+        )
+        deleted_steps = (
+            db.query(models.UndoStep).filter(models.UndoStep.project_id == project_id).delete(synchronize_session=False)
         )
         deleted_checkpoints = (
             db.query(models.Checkpoint)
@@ -175,39 +181,57 @@ def delete_project(db: Session, project: models.Project) -> None:
         logger.warning("Project delete matched no project row: id=%s, name=%s", project_id, project_name)
 
     logger.info(
-        "Deleted project: id=%s, name=%s, projects=%d, logs=%d, checkpoints=%d, files=%d",
+        "Deleted project: id=%s, name=%s, projects=%d, logs=%d, undo_steps=%d, checkpoints=%d, files=%d",
         project_id,
         project_name,
         deleted_projects,
         deleted_logs,
+        deleted_steps,
         deleted_checkpoints,
         deleted_files,
     )
 
 
-def log_transformations(db: Session, project_id: uuid.UUID, entries: Sequence[tuple[str, dict]]) -> None:
-    """Record transformation actions in the change log, in one commit.
-
-    A pipeline run logs a whole sequence at once, so the project is touched once
-    and the rows land together rather than one commit per step.
-
-    Args:
-        db: Database session.
-        project_id: The project that was transformed.
-        entries: The ``(operation_type, details)`` pairs to record, in order.
-    """
+def _add_log_rows(
+    db: Session,
+    project_id: uuid.UUID,
+    entries: Sequence[tuple[str, dict]],
+    undo_step_id: int | None = None,
+) -> None:
+    """Stage change-log rows for ``entries``, in order, without committing."""
     for operation_type, details in entries:
         db.add(
             models.ProjectChangeLog(
                 project_id=project_id,
                 action_type=operation_type,
                 action_details=details,
+                undo_step_id=undo_step_id,
             )
         )
+
+
+def _touch_project(db: Session, project_id: uuid.UUID) -> None:
+    """Stage a ``last_modified`` bump for the project, without committing."""
     project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
     if project:
         project.last_modified = datetime.now(UTC)
         db.add(project)
+
+
+def log_transformations(db: Session, project_id: uuid.UUID, entries: Sequence[tuple[str, dict]]) -> None:
+    """Record transformation actions in the change log, in one commit.
+
+    A pipeline run logs a whole sequence at once, so the project is touched once
+    and the rows land together rather than one commit per step. The rows belong
+    to no undo step; logged write paths go through :func:`commit_undoable_change`.
+
+    Args:
+        db: Database session.
+        project_id: The project that was transformed.
+        entries: The ``(operation_type, details)`` pairs to record, in order.
+    """
+    _add_log_rows(db, project_id, entries)
+    _touch_project(db, project_id)
     db.commit()
     logger.debug(
         "Logged transformations: project_id=%s, types=%s",
@@ -228,43 +252,238 @@ def log_transformation(db: Session, project_id: uuid.UUID, operation_type: str, 
     log_transformations(db, project_id, [(operation_type, details)])
 
 
-def log_transformations_or_restore(
+def commit_undoable_change(
     db: Session,
-    project_id: uuid.UUID,
-    file_path: str,
-    original_df: pd.DataFrame,
+    project: models.Project,
+    result_df: pd.DataFrame,
     entries: Sequence[tuple[str, dict]],
 ) -> None:
-    """Log transformation entries, restoring the file if logging fails.
+    """Write a transformed working copy and log it as one undo step.
 
-    A transform writes the file first and logs second. If logging fails, the file
-    is left transformed with no log — and save, undo and checkpoint replay all
-    read back from those entries. This compensates the disk mutation so the two
-    never drift apart. The entries commit together, so a failed run logs none of
-    them.
+    Every logged write path (a transform, a pipeline Run, a file append) comes
+    through here, so one user action is one undo step however many change-log
+    rows it produces. The working copy is snapshotted before it is written:
+    undo restores that snapshot instead of replaying the change log, and the
+    same snapshot compensates the write if logging fails, restoring the exact
+    bytes rather than re-serializing a DataFrame.
+
+    A new step discards the redo stack, and pre-change snapshots past
+    ``undo_snapshot_limit`` are evicted. Their files are deleted only after the
+    commit that stops referencing them succeeds, so a crash can orphan a file
+    but never delete one still in use.
+
+    Must run under the project's write lock.
 
     Args:
         db: Database session.
-        project_id: The project that was transformed.
-        file_path: The working copy that was just overwritten.
-        original_df: The data as it was before the transform, for the restore.
+        project: The project being changed.
+        result_df: The new data for the working copy.
         entries: The ``(action_type, action_details)`` pairs to log, in order.
 
     Raises:
-        Exception: Re-raises whatever logging failed with, after restoring.
+        Exception: Re-raises whatever the write or the commit failed with,
+            after putting the working copy back and rolling back.
+    """
+    project_id = project.project_id
+    working_path = project.file_path
+    before_path = take_snapshot(project_id, working_path)
+    try:
+        save_table_safe(result_df, working_path)
+        stale_paths = discard_redo_stack(db, project_id)
+        step = models.UndoStep(
+            project_id=project_id,
+            status=models.UNDO_STEP_DONE,
+            entries=[{"action_type": action_type, "action_details": details} for action_type, details in entries],
+            before_path=before_path,
+        )
+        db.add(step)
+        db.flush()
+        _add_log_rows(db, project_id, entries, undo_step_id=step.id)
+        _touch_project(db, project_id)
+        stale_paths += enforce_undo_retention(db, project_id)
+        db.commit()
+    except Exception:
+        restored = restore_after_failure(before_path, working_path, project_id)
+        db.rollback()
+        if restored:
+            unlink_snapshots([before_path])
+        raise
+    unlink_snapshots(stale_paths)
+
+
+def restore_after_failure(snapshot_path: str, working_path: str, project_id: uuid.UUID) -> bool:
+    """Put the working copy back from a snapshot after a failed change.
+
+    Called while another exception is propagating, so a failure here is logged
+    rather than raised, and the snapshot is left on disk: it is then the only
+    copy of the data the working copy should hold.
+
+    Args:
+        snapshot_path: The snapshot holding the pre-change bytes.
+        working_path: The project's working copy.
+        project_id: The project, for the log line.
+
+    Returns:
+        True if the working copy was restored.
     """
     try:
-        log_transformations(db, project_id, entries)
+        restore_snapshot(snapshot_path, working_path)
     except Exception:
-        try:
-            save_table_safe(original_df, file_path)
-        except Exception:
-            logger.exception(
-                "Failed to restore project file after log_transformation failure for project_id=%s ops=%s",
-                project_id,
-                [action_type for action_type, _ in entries],
-            )
-        raise
+        logger.exception("Failed to restore working copy from its snapshot: project_id=%s", project_id)
+        return False
+    return True
+
+
+def discard_redo_stack(db: Session, project_id: uuid.UUID) -> list[str]:
+    """Stage deletion of the project's undone steps; return their snapshot files.
+
+    Undone steps have no change-log rows (undo deleted them), so nothing
+    references them.
+    """
+    steps = (
+        db.query(models.UndoStep)
+        .filter(
+            models.UndoStep.project_id == project_id,
+            models.UndoStep.status == models.UNDO_STEP_UNDONE,
+        )
+        .all()
+    )
+    for step in steps:
+        db.delete(step)
+    return _snapshot_paths(steps)
+
+
+def _snapshot_paths(steps: Sequence[models.UndoStep]) -> list[str]:
+    return [path for step in steps for path in (step.before_path, step.after_path) if path]
+
+
+def enforce_undo_retention(db: Session, project_id: uuid.UUID) -> list[str]:
+    """Evict pre-change snapshots past ``undo_snapshot_limit``, oldest first.
+
+    Only done steps count: an undone step on the redo stack needs its snapshot
+    to redo safely. An evicted step stays undoable; undo falls back to replaying
+    the change log for it. Does not commit.
+
+    Args:
+        db: Database session.
+        project_id: The project to trim.
+
+    Returns:
+        The evicted snapshot files, to delete once the caller has committed.
+    """
+    limit = get_settings().undo_snapshot_limit
+    steps = (
+        db.query(models.UndoStep)
+        .filter(
+            models.UndoStep.project_id == project_id,
+            models.UndoStep.status == models.UNDO_STEP_DONE,
+            models.UndoStep.before_path.is_not(None),
+        )
+        .order_by(models.UndoStep.id.desc())
+        .all()
+    )
+    evicted = []
+    for step in steps[limit:]:
+        evicted.append(step.before_path)
+        step.before_path = None
+    return evicted
+
+
+def discard_undo_history(db: Session, project_id: uuid.UUID) -> list[str]:
+    """Stage deletion of every undo step for a project; return their snapshot files.
+
+    Save and Revert end the unsaved stretch that undo and redo cover. Change-log
+    rows are unlinked explicitly rather than through the FK's ``SET NULL``, which
+    SQLite does not enforce. Does not commit; the caller's commit covers it.
+
+    Args:
+        db: Database session.
+        project_id: The project whose undo history to clear.
+
+    Returns:
+        The snapshot files to delete once the caller has committed.
+    """
+    steps = db.query(models.UndoStep).filter(models.UndoStep.project_id == project_id).all()
+    if not steps:
+        return []
+    db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.undo_step_id.is_not(None),
+    ).update({"undo_step_id": None}, synchronize_session=False)
+    for step in steps:
+        db.delete(step)
+    db.flush()
+    return _snapshot_paths(steps)
+
+
+def get_undo_state(db: Session, project_id: uuid.UUID) -> dict[str, bool]:
+    """Report whether Undo and Redo currently have anything to act on.
+
+    Args:
+        db: Database session.
+        project_id: The project to query.
+
+    Returns:
+        ``{"can_undo", "can_redo"}``: an unsaved change-log row exists, and an
+        undone step exists.
+    """
+    can_undo = (
+        db.query(models.ProjectChangeLog.change_log_id)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            models.ProjectChangeLog.applied.is_(False),
+        )
+        .first()
+        is not None
+    )
+    can_redo = get_redo_step(db, project_id) is not None
+    return {"can_undo": can_undo, "can_redo": can_redo}
+
+
+def get_redo_step(db: Session, project_id: uuid.UUID) -> models.UndoStep | None:
+    """Return the step Redo would restore: the most recently undone one."""
+    return (
+        db.query(models.UndoStep)
+        .filter(
+            models.UndoStep.project_id == project_id,
+            models.UndoStep.status == models.UNDO_STEP_UNDONE,
+        )
+        .order_by(models.UndoStep.undone_seq.desc())
+        .first()
+    )
+
+
+def mark_step_undone(db: Session, step: models.UndoStep, after_path: str) -> None:
+    """Stage moving a step onto the top of the redo stack, without committing.
+
+    Deletes the step's change-log rows (undone work is not applied work) and
+    records the snapshot redo will restore.
+    """
+    # "fetch" also drops the deleted rows from the session, so the caller's
+    # handle on the row it just undid cannot be flushed back.
+    db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.undo_step_id == step.id).delete(
+        synchronize_session="fetch"
+    )
+    top = (
+        db.query(sa.func.max(models.UndoStep.undone_seq)).filter(models.UndoStep.project_id == step.project_id).scalar()
+    )
+    step.status = models.UNDO_STEP_UNDONE
+    step.after_path = after_path
+    step.undone_seq = (top or 0) + 1
+    _touch_project(db, step.project_id)
+
+
+def mark_step_redone(db: Session, step: models.UndoStep) -> None:
+    """Stage re-applying a step, without committing.
+
+    Re-inserts its change-log rows in their original order, as unsaved rows.
+    """
+    entries = [(entry["action_type"], entry["action_details"]) for entry in step.entries]
+    _add_log_rows(db, step.project_id, entries, undo_step_id=step.id)
+    step.status = models.UNDO_STEP_DONE
+    step.after_path = None
+    step.undone_seq = None
+    _touch_project(db, step.project_id)
 
 
 def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> models.Checkpoint:
@@ -329,19 +548,26 @@ def get_checkpoints(db: Session, project_id: uuid.UUID) -> list[models.Checkpoin
     )
 
 
-def get_last_change_log(db: Session, project_id: uuid.UUID) -> models.ProjectChangeLog | None:
-    """Get the most recent change log entry for a project.
+def get_last_pending_change_log(db: Session, project_id: uuid.UUID) -> models.ProjectChangeLog | None:
+    """Get the most recent unsaved change log entry for a project — the one Undo reverses.
+
+    Saved entries are skipped: they belong to a checkpoint, and undoing one
+    would change what reverting to that checkpoint restores. Ordered by
+    ``change_log_id`` because every row of a pipeline Run shares one timestamp.
 
     Args:
         db: Database session.
         project_id: The project to query.
 
     Returns:
-        The most recent ProjectChangeLog entry, or None if no logs exist.
+        The newest entry with ``applied == False``, or None if there is none.
     """
     return (
         db.query(models.ProjectChangeLog)
-        .filter(models.ProjectChangeLog.project_id == project_id)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            models.ProjectChangeLog.applied.is_(False),
+        )
         .order_by(models.ProjectChangeLog.change_log_id.desc())
         .first()
     )

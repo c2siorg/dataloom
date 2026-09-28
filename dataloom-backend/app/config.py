@@ -6,6 +6,7 @@ Provides a cached get_settings() function for efficient access throughout the ap
 
 from functools import lru_cache
 
+from pydantic import NonNegativeInt
 from pydantic_settings import BaseSettings
 
 
@@ -31,6 +32,9 @@ class Settings(BaseSettings):
         df_cache_enabled: Whether parsed DataFrames are cached in-process.
         df_cache_max_bytes: Maximum total resident size of cached DataFrames.
         df_cache_max_entries: Maximum number of cached DataFrames.
+        undo_snapshot_limit: Maximum number of pre-change snapshots kept per
+            project for undo. Older steps fall back to replaying the change log;
+            0 turns snapshots off entirely (redo still works).
     """
 
     database_url: str
@@ -59,6 +63,7 @@ class Settings(BaseSettings):
     df_cache_enabled: bool = True
     df_cache_max_bytes: int = 268435456
     df_cache_max_entries: int = 16
+    undo_snapshot_limit: NonNegativeInt = 20
 
     model_config = {
         "env_file": ".env",

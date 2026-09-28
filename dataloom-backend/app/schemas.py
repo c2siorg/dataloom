@@ -412,6 +412,13 @@ class ProjectResponse(BaseModel):
     dtypes: dict[str, str] = {}
 
 
+class UndoStateResponse(BaseModel):
+    """Whether Undo and Redo have anything to act on, so the UI can disable them."""
+
+    can_undo: bool
+    can_redo: bool
+
+
 # --- Add-file (append) schemas ---
 
 

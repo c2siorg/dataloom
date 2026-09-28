@@ -3,14 +3,15 @@ import InputDialog from "./common/InputDialog";
 import ExportModal from "./ExportModal";
 import Toast from "./common/Toast";
 import { saveProject } from "../api/projects";
-import { undoLastTransformation } from "../api/transforms";
-import { LuSave, LuDownload, LuUndo2, LuColumns3 } from "react-icons/lu";
+import { redoLastTransformation, undoLastTransformation } from "../api/transforms";
+import { LuSave, LuDownload, LuUndo2, LuRedo2, LuColumns3 } from "react-icons/lu";
 import { useProjectContext } from "../context/ProjectContext";
 import { usePanel } from "../context/PanelContext";
 import { useWorkspaceTabs } from "../context/WorkspaceTabsContext";
 import { useHistoryRefresh } from "../context/HistoryRefreshContext";
 import { useColumnProfilesView } from "../context/ColumnProfilesContext";
 import { useColumnProfilesAction } from "./workspace/useProfilingMenu";
+import { useUndoState } from "../hooks/useUndoState";
 import { getFeatureMenu } from "./workspace/featureRegistry";
 import type { ToastType } from "./common/Toast";
 import type { IconType } from "react-icons";
@@ -64,6 +65,7 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
   const { openTab, activeTabId } = useWorkspaceTabs();
   const { refreshLogs, refreshCheckpoints } = useHistoryRefresh();
   const { showColumnProfiles } = useColumnProfilesView();
+  const undoState = useUndoState(projectId);
 
   const handleMouseEnter = (e: { currentTarget: Element }, hoverText?: string) => {
     if (!hoverText) return;
@@ -128,7 +130,28 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
     }
   };
 
+  const handleRedo = async () => {
+    try {
+      const response = await redoLastTransformation(projectId, page, pageSize);
+      closePanel();
+      updateData(response.columns, response.rows, { resetColumnOrder: false });
+      setPaginationData(response);
+      // Redo re-inserts the undone log entries.
+      refreshLogs();
+      setToast({ message: "Last transformation redone!", type: "success" });
+    } catch (error) {
+      if ((error as { response?: { status?: number } })?.response?.status === 404) {
+        setToast({ message: "Nothing to redo.", type: "error" });
+      } else {
+        setToast({ message: "Failed to redo transformation.", type: "error" });
+      }
+    }
+  };
+
   const inPreview = isPreviewMode;
+  // Unknown (null) until the first fetch lands, which leaves both enabled.
+  const nothingToUndo = undoState?.can_undo === false;
+  const nothingToRedo = undoState?.can_redo === false;
 
   // Core ribbon items — the ones that need component-local state/handlers and so
   // can't be declared as (declarative) feature menu items.
@@ -164,10 +187,22 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
       label: "Undo",
       icon: LuUndo2,
       onClick: handleUndo,
-      disabled: inPreview,
+      disabled: inPreview || nothingToUndo,
       hover: inPreview
         ? "Undo is unavailable while previewing a transformation."
         : "Undo the last transformation.",
+    },
+    {
+      ribbon: "File",
+      group: "Save",
+      order: 4,
+      label: "Redo",
+      icon: LuRedo2,
+      onClick: handleRedo,
+      disabled: inPreview || nothingToRedo,
+      hover: inPreview
+        ? "Redo is unavailable while previewing a transformation."
+        : "Redo the last undone transformation.",
     },
     {
       ribbon: "Profiling",

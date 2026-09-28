@@ -18,8 +18,19 @@ export {
 export type { ExportOptions, ExportResult } from "./projects";
 export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
 export type { Checkpoint, LogEntry } from "./logs";
-export { transformProject, groupByTransform, undoLastTransformation } from "./transforms";
-export type { TransformationInput, TransformOptions, TransformResult } from "./transforms";
+export {
+  transformProject,
+  groupByTransform,
+  undoLastTransformation,
+  redoLastTransformation,
+  getUndoState,
+} from "./transforms";
+export type {
+  TransformationInput,
+  TransformOptions,
+  TransformResult,
+  UndoState,
+} from "./transforms";
 export type { CellValue, Pagination, ProjectDetails, ProjectSummary, TableResponse } from "./types";
 export { signup, signin, logout, getCurrentUser } from "./auth";
 export {

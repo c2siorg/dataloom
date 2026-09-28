@@ -291,7 +291,7 @@ def test_transform_returns_500_on_unexpected_exception(client, project_id, monke
 
 
 def test_transform_returns_500_on_unexpected_exception_during_persistence(client, project_id, monkeypatch):
-    from app.api.endpoints import transformations as transformations_endpoint
+    from app.services import project_service
 
     calls = []
 
@@ -300,7 +300,7 @@ def test_transform_returns_500_on_unexpected_exception_during_persistence(client
         raise RuntimeError("disk error")
 
     # This path runs only for mutating operations (should_save=True).
-    monkeypatch.setattr(transformations_endpoint, "save_table_safe", boom)
+    monkeypatch.setattr(project_service, "save_table_safe", boom)
 
     response = client.post(
         f"/projects/{project_id}/transform",
@@ -325,7 +325,7 @@ def test_transform_reverts_file_if_log_transformation_fails(client, project, mon
     def boom(*args, **kwargs):
         raise RuntimeError("db log failure")
 
-    monkeypatch.setattr(project_service, "log_transformations", boom)
+    monkeypatch.setattr(project_service, "_add_log_rows", boom)
 
     response = client.post(
         f"/projects/{project_id}/transform",
