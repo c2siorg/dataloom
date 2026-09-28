@@ -69,9 +69,22 @@ export const groupByTransform = async (
   return response.data;
 };
 
+/** Backend `UndoStateResponse` — whether Undo and Redo have anything to act on. */
+export interface UndoState {
+  can_undo: boolean;
+  can_redo: boolean;
+}
+
+const pageParams = (page?: number, pageSize?: number): string => {
+  const params = new URLSearchParams();
+  if (page !== undefined) params.append("page", String(page));
+  if (pageSize !== undefined) params.append("page_size", String(pageSize));
+  return params.toString();
+};
+
 /**
- * Undo the most recent transformation for a project.
- * Removes the last log entry and rebuilds data from original + remaining logs.
+ * Undo the most recent unsaved action for a project (a transform, a whole
+ * pipeline run, or a file append). Rejects with 404 when nothing is unsaved.
  * @param projectId - The project ID.
  * @param page - Current page.
  * @param pageSize - Elements per page.
@@ -82,10 +95,33 @@ export const undoLastTransformation = async (
   page?: number,
   pageSize?: number,
 ): Promise<ProjectDetails> => {
-  const params = new URLSearchParams();
-  if (page !== undefined) params.append("page", String(page));
-  if (pageSize !== undefined) params.append("page_size", String(pageSize));
+  const response = await client.post(`/projects/${projectId}/undo?${pageParams(page, pageSize)}`);
+  return response.data;
+};
 
-  const response = await client.post(`/projects/${projectId}/undo?${params.toString()}`);
+/**
+ * Redo the most recently undone action for a project. Rejects with 404 when
+ * there is nothing to redo.
+ * @param projectId - The project ID.
+ * @param page - Current page.
+ * @param pageSize - Elements per page.
+ * @returns Updated project data with rows and columns.
+ */
+export const redoLastTransformation = async (
+  projectId: string,
+  page?: number,
+  pageSize?: number,
+): Promise<ProjectDetails> => {
+  const response = await client.post(`/projects/${projectId}/redo?${pageParams(page, pageSize)}`);
+  return response.data;
+};
+
+/**
+ * Fetch whether Undo and Redo currently have anything to act on.
+ * @param projectId - The project ID.
+ * @returns `{ can_undo, can_redo }`.
+ */
+export const getUndoState = async (projectId: string): Promise<UndoState> => {
+  const response = await client.get(`/projects/${projectId}/undo-state`);
   return response.data;
 };

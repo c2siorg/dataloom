@@ -1,6 +1,10 @@
 """File storage and management service for dataset uploads."""
 
+import os
 import shutil
+import tempfile
+import uuid
+from collections.abc import Iterable
 from pathlib import Path
 
 from app.config import get_settings
@@ -149,3 +153,118 @@ def delete_project_files(copy_path: str) -> None:
             logger.warning("File already missing: %s", path)
         finally:
             df_cache.invalidate(path)
+
+
+# --- Undo snapshots ---
+#
+# A snapshot is a byte copy of a project's working copy, taken so undo and redo
+# can put the file back exactly as it was instead of rebuilding it. Byte copies
+# are exact and format-agnostic: they never re-serialize a DataFrame, so they
+# cannot drift from what the user last saw. They are copies rather than hard
+# links because the format writers truncate the working copy in place, which
+# would rewrite a linked snapshot too.
+
+
+def _snapshot_dir(project_id: uuid.UUID) -> Path:
+    return resolve_upload_path(f"snapshots/{project_id}")
+
+
+def take_snapshot(project_id: uuid.UUID, working_path: str) -> str:
+    """Copy a project's working copy into a new snapshot file.
+
+    The snapshot lives under ``{upload_dir}/snapshots/{project_id}/`` and keeps
+    the working copy's extension, so it parses in the same format. If the
+    working copy's parsed frame is cached and current, the snapshot is
+    registered against it, so reading the snapshot back never re-parses.
+
+    Args:
+        project_id: The project the working copy belongs to.
+        working_path: Path to the project's working copy.
+
+    Returns:
+        Path to the new snapshot file.
+    """
+    snapshot_dir = _snapshot_dir(project_id)
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_path = resolve_upload_path(f"snapshots/{project_id}/{uuid.uuid4().hex}{Path(working_path).suffix}")
+    shutil.copyfile(working_path, snapshot_path)
+    df_cache.alias(working_path, snapshot_path)
+    return str(snapshot_path)
+
+
+def restore_snapshot(snapshot_path: str, working_path: str) -> None:
+    """Replace the working copy with a snapshot's bytes, atomically.
+
+    The bytes go to a temp file beside the working copy first, then
+    ``os.replace`` swaps it in, so a failure at any point leaves either the old
+    working copy or the complete snapshot, never a truncated mix. On Windows
+    ``os.replace`` fails while another process holds the file open; that
+    surfaces as an ``OSError`` with the working copy untouched.
+
+    Args:
+        snapshot_path: The snapshot to restore.
+        working_path: The project's working copy to overwrite.
+
+    Raises:
+        OSError: If the copy or the swap fails; the working copy is unchanged.
+    """
+    working = Path(working_path)
+    with tempfile.NamedTemporaryFile(
+        dir=working.parent, prefix=".restore-", suffix=working.suffix, delete=False
+    ) as tmp:
+        tmp_path = Path(tmp.name)
+    try:
+        shutil.copyfile(snapshot_path, tmp_path)
+        if working.exists():
+            # Temp files are created 0600; keep the working copy's own mode.
+            shutil.copymode(working, tmp_path)
+        os.replace(tmp_path, working)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+    finally:
+        df_cache.invalidate(working)
+    df_cache.alias(snapshot_path, working)
+
+
+def snapshot_exists(snapshot_path: str | None) -> bool:
+    """Whether a recorded snapshot is still on disk."""
+    return snapshot_path is not None and Path(snapshot_path).is_file()
+
+
+def unlink_snapshots(snapshot_paths: Iterable[str]) -> None:
+    """Delete snapshot files that no committed row references any more.
+
+    Callers pass paths only after the commit that dropped them succeeded, so a
+    crash can orphan a file but never delete one still in use. Failures are
+    logged rather than raised: the change they follow has already committed.
+
+    Args:
+        snapshot_paths: Snapshot files to delete.
+    """
+    for snapshot_path in snapshot_paths:
+        df_cache.invalidate(snapshot_path)
+        try:
+            Path(snapshot_path).unlink()
+        except FileNotFoundError:
+            logger.warning("Snapshot already missing: %s", snapshot_path)
+        except OSError:
+            logger.exception("Failed to delete snapshot: %s", snapshot_path)
+
+
+def delete_project_snapshots(project_id: uuid.UUID) -> None:
+    """Delete a project's whole snapshot directory, for project and account deletion.
+
+    Args:
+        project_id: The deleted project.
+    """
+    snapshot_dir = _snapshot_dir(project_id)
+    if not snapshot_dir.is_dir():
+        return
+    for snapshot_path in snapshot_dir.iterdir():
+        df_cache.invalidate(snapshot_path)
+    try:
+        shutil.rmtree(snapshot_dir)
+        logger.info("Deleted snapshots: %s", snapshot_dir)
+    except OSError:
+        logger.exception("Failed to delete snapshot directory: %s", snapshot_dir)

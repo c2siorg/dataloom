@@ -146,8 +146,63 @@ class ProjectChangeLog(SQLModel, table=True):
         default=False,
         sa_column=sa.Column(sa.Boolean, server_default="false", nullable=False),
     )
+    # The undo step this row was logged by. NULL for rows logged before undo
+    # steps existed and for rows whose step was cleared by a save or revert.
+    undo_step_id: int | None = Field(
+        default=None,
+        sa_column=Column(
+            sa.Integer,
+            sa.ForeignKey("undo_steps.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+    )
 
     project: Project | None = Relationship(back_populates="logs")
+
+
+UNDO_STEP_DONE = "done"
+UNDO_STEP_UNDONE = "undone"
+
+
+class UndoStep(SQLModel, table=True):
+    """One user action's worth of unsaved work, and the snapshots that undo and redo it.
+
+    A transform, a whole pipeline Run and a file append are each one step, so
+    one Undo reverses exactly what the user did in one click. ``entries`` keeps
+    the step's change-log rows verbatim: undo deletes those rows from
+    ``user_logs``, and redo re-inserts them from here, so the change log keeps
+    meaning "applied transformations" for every other reader.
+
+    ``before_path`` is a byte copy of the working copy taken just before the
+    step, and ``after_path`` one taken just before it was undone. Either may be
+    NULL: old ``before_path`` snapshots are evicted past the retention limit,
+    and ``after_path`` only exists while the step is undone.
+
+    ``id`` orders steps (never ``created_at``, which ties within a request),
+    and ``undone_seq`` orders the redo stack, last undone first.
+    """
+
+    __tablename__ = "undo_steps"
+
+    id: int | None = Field(default=None, primary_key=True)
+    project_id: uuid_mod.UUID = Field(
+        sa_column=Column(
+            sa.Uuid,
+            sa.ForeignKey("projects.project_id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    status: str = Field(sa_column=Column(sa.String(10), nullable=False))
+    entries: list = Field(sa_column=Column(sa.JSON, nullable=False))
+    before_path: str | None = Field(default=None, sa_column=Column(sa.String, nullable=True))
+    after_path: str | None = Field(default=None, sa_column=Column(sa.String, nullable=True))
+    undone_seq: int | None = Field(default=None, sa_column=Column(sa.Integer, nullable=True))
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime, server_default=func.now(), nullable=False),
+    )
 
 
 class Checkpoint(SQLModel, table=True):

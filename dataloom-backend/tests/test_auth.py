@@ -195,6 +195,22 @@ class TestProfileManagement:
         deleted_user = db.query(models.User).filter(models.User.id == test_user.id).first()
         assert deleted_user is None
 
+    def test_delete_account_with_projects(self, client, test_user, db):
+        """Regression: deleting the user tried to null owner_id on project rows
+        that had already been deleted, and the whole deletion failed."""
+        upload = client.post(
+            "/projects/upload",
+            files={"file": ("p.csv", b"a,b\n1,2\n", "text/csv")},
+            data={"projectName": "owned", "projectDescription": "x"},
+        )
+        assert upload.status_code == 200
+
+        response = client.request("DELETE", "/auth/me", json={"password": "testpassword"})
+
+        assert response.status_code == 200, response.text
+        assert db.query(models.User).filter(models.User.id == test_user.id).first() is None
+        assert db.query(models.Project).count() == 0
+
     def test_delete_account_requires_auth(self, anon_client):
         response = anon_client.request(
             "DELETE",

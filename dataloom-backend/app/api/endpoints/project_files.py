@@ -26,13 +26,13 @@ from app.api.dependencies import get_project_or_404, load_project_df, read_proje
 from app.services.append_service import analyze_append, append_dataframes
 from app.services.file_service import store_added_file
 from app.services.project_service import (
+    commit_undoable_change,
     create_project_file,
     get_project_file,
     get_project_files,
-    log_transformation,
 )
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, save_table_safe
+from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe
 from app.utils.project_locks import project_write_lock
 from app.utils.security import validate_upload_file
 
@@ -72,9 +72,10 @@ def _append_and_log(
 ) -> dict:
     """Append a stored inventory file onto the working copy and log it.
 
-    Mirrors the transform endpoint's persistence contract: the working copy is
-    written first, and if audit logging fails the file is restored so state
-    never diverges from the log chain.
+    Shares the transform endpoint's persistence path: the working copy is
+    snapshotted and written, and if audit logging fails the snapshot is
+    restored so state never diverges from the log chain. The append is one
+    undo step.
 
     This is a read-modify-write of ``project.file_path``, so it runs under the
     exclusive project lock: without it a concurrent transform or save could
@@ -103,7 +104,6 @@ def _append_and_log_locked(
     new_df = read_table_safe(Path(stored_path))
     combined = append_dataframes(df, new_df)
 
-    save_table_safe(combined, project.file_path)
     details = {
         "add_file_params": {
             "file_path": stored_path,
@@ -112,20 +112,9 @@ def _append_and_log_locked(
             "rows_added": len(new_df),
         }
     }
-    try:
-        log_transformation(db, project.project_id, schemas.OperationType.addFile, details)
-    except Exception:
-        # Compensate the disk mutation so the working copy never holds rows
-        # that the log chain cannot reproduce.
-        try:
-            save_table_safe(df, project.file_path)
-        except Exception:
-            logger.exception(
-                "Failed to restore working copy after log failure: project_id=%s file=%s",
-                project.project_id,
-                original_filename,
-            )
-        raise
+    # Writes, logs, and puts the working copy back if logging fails, so it
+    # never holds rows that the log chain cannot reproduce.
+    commit_undoable_change(db, project, combined, [(schemas.OperationType.addFile, details)])
 
     response_df, pagination = paginate_dataframe(combined, page, page_size)
     resp = dataframe_to_response(response_df)

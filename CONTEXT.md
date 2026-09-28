@@ -27,12 +27,28 @@ _Avoid_: Params, payload, args
 
 **Change Log**:
 A Project's ordered record of every Transformation applied to it. It is the source
-of truth for save, undo, and Checkpoint replay — the data file is derived from it.
+of truth for save and Checkpoint replay — the data file is derived from it. Undo
+does not replay it: undo restores a Snapshot, and replays the Change Log only for
+an Undo Step whose Snapshot is gone.
 _Avoid_: History (that is the UI's name for the panel), audit log
 
 **Checkpoint**:
 A save point marking the set of Transformations applied to a Project up to a moment.
-_Avoid_: Snapshot, version, commit
+_Avoid_: Snapshot (that is an undo file, below), version, commit
+
+**Undo Step**:
+One user action's worth of unsaved work — a Transformation, a whole Run, or a file
+append — and the unit that Undo reverses and Redo restores. Undo and Redo only reach
+back to the last save: Save and Revert end every Undo Step, and a new Transformation
+clears the ones waiting to be redone.
+_Avoid_: Action, history entry, undo item
+
+**Snapshot**:
+A byte copy of a Project's data file, taken before an Undo Step (so Undo can restore
+it) and when the step is undone (so Redo can). Internal only and never shown to a
+User. Unlike a Checkpoint it marks no Transformations and does not outlive the
+unsaved work it belongs to.
+_Avoid_: Backup, checkpoint, version
 
 ### Inspection
 

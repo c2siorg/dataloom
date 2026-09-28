@@ -18,18 +18,34 @@ from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
 from app import database, models, schemas
-from app.api.dependencies import get_current_user, get_project_or_404
-from app.services.file_service import delete_project_files, get_original_path, store_upload
+from app.api.dependencies import get_current_user, get_project_or_404, read_project_df
+from app.services.file_service import (
+    delete_project_files,
+    delete_project_snapshots,
+    get_original_path,
+    restore_snapshot,
+    snapshot_exists,
+    store_upload,
+    take_snapshot,
+    unlink_snapshots,
+)
 from app.services.project_service import (
     create_checkpoint,
     create_project,
-    delete_change_log,
     delete_project,
-    get_last_change_log,
+    discard_redo_stack,
+    discard_undo_history,
+    enforce_undo_retention,
+    get_last_pending_change_log,
     get_project_files,
     get_projects,
     get_recent_projects,
+    get_redo_step,
+    get_undo_state,
+    mark_step_redone,
+    mark_step_undone,
     rename_project,
+    restore_after_failure,
     search_projects,
     update_project,
 )
@@ -214,6 +230,9 @@ def save_project(
     The working copy already reflects the user's latest accepted transforms, so
     checkpoint creation should preserve that current dataset and only update the
     checkpoint/log metadata for pending actions.
+
+    Saving also clears undo and redo: they cover unsaved work only, so every
+    checkpoint stays exactly as saved.
     """
     with project_write_lock(project_id):
         original_path = get_original_path(project.file_path)
@@ -231,8 +250,12 @@ def save_project(
 
         df = read_table_safe(project.file_path)
 
+        # Staged here and committed by create_checkpoint, so a failed save
+        # cannot leave a redo stack pointing past the saved state.
+        stale_snapshots = discard_undo_history(db, project_id)
         # Create checkpoint (marks logs as applied)
         checkpoint = create_checkpoint(db, project_id, commit_message)
+        unlink_snapshots(stale_snapshots)
 
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
@@ -315,6 +338,8 @@ def _revert_to_checkpoint(
 
     # Write file first — if this fails, DB is unchanged and state remains consistent.
     save_table_safe(df, project.file_path)
+    # Undo and redo cover the unsaved work the revert just discarded.
+    stale_snapshots = discard_undo_history(db, project_id)
     # Clear unapplied logs so a subsequent save cannot re-apply stale
     # transformations on top of the reverted file state.
     # Applies to all reverts (full and partial) to prevent stale log replay.
@@ -327,6 +352,7 @@ def _revert_to_checkpoint(
     except SQLAlchemyError:
         db.rollback()
         raise
+    unlink_snapshots(stale_snapshots)
 
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
@@ -446,6 +472,8 @@ async def delete_project_endpoint(
         except OSError:
             logger.exception("Failed to delete inventory file: id=%s, path=%s", project_id, inventory_path)
 
+    delete_project_snapshots(project_id)
+
     return {"success": True, "message": "Project deleted"}
 
 
@@ -457,10 +485,17 @@ def undo_last_transformation(
     project: models.Project = Depends(get_project_or_404),
     db: Session = Depends(database.get_db),
 ):
-    """Undo the most recent transformation.
+    """Undo the most recent unsaved user action.
 
-    Removes the last change log entry and rebuilds the working copy
-    by replaying all remaining logs onto the original file.
+    One action is one undo step: a transform, a whole pipeline Run, or a file
+    append. The working copy is restored from the snapshot taken just before
+    that action, so the result is exactly the data the user had. Steps whose
+    snapshot was evicted, and rows logged before undo steps existed, fall back
+    to rebuilding the working copy by replaying the change log onto the
+    original. Either way the step moves onto the redo stack.
+
+    Saved work is never undone — checkpoints and revert cover it — so with
+    nothing unsaved this returns 404.
     """
     with project_write_lock(project_id):
         return _undo_last_transformation(project_id, page, page_size, project, db)
@@ -473,36 +508,59 @@ def _undo_last_transformation(
     project: models.Project,
     db: Session,
 ) -> dict:
-    last_log = get_last_change_log(db, project_id)
+    last_log = get_last_pending_change_log(db, project_id)
     if not last_log:
         raise HTTPException(status_code=404, detail="No transformations to undo")
 
-    delete_change_log(db, last_log)
+    last_log_id = last_log.change_log_id
+    step = db.get(models.UndoStep, last_log.undo_step_id) if last_log.undo_step_id is not None else None
+    working_path = project.file_path
+    # What redo will restore, and what a failed undo puts back.
+    after_path = _snapshot_or_500(project_id, working_path, "undo")
+    replay_snapshot = None
+    working_changed = False
+    try:
+        if step is not None and snapshot_exists(step.before_path):
+            replayed = False
+            mark_step_undone(db, step, after_path)
+            restore_snapshot(step.before_path, working_path)
+            working_changed = True
+            db.commit()
+        else:
+            replayed = True
+            if step is None:
+                # A row logged before undo steps existed. Give it a step so this
+                # undo can be redone like any other.
+                step = models.UndoStep(
+                    project_id=project_id,
+                    status=models.UNDO_STEP_DONE,
+                    entries=[{"action_type": last_log.action_type, "action_details": last_log.action_details}],
+                )
+                db.add(step)
+                db.flush()
+                last_log.undo_step_id = step.id
+                db.flush()
+            mark_step_undone(db, step, after_path)
+            df = _replay_change_log(db, project_id, working_path)
+            working_changed = True
+            save_table_safe(df, working_path)
+            replay_snapshot = take_snapshot(project_id, working_path)
+            step.before_path = replay_snapshot
+            db.commit()
+    except Exception as e:
+        restored = not working_changed or restore_after_failure(after_path, working_path, project_id)
+        db.rollback()
+        unlink_snapshots([path for path in (replay_snapshot, after_path if restored else None) if path])
+        if isinstance(e, OSError):
+            raise HTTPException(status_code=500, detail="Could not undo; please retry.") from e
+        raise
 
-    original_path = get_original_path(project.file_path)
-    df = read_table_safe(original_path)
-
-    remaining_logs = (
-        db.query(models.ProjectChangeLog)
-        .filter(models.ProjectChangeLog.project_id == project_id)
-        .order_by(models.ProjectChangeLog.timestamp)
-        .all()
-    )
-
-    for log in remaining_logs:
-        df = apply_logged_transformation(df, log.action_type, log.action_details)
-
-    save_table_safe(df, project.file_path)
-    db.commit()
-
+    if not replayed:
+        # A cache hit: restore_snapshot registered the snapshot's parsed frame.
+        df = read_project_df(project)
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
-    logger.info(
-        "Undo: project_id=%s, removed log_id=%s, remaining_logs=%d",
-        project_id,
-        last_log.change_log_id,
-        len(remaining_logs),
-    )
+    logger.info("Undo: project_id=%s, log_id=%s, replayed=%s", project_id, last_log_id, replayed)
     return {
         "filename": project.name,
         "file_path": project.file_path,
@@ -510,6 +568,113 @@ def _undo_last_transformation(
         **resp,
         **pagination,
     }
+
+
+def _replay_change_log(db: Session, project_id: uuid.UUID, working_path: str):
+    """Rebuild the working copy's data from the original plus every remaining log row.
+
+    Undo's fallback when a step has no snapshot. Ordered by ``change_log_id``:
+    every row of a pipeline Run shares one timestamp.
+    """
+    df = read_table_safe(get_original_path(working_path))
+    remaining_logs = (
+        db.query(models.ProjectChangeLog)
+        .filter(models.ProjectChangeLog.project_id == project_id)
+        .order_by(models.ProjectChangeLog.change_log_id)
+        .all()
+    )
+    for log in remaining_logs:
+        df = apply_logged_transformation(df, log.action_type, log.action_details)
+    return df
+
+
+def _snapshot_or_500(project_id: uuid.UUID, working_path: str, action: str) -> str:
+    """Snapshot the working copy, turning a disk failure into a clean, path-free 500."""
+    try:
+        return take_snapshot(project_id, working_path)
+    except OSError as e:
+        logger.exception("Could not snapshot working copy for %s: project_id=%s", action, project_id)
+        raise HTTPException(status_code=500, detail=f"Could not {action}; please retry.") from e
+
+
+@router.post("/{project_id}/redo", response_model=schemas.ProjectResponse)
+def redo_last_transformation(
+    project_id: uuid.UUID,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    project: models.Project = Depends(get_project_or_404),
+    db: Session = Depends(database.get_db),
+):
+    """Redo the most recently undone user action.
+
+    Restores the working copy captured when that action was undone, rather than
+    re-running it, so the result is exact even for steps that would not replay
+    the same way twice (such as an unseeded sample). The action's change-log
+    rows are re-inserted as unsaved rows. Any new logged change, a save, or a
+    revert clears what can be redone.
+    """
+    with project_write_lock(project_id):
+        return _redo_last_transformation(project_id, page, page_size, project, db)
+
+
+def _redo_last_transformation(
+    project_id: uuid.UUID,
+    page: int,
+    page_size: int,
+    project: models.Project,
+    db: Session,
+) -> dict:
+    step = get_redo_step(db, project_id)
+    if step is None:
+        raise HTTPException(status_code=404, detail="Nothing to redo")
+
+    step_id, after_path, before_path = step.id, step.after_path, step.before_path
+    working_path = project.file_path
+    if not snapshot_exists(after_path):
+        # Every deeper redo assumes this step's result, so none of them can
+        # run either.
+        logger.warning("Redo snapshot missing, discarding redo stack: project_id=%s step=%s", project_id, step_id)
+        stale_snapshots = discard_redo_stack(db, project_id)
+        db.commit()
+        unlink_snapshots(stale_snapshots)
+        raise HTTPException(status_code=404, detail="Nothing to redo")
+
+    working_changed = False
+    try:
+        mark_step_redone(db, step)
+        evicted = enforce_undo_retention(db, project_id)
+        restore_snapshot(after_path, working_path)
+        working_changed = True
+        db.commit()
+    except Exception as e:
+        if working_changed:
+            restore_after_failure(before_path, working_path, project_id)
+        db.rollback()
+        if isinstance(e, OSError):
+            raise HTTPException(status_code=500, detail="Could not redo; please retry.") from e
+        raise
+    unlink_snapshots([after_path, *evicted])
+
+    df = read_project_df(project)
+    response_df, pagination = paginate_dataframe(df, page, page_size)
+    resp = dataframe_to_response(response_df)
+    logger.info("Redo: project_id=%s, step=%s", project_id, step_id)
+    return {
+        "filename": project.name,
+        "file_path": project.file_path,
+        "project_id": project.project_id,
+        **resp,
+        **pagination,
+    }
+
+
+@router.get("/{project_id}/undo-state", response_model=schemas.UndoStateResponse)
+def get_project_undo_state(
+    project: models.Project = Depends(get_project_or_404),
+    db: Session = Depends(database.get_db),
+):
+    """Report whether Undo and Redo have anything to act on, so the UI can disable them."""
+    return get_undo_state(db, project.project_id)
 
 
 @router.get("/search", response_model=list[schemas.LastResponse])

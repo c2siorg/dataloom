@@ -12,7 +12,7 @@ from sqlmodel import Session
 
 from app import models
 from app.config import get_settings
-from app.services.file_service import delete_project_files
+from app.services.file_service import delete_project_files, delete_project_snapshots
 from app.utils.email import send_reset_email
 from app.utils.logging import get_logger
 
@@ -190,9 +190,9 @@ def change_user_password(
 
 
 def delete_user_account(db: Session, user: models.User, password: str) -> None:
-    """Delete a user account along with all owned projects, logs, checkpoints, and files.
+    """Delete a user account along with all owned projects, logs, undo steps, checkpoints, and files.
 
-    The database deletion (logs, checkpoints, projects, user) happens in a single
+    The database deletion (logs, undo steps, checkpoints, projects, user) happens in a single
     transaction so a failure partway through leaves no orphaned records. File
     cleanup happens after the transaction commits, since filesystem operations
     cannot be rolled back alongside the DB transaction.
@@ -215,10 +215,15 @@ def delete_user_account(db: Session, user: models.User, password: str) -> None:
         db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.project_id.in_(project_ids)).delete(
             synchronize_session=False
         )
+        db.query(models.UndoStep).filter(models.UndoStep.project_id.in_(project_ids)).delete(synchronize_session=False)
         db.query(models.Checkpoint).filter(models.Checkpoint.project_id.in_(project_ids)).delete(
             synchronize_session=False
         )
         db.query(models.Project).filter(models.Project.project_id.in_(project_ids)).delete(synchronize_session=False)
+        # The loaded collection still holds the rows just bulk-deleted; deleting
+        # the user would try to null their owner_id and match nothing. Unloaded,
+        # passive_deletes leaves the collection alone.
+        db.expire(user, ["projects"])
         db.delete(user)
         db.commit()
     except SQLAlchemyError:
@@ -231,5 +236,7 @@ def delete_user_account(db: Session, user: models.User, password: str) -> None:
             delete_project_files(file_path)
         except OSError:
             logger.exception("Failed to delete project files during account deletion: file_path=%s", file_path)
+    for project_id in project_ids:
+        delete_project_snapshots(project_id)
 
     logger.info("Deleted user account: id=%s, projects_deleted=%d", user.id, len(project_ids))

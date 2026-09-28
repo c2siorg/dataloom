@@ -195,6 +195,83 @@ class TestDataFrameCache:
         assert cache.hits == 1
 
 
+class TestDataFrameCacheAlias:
+    """``alias`` registers a byte copy of a cached file without re-parsing it."""
+
+    def _cache_with_copy(self, tmp_path, calls):
+        src = tmp_path / "src.csv"
+        dst = tmp_path / "dst.csv"
+        src.write_text("x\n1\n2\n")
+        dst.write_bytes(src.read_bytes())
+        cache = DataFrameCache(max_bytes=10**9, max_entries=10)
+        cache.get_or_load(src, _counting_loader(calls))
+        return cache, src, dst
+
+    def test_copy_is_served_from_the_source_entry(self, tmp_path):
+        calls = []
+        cache, src, dst = self._cache_with_copy(tmp_path, calls)
+
+        assert cache.alias(src, dst) is True
+        df = cache.get_or_load(dst, _counting_loader(calls))
+
+        assert len(calls) == 1
+        assert df["x"].tolist() == [1, 2]
+
+    def test_uncached_source_is_a_no_op(self, tmp_path):
+        src = tmp_path / "src.csv"
+        dst = tmp_path / "dst.csv"
+        src.write_text("x\n1\n")
+        dst.write_bytes(src.read_bytes())
+        cache = DataFrameCache(max_bytes=10**9, max_entries=10)
+        calls = []
+
+        assert cache.alias(src, dst) is False
+        cache.get_or_load(dst, _counting_loader(calls))
+
+        assert len(calls) == 1
+
+    def test_stale_source_entry_is_not_aliased(self, tmp_path):
+        """A frame parsed before ``src`` changed must not be attached to a copy of the new bytes."""
+        calls = []
+        cache, src, dst = self._cache_with_copy(tmp_path, calls)
+        src.write_text("x\n1\n2\n3\n")
+        dst.write_bytes(src.read_bytes())
+
+        assert cache.alias(src, dst) is False
+        df = cache.get_or_load(dst, _counting_loader(calls))
+
+        assert df["x"].tolist() == [1, 2, 3]
+
+    def test_missing_copy_is_a_no_op(self, tmp_path):
+        calls = []
+        cache, src, dst = self._cache_with_copy(tmp_path, calls)
+        dst.unlink()
+
+        assert cache.alias(src, dst) is False
+
+    def test_alias_outlives_invalidating_the_source(self, tmp_path):
+        """Undo snapshots are aliased right before the working copy is rewritten."""
+        calls = []
+        cache, src, dst = self._cache_with_copy(tmp_path, calls)
+        cache.alias(src, dst)
+
+        cache.invalidate(src)
+        cache.get_or_load(dst, _counting_loader(calls))
+
+        assert len(calls) == 1
+
+    def test_rewriting_the_copy_is_a_miss(self, tmp_path):
+        calls = []
+        cache, src, dst = self._cache_with_copy(tmp_path, calls)
+        cache.alias(src, dst)
+
+        dst.write_text("x\n9\n")
+        df = cache.get_or_load(dst, _counting_loader(calls))
+
+        assert len(calls) == 2
+        assert df["x"].tolist() == [9]
+
+
 def _upload_csv(client, content: bytes, name: str = "data.csv", project_name: str = "Cache Test") -> str:
     response = client.post(
         "/projects/upload",

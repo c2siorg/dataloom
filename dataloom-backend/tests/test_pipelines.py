@@ -1,6 +1,7 @@
 """Tests for reusable transformation pipelines."""
 
 import uuid
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -8,9 +9,9 @@ import pytest
 from app import models
 from app.services import project_service
 from app.services.pipeline_service import apply_pipeline, check_steps_compatibility, pipeline_steps
-from app.services.project_service import log_transformations_or_restore
+from app.services.project_service import commit_undoable_change
 from app.services.transformation_service import TransformationError
-from app.utils.pandas_helpers import read_table_safe, save_table_safe
+from app.utils.pandas_helpers import read_table_safe
 
 
 def _upload(client, sample_csv, name):
@@ -284,7 +285,7 @@ class TestApplyPipeline:
         def boom(*args, **kwargs):
             raise RuntimeError("db log failure")
 
-        monkeypatch.setattr(project_service, "log_transformations", boom)
+        monkeypatch.setattr(project_service, "_add_log_rows", boom)
 
         with pytest.raises(RuntimeError, match="db log failure"):
             client.post(f"/pipelines/{pipeline_id}/apply", json={"project_id": target_project_id})
@@ -332,47 +333,51 @@ class TestAuthIsolation:
         assert client.post(f"/pipelines/{pipeline.id}/apply", json={"project_id": project_id}).status_code == 404
 
 
-class TestLogTransformationsOrRestore:
-    """The shared compensating write used by both the transform and the apply path."""
+class TestCommitUndoableChange:
+    """The shared write-and-log path used by the transform, apply and append paths."""
 
-    def test_logs_every_entry_in_order(self, db, project_id):
+    def test_logs_every_entry_in_order_as_one_undo_step(self, db, project_id):
         project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
         df = read_table_safe(project.file_path)
 
-        log_transformations_or_restore(
+        commit_undoable_change(
             db,
-            project.project_id,
-            project.file_path,
-            df,
+            project,
+            df.head(1),
             [("filter", {"operation_type": "filter"}), ("sort", {"operation_type": "sort"})],
         )
 
-        logs = sorted(
-            db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.project_id == project.project_id).all(),
-            key=lambda log: log.change_log_id,
+        logs = (
+            db.query(models.ProjectChangeLog)
+            .filter(models.ProjectChangeLog.project_id == project.project_id)
+            .order_by(models.ProjectChangeLog.change_log_id)
+            .all()
         )
         assert [log.action_type for log in logs] == ["filter", "sort"]
+        step = db.query(models.UndoStep).filter(models.UndoStep.project_id == project.project_id).one()
+        assert {log.undo_step_id for log in logs} == {step.id}
+        assert [entry["action_type"] for entry in step.entries] == ["filter", "sort"]
+        assert len(read_table_safe(project.file_path)) == 1
 
     def test_restores_the_file_and_reraises_when_logging_fails(self, db, project_id, monkeypatch):
         """The file must never stay transformed with no log behind it."""
         project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
-        original_df = read_table_safe(project.file_path)
-
-        # Stand in for the transformed data already written to disk.
-        save_table_safe(original_df.head(1), project.file_path)
+        original_bytes = Path(project.file_path).read_bytes()
+        df = read_table_safe(project.file_path)
 
         def boom(*args, **kwargs):
             raise RuntimeError("db log failure")
 
-        monkeypatch.setattr(project_service, "log_transformations", boom)
+        monkeypatch.setattr(project_service, "_add_log_rows", boom)
 
         with pytest.raises(RuntimeError, match="db log failure"):
-            log_transformations_or_restore(
+            commit_undoable_change(
                 db,
-                project.project_id,
-                project.file_path,
-                original_df,
+                project,
+                df.head(1),
                 [("filter", {"operation_type": "filter"}), ("sort", {"operation_type": "sort"})],
             )
 
-        assert read_table_safe(project.file_path).equals(original_df)
+        assert Path(project.file_path).read_bytes() == original_bytes
+        assert db.query(models.ProjectChangeLog).filter_by(project_id=project.project_id).count() == 0
+        assert db.query(models.UndoStep).filter_by(project_id=project.project_id).count() == 0
