@@ -70,7 +70,7 @@ interface MenuButtonProps {
 const MenuButton = ({ children, onClick }: MenuButtonProps) => (
   <button
     role="menuitem"
-    className="block w-full text-left text-sm text-foreground px-3 py-1.5 hover:bg-surface rounded-md transition-colors duration-150 whitespace-nowrap"
+    className="block w-full text-left text-sm text-foreground px-3 py-1.5 hover:bg-surface-hover cursor-pointer rounded-md transition-colors duration-150 whitespace-nowrap"
     onClick={onClick}
   >
     {children}
