@@ -2,6 +2,7 @@
 
 import math
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,18 @@ from fastapi import HTTPException
 from app.config import get_settings
 from app.utils import df_cache
 from app.utils.file_formats import TableWriteOptions, get_format
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class DatasetFileStats:
+    """Size and shape of a dataset file; ``None`` for anything that could not be read."""
+
+    file_size_bytes: int | None = None
+    row_count: int | None = None
+    column_count: int | None = None
 
 
 def _read_and_infer(path: Path) -> pd.DataFrame:
@@ -56,6 +69,33 @@ def read_table_safe(path: Path, *, use_cache: bool = True) -> pd.DataFrame:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}") from e
+
+
+def dataset_file_stats(path: Path) -> DatasetFileStats:
+    """Return the size and shape of a dataset file without raising.
+
+    The file is read through :func:`read_table_safe`, so it shares the
+    DataFrame cache with the data endpoints and an unchanged file is not
+    re-parsed on every call. A missing or unreadable file yields ``None``
+    fields instead of an error, so a summary payload such as the project cards
+    can degrade one entry rather than fail the whole response.
+
+    Args:
+        path: Path to the dataset file.
+
+    Returns:
+        DatasetFileStats with whatever could be determined.
+    """
+    try:
+        file_size_bytes = path.stat().st_size
+    except OSError:
+        return DatasetFileStats()
+    try:
+        df = read_table_safe(path)
+    except HTTPException as e:
+        logger.warning("Could not read dataset stats for %s: %s", path, e.detail)
+        return DatasetFileStats(file_size_bytes=file_size_bytes)
+    return DatasetFileStats(file_size_bytes=file_size_bytes, row_count=len(df), column_count=len(df.columns))
 
 
 def save_table_safe(

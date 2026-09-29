@@ -37,6 +37,11 @@ export interface ProjectSummary {
   name: string;
   description: string | null;
   last_modified: string;
+  /** Dataset metadata filled in by `/projects/recent`; null when the file could not be read. */
+  upload_date?: string | null;
+  file_size_bytes?: number | null;
+  row_count?: number | null;
+  column_count?: number | null;
 }
 
 /** Backend `ProjectResponse` — full project payload with paginated rows. */

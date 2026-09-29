@@ -1,10 +1,11 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import HomeScreen from "../Components/Homescreen";
 import * as api from "../api";
 import { ToastProvider } from "../context/ToastContext";
 import { ProjectProvider } from "../context/ProjectContext";
+import { ACCEPTED_EXTENSIONS } from "../utils/fileUtils";
 
 vi.mock("../api", () => ({
   uploadProject: vi.fn(),
@@ -14,18 +15,32 @@ vi.mock("../api", () => ({
   updateProject: vi.fn(),
 }));
 
+const mockNavigate = vi.fn();
+vi.mock("react-router-dom", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-router-dom")>()),
+  useNavigate: () => mockNavigate,
+}));
+
 const mockProjects = [
   {
     project_id: "p1",
     name: "Time series test",
     description: "testing dataset for time-series feature",
     last_modified: "2026-07-29T10:00:00Z",
+    upload_date: "2026-07-01T12:00:00Z",
+    file_size_bytes: 2048,
+    row_count: 1234,
+    column_count: 5,
   },
   {
     project_id: "p2",
     name: "Coffee shop dataset",
     description: "sales data",
     last_modified: "2026-07-28T10:00:00Z",
+    upload_date: null,
+    file_size_bytes: null,
+    row_count: null,
+    column_count: null,
   },
 ];
 
@@ -258,5 +273,81 @@ describe("HomeScreen - Dataset Card Menu & Edit", () => {
     fireEvent.click(cancelButton);
 
     expect(screen.queryByTestId("edit-project-modal")).not.toBeInTheDocument();
+  });
+});
+
+describe("HomeScreen - Project card metadata and layout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.getRecentProjects).mockResolvedValue(mockProjects);
+  });
+
+  const renderComponent = () =>
+    render(
+      <MemoryRouter>
+        <ToastProvider>
+          <ProjectProvider>
+            <HomeScreen />
+          </ProjectProvider>
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+
+  const getCard = (projectId: string) =>
+    screen.getAllByTestId("project-card").find((el) => el.dataset["projectId"] === projectId)!;
+
+  it("renders rows, columns, file size and the upload date on the card", async () => {
+    renderComponent();
+    await screen.findByText("Time series test");
+
+    const card = within(getCard("p1"));
+    expect(card.getByTestId("project-card-stats")).toHaveTextContent(
+      `${(1234).toLocaleString()} rows · 5 columns · 2.0 KB`,
+    );
+    const uploaded = new Date("2026-07-01T12:00:00Z").toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+    expect(card.getByText(`Uploaded ${uploaded}`)).toBeInTheDocument();
+    expect(card.getByText(/^Modified /)).toBeInTheDocument();
+  });
+
+  it("omits the metadata the backend could not compute", async () => {
+    renderComponent();
+    await screen.findByText("Coffee shop dataset");
+
+    const card = within(getCard("p2"));
+    expect(card.queryByTestId("project-card-stats")).not.toBeInTheDocument();
+    expect(card.queryByText(/^Uploaded /)).not.toBeInTheDocument();
+    expect(card.getByText(/^Modified /)).toBeInTheDocument();
+  });
+
+  it("exposes a single element for opening the project, separate from the menu button", async () => {
+    renderComponent();
+    await screen.findByText("Time series test");
+
+    const cardElement = getCard("p1");
+    const card = within(cardElement);
+    const openButtons = card.getAllByTestId("project-card-open");
+    expect(openButtons).toHaveLength(1);
+    expect(openButtons[0]).toHaveAccessibleName("Time series test");
+    expect(openButtons[0]).not.toContainElement(card.getByTestId("project-card-menu-button"));
+    expect(cardElement.querySelector("button button")).toBeNull();
+
+    fireEvent.click(card.getByTestId("project-card-menu-button"));
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    fireEvent.click(openButtons[0]!);
+    expect(mockNavigate).toHaveBeenCalledWith("/workspace/p1");
+  });
+
+  it("names the accepted formats on the New Project tile", async () => {
+    renderComponent();
+    await screen.findByText("Time series test");
+
+    expect(screen.getByTestId("new-project-card")).toHaveTextContent(
+      ACCEPTED_EXTENSIONS.join(", "),
+    );
   });
 });
