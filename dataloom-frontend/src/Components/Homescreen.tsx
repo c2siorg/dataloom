@@ -31,6 +31,15 @@ import { useProjectContext } from "../context/ProjectContext";
 const PROJECT_NAME_MAX_LENGTH = 255;
 const PROJECT_DESCRIPTION_MAX_LENGTH = 1000;
 
+const FORMAT_HINT = `Accepts ${ACCEPTED_EXTENSIONS.join(", ")}`;
+
+const formatDate = (value: string) =>
+  new Date(value).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
 interface ProjectCardProps {
   project: ProjectSummary;
   onClick: () => void;
@@ -52,11 +61,12 @@ const ProjectCard = ({
 }: ProjectCardProps) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const modified = new Date(project.last_modified).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const modified = formatDate(project.last_modified);
+  const uploaded = project.upload_date ? formatDate(project.upload_date) : null;
+  const stats: string[] = [];
+  if (project.row_count != null) stats.push(`${project.row_count.toLocaleString()} rows`);
+  if (project.column_count != null) stats.push(`${project.column_count.toLocaleString()} columns`);
+  if (project.file_size_bytes != null) stats.push(formatFileSize(project.file_size_bytes));
 
   useEffect(() => {
     if (!isOpen) return;
@@ -77,13 +87,25 @@ const ProjectCard = ({
   }, [isOpen, onCloseMenu]);
 
   return (
-    <button
+    <div
       data-testid="project-card"
       data-project-id={project.project_id}
-      onClick={onClick}
-      className="relative flex flex-col items-start gap-2 rounded-lg border border-app-border bg-surface p-5 text-left shadow-sm transition-all duration-200 hover:border-app-border-hover hover:shadow-md"
+      className="relative flex flex-col items-start gap-2 rounded-lg border border-app-border bg-surface p-5 text-left shadow-sm transition-all duration-200 hover:border-app-border-hover hover:shadow-md focus-within:border-app-border-hover focus-within:shadow-md"
     >
-      <div className="absolute top-2 right-2" ref={menuRef}>
+      <h3 className="text-lg font-semibold text-foreground truncate w-full pr-8">
+        {/* The single focusable control that opens the project. Its ::after is
+            stretched over the card so the whole surface stays clickable. */}
+        <button
+          type="button"
+          data-testid="project-card-open"
+          onClick={onClick}
+          className="block w-full truncate text-left cursor-pointer after:absolute after:inset-0 after:rounded-lg after:content-[''] focus:outline-none focus-visible:after:ring-2 focus-visible:after:ring-blue-400"
+        >
+          {project.name}
+        </button>
+      </h3>
+      {/* Sits above the open button's stretched ::after so the menu stays clickable. */}
+      <div className="absolute top-2 right-2 z-10" ref={menuRef}>
         <button
           type="button"
           data-testid="project-card-menu-button"
@@ -137,12 +159,19 @@ const ProjectCard = ({
           </div>
         )}
       </div>
-      <h3 className="text-lg font-semibold text-foreground truncate w-full pr-8">{project.name}</h3>
       {project.description && (
         <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
       )}
-      <span className="mt-auto text-xs text-muted-foreground">{modified}</span>
-    </button>
+      {stats.length > 0 && (
+        <p data-testid="project-card-stats" className="text-xs text-secondary-foreground">
+          {stats.join(" · ")}
+        </p>
+      )}
+      <div className="mt-auto flex flex-col gap-0.5 text-xs text-muted-foreground">
+        {uploaded && <span>Uploaded {uploaded}</span>}
+        <span>Modified {modified}</span>
+      </div>
+    </div>
   );
 };
 
@@ -154,6 +183,7 @@ const NewProjectCard = ({ onClick }: { onClick: () => void }) => (
   >
     <span className="text-3xl leading-none text-blue-500">+</span>
     <span className="text-sm font-medium text-blue-600">New Project</span>
+    <span className="text-xs text-muted-foreground">{FORMAT_HINT}</span>
   </button>
 );
 
