@@ -32,9 +32,21 @@ const PIE_TO = [191, 219, 254]; // blue-200
 const OTHER_COLOR = "#cbd5e1"; // slate-300
 
 const HEIGHT = 320;
-const TEXT = "#6b7280"; // gray-500, for axis ticks and titles
+// Chrome, grid and text come from the theme tokens in index.css, so the `.dark`
+// block that restyles the rest of the app restyles the charts too and a theme
+// toggle repaints an open chart without a rerender.
+const TEXT = "var(--app-muted-foreground)"; // axis ticks and titles
+const AXIS = "var(--app-border)";
+const GRID = "var(--app-grid)";
+const SURFACE = "var(--app-surface)"; // the canvas the chart sits on
 const AXIS_FONT = 11;
-const tooltipStyle = { fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" } as const;
+const tooltipStyle = {
+  fontSize: 12,
+  borderRadius: 8,
+  border: `1px solid ${AXIS}`,
+  backgroundColor: "var(--app-elevated)",
+  color: "var(--app-foreground)",
+} as const;
 const legendStyle = { fontSize: 12 } as const;
 
 /** Color for pie slice `i` of `n`: a step along the blue ramp ("Other" → gray). */
@@ -64,7 +76,7 @@ function mergeByX(spec: ChartSpec): Array<Record<string, string | number | null>
 
 /** Render a backend ChartSpec with the matching Recharts component. */
 export default function ChartRenderer({ spec }: { spec: ChartSpec }) {
-  const axisProps = { tick: { fontSize: AXIS_FONT, fill: TEXT }, stroke: "#d1d5db" } as const;
+  const axisProps = { tick: { fontSize: AXIS_FONT, fill: TEXT }, stroke: AXIS } as const;
   // Recharts renders these as the visible axis titles; widened margins below
   // leave room so they aren't clipped.
   const xLabel = {
@@ -91,10 +103,10 @@ export default function ChartRenderer({ spec }: { spec: ChartSpec }) {
       return (
         <ResponsiveContainer width="100%" height={HEIGHT}>
           <BarChart data={data} margin={margin}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
             <XAxis dataKey="x" label={xLabel} {...axisProps} />
             <YAxis label={yLabel} {...axisProps} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip cursor={{ fill: "var(--app-surface-hover)" }} contentStyle={tooltipStyle} />
             <Bar dataKey="y" fill={ACCENT} radius={[2, 2, 0, 0]} name={spec.series[0]?.name} />
           </BarChart>
         </ResponsiveContainer>
@@ -108,10 +120,10 @@ export default function ChartRenderer({ spec }: { spec: ChartSpec }) {
       return (
         <ResponsiveContainer width="100%" height={HEIGHT}>
           <ChartComp data={data} margin={margin}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
             <XAxis dataKey="x" label={xLabel} {...axisProps} />
             <YAxis label={yLabel} {...axisProps} />
-            <Tooltip contentStyle={tooltipStyle} />
+            <Tooltip cursor={{ stroke: AXIS }} contentStyle={tooltipStyle} />
             {spec.series.length > 1 && <Legend wrapperStyle={legendStyle} />}
             {spec.series.map((series, i) =>
               spec.chart_type === "line" ? (
@@ -143,11 +155,14 @@ export default function ChartRenderer({ spec }: { spec: ChartSpec }) {
       return (
         <ResponsiveContainer width="100%" height={HEIGHT}>
           <ScatterChart margin={margin}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
             <XAxis type="number" dataKey="x" name={spec.x_label} label={xLabel} {...axisProps} />
             <YAxis type="number" dataKey="y" name={spec.y_label} label={yLabel} {...axisProps} />
             <ZAxis range={[36, 36]} />
-            <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={tooltipStyle} />
+            <Tooltip
+              cursor={{ strokeDasharray: "3 3", stroke: AXIS }}
+              contentStyle={tooltipStyle}
+            />
             {spec.series.length > 1 && <Legend wrapperStyle={legendStyle} />}
             {spec.series.map((series, i) => (
               <Scatter
@@ -174,7 +189,7 @@ export default function ChartRenderer({ spec }: { spec: ChartSpec }) {
               dataKey="y"
               nameKey="x"
               outerRadius={110}
-              stroke="#fff"
+              stroke={SURFACE}
               strokeWidth={1}
             >
               {data.map((point, i) => (

@@ -11,27 +11,35 @@ interface CorrelationHeatmapProps {
 
 const NEGATIVE: [number, number, number] = [37, 99, 235]; // blue-600
 const POSITIVE: [number, number, number] = [220, 38, 38]; // red-600
+// Theme tokens from index.css. The `.dark` block redefines them, so the grid
+// follows a theme toggle without a rerender.
+const SURFACE = "var(--app-surface)";
+const FOREGROUND = "var(--app-foreground)";
 
 /**
- * Diverging Pearson scale: −1 → blue, 0 → white, +1 → red. The mix factor is
- * |value|, so the colour saturates toward the extremes and washes out near zero.
+ * Diverging Pearson scale: −1 → blue, 0 → the panel surface, +1 → red. The mix
+ * factor is |value|, so the colour saturates toward the extremes and fades
+ * into the panel near zero. `base` is the surface token on screen; the export
+ * passes the resolved colour, since a standalone SVG cannot read `var()`.
  */
-function cellColor(value: number): string {
+function cellColor(value: number, base: string = SURFACE): string {
   const magnitude = Math.min(Math.abs(value), 1);
   const [r, g, b] = value < 0 ? NEGATIVE : POSITIVE;
-  const mix = (channel: number) => Math.round(255 + (channel - 255) * magnitude);
-  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+  return `color-mix(in srgb, rgb(${r} ${g} ${b}) ${(magnitude * 100).toFixed(1)}%, ${base})`;
 }
 
-/** Strong cells need light text to stay legible against the saturated fill. */
-function textColor(value: number): string {
-  return Math.abs(value) > 0.55 ? "#ffffff" : "#374151"; // gray-700
+/**
+ * Strong cells need light text to stay legible against the saturated fill;
+ * weaker fills sit close to the panel, so their text follows the theme.
+ */
+function textColor(value: number, foreground: string = FOREGROUND): string {
+  return Math.abs(value) > 0.55 ? "#ffffff" : foreground;
 }
 
 /** Colour the bare value text by magnitude so near-zero numbers read as muted. */
-function valueTextColor(value: number): string {
-  if (Math.abs(value) < 0.2) return "#6b7280"; // gray-500
-  return value < 0 ? "#2563eb" : "#dc2626";
+function valueTextClass(value: number): string {
+  if (Math.abs(value) < 0.2) return "text-muted-foreground";
+  return value < 0 ? "text-blue-600 dark:text-blue-400" : "text-red-600 dark:text-red-400";
 }
 
 /** Round to 2 decimals and drop trailing zeros; null → "—". */
@@ -129,7 +137,7 @@ function HighlightsView({ pairs }: { pairs: Pair[] }) {
         Strongest linear relationships between numeric columns (Pearson, −1 to +1).
         {negligible && " No strong correlations in this dataset — the strongest are shown below."}
       </p>
-      <ul data-testid="highlights-list" className="divide-y divide-gray-100">
+      <ul data-testid="highlights-list" className="divide-y divide-app-border">
         {pairs.slice(0, 10).map(({ a, b, r }) => (
           <li key={`${a}|${b}`} className="flex items-center gap-3 py-2">
             <span
@@ -141,10 +149,7 @@ function HighlightsView({ pairs }: { pairs: Pair[] }) {
               <span className="mx-1.5 text-muted-foreground">↔</span>
               <span className="font-medium">{b}</span>
             </span>
-            <span
-              className="ml-auto tabular-nums text-sm font-semibold"
-              style={{ color: valueTextColor(r) }}
-            >
+            <span className={`ml-auto tabular-nums text-sm font-semibold ${valueTextClass(r)}`}>
               {fmt(r)}
             </span>
             <span className="w-28 text-right text-xs text-muted-foreground">{describe(r)}</span>
@@ -161,7 +166,37 @@ const EXPORT_HEADER_HEIGHT = 24;
 const EXPORT_CELL_WIDTH = 72;
 const EXPORT_CELL_HEIGHT = 26;
 const EXPORT_FONT = 11;
-const EXPORT_GRID = "#e5e7eb"; // gray-200, matching the on-screen cell borders
+
+/** Theme colours the exported grid needs, resolved from the tokens. */
+interface ExportPalette {
+  label: string;
+  surface: string;
+  empty: string;
+  grid: string;
+  foreground: string;
+  muted: string;
+  disabled: string;
+}
+
+/**
+ * Read the current theme for the export: the label colour off `root`, the
+ * tokens off the document element that `applyTheme` switches. The standalone
+ * SVG is rasterized outside the document, where `var()` has nothing to resolve
+ * against, so the token values are baked in at click time instead.
+ */
+function exportPalette(root: HTMLElement): ExportPalette {
+  const tokens = getComputedStyle(document.documentElement);
+  const token = (name: string) => tokens.getPropertyValue(name).trim();
+  return {
+    label: getComputedStyle(root).color,
+    surface: token("--app-surface"),
+    empty: token("--app-surface-hover"),
+    grid: token("--app-border"),
+    foreground: token("--app-foreground"),
+    muted: token("--app-muted-foreground"),
+    disabled: token("--app-disabled-foreground"),
+  };
+}
 
 /** Escape the characters that would otherwise break the generated markup. */
 function escapeXml(text: string): string {
@@ -176,13 +211,13 @@ function clip(text: string, max: number): string {
 /**
  * Build a standalone SVG of the grid for PNG export. The on-screen grid is a
  * styled <table>, which cannot be rasterized, so the same colour and formatting
- * helpers are laid out here instead; `labelColor` carries the current theme's
- * text colour onto the exported labels.
+ * helpers are laid out here instead, against the `palette` resolved from the
+ * current theme.
  */
 function buildMatrixSvg(
   columns: string[],
   subMatrix: (number | null)[][],
-  labelColor: string,
+  palette: ExportPalette,
 ): SVGSVGElement {
   const width = EXPORT_LABEL_WIDTH + columns.length * EXPORT_CELL_WIDTH;
   const height = EXPORT_HEADER_HEIGHT + columns.length * EXPORT_CELL_HEIGHT;
@@ -193,23 +228,33 @@ function buildMatrixSvg(
 
   columns.forEach((column, j) => {
     const x = EXPORT_LABEL_WIDTH + j * EXPORT_CELL_WIDTH + EXPORT_CELL_WIDTH / 2;
-    parts.push(label(x, EXPORT_HEADER_HEIGHT - 8, "middle", labelColor, clip(column, 11)));
+    parts.push(label(x, EXPORT_HEADER_HEIGHT - 8, "middle", palette.label, clip(column, 11)));
   });
 
   columns.forEach((rowColumn, i) => {
     const y = EXPORT_HEADER_HEIGHT + i * EXPORT_CELL_HEIGHT;
     const baseline = y + EXPORT_CELL_HEIGHT / 2 + EXPORT_FONT * 0.35;
-    parts.push(label(EXPORT_LABEL_WIDTH - 8, baseline, "end", labelColor, clip(rowColumn, 20)));
+    parts.push(label(EXPORT_LABEL_WIDTH - 8, baseline, "end", palette.label, clip(rowColumn, 20)));
 
     // Lower triangle only — the upper half mirrors it, as in the table.
     for (let j = 0; j <= i; j++) {
       const x = EXPORT_LABEL_WIDTH + j * EXPORT_CELL_WIDTH;
       const value = i === j ? null : (subMatrix[i]?.[j] ?? null);
-      const fill = i === j ? "#ffffff" : value == null ? "#f3f4f6" : cellColor(value);
+      const fill =
+        i === j
+          ? palette.surface
+          : value == null
+            ? palette.empty
+            : cellColor(value, palette.surface);
       const text = i === j ? "1" : fmt(value);
-      const color = i === j || value == null ? "#9ca3af" : textColor(value);
+      const color =
+        i === j
+          ? palette.muted
+          : value == null
+            ? palette.disabled
+            : textColor(value, palette.foreground);
       parts.push(
-        `<rect x="${x}" y="${y}" width="${EXPORT_CELL_WIDTH}" height="${EXPORT_CELL_HEIGHT}" fill="${fill}" stroke="${EXPORT_GRID}" />`,
+        `<rect x="${x}" y="${y}" width="${EXPORT_CELL_WIDTH}" height="${EXPORT_CELL_HEIGHT}" fill="${fill}" stroke="${palette.grid}" />`,
         label(x + EXPORT_CELL_WIDTH / 2, baseline, "middle", color, text),
       );
     }
@@ -239,7 +284,7 @@ function MatrixView({ columns, subMatrix }: { columns: string[]; subMatrix: (num
         <span
           className="h-2 w-32 rounded"
           style={{
-            background: `linear-gradient(to right, rgb(${NEGATIVE.join(",")}), #ffffff, rgb(${POSITIVE.join(",")}))`,
+            background: `linear-gradient(to right, rgb(${NEGATIVE.join(",")}), ${SURFACE}, rgb(${POSITIVE.join(",")}))`,
           }}
         />
         <span>+1</span>
@@ -317,11 +362,11 @@ function MatrixView({ columns, subMatrix }: { columns: string[]; subMatrix: (num
                         key={colCol}
                         onMouseEnter={() => setHovered({ row: i, col: j })}
                         className={`cursor-default border border-app-border px-2 py-1 text-center tabular-nums ${
-                          isHover ? "ring-2 ring-inset ring-gray-900/50" : ""
-                        }`}
+                          value == null ? "bg-surface-hover text-disabled-foreground" : ""
+                        } ${isHover ? "ring-2 ring-inset ring-foreground/50" : ""}`}
                         style={
                           value == null
-                            ? { background: "#f3f4f6", color: "#9ca3af" }
+                            ? undefined
                             : { background: cellColor(value), color: textColor(value) }
                         }
                         title={`${rowCol} × ${colCol}: ${fmt(value)}`}
@@ -340,7 +385,7 @@ function MatrixView({ columns, subMatrix }: { columns: string[]; subMatrix: (num
       <DownloadImageButton
         getTarget={() =>
           rootRef.current
-            ? buildMatrixSvg(columns, subMatrix, getComputedStyle(rootRef.current).color)
+            ? buildMatrixSvg(columns, subMatrix, exportPalette(rootRef.current))
             : null
         }
         title="Correlation"
