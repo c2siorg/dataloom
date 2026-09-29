@@ -19,6 +19,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app import database, models, schemas
 from app.api.dependencies import get_current_user, get_project_or_404, read_project_df
+from app.config import get_settings
 from app.services.file_service import (
     delete_project_files,
     delete_project_snapshots,
@@ -113,6 +114,12 @@ async def upload_project(
         **resp,
         **pagination,
     }
+
+
+@router.get("/upload-limits", response_model=schemas.UploadLimitsResponse)
+def get_upload_limits(current_user: models.User = Depends(get_current_user)):
+    """Return the upload limits the server enforces."""
+    return {"max_upload_size_bytes": get_settings().max_upload_size_bytes}
 
 
 @router.get("", response_model=list[schemas.LastResponse])

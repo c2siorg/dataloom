@@ -13,8 +13,10 @@ import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
 import { useProjectContext } from "../../context/ProjectContext";
 import { useToast } from "../../context/ToastContext";
 import useError from "../../hooks/useError";
+import useUploadLimits from "../../hooks/useUploadLimits";
 import FormErrorAlert from "../common/FormErrorAlert";
-import { ACCEPTED_EXTENSIONS } from "../../utils/fileUtils";
+import UploadProgress from "../common/UploadProgress";
+import { ACCEPTED_EXTENSIONS, uploadLimitError, validateFile } from "../../utils/fileUtils";
 import Button from "../common/Button";
 
 const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.join(",");
@@ -35,13 +37,16 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
   const { pageSize, page, updateData, setPaginationData } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const { showToast } = useToast();
-  const { error, clearError, handleError } = useError();
+  const { error, setError, clearError, handleError } = useError();
+  const { maxUploadSizeBytes } = useUploadLimits();
 
   const [preview, setPreview] = useState<AppendPreview | null>(null);
   const [duplicateName, setDuplicateName] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [inventory, setInventory] = useState<ProjectFileEntry[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // The selected File is only read inside handlers (never rendered — the
   // native input shows its own filename), so a ref avoids a re-render.
@@ -60,6 +65,32 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
     loadInventory();
   }, [loadInventory]);
 
+  // Abort an in-flight upload if the panel closes.
+  useEffect(() => () => uploadAbortRef.current?.abort(), []);
+
+  /** Start tracking an upload; the returned controller's signal aborts it. */
+  const beginUpload = () => {
+    const controller = new AbortController();
+    uploadAbortRef.current = controller;
+    setUploadProgress(0);
+    return controller;
+  };
+
+  const endUpload = () => {
+    uploadAbortRef.current = null;
+    setUploadProgress(null);
+  };
+
+  const reportUploadError = (err: unknown, file: File, fallback: string) => {
+    const limitMessage = uploadLimitError(err, file, maxUploadSizeBytes);
+    if (limitMessage) {
+      setError(limitMessage);
+    } else {
+      handleError(err);
+    }
+    showToast(limitMessage ?? errorDetail(err, fallback), "error");
+  };
+
   const resetSelection = () => {
     fileRef.current = null;
     setPreview(null);
@@ -76,18 +107,35 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
       return;
     }
 
+    const validation = validateFile(selected, maxUploadSizeBytes);
+    if (!validation.valid) {
+      resetSelection();
+      showToast(validation.error ?? "Please select a file to upload.", "warning");
+      return;
+    }
+
     setDuplicateName(
       inventory.some((entry) => entry.original_filename === selected.name) ? selected.name : null,
     );
 
     setPreviewing(true);
+    const controller = beginUpload();
     try {
-      setPreview(await previewAddFile(projectId, selected));
+      setPreview(
+        await previewAddFile(projectId, selected, {
+          onProgress: setUploadProgress,
+          signal: controller.signal,
+        }),
+      );
     } catch (err) {
-      handleError(err);
       resetSelection();
-      showToast(errorDetail(err, "Could not analyze the selected file."), "error");
+      if (controller.signal.aborted) {
+        showToast("Upload cancelled.", "info");
+      } else {
+        reportUploadError(err, selected, "Could not analyze the selected file.");
+      }
     } finally {
+      endUpload();
       setPreviewing(false);
     }
   };
@@ -105,16 +153,25 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
     if (!file || !preview) return;
     clearError();
     setSubmitting(true);
+    const controller = beginUpload();
     try {
-      const response = await addFileToProject(projectId, file, page, pageSize);
+      const response = await addFileToProject(projectId, file, page, pageSize, {
+        onProgress: setUploadProgress,
+        signal: controller.signal,
+      });
       const newColsNote =
         preview.new_columns.length > 0 ? `, added ${preview.new_columns.length} new column(s)` : "";
       resetSelection();
       await afterAppend(`Appended ${preview.incoming_row_count} row(s)${newColsNote}.`, response);
     } catch (err) {
-      handleError(err);
-      showToast(errorDetail(err, "Failed to append the file."), "error");
+      if (controller.signal.aborted) {
+        // The preview stays, so the user can confirm the append again.
+        showToast("Upload cancelled.", "info");
+      } else {
+        reportUploadError(err, file, "Failed to append the file.");
+      }
     } finally {
+      endUpload();
       setSubmitting(false);
     }
   };
@@ -156,6 +213,15 @@ const AddFilePanel = ({ projectId, onClose }: { projectId: string; onClose: () =
       </div>
 
       {previewing && <p className="text-sm text-muted-foreground mb-4">Analyzing file…</p>}
+
+      {uploadProgress !== null && (
+        <div className="mb-4">
+          <UploadProgress
+            progress={uploadProgress}
+            onCancel={() => uploadAbortRef.current?.abort()}
+          />
+        </div>
+      )}
 
       {preview && (
         <div className="mb-4 rounded-md border border-app-border bg-elevated p-3 text-sm">

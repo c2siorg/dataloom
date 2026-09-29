@@ -28,6 +28,19 @@ def sanitize_filename(filename: str) -> str:
     return f"{uuid.uuid4().hex[:8]}_{name}"
 
 
+def format_size_limit(size_bytes: int) -> str:
+    """Format a byte limit for error messages: ``10MB``, or ``10.5MB`` when not a whole megabyte.
+
+    Args:
+        size_bytes: The limit in bytes.
+
+    Returns:
+        The limit in megabytes, with one decimal only when needed.
+    """
+    size_mb = size_bytes / (1024 * 1024)
+    return f"{int(size_mb)}MB" if size_mb == int(size_mb) else f"{size_mb:.1f}MB"
+
+
 async def validate_upload_file(file: UploadFile) -> None:
     """Validate an uploaded file extension and size.
 
@@ -35,7 +48,7 @@ async def validate_upload_file(file: UploadFile) -> None:
         file: The FastAPI UploadFile object.
 
     Raises:
-        HTTPException: If the file extension is not allowed or the file is too large.
+        HTTPException: 400 if the file extension is not allowed, 413 if the file is too large.
     """
     settings = get_settings()
 
@@ -47,24 +60,16 @@ async def validate_upload_file(file: UploadFile) -> None:
 
     if file.size is not None:
         if file.size > settings.max_upload_size_bytes:
-            max_size_mb = settings.max_upload_size_bytes / (1024 * 1024)
-            mb_str = f"{int(max_size_mb)}MB" if max_size_mb == int(max_size_mb) else f"{max_size_mb:.1f}MB"
-            raise HTTPException(
-                status_code=400,
-                detail=f"File size exceeds the maximum allowed size of {mb_str}.",
-            )
+            limit = format_size_limit(settings.max_upload_size_bytes)
+            raise HTTPException(status_code=413, detail=f"File size exceeds the maximum allowed size of {limit}.")
     else:
         await file.seek(0)
         file_size = 0
         while chunk := await file.read(65_536):
             file_size += len(chunk)
             if file_size > settings.max_upload_size_bytes:
-                max_size_mb = settings.max_upload_size_bytes / (1024 * 1024)
-                mb_str = f"{int(max_size_mb)}MB" if max_size_mb == int(max_size_mb) else f"{max_size_mb:.1f}MB"
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"File size exceeds the maximum allowed size of {mb_str}.",
-                )
+                limit = format_size_limit(settings.max_upload_size_bytes)
+                raise HTTPException(status_code=413, detail=f"File size exceeds the maximum allowed size of {limit}.")
         await file.seek(0)
 
 

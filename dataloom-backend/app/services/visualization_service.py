@@ -26,7 +26,7 @@ from typing import Any
 import pandas as pd
 
 from app.services.profiling_service import _round, _safe_number
-from app.utils.pandas_helpers import map_dtype
+from app.utils.pandas_helpers import map_dtype, sample_exceeds_distinct
 
 # Default histogram bucket count when the caller does not specify one.
 DEFAULT_BINS = 20
@@ -336,6 +336,10 @@ def _classify_columns(df: pd.DataFrame) -> dict[str, list[str]]:
             kinds["datetime"].append(name)
         elif label in ("str", "bool"):
             kinds["categorical"].append(name)
+            # A sample with too many distinct values proves the column has too;
+            # otherwise count on the full column.
+            if sample_exceeds_distinct(df[column], LOW_CARDINALITY_MAX):
+                continue
             if df[column].nunique(dropna=True) <= LOW_CARDINALITY_MAX:
                 kinds["low_card"].append(name)
     return kinds

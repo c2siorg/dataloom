@@ -28,6 +28,7 @@ import pandas as pd
 import regex
 
 from app.services.profiling_service import _coerce_sentinels
+from app.utils.pandas_helpers import sample_rules_out_rate
 
 # Severity → penalty weight used by the score. Judgment values, tunable.
 SEVERITY_WEIGHTS = {"critical": 10, "high": 5, "medium": 2, "low": 1}
@@ -51,6 +52,11 @@ PATTERN_TIME_BUDGET_SECONDS = 5.0
 # Calibration factor turning the weighted penalty ratio into score points:
 # e.g. 10% of cells affected at MEDIUM (weight 2) costs 20 points.
 SCORE_PENALTY_FACTOR = 100.0
+
+
+def _parses_as_date(values: pd.Series) -> pd.Series:
+    """The date parse the detectors run, as a predicate for the sampled gate."""
+    return pd.to_datetime(values, errors="coerce", format="mixed").notna()
 
 
 def _sample_rows(mask: pd.Series) -> list[int]:
@@ -242,6 +248,10 @@ def detect_type_mismatches(df: pd.DataFrame) -> list[dict[str, Any]]:
             continue
 
         if numeric_rate == 0:
+            # A sample that proves the date rate cannot reach the threshold
+            # means neither date issue can fire; skip the full dateutil parse.
+            if sample_rules_out_rate(non_null, _parses_as_date):
+                continue
             dates = pd.to_datetime(non_null, errors="coerce", format="mixed")
             date_rate = dates.notna().sum() / total
             if date_rate == 1.0:
@@ -382,7 +392,7 @@ def detect_inconsistent_formats(df: pd.DataFrame) -> list[dict[str, Any]]:
             )
 
         numeric_rate = pd.to_numeric(strings, errors="coerce").notna().sum() / len(strings)
-        if numeric_rate == 0:
+        if numeric_rate == 0 and not sample_rules_out_rate(strings, _parses_as_date):
             dates = pd.to_datetime(strings, errors="coerce", format="mixed")
             if dates.notna().sum() / len(strings) >= TYPE_PARSE_THRESHOLD:
                 shapes = strings[dates.notna()].map(lambda v: re.sub(r"\d+", "#", v.strip()))
