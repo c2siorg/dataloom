@@ -59,3 +59,12 @@ export {
   checkDraftPipelineSteps,
   applyPipeline,
 } from "./pipelines";
+export {
+  submitJob,
+  getJob,
+  listProjectJobs,
+  cancelJob,
+  isTerminal,
+  TERMINAL_JOB_STATUSES,
+} from "./jobs";
+export type { Job, JobKind, JobProgress, JobRequest, JobStatus } from "./jobs";

@@ -93,3 +93,12 @@ _Avoid_: Execution, invocation, job
 A dry run of a draft's Steps against a Project, reporting the first Step that
 fails. It asks whether the Steps *can* run, never whether they *should*.
 _Avoid_: Validation, eligibility, lint
+
+### Execution
+
+**Job**:
+How slow work executes — off the request path, with progress and cancel — never
+what the work is. A Run executed as a Job is still a Run, and appears in the
+Change Log exactly as one applied directly. A Job that rewrites a Project is
+exclusive: only one may be active on a Project at a time.
+_Avoid_: Task, background process; never "job" for the work itself (say Run, revert)
