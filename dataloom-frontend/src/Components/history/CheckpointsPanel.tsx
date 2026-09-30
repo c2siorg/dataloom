@@ -9,6 +9,8 @@ interface CheckpointsPanelProps {
   projectId: string;
   checkpoints?: Checkpoint[] | null;
   onRevert: (checkpointId: string) => void;
+  /** Disable Revert, e.g. while a job is rewriting the project. */
+  revertDisabled?: boolean;
   onCheckpointDeleted: () => Promise<void> | void;
 }
 
@@ -16,6 +18,7 @@ const CheckpointsPanel = ({
   projectId,
   checkpoints,
   onRevert,
+  revertDisabled = false,
   onCheckpointDeleted,
 }: CheckpointsPanelProps) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -66,7 +69,11 @@ const CheckpointsPanel = ({
                   </td>
                   <td className="py-3 px-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <Button size="sm" onClick={() => onRevert(checkpoint.id)}>
+                      <Button
+                        size="sm"
+                        onClick={() => onRevert(checkpoint.id)}
+                        disabled={revertDisabled}
+                      >
                         Revert
                       </Button>
                       <Button

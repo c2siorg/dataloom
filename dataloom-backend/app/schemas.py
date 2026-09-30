@@ -4,7 +4,7 @@ import datetime
 import re
 import uuid
 from enum import StrEnum
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -949,3 +949,64 @@ class PipelineCompatibilityResponse(BaseModel):
     failing_step: int | None = None
     action_type: str | None = None
     reason: str | None = None
+
+
+# --- Background job schemas ---
+
+
+class JobKind(StrEnum):
+    """The kinds of slow work that run as a Job. Each has one JOB_REGISTRY entry."""
+
+    pipelineRun = "pipelineRun"
+    revert = "revert"
+
+
+class PipelineRunJobParams(BaseModel):
+    """Parameters of a pipeline Run executed as a Job."""
+
+    pipeline_id: uuid.UUID
+
+
+class RevertJobParams(BaseModel):
+    """Parameters of a revert executed as a Job. No checkpoint means the original upload."""
+
+    checkpoint_id: uuid.UUID | None = None
+
+
+class PipelineRunJobRequest(PipelineRunJobParams):
+    kind: Literal[JobKind.pipelineRun]
+
+
+class RevertJobRequest(RevertJobParams):
+    kind: Literal[JobKind.revert]
+
+
+# The body of POST /projects/{id}/jobs: the kind picks the parameter model, so a
+# client names work to do, never a function to call.
+JobCreateRequest = Annotated[PipelineRunJobRequest | RevertJobRequest, Field(discriminator="kind")]
+
+
+class JobProgress(BaseModel):
+    """How far a job has got. ``total`` is None while the amount of work is unknown."""
+
+    current: int
+    total: int | None
+    message: str
+
+
+class JobResponse(BaseModel):
+    """A job's state as the client sees it."""
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    kind: str
+    is_exclusive: bool
+    status: str
+    params: dict[str, Any]
+    progress: JobProgress
+    result: dict[str, Any] | None
+    error: str | None
+    cancel_requested: bool
+    created_at: datetime.datetime
+    started_at: datetime.datetime | None
+    finished_at: datetime.datetime | None

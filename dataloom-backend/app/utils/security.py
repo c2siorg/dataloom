@@ -331,3 +331,26 @@ def safe_transformation_error_detail(error: Exception) -> str:
     if re.search(r"[A-Za-z]:\\[^\\\n]+", detail) or re.search(r"/(?:[^/\n]+/)+[^/\n]+", detail):
         return SAFE_TRANSFORMATION_ERROR_DETAIL
     return detail
+
+
+def safe_http_exception_detail(error: HTTPException) -> str | None:
+    """Return a redacted detail for sensitive HTTPException payloads.
+
+    Returns None when the detail is already safe to show. Shared by the transform
+    endpoint and the job runner: ``read_table_safe`` embeds absolute paths in its
+    404/500 details, and neither caller may hand those to the client.
+    """
+    detail = error.detail if isinstance(error.detail, str) else ""
+    lowered = detail.lower()
+
+    if error.status_code >= 500:
+        return "Internal server error"
+
+    # Utility-layer file 404s may embed absolute paths.
+    if error.status_code == 404 and "file not found" in lowered:
+        return "File not found"
+
+    if detail and (re.search(r"[A-Za-z]:\\[^\\\n]+", detail) or re.search(r"/(?:[^/\n]+/)+[^/\n]+", detail)):
+        return "Resource not found" if error.status_code == 404 else "Internal server error"
+
+    return None

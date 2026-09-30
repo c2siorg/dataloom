@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { useProjectContext } from "../../context/ProjectContext";
-import { useHistoryRefresh, useHistoryRefreshTokens } from "../../context/HistoryRefreshContext";
-import { getCheckpoints, revertToCheckpoint, type CellValue } from "../../api";
+import { useHistoryRefreshTokens } from "../../context/HistoryRefreshContext";
+import { useActiveJob } from "../../context/ActiveJobContext";
+import { getCheckpoints } from "../../api";
 import { useLogs } from "../../hooks/useLogs";
 import LogsPanel from "../history/LogsPanel";
 import CheckpointsPanel from "../history/CheckpointsPanel";
 import ConfirmDialog from "../common/ConfirmDialog";
-import Toast from "../common/Toast";
 
 interface CheckpointEntry {
   id: string;
@@ -16,29 +15,11 @@ interface CheckpointEntry {
   [key: string]: unknown;
 }
 
-// revert/checkpoint API helpers are authored in JS (typed as Object); narrow
-// the response shapes this module reads.
-interface RevertResponse {
-  columns: string[];
-  rows: CellValue[][];
-  dtypes: Record<string, string>;
-  total_rows?: number;
-  total_pages?: number;
-  page?: number;
-  page_size?: number;
-}
-
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "info" | "warning";
-}
-
 interface ConfirmData {
   message: string;
   onConfirm: () => void | Promise<void>;
 }
 
-// ProjectContext is authored in JS; narrow the one slice this module uses.
 /** Logs tab — fetches the project's change log and refreshes on transform events. */
 export function LogsTab() {
   const { projectId } = useParams() as { projectId: string };
@@ -51,15 +32,19 @@ export function LogsTab() {
   );
 }
 
-/** Checkpoints tab — lists checkpoints and handles revert/delete. */
+/**
+ * Checkpoints tab — lists checkpoints and handles revert/delete.
+ *
+ * A revert runs as a background job: the workspace banner shows its progress
+ * and Cancel, and the job's completion reloads the table, the logs and the
+ * toast. Revert stays disabled while any job is rewriting the project.
+ */
 export function CheckpointsTab() {
   const { projectId } = useParams() as { projectId: string };
-  const { updateData, setPaginationData, page, pageSize } = useProjectContext();
-  const { refreshLogs } = useHistoryRefresh();
+  const { startJob, activeWriteJob } = useActiveJob();
   const { checkpointsToken } = useHistoryRefreshTokens();
   const [checkpoints, setCheckpoints] = useState<CheckpointEntry[] | null>(null);
   const [confirmData, setConfirmData] = useState<ConfirmData | null>(null);
-  const [toast, setToast] = useState<ToastState | null>(null);
 
   const fetchCheckpoints = useCallback(async () => {
     try {
@@ -89,25 +74,11 @@ export function CheckpointsTab() {
     setConfirmData({
       message: "Are you sure you want to revert to this checkpoint?",
       onConfirm: async () => {
-        try {
-          const response = (await revertToCheckpoint(
-            projectId,
-            checkpointId,
-            page,
-            pageSize,
-          )) as RevertResponse;
-          updateData(response.columns, response.rows, {
-            dtypes: response.dtypes,
-            resetColumnOrder: false,
-          });
-          setPaginationData(response);
-          // Reverting un-applies later logs, so refresh any open Logs tab.
-          refreshLogs();
-          setToast({ message: "Project reverted successfully!", type: "success" });
-        } catch {
-          setToast({ message: "Failed to revert project.", type: "error" });
-        }
         setConfirmData(null);
+        await startJob(
+          { kind: "revert", checkpoint_id: checkpointId },
+          { success: "Project reverted successfully!", failure: "Failed to revert project." },
+        );
       },
     });
   };
@@ -118,6 +89,7 @@ export function CheckpointsTab() {
         projectId={projectId}
         checkpoints={checkpoints}
         onRevert={handleRevert}
+        revertDisabled={activeWriteJob !== null}
         onCheckpointDeleted={fetchCheckpoints}
       />
 
@@ -127,12 +99,6 @@ export function CheckpointsTab() {
         onConfirm={confirmData?.onConfirm ?? (() => {})}
         onCancel={() => setConfirmData(null)}
       />
-
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
-        </div>
-      )}
     </div>
   );
 }

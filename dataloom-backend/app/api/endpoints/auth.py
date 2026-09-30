@@ -7,7 +7,7 @@ from sqlmodel import Session
 from app import database, models, schemas
 from app.api.dependencies import get_current_user, rate_limit
 from app.config import get_settings
-from app.services import auth_service
+from app.services import auth_service, job_service
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -151,7 +151,12 @@ def delete_account(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(database.get_db),
 ):
-    """Delete the currently authenticated user's account and all associated data."""
+    """Delete the currently authenticated user's account and all associated data.
+
+    Answers 409 while a job is rewriting one of the user's projects, for the
+    same reason deleting that project would.
+    """
+    job_service.ensure_owner_has_no_active_exclusive_job(db, current_user.id)
     try:
         auth_service.delete_user_account(db, current_user, payload.password)
     except ValueError as e:
