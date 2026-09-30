@@ -9,7 +9,7 @@ from app import models
 from app.services.auth_service import create_user, verify_password
 
 
-def _signup(client, email, password="testpassword"):
+def _signup(client, email, password="Testpassword@123"):
     """Helper: post a signup request."""
     return client.post("/auth/signup", json={"email": email, "password": password})
 
@@ -54,9 +54,9 @@ class TestSignup:
 
 class TestSignin:
     def test_signin_success(self, anon_client):
-        _signup(anon_client, "signin@test.com", password="mypassword1")
+        _signup(anon_client, "signin@test.com", password="MyPassword@123")
         anon_client.cookies.clear()
-        resp = anon_client.post("/auth/signin", json={"email": "signin@test.com", "password": "mypassword1"})
+        resp = anon_client.post("/auth/signin", json={"email": "signin@test.com", "password": "MyPassword@123"})
         assert resp.status_code == 200
         assert "access_token" in resp.headers.get("set-cookie", "")
 
@@ -123,7 +123,7 @@ class TestProfileManagement:
             "/auth/me/password",
             json={
                 "current_password": "testpassword",
-                "new_password": "newpassword123",
+                "new_password": "Newpassword@123",
             },
         )
 
@@ -131,7 +131,7 @@ class TestProfileManagement:
         assert response.json()["message"] == "Password changed successfully"
 
         db.refresh(test_user)
-        assert verify_password("newpassword123", test_user.password_hash)
+        assert verify_password("Newpassword@123", test_user.password_hash)
 
     def test_change_password_requires_auth(self, anon_client):
         """Should reject password changes without authentication."""
@@ -139,7 +139,7 @@ class TestProfileManagement:
             "/auth/me/password",
             json={
                 "current_password": "testpassword",
-                "new_password": "newpassword123",
+                "new_password": "Newpassword@123",
             },
         )
 
@@ -151,7 +151,7 @@ class TestProfileManagement:
             "/auth/me/password",
             json={
                 "current_password": "wrongpassword",
-                "new_password": "newpassword123",
+                "new_password": "Newpassword@123",
             },
         )
 
