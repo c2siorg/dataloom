@@ -1,7 +1,7 @@
 """Database operations for projects, logs, and checkpoints."""
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
 import pandas as pd
@@ -13,9 +13,9 @@ from sqlmodel import Session
 from app import models
 from app.config import get_settings
 from app.services import report_service, transformation_service
-from app.services.file_service import restore_snapshot, take_snapshot, unlink_snapshots
+from app.services.file_service import get_original_path, restore_snapshot, take_snapshot, unlink_snapshots
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import save_table_safe
+from app.utils.pandas_helpers import read_table_safe, save_table_safe
 
 logger = get_logger(__name__)
 
@@ -168,6 +168,10 @@ def delete_project(db: Session, project: models.Project) -> None:
             .filter(models.ProjectFile.project_id == project_id)
             .delete(synchronize_session=False)
         )
+        # Explicit rather than left to the FK cascade, which SQLite does not enforce.
+        deleted_jobs = (
+            db.query(models.Job).filter(models.Job.project_id == project_id).delete(synchronize_session=False)
+        )
         deleted_projects = (
             db.query(models.Project).filter(models.Project.project_id == project_id).delete(synchronize_session=False)
         )
@@ -181,7 +185,7 @@ def delete_project(db: Session, project: models.Project) -> None:
         logger.warning("Project delete matched no project row: id=%s, name=%s", project_id, project_name)
 
     logger.info(
-        "Deleted project: id=%s, name=%s, projects=%d, logs=%d, undo_steps=%d, checkpoints=%d, files=%d",
+        "Deleted project: id=%s, name=%s, projects=%d, logs=%d, undo_steps=%d, checkpoints=%d, files=%d, jobs=%d",
         project_id,
         project_name,
         deleted_projects,
@@ -189,6 +193,7 @@ def delete_project(db: Session, project: models.Project) -> None:
         deleted_steps,
         deleted_checkpoints,
         deleted_files,
+        deleted_jobs,
     )
 
 
@@ -528,6 +533,114 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
         len(logs),
     )
     return checkpoint
+
+
+def _logs_to_replay(db: Session, project_id: uuid.UUID, checkpoint_id: uuid.UUID) -> list[models.ProjectChangeLog]:
+    """The applied logs that rebuild a project up to and including a checkpoint.
+
+    Raises:
+        HTTPException: 404 if the checkpoint does not belong to the project.
+    """
+    checkpoint = (
+        db.query(models.Checkpoint)
+        .filter(
+            models.Checkpoint.id == checkpoint_id,
+            models.Checkpoint.project_id == project_id,
+        )
+        .first()
+    )
+    if not checkpoint:
+        raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+    # Find all checkpoint IDs created at or before the target checkpoint
+    eligible_checkpoint_ids = [
+        c.id
+        for c in db.query(models.Checkpoint)
+        .filter(
+            models.Checkpoint.project_id == project_id,
+            models.Checkpoint.created_at <= checkpoint.created_at,
+        )
+        .all()
+    ]
+
+    return (
+        db.query(models.ProjectChangeLog)
+        .filter(
+            models.ProjectChangeLog.project_id == project_id,
+            models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
+            models.ProjectChangeLog.applied == True,  # noqa: E712
+        )
+        .order_by(models.ProjectChangeLog.timestamp)
+        .all()
+    )
+
+
+def revert_project(
+    db: Session,
+    project: models.Project,
+    checkpoint_id: uuid.UUID | None,
+    *,
+    on_step: Callable[[int, int, str], None] | None = None,
+    before_commit: Callable[[], None] | None = None,
+) -> pd.DataFrame:
+    """Rebuild a project's working copy from its original file.
+
+    With a checkpoint, replays the applied logs up to and including it; without
+    one, restores the original upload. Unapplied logs are cleared either way, so
+    a later save cannot re-apply stale transformations on top of the reverted
+    data. The caller holds the project's write lock.
+
+    The replay runs in memory and the project is written once, at the end, so
+    anything ``on_step`` or ``before_commit`` raises leaves the project exactly
+    as it was.
+
+    Args:
+        db: Database session.
+        project: The project to revert.
+        checkpoint_id: The checkpoint to revert to, or None for the original.
+        on_step: Optional hook called before replaying log ``index`` of
+            ``total``, with the Operation's label. Whatever it raises propagates.
+        before_commit: Optional hook called after the replay and before the
+            first write.
+
+    Returns:
+        The reverted DataFrame.
+
+    Raises:
+        HTTPException: 404 if the checkpoint does not belong to the project, or
+            whatever reading the original file raises.
+    """
+    project_id = project.project_id
+    logs = [] if checkpoint_id is None else _logs_to_replay(db, project_id, checkpoint_id)
+    df = read_table_safe(get_original_path(project.file_path))
+
+    total = len(logs)
+    for index, log in enumerate(logs):
+        if on_step is not None:
+            on_step(index, total, transformation_service.operation_label(log.action_type))
+        df = transformation_service.apply_logged_transformation(df, log.action_type, log.action_details)
+
+    if before_commit is not None:
+        before_commit()
+
+    # Write file first — if this fails, DB is unchanged and state remains consistent.
+    save_table_safe(df, project.file_path)
+    # Undo and redo cover the unsaved work the revert just discarded.
+    stale_snapshots = discard_undo_history(db, project_id)
+    # Clear unapplied logs so a subsequent save cannot re-apply stale
+    # transformations on top of the reverted file state.
+    # Applies to all reverts (full and partial) to prevent stale log replay.
+    db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.applied.is_(False),
+    ).delete(synchronize_session="evaluate")
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    unlink_snapshots(stale_snapshots)
+    return df
 
 
 def get_checkpoints(db: Session, project_id: uuid.UUID) -> list[models.Checkpoint]:

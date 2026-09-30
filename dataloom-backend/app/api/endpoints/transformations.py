@@ -3,7 +3,6 @@
 All transformations are handled through a single unified /transform endpoint.
 """
 
-import re
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -16,29 +15,11 @@ from app.services.project_service import commit_undoable_change
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe
 from app.utils.project_locks import project_read_lock, project_write_lock
-from app.utils.security import safe_transformation_error_detail
+from app.utils.security import safe_http_exception_detail, safe_transformation_error_detail
 
 logger = get_logger(__name__)
 
 router = APIRouter()
-
-
-def _safe_http_exception_detail(error: HTTPException) -> str | None:
-    """Return a redacted detail for sensitive HTTPException payloads."""
-    detail = error.detail if isinstance(error.detail, str) else ""
-    lowered = detail.lower()
-
-    if error.status_code >= 500:
-        return "Internal server error"
-
-    # Utility-layer file 404s may embed absolute paths.
-    if error.status_code == 404 and "file not found" in lowered:
-        return "File not found"
-
-    if detail and (re.search(r"[A-Za-z]:\\[^\\\n]+", detail) or re.search(r"/(?:[^/\n]+/)+[^/\n]+", detail)):
-        return "Resource not found" if error.status_code == 404 else "Internal server error"
-
-    return None
 
 
 def _dispatch_transform(df, transformation_input):
@@ -123,7 +104,7 @@ def _transform_project(
             **pagination,
         }
     except HTTPException as e:
-        safe_detail = _safe_http_exception_detail(e)
+        safe_detail = safe_http_exception_detail(e)
         if safe_detail is None:
             # Preserve explicit HTTP errors (e.g., missing parameters) and their status codes.
             raise

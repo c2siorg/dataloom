@@ -61,8 +61,13 @@ app/services/            → Business logic layer
   project_service.py     → CRUD + checkpoint creation
   transformation_service.py → Pure DataFrame transforms (no side effects)
   file_service.py        → Upload storage, original/copy file management
+  job_service.py         → Job rows: create under the 409/429 limits, transitions, recovery, purge
+app/jobs/                → Background jobs, executed in-process off the request path
+  runner.py              → JobRunner: ThreadPoolExecutor, cancel Events, session_factory, inline test mode
+  registry.py            → JOB_REGISTRY: JobKind → validate + run (takes the same locks as the sync path)
+  context.py             → JobContext: throttled progress, cooperative cancel, enter_commit_phase()
 app/utils/
-  security.py            → Filename sanitization, upload validation, query injection prevention
+  security.py            → Filename sanitization, upload validation, query injection prevention, error redaction
   pandas_helpers.py      → Safe CSV I/O, DataFrame-to-response conversion
   df_cache.py            → Process-local LRU cache of parsed DataFrames, keyed on path/mtime/size
 app/models.py            → SQLModel ORM (Project, ProjectChangeLog, Checkpoint, UndoStep)
@@ -77,9 +82,11 @@ app/database.py          → SQLModel engine + get_db session generator
 
 **Preview before persist.** A preview lives only in frontend state, so a reload (`GET /projects/get/{id}`) and a CSV export both read the working copy and an unsaved preview is discarded. Apply issues `preview=true`; Save Changes reissues the same payload with `preview=false`, and that second call is the one that persists.
 
+**Slow writes run as jobs.** A pipeline Run and a revert can outlast the frontend's 30 s timeout, so `POST /projects/{id}/jobs` returns 202 and the work runs on `app/jobs/runner.py`'s thread pool, started and stopped by the lifespan. The workers are threads, not processes, because `project_locks` and `df_cache` are process-local. A job takes the same `project_write_lock`, in the same order, as the sync endpoint, and calls the same service function (`pipeline_service.apply_pipeline_to_project`, `project_service.revert_project`), passing plain `on_step` / `before_commit` callables for progress and cancel. Services import nothing job-related. Cancel is honoured between steps and never after `before_commit`, so a cancelled job changed nothing. At most one exclusive (write) job is active per project, enforced by a partial unique index; while one is, the sync `/apply` and `/revert`, project delete and account delete answer 409 with `active_job_id`. Startup marks jobs left `queued`/`running` as failed ("Interrupted by a server restart"). Errors pass through `safe_transformation_error_detail` / `safe_http_exception_detail` before they are stored.
+
 **Transformation service functions are pure** — they take a DataFrame and return a new DataFrame. Side effects (saving to disk, logging) are handled by the endpoint layer.
 
-**Tests use SQLite** — `conftest.py` swaps PostgreSQL for an in-memory SQLite database using dependency override on `get_db`.
+**Tests use SQLite** — `conftest.py` swaps PostgreSQL for an in-memory SQLite database using dependency override on `get_db`. It also points `runner.session_factory` at the test engine and runs jobs inline (to completion inside the submitting request); use the `threaded_job_runner` fixture for real worker threads.
 
 ### Frontend layers
 
@@ -92,7 +99,8 @@ src/api/                 → Axios-based API layer
 src/context/             → React Context providers
   ProjectContext.jsx     → Project state (columns, rows, loading, refresh)
   ToastContext.jsx       → Toast notification state
-src/hooks/               → Custom hooks (useProject, useTransform, useModal, useContextMenu)
+  ActiveJobContext.tsx   → Per-workspace active job: startJob, resume on reload, outcome handling
+src/hooks/               → Custom hooks (useProject, useTransform, useModal, useContextMenu, useJob polling)
 src/Components/          → NOTE: uppercase "C" in directory name
   common/                → Shared UI (Button, Modal, ConfirmDialog, ErrorBoundary, Toast)
   forms/                 → Transform forms (Filter, Sort, Pivot, DropDuplicate, AdvQuery)
@@ -106,6 +114,8 @@ src/Components/          → NOTE: uppercase "C" in directory name
 **Project navigation uses URL params** (`/workspace/:projectId`), not state-based routing.
 
 **API functions return `response.data`** — callers receive the parsed body directly, not the Axios response wrapper.
+
+**Pipeline Runs and reverts go through `useActiveJob().startJob`**, not the sync API. The context polls the job (`useJob`), shows it in the workspace banner (`JobProgress`), and on success reloads the table and calls `markDataChanged()` (`refreshProject` alone does not bump `dataVersion`). Reads of the project wait while `useProjectReadsOnHold()` is true, since they would queue behind the job's write lock.
 
 **Transform forms wire into preview mode** — after a successful `preview=true` request call `enterPreviewMode` from ProjectContext, and `cancelPreview` from the Cancel handler. Use the shared `usePreviewSave` hook for Save Changes; it reissues the pending transform with `preview: false` and calls `confirmPreview` on success.
 
@@ -126,6 +136,10 @@ src/Components/          → NOTE: uppercase "C" in directory name
 | GET | /projects/{id}/undo-state | `{can_undo, can_redo}` for enabling the buttons |
 | GET | /logs/{project_id} | Change logs for project |
 | GET | /logs/checkpoints/{project_id} | Checkpoint list for project |
+| POST | /projects/{id}/jobs | Submit a background job (`pipelineRun`, `revert`) → 202 |
+| GET | /jobs/{job_id} | Poll a job's status and progress |
+| GET | /projects/{id}/jobs?active=true | A project's jobs (active ones, to resume after a reload) |
+| POST | /jobs/{job_id}/cancel | Cancel a queued job, or stop a running one before it writes |
 
 The single `/transform` endpoint dispatches to basic or complex handlers based on `operation_type`. Complex ops (set in `transformations.py:COMPLEX_OPERATIONS`): `dropDuplicate`, `advQueryFilter`, `pivotTables`, `dropNa`, `melt`, `groupby`.
 
@@ -135,6 +149,7 @@ The single `/transform` endpoint dispatches to basic or complex handlers based o
 - **ProjectChangeLog** → `user_logs` table: logged transformations with `applied` flag and optional `checkpoint_id`
 - **Checkpoint** → `checkpoints` table: save points that mark sets of applied transformations
 - **UndoStep** → `undo_steps` table: one user action's unsaved work (`done` or `undone`), its log entries, and its before/after snapshot paths; `user_logs.undo_step_id` links rows to it
+- **Job** → `jobs` table: one background execution — kind, status, progress, params, small result, redacted error (never row data)
 
 ## Conventions
 
@@ -154,3 +169,6 @@ The single `/transform` endpoint dispatches to basic or complex handlers based o
 - `change_cell_value` uses 1-based `col_index` from the frontend (accounts for the S.No. display column); `rename_column` uses 0-based `col_index`
 - Backend auto-runs Alembic migrations on startup via the lifespan handler
 - `advanced_query` passes user input to `df.query()` — always goes through `validate_query_string()` injection check
+- Never pass the request's Session to a job: it is closed once the response is sent. Jobs get Sessions from `runner.session_factory`, re-load rows by id, and write progress through their own short-lived Sessions (SQLite allows one writer at a time)
+- Call replay hooks (`on_step`, `before_commit`) outside the per-step `try/except` in `pipeline_service._replay` and the revert loop, or a cancel is reported as "Pipeline step N failed"
+- Keep a single Alembic head: startup runs `upgrade head`, which refuses two. A new migration's `down_revision` is the current `uv run alembic heads`; `tests/test_job_runner.py::test_single_alembic_head` fails otherwise
