@@ -32,14 +32,15 @@ export default function Toast({ message, type = "info", onDismiss, duration = 30
 
   return (
     <div
-      className={`bg-white border border-gray-200 border-l-4 rounded-lg shadow-md px-4 py-3 text-gray-900 ${TYPE_CLASSES[type] || TYPE_CLASSES.info}`}
+      className={`bg-surface border border-app-border border-l-4 rounded-lg shadow-md px-4 py-3 text-foreground ${TYPE_CLASSES[type] || TYPE_CLASSES.info}`}
       role="alert"
     >
       <div className="flex items-center justify-between gap-2">
         <span>{message}</span>
         <button
+          type="button"
           onClick={onDismiss}
-          className="ml-2 text-gray-400 hover:text-gray-600 transition-colors duration-150"
+          className="ml-2 text-muted-foreground hover:text-foreground transition-colors duration-150"
           aria-label="Dismiss"
         >
           &times;
