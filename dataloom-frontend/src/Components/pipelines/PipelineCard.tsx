@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { LuTrash2 } from "react-icons/lu";
-import { applyPipeline, checkPipeline, deletePipeline } from "../../api";
+import { checkPipeline, deletePipeline } from "../../api";
 import type { Pipeline } from "../../api/pipelines";
-import { useProjectContext } from "../../context/ProjectContext";
-import { useHistoryRefresh } from "../../context/HistoryRefreshContext";
+import { useActiveJob } from "../../context/ActiveJobContext";
 import { useToast } from "../../context/ToastContext";
 import { getErrorMessage } from "../../utils/errorUtils";
 import Button from "../common/Button";
 import { stepFailureMessage, stepLabel, stepSummary } from "./pipelineStepText";
 
-/** One saved pipeline: its steps, plus apply / dry-run check / delete. */
+/**
+ * One saved pipeline: its steps, plus apply / dry-run check / delete.
+ *
+ * Apply runs the pipeline as a background job; its progress and Cancel live in
+ * the workspace banner. While any job is rewriting the project, Apply and
+ * Check stay disabled — Check reads the project, and would wait for the job.
+ */
 export function PipelineCard({
   pipeline,
   projectId,
@@ -19,10 +24,12 @@ export function PipelineCard({
   projectId: string;
   onDeleted: () => void | Promise<void>;
 }) {
-  const { updateData, setPaginationData, page, pageSize } = useProjectContext();
-  const { refreshLogs } = useHistoryRefresh();
+  const { startJob, activeWriteJob } = useActiveJob();
   const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
+  const runningHere =
+    activeWriteJob?.kind === "pipelineRun" && activeWriteJob.params.pipeline_id === pipeline.id;
+  const projectBusy = busy || activeWriteJob !== null;
   const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null);
 
   const orderedSteps = [...pipeline.steps].sort((a, b) => a.step_order - b.step_order);
@@ -46,13 +53,10 @@ export function PipelineCard({
   const handleApply = async () => {
     setBusy(true);
     try {
-      const response = await applyPipeline(pipeline.id, projectId, page, pageSize);
-      showToast(`Pipeline "${pipeline.name}" applied.`, "success");
-      updateData(response.columns, response.rows, { resetColumnOrder: false });
-      setPaginationData(response);
-      refreshLogs();
-    } catch (err) {
-      showToast(getErrorMessage(err, "Failed to apply pipeline."), "error");
+      await startJob(
+        { kind: "pipelineRun", pipeline_id: pipeline.id },
+        { success: `Pipeline "${pipeline.name}" applied.`, failure: "Failed to apply pipeline." },
+      );
     } finally {
       setBusy(false);
     }
@@ -99,10 +103,10 @@ export function PipelineCard({
       </ol>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button type="button" onClick={handleApply} disabled={busy}>
-          Apply to this project
+        <Button type="button" onClick={handleApply} disabled={projectBusy}>
+          {runningHere ? "Running…" : "Apply to this project"}
         </Button>
-        <Button type="button" variant="secondary" onClick={handleCheck} disabled={busy}>
+        <Button type="button" variant="secondary" onClick={handleCheck} disabled={projectBusy}>
           Check
         </Button>
         <Button type="button" variant="danger" onClick={handleDelete} disabled={busy}>

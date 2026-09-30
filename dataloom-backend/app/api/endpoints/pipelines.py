@@ -15,6 +15,7 @@ from app.api.dependencies import (
     read_project_df,
 )
 from app.services import pipeline_service
+from app.services.job_service import ensure_no_active_exclusive_job
 from app.services.transformation_service import TransformationError
 from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe
 from app.utils.project_locks import project_write_lock
@@ -99,9 +100,14 @@ def apply_pipeline(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Replay a pipeline's steps onto a project and log each step."""
+    """Replay a pipeline's steps onto a project and log each step.
+
+    Answers 409 while a job is rewriting the project, rather than waiting on its
+    write lock for as long as the job runs.
+    """
     pipeline = fetch_owned_pipeline(db, pipeline_id, current_user)
     project = fetch_owned_project(db, body.project_id, current_user)
+    ensure_no_active_exclusive_job(db, project.project_id)
 
     # Applying a pipeline is a read-modify-write of the working copy, so the read
     # and the write share one exclusive lock; splitting them would let a

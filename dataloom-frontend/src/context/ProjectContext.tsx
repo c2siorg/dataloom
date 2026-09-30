@@ -62,6 +62,12 @@ export interface ProjectContextValue {
   page: number;
   pageSize: number;
   refreshProject: (id?: string, targetPage?: number, preferredSize?: number) => Promise<void>;
+  /**
+   * Bump `dataVersion` without new rows in hand, for content changed elsewhere
+   * (e.g. by a background job) and reloaded through `refreshProject`, which
+   * does not bump it on its own.
+   */
+  markDataChanged: () => void;
   updateData: (columns: string[], rows: CellValue[][], options?: UpdateDataOptions) => void;
   setProjectInfo: (id: string | null, name?: string) => void;
   setPaginationData: (paginationInfo: PaginationInfo) => void;
@@ -210,6 +216,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     },
     [projectId, page, pageSize],
   );
+
+  const markDataChanged = useCallback(() => setDataVersion((v) => v + 1), []);
 
   const updateData = useCallback(
     (newColumns: string[], newRows: CellValue[][], options: UpdateDataOptions = {}) => {
@@ -395,6 +403,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         page,
         pageSize,
         refreshProject,
+        markDataChanged,
         updateData,
         setProjectInfo,
         setPaginationData,
