@@ -161,6 +161,7 @@ class TestDeleteRow:
     def test_delete_row_out_of_range(self, sample_df):
         with pytest.raises(TransformationError):
             delete_row(sample_df, 10)
+
     def test_delete_row_uses_position_after_sort(self):
         df = pd.DataFrame(
             {

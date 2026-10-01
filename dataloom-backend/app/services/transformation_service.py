@@ -181,7 +181,7 @@ def delete_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
     """
     if index < 0 or index >= len(df):
         raise TransformationError(f"Row index {index} out of range (0-{len(df) - 1})")
-    return pd.concat([df.iloc[:index], df.iloc[index + 1:]]).reset_index(drop=True)
+    return pd.concat([df.iloc[:index], df.iloc[index + 1 :]]).reset_index(drop=True)
 
 
 def add_column(df: pd.DataFrame, index: int, name: str) -> pd.DataFrame:
