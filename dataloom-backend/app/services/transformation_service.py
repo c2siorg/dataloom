@@ -181,7 +181,7 @@ def delete_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
     """
     if index < 0 or index >= len(df):
         raise TransformationError(f"Row index {index} out of range (0-{len(df) - 1})")
-    return df.drop(index).reset_index(drop=True)
+    return pd.concat([df.iloc[:index], df.iloc[index + 1:]]).reset_index(drop=True)
 
 
 def add_column(df: pd.DataFrame, index: int, name: str) -> pd.DataFrame:
@@ -359,7 +359,7 @@ def change_cell_value(
             value = parsed
 
     try:
-        df.at[row_index, column_name] = value
+        df.iat[row_index, col_index - 1] = value
     except (TypeError, ValueError, OverflowError) as exc:
         raise TransformationError(
             f"Cannot store {value!r} in column '{column_name}' ({df[column_name].dtype})."

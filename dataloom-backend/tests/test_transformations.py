@@ -161,6 +161,18 @@ class TestDeleteRow:
     def test_delete_row_out_of_range(self, sample_df):
         with pytest.raises(TransformationError):
             delete_row(sample_df, 10)
+    def test_delete_row_uses_position_after_sort(self):
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B", "C"],
+                "age": [30, 20, 40],
+            }
+        )
+
+        sorted_df = apply_sort(df, "age", ascending=True)
+        result = delete_row(sorted_df, 0)
+
+        assert result["name"].tolist() == ["A", "C"]
 
 
 class TestApplyLoggedTransformationFilterSort:
@@ -494,6 +506,20 @@ class TestChangeCellValue:
         assert isinstance(result.at[0, "value"], (int, np.integer))
         assert result.at[1, "value"] == pytest.approx(10.5)
         assert result["value"].dtype == object
+
+    def test_change_cell_uses_position_after_sort(self):
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B", "C"],
+                "age": [30, 20, 40],
+            }
+        )
+
+        sorted_df = apply_sort(df, "age", ascending=True)
+        result = change_cell_value(sorted_df, 0, 1, "EDITED")
+
+        assert result.iloc[0]["name"] == "EDITED"
+        assert result.loc[0, "name"] == "A"
 
 
 class TestFillEmpty:
