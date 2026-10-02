@@ -770,12 +770,25 @@ class ResetPasswordRequest(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def password_length_ok(cls, v: str) -> str:
+    def validate_password(cls, v: str) -> str:
         byte_len = len(v.encode("utf-8"))
         if byte_len < 8:
             raise ValueError("password must be at least 8 characters")
         if byte_len > 72:
             raise ValueError("password must be at most 72 bytes")
+
+        score = sum(
+            [
+                bool(re.search(r"[a-z]", v)),
+                bool(re.search(r"[A-Z]", v)),
+                bool(re.search(r"\d", v)),
+                bool(re.search(r"[^A-Za-z0-9]", v)),
+            ]
+        )
+
+        if score < 3:
+            raise ValueError("password must contain at least 3 of: lowercase, uppercase, digit, special character")
+
         return v
 
 
