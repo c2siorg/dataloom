@@ -274,7 +274,7 @@ class TestPasswordReset:
 
     def test_forgot_password_known_email_creates_token(self, anon_client, db):
         """Should create a reset token for a known email."""
-        create_user(db, "test@example.com", "password123")
+        create_user(db, "test@example.com", "Password@123")
 
         with patch("app.services.auth_service.send_reset_email") as mock_send:
             response = anon_client.post("/auth/forgot-password", json={"email": "test@example.com"})
@@ -287,7 +287,7 @@ class TestPasswordReset:
 
     def test_reset_password_valid_token(self, anon_client, db):
         """Should reset password with a valid token."""
-        user = create_user(db, "reset@example.com", "oldpassword123")
+        user = create_user(db, "reset@example.com", "Password@123")
 
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -299,11 +299,13 @@ class TestPasswordReset:
         db.add(reset_token)
         db.commit()
 
-        response = anon_client.post("/auth/reset-password", json={"token": raw_token, "new_password": "newpassword123"})
+        response = anon_client.post(
+            "/auth/reset-password", json={"token": raw_token, "new_password": "Newpassword@123"}
+        )
         assert response.status_code == 200
 
         db.refresh(user)
-        assert verify_password("newpassword123", user.password_hash)
+        assert verify_password("Newpassword@123", user.password_hash)
 
         db.refresh(reset_token)
         assert reset_token.used is True
@@ -312,7 +314,7 @@ class TestPasswordReset:
         """Should reject invalid tokens."""
         response = anon_client.post(
             "/auth/reset-password",
-            json={"token": "invalidtoken", "new_password": "newpassword123"},
+            json={"token": "invalidtoken", "new_password": "Newpassword@123"},
         )
         assert response.status_code == 400
 
@@ -332,7 +334,7 @@ class TestPasswordReset:
 
         response = anon_client.post(
             "/auth/reset-password",
-            json={"token": raw_token, "new_password": "newpassword123"},
+            json={"token": raw_token, "new_password": "Newpassword@123"},
         )
         assert response.status_code == 400
 
@@ -353,7 +355,7 @@ class TestPasswordReset:
 
         response = anon_client.post(
             "/auth/reset-password",
-            json={"token": raw_token, "new_password": "newpassword123"},
+            json={"token": raw_token, "new_password": "Newpassword@123"},
         )
         assert response.status_code == 400
 
