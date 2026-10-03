@@ -2,9 +2,9 @@ import { useState } from "react";
 import InputDialog from "./common/InputDialog";
 import ExportModal from "./ExportModal";
 import Toast from "./common/Toast";
-import { saveProject } from "../api/projects";
+import { resetProject, saveProject } from "../api/projects";
 import { redoLastTransformation, undoLastTransformation } from "../api/transforms";
-import { LuSave, LuDownload, LuUndo2, LuRedo2, LuColumns3 } from "react-icons/lu";
+import { LuSave, LuDownload, LuUndo2, LuRedo2, LuColumns3, LuRotateCcw } from "react-icons/lu";
 import { useProjectContext } from "../context/ProjectContext";
 import { usePanel } from "../context/PanelContext";
 import { useWorkspaceTabs } from "../context/WorkspaceTabsContext";
@@ -15,6 +15,8 @@ import { useUndoState } from "../hooks/useUndoState";
 import { getFeatureMenu } from "./workspace/featureRegistry";
 import type { ToastType } from "./common/Toast";
 import type { IconType } from "react-icons";
+import Modal from "./common/Modal";
+import Button from "./common/Button";
 
 // Ribbon skeleton: the top tabs and the group order within each. Features and the
 // core items below slot their entries into these buckets; layout stays stable.
@@ -58,6 +60,8 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [activeTab, setActiveTab] = useState("File");
   const [activeTooltip, setActiveTooltip] = useState<TooltipState | null>(null);
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const { updateData, page, pageSize, setPaginationData, projectName, isPreviewMode } =
     useProjectContext();
@@ -148,6 +152,35 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
     }
   };
 
+  const handleReset = async () => {
+  try {
+    setIsResetting(true);
+
+    const response = await resetProject(projectId, page, pageSize);
+
+    updateData(response.columns, response.rows, { resetColumnOrder: false });
+    setPaginationData(response);
+
+    // Reset clears all transformation history and checkpoints.
+    refreshLogs();
+    refreshCheckpoints();
+
+    setShowResetConfirmation(false);
+    setToast({
+      message: "Dataset reset successfully.",
+      type: "success",
+    });
+  } catch(error) {
+    setToast({
+      message: "Failed to reset dataset.",
+      type: "error",
+    });
+    console.log(error)
+  } finally {
+    setIsResetting(false);
+  }
+};
+
   const inPreview = isPreviewMode;
   // Unknown (null) until the first fetch lands, which leaves both enabled.
   const nothingToUndo = undoState?.can_undo === false;
@@ -204,6 +237,18 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
         ? "Redo is unavailable while previewing a transformation."
         : "Redo the last undone transformation.",
     },
+    {
+  ribbon: "File",
+  group: "Save",
+  order: 5,
+  label: "Reset Dataset",
+  icon: LuRotateCcw,
+  onClick: () => setShowResetConfirmation(true),
+  disabled: inPreview,
+  hover: inPreview
+    ? "Reset Dataset is unavailable while previewing a transformation."
+    : "Discard all transformations and restore the original dataset.",
+},
     {
       ribbon: "Profiling",
       group: "Profiling",
@@ -349,6 +394,47 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
         onSubmit={handleSubmitCommit}
         onCancel={() => setIsInputOpen(false)}
       />
+
+      <Modal
+  isOpen={showResetConfirmation}
+  onClose={() => {
+    if (!isResetting) {
+      setShowResetConfirmation(false);
+    }
+  }}
+  title="Reset Dataset?"
+>
+  <div className="space-y-4">
+    <p className="text-foreground">
+      This will discard all transformations, checkpoints, undo history, and
+      redo history and restore the dataset to its original uploaded state.
+    </p>
+
+    <p className="text-sm text-muted-foreground">
+      This action cannot be undone.
+    </p>
+
+    <div className="flex justify-end gap-3">
+      <Button
+        variant="secondary"
+        type="button"
+        onClick={() => setShowResetConfirmation(false)}
+        disabled={isResetting}
+      >
+        Cancel
+      </Button>
+
+      <Button
+        variant="danger"
+        type="button"
+        onClick={handleReset}
+        disabled={isResetting}
+      >
+        {isResetting ? "Resetting..." : "Reset Dataset"}
+      </Button>
+    </div>
+  </div>
+</Modal>
 
       {toast && (
         <div className="fixed bottom-4 right-4 z-50">

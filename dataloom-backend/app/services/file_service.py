@@ -268,3 +268,41 @@ def delete_project_snapshots(project_id: uuid.UUID) -> None:
         logger.info("Deleted snapshots: %s", snapshot_dir)
     except OSError:
         logger.exception("Failed to delete snapshot directory: %s", snapshot_dir)
+
+
+def restore_original(original_path: str, working_path: str) -> None:
+    """Replace the working copy with the original uploaded file atomically.
+
+    The original file is never modified. Its bytes are copied to a temporary
+    file beside the working copy first, then ``os.replace`` swaps it in.
+
+    Args:
+        original_path: Path to the immutable original uploaded file.
+        working_path: Path to the project's working copy.
+
+    Raises:
+        OSError: If the copy or the swap fails; the working copy is unchanged.
+    """
+    original = Path(original_path)
+    working = Path(working_path)
+
+    with tempfile.NamedTemporaryFile(
+        dir=working.parent,
+        prefix=".reset-",
+        suffix=working.suffix,
+        delete=False,
+    ) as tmp:
+        tmp_path = Path(tmp.name)
+
+    try:
+        shutil.copyfile(original, tmp_path)
+
+        if working.exists():
+            shutil.copymode(working, tmp_path)
+
+        os.replace(tmp_path, working)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+    finally:
+        df_cache.invalidate(working)

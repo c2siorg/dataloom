@@ -48,6 +48,7 @@ from app.services.project_service import (
     restore_after_failure,
     search_projects,
     update_project,
+    reset_project,
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
@@ -728,3 +729,22 @@ async def get_project_meta(
         description=project.description,
         last_modified=project.last_modified,
     )
+
+
+@router.post("/{project_id}/reset", response_model=schemas.ProjectResponse)
+def reset_project_endpoint(
+    project_id: uuid.UUID,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    db: Session = Depends(database.get_db),
+    project: models.Project = Depends(get_project_or_404),
+):
+    """Reset the project to its original uploaded state and discard all history."""
+    with project_write_lock(project_id):
+        return reset_project(
+            project_id,
+            page,
+            page_size,
+            db,
+            project,
+        )

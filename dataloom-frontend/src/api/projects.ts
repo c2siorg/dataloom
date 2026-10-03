@@ -224,3 +224,31 @@ export const getProjects = async ({
   });
   return response.data;
 };
+
+/**
+ * Reset the project to its original uploaded state.
+ *
+ * Discards all transformations, checkpoints, undo history, and redo history.
+ *
+ * @param projectId - The project ID.
+ * @param page - Current page.
+ * @param pageSize - Elements per page.
+ * @returns Reset project response.
+ */
+export const resetProject = async (
+  projectId: string,
+  page?: number,
+  pageSize?: number,
+): Promise<ProjectDetails> => {
+  const params = new URLSearchParams();
+
+  if (page !== undefined) params.append("page", String(page));
+  if (pageSize !== undefined) params.append("page_size", String(pageSize));
+
+  const query = params.toString();
+  const response = await client.post(
+    `/projects/${projectId}/reset${query ? `?${query}` : ""}`,
+  );
+
+  return response.data;
+};
