@@ -14,6 +14,7 @@ export {
   updateProject,
   getProjectMeta,
   getProjects,
+  resetProject,
 } from "./projects";
 export type { ExportOptions, ExportResult } from "./projects";
 export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";

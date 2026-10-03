@@ -13,9 +13,20 @@ from sqlmodel import Session
 from app import models
 from app.config import get_settings
 from app.services import report_service, transformation_service
-from app.services.file_service import restore_snapshot, take_snapshot, unlink_snapshots
+from app.services.file_service import (
+    get_original_path,
+    restore_original,
+    restore_snapshot,
+    take_snapshot,
+    unlink_snapshots,
+)
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import save_table_safe
+from app.utils.pandas_helpers import (
+    dataframe_to_response,
+    paginate_dataframe,
+    read_table_safe,
+    save_table_safe,
+)
 
 logger = get_logger(__name__)
 
@@ -822,4 +833,61 @@ def collect_provenance(db: Session, project_id: uuid.UUID) -> dict:
             for checkpoint in checkpoints
         ],
         "unsaved": unsaved,
+    }
+
+
+def reset_project(
+    project_id: uuid.UUID,
+    page: int,
+    page_size: int,
+    db: Session,
+    project: models.Project,
+) -> dict:
+    """Reset a project to its original uploaded state and discard all history."""
+
+    original_path = get_original_path(project.file_path)
+
+    # Restore the original file first. If this fails, the database remains
+    # unchanged and the current project state is preserved.
+    restore_original(original_path, project.file_path)
+
+    # Collect snapshot paths before deleting the undo/redo rows.
+    undo_steps = db.query(models.UndoStep).filter(models.UndoStep.project_id == project_id).all()
+
+    stale_snapshots = _snapshot_paths(undo_steps)
+
+    try:
+        # Change-log rows reference checkpoints and undo steps, so remove them
+        # first before deleting their parent history records.
+        db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.project_id == project_id).delete(
+            synchronize_session="fetch"
+        )
+
+        db.query(models.Checkpoint).filter(models.Checkpoint.project_id == project_id).delete(
+            synchronize_session="fetch"
+        )
+
+        db.query(models.UndoStep).filter(models.UndoStep.project_id == project_id).delete(synchronize_session="fetch")
+
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+
+    # Snapshot files are no longer referenced after the committed deletion.
+    unlink_snapshots(stale_snapshots)
+
+    df = read_table_safe(project.file_path)
+
+    response_df, pagination = paginate_dataframe(df, page, page_size)
+    resp = dataframe_to_response(response_df)
+
+    logger.info("Project reset: id=%s", project_id)
+
+    return {
+        "filename": project.name,
+        "file_path": project.file_path,
+        "project_id": project.project_id,
+        **resp,
+        **pagination,
     }
