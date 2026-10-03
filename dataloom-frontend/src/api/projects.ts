@@ -246,9 +246,7 @@ export const resetProject = async (
   if (pageSize !== undefined) params.append("page_size", String(pageSize));
 
   const query = params.toString();
-  const response = await client.post(
-    `/projects/${projectId}/reset${query ? `?${query}` : ""}`,
-  );
+  const response = await client.post(`/projects/${projectId}/reset${query ? `?${query}` : ""}`);
 
   return response.data;
 };

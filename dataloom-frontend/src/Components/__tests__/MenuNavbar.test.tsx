@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MenuNavbar from "../MenuNavbar";
 import {
@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
   setPaginationData: vi.fn(),
   closePanel: vi.fn(),
   refreshLogs: vi.fn(),
+  refreshCheckpoints: vi.fn(),
+  resetProject: vi.fn(),
 }));
 
 // Mock the hooks used inside MenuNavbar
@@ -50,7 +52,7 @@ vi.mock("../../context/WorkspaceTabsContext", () => ({
 vi.mock("../../context/HistoryRefreshContext", () => ({
   useHistoryRefresh: () => ({
     refreshLogs: mocks.refreshLogs,
-    refreshCheckpoints: vi.fn(),
+    refreshCheckpoints: mocks.refreshCheckpoints,
   }),
   useHistoryRefreshTokens: () => ({ logsToken: 0, checkpointsToken: 0 }),
 }));
@@ -62,9 +64,9 @@ vi.mock("../../context/ColumnProfilesContext", () => ({
   }),
 }));
 
-vi.mock("../../api", () => ({
+vi.mock("../../api/projects", () => ({
   saveProject: vi.fn(),
-  undoLastTransformation: vi.fn(),
+  resetProject: mocks.resetProject,
 }));
 
 vi.mock("../../api/transforms", () => ({
@@ -251,6 +253,90 @@ describe("MenuNavbar", () => {
         "Redo is unavailable while previewing a transformation.",
       );
       expect(screen.getByTestId("toolbar-undo")).toBeDisabled();
+    });
+  });
+
+  describe("Reset Dataset", () => {
+    it("opens the reset confirmation dialog", () => {
+      render(<MenuNavbar projectId="p1" />);
+
+      fireEvent.click(screen.getByTestId("toolbar-reset-dataset"));
+
+      expect(screen.getByText("Reset Dataset?")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "This will discard all transformations, checkpoints, undo history, and redo history and restore the dataset to its original uploaded state.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it("resets the dataset and refreshes the UI", async () => {
+      mocks.resetProject.mockResolvedValue(PROJECT_PAGE);
+
+      render(<MenuNavbar projectId="p1" />);
+
+      fireEvent.click(screen.getByTestId("toolbar-reset-dataset"));
+
+      const dialog = screen.getByRole("dialog", {
+        name: "Reset Dataset?",
+      });
+
+      fireEvent.click(
+        within(dialog).getByRole("button", {
+          name: "Reset Dataset",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(mocks.resetProject).toHaveBeenCalledWith("p1", 2, 10);
+      });
+
+      expect(mocks.updateData).toHaveBeenCalledWith(["a"], [[1]], { resetColumnOrder: false });
+      expect(mocks.setPaginationData).toHaveBeenCalledWith(PROJECT_PAGE);
+      expect(mocks.refreshLogs).toHaveBeenCalled();
+      expect(mocks.refreshCheckpoints).toHaveBeenCalled();
+
+      expect(screen.getByText("Dataset reset successfully.")).toBeInTheDocument();
+      expect(screen.queryByText("Reset Dataset?")).not.toBeInTheDocument();
+    });
+
+    it("reports a reset failure", async () => {
+      mocks.resetProject.mockRejectedValue(new Error("Reset failed"));
+
+      render(<MenuNavbar projectId="p1" />);
+
+      fireEvent.click(screen.getByTestId("toolbar-reset-dataset"));
+
+      const dialog = screen.getByRole("dialog", {
+        name: "Reset Dataset?",
+      });
+
+      fireEvent.click(
+        within(dialog).getByRole("button", {
+          name: "Reset Dataset",
+        }),
+      );
+
+      expect(await screen.findByText("Failed to reset dataset.")).toBeInTheDocument();
+
+      expect(mocks.updateData).not.toHaveBeenCalled();
+      expect(mocks.setPaginationData).not.toHaveBeenCalled();
+      expect(mocks.refreshLogs).not.toHaveBeenCalled();
+      expect(mocks.refreshCheckpoints).not.toHaveBeenCalled();
+    });
+
+    it("disables Reset Dataset while previewing", () => {
+      mocks.isPreviewMode = true;
+
+      render(<MenuNavbar projectId="p1" />);
+
+      const resetButton = screen.getByTestId("toolbar-reset-dataset");
+
+      expect(resetButton).toBeDisabled();
+      expect(resetButton).toHaveAttribute(
+        "title",
+        "Reset Dataset is unavailable while previewing a transformation.",
+      );
     });
   });
 });

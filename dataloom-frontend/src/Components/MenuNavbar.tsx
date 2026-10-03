@@ -153,33 +153,33 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
   };
 
   const handleReset = async () => {
-  try {
-    setIsResetting(true);
+    try {
+      setIsResetting(true);
 
-    const response = await resetProject(projectId, page, pageSize);
+      const response = await resetProject(projectId, page, pageSize);
 
-    updateData(response.columns, response.rows, { resetColumnOrder: false });
-    setPaginationData(response);
+      updateData(response.columns, response.rows, { resetColumnOrder: false });
+      setPaginationData(response);
 
-    // Reset clears all transformation history and checkpoints.
-    refreshLogs();
-    refreshCheckpoints();
+      // Reset clears all transformation history and checkpoints.
+      refreshLogs();
+      refreshCheckpoints();
 
-    setShowResetConfirmation(false);
-    setToast({
-      message: "Dataset reset successfully.",
-      type: "success",
-    });
-  } catch(error) {
-    setToast({
-      message: "Failed to reset dataset.",
-      type: "error",
-    });
-    console.log(error)
-  } finally {
-    setIsResetting(false);
-  }
-};
+      setShowResetConfirmation(false);
+      setToast({
+        message: "Dataset reset successfully.",
+        type: "success",
+      });
+    } catch (error) {
+      setToast({
+        message: "Failed to reset dataset.",
+        type: "error",
+      });
+      console.log(error);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const inPreview = isPreviewMode;
   // Unknown (null) until the first fetch lands, which leaves both enabled.
@@ -238,17 +238,17 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
         : "Redo the last undone transformation.",
     },
     {
-  ribbon: "File",
-  group: "Save",
-  order: 5,
-  label: "Reset Dataset",
-  icon: LuRotateCcw,
-  onClick: () => setShowResetConfirmation(true),
-  disabled: inPreview,
-  hover: inPreview
-    ? "Reset Dataset is unavailable while previewing a transformation."
-    : "Discard all transformations and restore the original dataset.",
-},
+      ribbon: "File",
+      group: "Save",
+      order: 5,
+      label: "Reset Dataset",
+      icon: LuRotateCcw,
+      onClick: () => setShowResetConfirmation(true),
+      disabled: inPreview,
+      hover: inPreview
+        ? "Reset Dataset is unavailable while previewing a transformation."
+        : "Discard all transformations and restore the original dataset.",
+    },
     {
       ribbon: "Profiling",
       group: "Profiling",
@@ -396,45 +396,38 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
       />
 
       <Modal
-  isOpen={showResetConfirmation}
-  onClose={() => {
-    if (!isResetting) {
-      setShowResetConfirmation(false);
-    }
-  }}
-  title="Reset Dataset?"
->
-  <div className="space-y-4">
-    <p className="text-foreground">
-      This will discard all transformations, checkpoints, undo history, and
-      redo history and restore the dataset to its original uploaded state.
-    </p>
-
-    <p className="text-sm text-muted-foreground">
-      This action cannot be undone.
-    </p>
-
-    <div className="flex justify-end gap-3">
-      <Button
-        variant="secondary"
-        type="button"
-        onClick={() => setShowResetConfirmation(false)}
-        disabled={isResetting}
+        isOpen={showResetConfirmation}
+        onClose={() => {
+          if (!isResetting) {
+            setShowResetConfirmation(false);
+          }
+        }}
+        title="Reset Dataset?"
       >
-        Cancel
-      </Button>
+        <div className="space-y-4">
+          <p className="text-foreground">
+            This will discard all transformations, checkpoints, undo history, and redo history and
+            restore the dataset to its original uploaded state.
+          </p>
 
-      <Button
-        variant="danger"
-        type="button"
-        onClick={handleReset}
-        disabled={isResetting}
-      >
-        {isResetting ? "Resetting..." : "Reset Dataset"}
-      </Button>
-    </div>
-  </div>
-</Modal>
+          <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setShowResetConfirmation(false)}
+              disabled={isResetting}
+            >
+              Cancel
+            </Button>
+
+            <Button variant="danger" type="button" onClick={handleReset} disabled={isResetting}>
+              {isResetting ? "Resetting..." : "Reset Dataset"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {toast && (
         <div className="fixed bottom-4 right-4 z-50">

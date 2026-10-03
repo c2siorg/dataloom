@@ -15,13 +15,18 @@ from app.config import get_settings
 from app.services import report_service, transformation_service
 from app.services.file_service import (
     get_original_path,
+    restore_original,
     restore_snapshot,
     take_snapshot,
     unlink_snapshots,
-    restore_original,
 )
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import save_table_safe, read_table_safe, dataframe_to_response, paginate_dataframe
+from app.utils.pandas_helpers import (
+    dataframe_to_response,
+    paginate_dataframe,
+    read_table_safe,
+    save_table_safe,
+)
 
 logger = get_logger(__name__)
 

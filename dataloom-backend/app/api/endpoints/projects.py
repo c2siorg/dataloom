@@ -45,10 +45,10 @@ from app.services.project_service import (
     mark_step_redone,
     mark_step_undone,
     rename_project,
+    reset_project,
     restore_after_failure,
     search_projects,
     update_project,
-    reset_project,
 )
 from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
