@@ -58,6 +58,34 @@ def setup_database():
 
 
 @pytest.fixture(autouse=True)
+def _job_runner(monkeypatch):
+    """Run background jobs inline, against the test database.
+
+    Jobs open their own Sessions through the runner's session factory, never the
+    request's Session and never ``app.database.engine`` (which follows `.env`,
+    so it may be Postgres locally or a SQLite engine without
+    ``check_same_thread=False`` in CI). The lifespan's startup recovery goes
+    through the same factory. Inline mode runs each job to completion inside the
+    submitting request, so a test can assert on its outcome straight away; use
+    ``threaded_job_runner`` for real worker threads.
+    """
+    from app.jobs.runner import runner
+
+    monkeypatch.setattr(runner, "session_factory", lambda: Session(engine))
+    monkeypatch.setattr(runner, "inline", True)
+    yield runner
+
+
+@pytest.fixture
+def threaded_job_runner(_job_runner, monkeypatch):
+    """Run jobs on real worker threads, drained before the tables are dropped."""
+    monkeypatch.setattr(_job_runner, "inline", False)
+    _job_runner.start(2)
+    yield _job_runner
+    _job_runner.drain()
+
+
+@pytest.fixture(autouse=True)
 def _clear_df_cache():
     """Reset the DataFrame read cache before each test.
 

@@ -32,7 +32,7 @@ from httpx import ASGITransport, AsyncClient
 from app import models, schemas
 from app.api import dependencies, endpoints
 from app.api.dependencies import get_project_or_404, load_project_df
-from app.api.endpoints import pipelines, profiling, project_files, projects, transformations
+from app.api.endpoints import jobs, pipelines, profiling, project_files, projects, transformations
 from app.main import app
 from app.utils import project_locks
 from app.utils.project_locks import project_read_lock, project_write_lock
@@ -52,6 +52,12 @@ def test_blocking_routes_are_sync_def():
         profiling.get_column_profile,
         profiling.get_all_column_profiles,
         profiling.get_correlation_matrix,
+        # Job routes only touch the DB, but inline test mode runs the whole job
+        # inside submit_job, and polls must never wait behind the event loop.
+        jobs.submit_job,
+        jobs.get_job,
+        jobs.list_project_jobs,
+        jobs.cancel_job,
     ]
     offenders = [fn.__name__ for fn in blocking_routes if inspect.iscoroutinefunction(fn)]
     assert not offenders, (
@@ -554,6 +560,7 @@ def test_concurrent_pipeline_applies_do_not_lose_updates(monkeypatch):
 
     monkeypatch.setattr(pipelines, "fetch_owned_pipeline", lambda *args, **kwargs: object())
     monkeypatch.setattr(pipelines, "fetch_owned_project", lambda *args, **kwargs: project)
+    monkeypatch.setattr(pipelines, "ensure_no_active_exclusive_job", lambda *args, **kwargs: None)
     monkeypatch.setattr(pipelines, "read_project_df", _read_working_copy)
     monkeypatch.setattr(pipelines.pipeline_service, "apply_pipeline_to_project", _apply)
 

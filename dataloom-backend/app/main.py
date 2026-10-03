@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.endpoints import (
     auth,
+    jobs,
     pipelines,
     profiling,
     project_files,
@@ -27,6 +28,8 @@ from app.api.endpoints import (
 from app.config import get_settings
 from app.database import verify_database_connection
 from app.exceptions import AppException, app_exception_handler
+from app.jobs.runner import runner
+from app.services import job_service
 from app.services.transformation_service import TransformationError
 from app.utils.logging import get_logger, request_id_var, setup_logging
 
@@ -54,9 +57,16 @@ async def lifespan(app):
     setup_logging(settings.debug)
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 
+    # Jobs never outlive this process, so any still marked active were cut off
+    # by the last one; report them before accepting new work.
+    job_service.recover_interrupted_jobs(runner.session_factory)
+    job_service.purge_expired_jobs(runner.session_factory, settings.job_retention_days)
+    runner.start(settings.job_workers)
+
     logger.info("DataLoom backend starting (debug=%s)", settings.debug)
     yield
     logger.info("DataLoom backend shutting down")
+    runner.shutdown()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -106,6 +116,12 @@ async def transformation_error_handler(request: Request, exc: TransformationErro
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
+@app.exception_handler(job_service.ActiveJobConflict)
+async def active_job_conflict_handler(request: Request, exc: job_service.ActiveJobConflict):
+    # detail stays a string for clients that render it; the id rides alongside.
+    return JSONResponse(status_code=409, content={"detail": exc.message, "active_job_id": str(exc.job_id)})
+
+
 app.add_exception_handler(AppException, app_exception_handler)
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -118,6 +134,7 @@ app.include_router(visualizations.router, prefix="/projects", tags=["visualizati
 app.include_router(user_logs.router, prefix="/logs", tags=["user_logs"])
 app.include_router(reports.router, prefix="/projects", tags=["reports"])
 app.include_router(pipelines.router, prefix="/pipelines", tags=["pipelines"])
+app.include_router(jobs.router, tags=["jobs"])
 
 if __name__ == "__main__":
     import uvicorn

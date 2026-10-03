@@ -12,6 +12,7 @@ import {
 import { transformProject, type CellValue, type TransformationInput } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import { useHistoryRefresh } from "../context/HistoryRefreshContext";
+import { useActiveWriteJob, useProjectReadsOnHold } from "../context/ActiveJobContext";
 import {
   ADD_COLUMN,
   ADD_ROW,
@@ -111,6 +112,10 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
   } = useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const { openPanel } = usePanel();
+  // While a job may be rewriting the project, any read of it would wait for the
+  // job's write lock; hold off paging and profile fetches until the job ends.
+  const readsOnHold = useProjectReadsOnHold();
+  const heldByJob = useActiveWriteJob() !== null;
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState("");
   const { isOpen, position, contextData, open, close } = useContextMenu<ContextData>();
@@ -132,7 +137,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
   // transform or cell edit but survive pagination.
   const { profiles, loading: profilesLoading } = useColumnProfiles(
     projectId,
-    showColumnProfiles && ctxColumns.length > 0,
+    showColumnProfiles && ctxColumns.length > 0 && !readsOnHold,
     dataVersion,
   );
 
@@ -489,7 +494,16 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 min-h-0 overflow-hidden border-x border-b border-app-border shadow-sm">
         <div className="h-full overflow-auto">
-          {loading && ctxRows.length === 0 ? (
+          {heldByJob && ctxRows.length === 0 ? (
+            // Opened (or reloaded) while a job rewrites the project: the rows
+            // load when it finishes, and reading now would only wait for it.
+            <div
+              data-testid="table-held-by-job"
+              className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground"
+            >
+              The table loads when the running job finishes.
+            </div>
+          ) : (loading || readsOnHold) && ctxRows.length === 0 ? (
             // Only stand in when there is nothing to show. Every mutation
             // handler refreshes after updating the grid in place, and swapping
             // populated rows for a skeleton there would flash the whole table.
@@ -690,7 +704,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
           pageSize={pageSize}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
-          isLoading={isPreviewMode && previewLoading}
+          isLoading={(isPreviewMode && previewLoading) || readsOnHold}
         />
       </div>
 

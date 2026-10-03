@@ -1,6 +1,8 @@
 import { useParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useProjectContext } from "../context/ProjectContext";
+import { ActiveJobProvider, useActiveJob } from "../context/ActiveJobContext";
+import { getProjectMeta } from "../api";
 import { WorkspaceTabsProvider, useWorkspaceTabs } from "../context/WorkspaceTabsContext";
 import { PanelProvider } from "../context/PanelContext";
 import { HistoryRefreshProvider } from "../context/HistoryRefreshContext";
@@ -23,6 +25,7 @@ import "./workspace/features/report";
 import { SUMMARY_TAB } from "./workspace/SummaryTab";
 import WorkspaceTabBar from "./workspace/WorkspaceTabBar";
 import RightPanel from "./workspace/RightPanel";
+import JobBanner from "./workspace/JobBanner";
 import MenuNavbar from "./MenuNavbar";
 
 // First entry is the tab active on load.
@@ -63,6 +66,7 @@ function WorkspaceContent({ projectId }: { projectId: string }) {
   return (
     <>
       <MenuNavbar projectId={projectId} />
+      <JobBanner />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <WorkspaceTabBar />
@@ -74,33 +78,69 @@ function WorkspaceContent({ projectId }: { projectId: string }) {
   );
 }
 
-export default function DataScreen() {
-  const { projectId } = useParams() as { projectId: string };
+/**
+ * Loads the project's table when the workspace opens or its page changes.
+ *
+ * Waits for the check for an already-running job, and skips the load while a
+ * write job runs: the read would queue behind the job's write lock, for as long
+ * as the job takes. The job's completion reloads the table instead, so the
+ * flag is read through a ref and the job ending does not trigger a second load.
+ * Meanwhile the project's name comes from its metadata, which takes no lock.
+ */
+export function ProjectLoader({ projectId }: { projectId: string }) {
   const { setProjectInfo, refreshProject } = useProjectContext();
+  const { activeWriteJob, ready } = useActiveJob();
+  const writeJobActive = useRef(false);
+  writeJobActive.current = activeWriteJob !== null;
 
   useEffect(() => {
-    if (projectId) {
-      setProjectInfo(projectId);
+    if (projectId) setProjectInfo(projectId);
+  }, [projectId, setProjectInfo]);
+
+  useEffect(() => {
+    if (!projectId || !ready) return;
+    if (!writeJobActive.current) {
       refreshProject(projectId);
+      return;
     }
-  }, [projectId, setProjectInfo, refreshProject]);
+    let cancelled = false;
+    getProjectMeta(projectId)
+      .then((meta) => {
+        if (!cancelled) setProjectInfo(projectId, meta.name);
+      })
+      .catch(() => {
+        // The name fills in when the job's completion reloads the project.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, ready, refreshProject, setProjectInfo]);
+
+  return null;
+}
+
+export default function DataScreen() {
+  const { projectId } = useParams() as { projectId: string };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <WorkspaceTabsProvider projectId={projectId} initialTabs={INITIAL_TABS}>
         <PanelProvider>
           <HistoryRefreshProvider>
-            <ColumnProfilesProvider>
-              <ChartViewProvider>
-                <QualityViewProvider>
-                  <PipelineDraftProvider>
-                    <ReportViewProvider>
-                      <WorkspaceContent projectId={projectId} />
-                    </ReportViewProvider>
-                  </PipelineDraftProvider>
-                </QualityViewProvider>
-              </ChartViewProvider>
-            </ColumnProfilesProvider>
+            <ActiveJobProvider projectId={projectId}>
+              <ProjectLoader projectId={projectId} />
+              <ColumnProfilesProvider>
+                <ChartViewProvider>
+                  <QualityViewProvider>
+                    <PipelineDraftProvider>
+                      <ReportViewProvider>
+                        <WorkspaceContent projectId={projectId} />
+                      </ReportViewProvider>
+                    </PipelineDraftProvider>
+                  </QualityViewProvider>
+                </ChartViewProvider>
+              </ColumnProfilesProvider>
+            </ActiveJobProvider>
           </HistoryRefreshProvider>
         </PanelProvider>
       </WorkspaceTabsProvider>
