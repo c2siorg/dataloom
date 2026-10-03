@@ -383,6 +383,75 @@ class TestSaveRevertDeleteClearHistory:
         assert not _snapshot_dir(project_id).exists()
         assert db.query(models.UndoStep).count() == 0
 
+    def test_reset_restores_original_data_and_clears_history(self, client, db):
+        project_id = _upload(client)
+        original_rows = _rows(client, project_id)
+
+        _transform(client, project_id, SORT_BY_AGE)
+        _transform(client, project_id, FILTER_AGE_OVER_26)
+
+        response = client.post(f"/projects/{project_id}/reset")
+
+        assert response.status_code == 200, response.text
+        assert response.json()["rows"] == original_rows
+        assert _rows(client, project_id) == original_rows
+        assert _log_types(client, project_id) == []
+        assert _state(client, project_id) == {"can_undo": False, "can_redo": False}
+        assert _steps(db, project_id) == []
+        assert _snapshot_files(project_id) == []
+
+    def test_reset_clears_redo_stack(self, client, db):
+        project_id = self._with_undo_and_redo(client)
+
+        assert _state(client, project_id) == {"can_undo": True, "can_redo": True}
+
+        response = client.post(f"/projects/{project_id}/reset")
+
+        assert response.status_code == 200, response.text
+        assert _state(client, project_id) == {"can_undo": False, "can_redo": False}
+        assert _steps(db, project_id) == []
+        assert _snapshot_files(project_id) == []
+
+    def test_reset_removes_checkpoints(self, client, db):
+        project_id = _upload(client)
+
+        _transform(client, project_id, FILTER_AGE_OVER_26)
+
+        save_response = client.post(
+            f"/projects/{project_id}/save",
+            params={"commit_message": "saved state"},
+        )
+        assert save_response.status_code == 200, save_response.text
+
+        _transform(client, project_id, SORT_BY_AGE)
+
+        assert len(client.get(f"/logs/checkpoints/{project_id}").json()) == 1
+
+        response = client.post(f"/projects/{project_id}/reset")
+
+        assert response.status_code == 200, response.text
+        assert client.get(f"/logs/checkpoints/{project_id}").json() == []
+        assert _log_types(client, project_id) == []
+        assert _state(client, project_id) == {"can_undo": False, "can_redo": False}
+
+    def test_reset_starts_fresh_history(self, client, db):
+        project_id = _upload(client)
+
+        _transform(client, project_id, SORT_BY_AGE)
+        assert _log_types(client, project_id) == ["sort"]
+
+        response = client.post(f"/projects/{project_id}/reset")
+        assert response.status_code == 200, response.text
+
+        _transform(client, project_id, FILTER_AGE_OVER_26)
+
+        assert _log_types(client, project_id) == ["filter"]
+        assert _state(client, project_id) == {"can_undo": True, "can_redo": False}
+
+        assert _undo(client, project_id).status_code == 200
+        assert _state(client, project_id) == {"can_undo": False, "can_redo": True}
+        assert _log_types(client, project_id) == []
+
 
 class TestRetention:
     def test_snapshots_past_the_limit_are_evicted_and_undo_replays(self, client, db, snapshot_limit, replay_calls):
