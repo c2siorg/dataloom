@@ -121,7 +121,7 @@ def test_concurrent_transforms_for_same_project_do_not_lose_updates(monkeypatch)
     assert current["value"].tolist() == [2]
 
 
-def test_same_project_read_does_not_observe_torn_write(tmp_path):
+def test_same_project_read_does_not_observe_torn_write(tmp_path, db):
     """Readers of project.file_path must wait for an in-flight writer.
 
     Format writers truncate the destination in place. If get_project_details,
@@ -148,7 +148,12 @@ def test_same_project_read_does_not_observe_torn_write(tmp_path):
             path.write_text("value\n2\n")
 
     def _read_details():
-        return projects.get_project_details(page=1, pageSize=50, project=project)
+        return projects.get_project_details(
+            page=1,
+            pageSize=50,
+            db=db,
+            project=project,
+        )
 
     def _preview():
         return transformations.transform_project(

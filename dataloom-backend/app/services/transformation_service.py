@@ -14,7 +14,7 @@ import pandas as pd
 from app.schemas import FillStrategy, MeltParams, OperationType
 from app.services.append_service import append_dataframes
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import parse_datetime_column, read_table_safe
+from app.utils.pandas_helpers import map_dtype, parse_datetime_column, read_table_safe
 from app.utils.security import prepare_formula_expression, validate_query_string
 
 logger = get_logger(__name__)
@@ -1248,6 +1248,90 @@ def operation_summary(action_type: str, action_details: dict, max_length: int = 
     parts = [f"{key}: {_summary_value(value)}" for key, value in params.items() if value not in (None, "", [], {})]
     summary = ", ".join(parts)
     return summary if len(summary) <= max_length else summary[: max_length - 1] + "…"
+
+
+def apply_metadata_transformation(
+    metadata: dict[str, str],
+    action_type: str,
+    action_details: dict,
+    df_before: pd.DataFrame,
+    df_after: pd.DataFrame,
+) -> dict[str, str]:
+    """Replay a transformation against persisted column metadata.
+
+    Existing semantic metadata is preserved whenever a column survives with
+    the same dtype. New columns and columns whose dtype changes are derived
+    from the resulting DataFrame.
+    """
+    result = metadata.copy()
+
+    if action_type == OperationType.addCol:
+        params = _col_params(action_details, "add_col_params")
+        column_name = params["name"]
+        if column_name in df_after.columns:
+            # An empty newly-added column is semantically a string column,
+            # even though pandas represents an all-None column as float64.
+            result[column_name] = "str"
+
+    elif action_type == OperationType.delCol:
+        params = _col_params(action_details, "del_col_params")
+        index = params["index"]
+
+        if index < 0 or index >= len(df_before.columns):
+            raise TransformationError(f"Column index {index} out of range (0-{len(df_before.columns) - 1})")
+
+        column_name = df_before.columns[index]
+        result.pop(column_name, None)
+
+    elif action_type == OperationType.renameCol:
+        params = action_details["rename_col_params"]
+        index = params["col_index"]
+        new_name = params["new_name"]
+
+        if index < 0 or index >= len(df_before.columns):
+            raise TransformationError(
+                f"Column index {index} is out of range (DataFrame has {len(df_before.columns)} columns)"
+            )
+
+        old_name = df_before.columns[index]
+
+        if old_name in result:
+            result[new_name] = result.pop(old_name)
+        elif new_name in df_after.columns:
+            result[new_name] = map_dtype(df_after[new_name].dtype)
+
+    elif action_type == OperationType.castDataType:
+        params = action_details["cast_data_type_params"]
+        column = params["column"]
+
+        if column in df_after.columns:
+            result[column] = map_dtype(df_after[column].dtype)
+
+    # Reconcile every surviving column with the actual resulting DataFrame.
+    #
+    # - Preserve semantic metadata when the dtype did not change.
+    # - Re-infer a dtype when the transformation actually changed it.
+    # - Infer metadata for genuinely new columns.
+    # - Remove columns that no longer exist.
+    surviving_columns = set(df_after.columns)
+
+    result = {
+        column_name: column_dtype for column_name, column_dtype in result.items() if column_name in surviving_columns
+    }
+
+    for column_name in df_after.columns:
+        actual_dtype = map_dtype(df_after[column_name].dtype)
+
+        if column_name not in result:
+            result[column_name] = actual_dtype
+            continue
+
+        if column_name in df_before.columns:
+            before_dtype = map_dtype(df_before[column_name].dtype)
+            if before_dtype != actual_dtype:
+                result[column_name] = actual_dtype
+
+    return result
 
 
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:
