@@ -4,6 +4,7 @@
  */
 import client from "./client";
 import type { ProjectDetails, ProjectSummary } from "./types";
+import { uploadRequestConfig, type UploadOptions } from "./uploadOptions";
 
 /** Export options accepted by {@link exportProject}. */
 export interface ExportOptions {
@@ -23,23 +24,39 @@ export interface ExportResult {
   filename: string | null;
 }
 
+/** Upload limits the server enforces. */
+export interface UploadLimits {
+  max_upload_size_bytes: number;
+}
+
+/**
+ * Fetch the upload limits the server enforces.
+ * @returns The server's upload limits.
+ */
+export const getUploadLimits = async (): Promise<UploadLimits> => {
+  const response = await client.get<UploadLimits>("/projects/upload-limits");
+  return response.data;
+};
+
 /**
  * Upload a new project CSV file.
  * @param file - The CSV file to upload.
  * @param projectName - Name for the new project.
  * @param projectDescription - Description for the new project.
+ * @param options - Optional upload progress callback and abort signal.
  * @returns The created project response.
  */
 export const uploadProject = async (
   file: File,
   projectName: string,
   projectDescription: string,
+  options?: UploadOptions,
 ): Promise<ProjectDetails> => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("projectName", projectName);
   formData.append("projectDescription", projectDescription);
-  const response = await client.post("/projects/upload", formData);
+  const response = await client.post("/projects/upload", formData, uploadRequestConfig(options));
   return response.data;
 };
 

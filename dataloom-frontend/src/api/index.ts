@@ -14,8 +14,10 @@ export {
   updateProject,
   getProjectMeta,
   getProjects,
+  getUploadLimits,
 } from "./projects";
-export type { ExportOptions, ExportResult } from "./projects";
+export type { ExportOptions, ExportResult, UploadLimits } from "./projects";
+export type { UploadOptions } from "./uploadOptions";
 export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
 export type { Checkpoint, LogEntry } from "./logs";
 export {

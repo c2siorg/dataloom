@@ -34,6 +34,11 @@ describe("getProjectReport", () => {
     expect(get.mock.calls[0]?.[1]?.params).toBeUndefined();
   });
 
+  it("waits for the server instead of using the default API timeout", async () => {
+    await getProjectReport("p1");
+    expect(get.mock.calls[0]?.[1]?.timeout).toBe(0);
+  });
+
   it("takes the filename from the content-disposition header", async () => {
     const { filename } = await getProjectReport("p1");
     expect(filename).toBe("sales_report.pdf");

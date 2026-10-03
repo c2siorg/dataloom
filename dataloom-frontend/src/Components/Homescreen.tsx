@@ -20,12 +20,20 @@ import {
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./common/ConfirmDialog";
 import EmptyState from "./common/EmptyState";
+import UploadProgress from "./common/UploadProgress";
 import { UploadCloud, FileText, X, Pencil, Search } from "lucide-react";
 import { FaRegEdit, FaRegTrashAlt } from "react-icons/fa";
 import { CiMenuKebab } from "react-icons/ci";
-import { ACCEPTED_EXTENSIONS, formatFileSize, validateFile } from "../utils/fileUtils";
+import {
+  ACCEPTED_EXTENSIONS,
+  formatFileSize,
+  formatSizeLimit,
+  uploadLimitError,
+  validateFile,
+} from "../utils/fileUtils";
 import { getErrorMessage } from "../utils/errorUtils";
 import { useProjectContext } from "../context/ProjectContext";
+import useUploadLimits from "../hooks/useUploadLimits";
 
 // Must stay in sync with UpdateProjectRequest in dataloom-backend/app/schemas.py
 const PROJECT_NAME_MAX_LENGTH = 255;
@@ -250,6 +258,9 @@ const HomeScreen = () => {
   const [searchResults, setSearchResults] = useState<ProjectSummary[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+  const { maxUploadSizeBytes } = useUploadLimits();
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState>({
     open: false,
     projectId: null,
@@ -407,10 +418,17 @@ const HomeScreen = () => {
     setShowModal(true);
   };
 
+  // Abort an in-flight upload if the screen unmounts.
+  useEffect(() => () => uploadAbortRef.current?.abort(), []);
+
+  const handleCancelUpload = () => {
+    uploadAbortRef.current?.abort();
+  };
+
   const handleSubmitModal = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
 
-    const validation = validateFile(fileUpload);
+    const validation = validateFile(fileUpload, maxUploadSizeBytes);
     if (!validation.valid || !fileUpload) {
       showToast(validation.error ?? "Please select a file to upload.", "warning");
       return;
@@ -426,9 +444,16 @@ const HomeScreen = () => {
       return;
     }
 
+    const controller = new AbortController();
+    uploadAbortRef.current = controller;
+    setUploadProgress(0);
+
     try {
       setIsSubmitting(true);
-      const data = await uploadProject(fileUpload, projectName, projectDescription);
+      const data = await uploadProject(fileUpload, projectName, projectDescription, {
+        onProgress: setUploadProgress,
+        signal: controller.signal,
+      });
 
       const projectId = data.project_id;
 
@@ -438,12 +463,20 @@ const HomeScreen = () => {
         showToast("Error: Project ID is undefined.", "error");
       }
     } catch (error) {
+      if (controller.signal.aborted) {
+        // Keep the modal open so the user can pick another file or retry.
+        showToast("Upload cancelled.", "info");
+        return;
+      }
       console.error("Error uploading file:", error);
       const message =
+        uploadLimitError(error, fileUpload, maxUploadSizeBytes) ||
         (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         "Error uploading file. Please try again.";
       showToast(message, "error");
     } finally {
+      uploadAbortRef.current = null;
+      setUploadProgress(null);
       setIsSubmitting(false);
     }
 
@@ -456,7 +489,7 @@ const HomeScreen = () => {
 
     if (!file) return;
 
-    const validation = validateFile(file);
+    const validation = validateFile(file, maxUploadSizeBytes);
     if (!validation.valid) {
       showToast(validation.error ?? "Please select a file to upload.", "warning");
 
@@ -723,7 +756,9 @@ const HomeScreen = () => {
                         </p>
                       </div>
 
-                      <p className="text-xs text-muted-foreground">Maximum file size: 10 MB</p>
+                      <p className="text-xs text-muted-foreground">
+                        Maximum file size: {formatSizeLimit(maxUploadSizeBytes)}
+                      </p>
                     </div>
                   </div>
                 ) : (
@@ -778,6 +813,9 @@ const HomeScreen = () => {
                 )}
               </div>
             </div>
+            {uploadProgress !== null && (
+              <UploadProgress progress={uploadProgress} onCancel={handleCancelUpload} />
+            )}
             <div className="flex flex-row justify-end gap-3 mt-6">
               <button
                 className="px-4 py-2 bg-surface border border-app-border text-foreground hover:bg-surface-hover rounded-md text-sm font-medium transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"

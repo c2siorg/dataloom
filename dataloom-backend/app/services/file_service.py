@@ -11,9 +11,11 @@ from app.config import get_settings
 from app.utils import df_cache
 from app.utils.file_formats import supported_extensions
 from app.utils.logging import get_logger
-from app.utils.security import resolve_upload_path, sanitize_filename
+from app.utils.security import format_size_limit, resolve_upload_path, sanitize_filename
 
 logger = get_logger(__name__)
+
+_CHUNK_SIZE = 65_536  # 64 KB
 
 
 def _copy_path_for(original_path: Path) -> Path:
@@ -24,10 +26,12 @@ def _copy_path_for(original_path: Path) -> Path:
 def _validated_write(file) -> Path:
     """Validate an upload and write it to a sanitized path in the upload dir.
 
-    Validates the file extension against the supported-format registry and
-    enforces the configured ``max_upload_size_bytes`` limit via chunked
-    streaming before writing anything to disk. The file pointer is reset to 0
-    after validation so ``shutil.copyfileobj`` writes a complete file.
+    Validates the file extension against the supported-format registry, then
+    streams the upload in 64 KB chunks to a ``.part`` sibling of the target,
+    counting bytes as it goes, so the upload is read exactly once. The
+    ``.part`` file is renamed onto the target only when the whole upload is
+    within ``max_upload_size_bytes``, and removed on any failure, so the
+    target path never holds a partial file.
 
     Args:
         file: The FastAPI UploadFile object.
@@ -42,30 +46,27 @@ def _validated_write(file) -> Path:
     settings = get_settings()
     max_bytes = settings.max_upload_size_bytes
 
-    # 1. Validate file extension
     ext = Path(file.filename).suffix.lower()
     if ext not in supported_extensions():
         raise ValueError(f"Unsupported file format '{ext}'. Supported: {supported_extensions()}")
 
-    # 2. Validate file size via chunked streaming (avoids full memory read)
-    _CHUNK = 65_536  # 64 KB
-    cumulative = 0
-    while chunk := file.file.read(_CHUNK):
-        cumulative += len(chunk)
-        if cumulative > max_bytes:
-            size_mb = cumulative / (1024 * 1024)
-            limit_mb = max_bytes / (1024 * 1024)
-            limit_str = f"{int(limit_mb)}MB" if limit_mb == int(limit_mb) else f"{limit_mb:.1f}MB"
-            raise ValueError(f"File size {size_mb:.1f}MB exceeds maximum allowed size of {limit_str}")
+    target_path = resolve_upload_path(sanitize_filename(file.filename))
+    part_path = target_path.with_name(target_path.name + ".part")
 
-    # 3. Reset pointer so shutil.copyfileobj can read from the beginning
-    file.file.seek(0)
-
-    safe_name = sanitize_filename(file.filename)
-    target_path = resolve_upload_path(safe_name)
-
-    with open(target_path, "wb+") as f:
-        shutil.copyfileobj(file.file, f)
+    try:
+        written = 0
+        with open(part_path, "wb") as out:
+            while chunk := file.file.read(_CHUNK_SIZE):
+                written += len(chunk)
+                if written > max_bytes:
+                    size_mb = written / (1024 * 1024)
+                    limit_str = format_size_limit(max_bytes)
+                    raise ValueError(f"File size {size_mb:.1f}MB exceeds maximum allowed size of {limit_str}")
+                out.write(chunk)
+        os.replace(part_path, target_path)
+    except BaseException:
+        part_path.unlink(missing_ok=True)
+        raise
 
     return target_path
 
