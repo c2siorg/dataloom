@@ -32,11 +32,13 @@ from app.services.file_service import (
 from app.services.project_service import (
     create_checkpoint,
     create_project,
+    create_project_column_metadata,
     delete_project,
     discard_redo_stack,
     discard_undo_history,
     enforce_undo_retention,
     get_last_pending_change_log,
+    get_project_column_metadata,
     get_project_files,
     get_projects,
     get_recent_projects,
@@ -45,16 +47,21 @@ from app.services.project_service import (
     mark_step_redone,
     mark_step_undone,
     rename_project,
+    replace_project_column_metadata,
     restore_after_failure,
     search_projects,
     update_project,
 )
-from app.services.transformation_service import apply_logged_transformation
+from app.services.transformation_service import (
+    apply_logged_transformation,
+    apply_metadata_transformation,
+)
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import (
     dataframe_to_response,
     dataset_file_stats,
+    map_dtype,
     paginate_dataframe,
     read_table_safe,
     save_table_safe,
@@ -104,6 +111,8 @@ async def upload_project(
 
     project = create_project(db, projectName, str(copy_path), projectDescription, current_user.id)
 
+    create_project_column_metadata(db, project.project_id, df)
+
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
     return {
@@ -140,11 +149,13 @@ def list_projects(
 def get_project_details(
     page: int = 1,
     pageSize: int = 50,
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Fetch full project details including all rows and columns."""
     with project_read_lock(project.project_id):
         df = read_table_safe(project.file_path)
+        dtypes = get_project_column_metadata(db, project.project_id)
 
     total_rows = len(df)
     total_pages = (total_rows + pageSize - 1) // pageSize
@@ -154,6 +165,7 @@ def get_project_details(
     paginated_df = df.iloc[start:end]
 
     resp = dataframe_to_response(paginated_df)
+    resp["dtypes"] = {column: dtypes.get(column, dtype) for column, dtype in resp["dtypes"].items()}
     return {
         "filename": project.name,
         "file_path": project.file_path,
@@ -299,6 +311,10 @@ def _revert_to_checkpoint(
     original_path = get_original_path(project.file_path)
     df = read_table_safe(original_path)
 
+    # Reconstruct semantic metadata alongside the dataframe so a revert
+    # restores both the data and the persisted dtype state.
+    metadata = {column_name: map_dtype(dtype) for column_name, dtype in df.dtypes.items()}
+
     if checkpoint_id is not None:
         checkpoint = (
             db.query(models.Checkpoint)
@@ -334,10 +350,21 @@ def _revert_to_checkpoint(
         )
 
         for log in logs:
+            before_df = df
             df = apply_logged_transformation(df, log.action_type, log.action_details)
+            metadata = apply_metadata_transformation(
+                metadata,
+                log.action_type,
+                log.action_details,
+                before_df,
+                df,
+            )
 
     # Write file first — if this fails, DB is unchanged and state remains consistent.
     save_table_safe(df, project.file_path)
+    # Persist the metadata reconstructed alongside the reverted dataframe.
+    replace_project_column_metadata(db, project_id, metadata)
+
     # Undo and redo cover the unsaved work the revert just discarded.
     stale_snapshots = discard_undo_history(db, project_id)
     # Clear unapplied logs so a subsequent save cannot re-apply stale
@@ -560,6 +587,8 @@ def _undo_last_transformation(
         df = read_project_df(project)
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
+    dtypes = get_project_column_metadata(db, project_id)
+    resp["dtypes"] = {column: dtypes.get(column, dtype) for column, dtype in resp["dtypes"].items()}
     logger.info("Undo: project_id=%s, log_id=%s, replayed=%s", project_id, last_log_id, replayed)
     return {
         "filename": project.name,
