@@ -28,8 +28,18 @@ import DtypeBadge from "./common/DtypeBadge";
 import ColumnProfileCard from "./profiling/ColumnProfileCard";
 import TableSkeleton from "./common/TableSkeleton";
 import useColumnProfiles from "../hooks/useColumnProfiles";
+import { useColumnWindow } from "../hooks/useColumnWindow";
 import { useToast } from "../context/ToastContext";
 import { usePanel } from "../context/PanelContext";
+
+/** Above this many data columns, only the columns in view are rendered. */
+export const VIRTUALIZE_COLUMN_THRESHOLD = 50;
+/** Fixed width in px of every data column while columns are virtualized. */
+export const COLUMN_WIDTH = 160;
+/** Width in px of the sticky S.No. column (Tailwind `w-16`). */
+const SERIAL_COLUMN_WIDTH = 64;
+/** Columns rendered past each edge of the viewport. */
+const COLUMN_OVERSCAN = 3;
 
 /** A single table cell value, as the API layer defines it. */
 type Cell = CellValue;
@@ -159,6 +169,58 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
       ]),
     [ctxRows, page, pageSize, safeOrder],
   );
+
+  // Wide datasets render only the columns in view. The column being edited or
+  // dragged stays rendered, so scrolling away does not unmount it mid-gesture.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pinnedColumns: number[] = [];
+  if (editingCell) pinnedColumns.push(editingCell.cellIndex - 1);
+  if (draggedColIndex !== null) pinnedColumns.push(draggedColIndex);
+  const columnWindow = useColumnWindow(scrollRef, {
+    enabled: ctxColumns.length > VIRTUALIZE_COLUMN_THRESHOLD,
+    columnCount: ctxColumns.length,
+    columnWidth: COLUMN_WIDTH,
+    leadingOffset: SERIAL_COLUMN_WIDTH,
+    overscan: COLUMN_OVERSCAN,
+    pinned: pinnedColumns,
+  });
+
+  // Fixed widths and truncation apply only while virtualized. Otherwise these
+  // are undefined or empty, so the grid renders exactly as it always has.
+  const fixedWidth = columnWindow
+    ? { width: COLUMN_WIDTH, minWidth: COLUMN_WIDTH, maxWidth: COLUMN_WIDTH }
+    : undefined;
+  const truncate = columnWindow ? " truncate" : "";
+
+  /**
+   * Render one row's cells. While virtualized, S.No. (index 0) always renders
+   * and two spacers stand in for the columns outside the window. Indices passed
+   * to `render` are always absolute display indices.
+   */
+  const windowColumns = <T,>(
+    items: T[],
+    Spacer: "th" | "td",
+    render: (item: T, index: number) => ReactNode,
+  ) => {
+    if (!columnWindow) return items.map(render);
+
+    const { start, end, leftPad, rightPad } = columnWindow;
+    const spacer = (side: "left" | "right", width: number) => (
+      <Spacer
+        key={`${side}-spacer`}
+        aria-hidden="true"
+        className="p-0 border-0"
+        style={{ width, minWidth: width, maxWidth: width }}
+      />
+    );
+    const cells = [render(items[0] as T, 0), spacer("left", leftPad)];
+    // Window indices count data columns; data column d is display index d + 1.
+    for (let index = start + 1; index <= end; index++) {
+      cells.push(render(items[index] as T, index));
+    }
+    cells.push(spacer("right", rightPad));
+    return cells;
+  };
 
   const updateTableData = (response: TransformResponse) => {
     const { columns, rows, dtypes: newDtypes } = response;
@@ -488,7 +550,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 min-h-0 overflow-hidden border-x border-b border-app-border shadow-sm">
-        <div className="h-full overflow-auto">
+        <div ref={scrollRef} className="h-full overflow-auto">
           {loading && ctxRows.length === 0 ? (
             // Only stand in when there is nothing to show. Every mutation
             // handler refreshes after updating the grid in place, and swapping
@@ -504,11 +566,21 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
             <table
               data-testid="data-table"
               className="min-w-full bg-surface border-separate border-spacing-0"
+              // Fixed layout only takes effect when the table has an explicit width.
+              style={
+                columnWindow
+                  ? {
+                      tableLayout: "fixed",
+                      width: SERIAL_COLUMN_WIDTH + ctxColumns.length * COLUMN_WIDTH,
+                    }
+                  : undefined
+              }
+              aria-colcount={columnWindow ? columns.length : undefined}
             >
               <thead className="sticky top-0 z-20 bg-surface">
                 {showColumnProfiles && (
                   <tr>
-                    {columns.map((column, columnIndex) => {
+                    {windowColumns(columns, "th", (column, columnIndex) => {
                       const isSerialNumber = columnIndex === 0;
                       return (
                         <th
@@ -518,6 +590,8 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                               ? "w-16 sticky left-0 z-10 bg-surface"
                               : "bg-surface min-w-35"
                           }`}
+                          style={isSerialNumber ? undefined : fixedWidth}
+                          aria-colindex={columnWindow ? columnIndex + 1 : undefined}
                         >
                           {!isSerialNumber && (
                             <ColumnProfileCard
@@ -531,7 +605,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                   </tr>
                 )}
                 <tr>
-                  {columns.map((column, columnIndex) => {
+                  {windowColumns(columns, "th", (column, columnIndex) => {
                     const isSerialNumber = columnIndex === 0;
                     const isDragged = !isSerialNumber && draggedColIndex === columnIndex - 1;
                     const isDropTarget = !isSerialNumber && hoveredTargetIndex === columnIndex - 1;
@@ -548,6 +622,8 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                         className={`h-6 px-0.5 py-0 border-r border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider ${
                           isDropTarget ? "ring-2 ring-blue-400" : ""
                         } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
+                        style={isSerialNumber ? undefined : fixedWidth}
+                        aria-colindex={columnWindow ? columnIndex + 1 : undefined}
                         aria-sort={sortDir}
                         onContextMenu={(e) => {
                           if (!isPreviewMode) {
@@ -558,8 +634,9 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                         <button
                           type="button"
                           className={`w-full text-left text-muted-foreground hover:text-foreground hover:bg-surface-hover rounded-md transition-colors duration-150 ${
-                            isSerialNumber ? "" : "cursor-grab active:cursor-grabbing"
+                            isSerialNumber ? "" : `cursor-grab active:cursor-grabbing${truncate}`
                           } ${isDragged ? "opacity-50" : ""}`}
+                          title={columnWindow && !isSerialNumber ? column : undefined}
                           draggable={!isSerialNumber}
                           onClick={() => {
                             if (!isSerialNumber) handleHeaderSort(column);
@@ -607,7 +684,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                   })}
                 </tr>
                 <tr>
-                  {columns.map((column, columnIndex) => {
+                  {windowColumns(columns, "th", (column, columnIndex) => {
                     const isSerialNumber = columnIndex === 0;
                     const isDropTarget = !isSerialNumber && hoveredTargetIndex === columnIndex - 1;
                     return (
@@ -616,6 +693,8 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                         className={`h-5 px-0.5 py-0 border-b border-r border-app-border text-left text-[10px] leading-none ${
                           isDropTarget ? "ring-2 ring-blue-400" : ""
                         } ${isSerialNumber ? "w-16 sticky left-0 z-10 bg-surface" : "bg-surface"}`}
+                        style={isSerialNumber ? undefined : fixedWidth}
+                        aria-colindex={columnWindow ? columnIndex + 1 : undefined}
                         onContextMenu={(e) => open(e, { type: "column", columnIndex })}
                       >
                         {!isSerialNumber && dtypes[column] ? (
@@ -635,7 +714,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                     key={rowIndex}
                     className="hover:bg-surface-hover transition-colors duration-150"
                   >
-                    {row.map((cell, cellIndex) => (
+                    {windowColumns(row, "td", (cell, cellIndex) => (
                       <td
                         key={cellIndex}
                         className={`h-6 px-0.5 py-0 text-xs border-b border-r border-app-border ${
@@ -643,6 +722,8 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                             ? "w-16 sticky left-0 z-10 bg-surface text-center font-medium text-muted-foreground"
                             : "text-foreground"
                         }`}
+                        style={cellIndex === 0 ? undefined : fixedWidth}
+                        aria-colindex={columnWindow ? cellIndex + 1 : undefined}
                         onContextMenu={(e) => {
                           if (!isPreviewMode) {
                             open(e, { type: "row", rowIndex });
@@ -665,9 +746,10 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
                             onClick={() => handleCellClick(rowIndex, cellIndex, cell)}
                             className={
                               cellIndex !== 0
-                                ? "cursor-pointer hover:bg-elevated px-1 py-0.5 rounded"
+                                ? `cursor-pointer hover:bg-elevated px-1 py-0.5 rounded${truncate}`
                                 : ""
                             }
+                            title={columnWindow && cellIndex !== 0 ? String(cell ?? "") : undefined}
                           >
                             {cell}
                           </div>
