@@ -19,8 +19,8 @@ export {
 } from "./projects";
 export type { ExportOptions, ExportResult, UploadLimits } from "./projects";
 export type { UploadOptions } from "./uploadOptions";
-export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
-export type { Checkpoint, LogEntry } from "./logs";
+export { getLogs, getCheckpoints, deleteCheckpoint, compareCheckpoint } from "./logs";
+export type { Checkpoint, LogEntry, DatasetComparison } from "./logs";
 export {
   transformProject,
   groupByTransform,
