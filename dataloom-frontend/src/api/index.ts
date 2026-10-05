@@ -16,8 +16,8 @@ export {
   getProjects,
 } from "./projects";
 export type { ExportOptions, ExportResult } from "./projects";
-export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
-export type { Checkpoint, LogEntry } from "./logs";
+export { getLogs, getCheckpoints, deleteCheckpoint, compareCheckpoint } from "./logs";
+export type { Checkpoint, LogEntry, DatasetComparison } from "./logs";
 export {
   transformProject,
   groupByTransform,

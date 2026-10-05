@@ -666,6 +666,69 @@ class CheckpointResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ComparisonDtypeChange(BaseModel):
+    """A column whose dtype differs between two dataset versions."""
+
+    name: str
+    before: str
+    after: str
+
+
+class ComparisonSummary(BaseModel):
+    """Aggregate counts for a dataset comparison."""
+
+    checkpoint_rows: int
+    current_rows: int
+    checkpoint_columns: int
+    current_columns: int
+    added_rows: int
+    removed_rows: int
+    changed_cells: int
+    affected_rows: int
+    affected_columns: int
+
+
+class ComparisonColumns(BaseModel):
+    """Column-level differences."""
+
+    added: list[str]
+    removed: list[str]
+    dtype_changed: list[ComparisonDtypeChange]
+
+
+class ComparisonRowChange(BaseModel):
+    """One added or removed row."""
+
+    type: str
+    row: object
+    checkpoint_index: int | None
+    current_index: int | None
+
+
+class ComparisonCellChange(BaseModel):
+    """One changed cell."""
+
+    row: object
+    column: str
+    checkpoint_value: object
+    current_value: object
+
+
+class DatasetComparisonResponse(BaseModel):
+    """Read-only diff between a checkpoint and the current working dataset."""
+
+    summary: ComparisonSummary
+    columns: ComparisonColumns
+    rows: list[ComparisonRowChange]
+    cells: list[ComparisonCellChange]
+    total_rows: int
+    total_cells: int
+    page: int
+    page_size: int
+    total_pages: int
+    matching_strategy: str
+
+
 class LogResponse(BaseModel):
     """Response for change log entries."""
 

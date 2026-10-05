@@ -1,7 +1,10 @@
 """Pandas utility functions for safe multi-format I/O and response building."""
 
 import math
+import os
 import re
+import shutil
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -100,14 +103,16 @@ def dataset_file_stats(path: Path) -> DatasetFileStats:
 
 def save_table_safe(
     df: pd.DataFrame,
-    path: Path,
+    path: Path | str,
     options: TableWriteOptions | None = None,
 ) -> None:
-    """Save a DataFrame safely, dispatching on the destination file's format.
+    """Save a DataFrame atomically, dispatching on the destination file's format.
 
-    Always invalidates any cached read of ``path``, including on a failed or
-    partial write, so a subsequent read never serves data older than the write
-    attempt.
+    The DataFrame is first serialized to a temporary file in the destination
+    directory. The existing working copy is replaced only after serialization
+    succeeds and the temporary file has been flushed to disk.
+
+    A failed write therefore leaves the previous working copy untouched.
 
     Args:
         df: DataFrame to save.
@@ -117,14 +122,43 @@ def save_table_safe(
     Raises:
         HTTPException: If the file cannot be saved.
     """
+    path = Path(path)
+    temp_path: Path | None = None
+
     try:
-        get_format(path).write(df, path, options)
+        fd, temp_name = tempfile.mkstemp(
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=path.suffix,
+        )
+        os.close(fd)
+        temp_path = Path(temp_name)
+
+        get_format(path).write(df, temp_path, options)
+
+        if path.exists():
+            shutil.copymode(path, temp_path)
+
+        with temp_path.open("rb") as temp_file:
+            os.fsync(temp_file.fileno())
+
+        os.replace(temp_path, path)
+        temp_path = None
+
+        df_cache.invalidate(path)
+
     except (ValueError, UnicodeEncodeError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}") from e
     finally:
-        df_cache.invalidate(path)
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                logger.warning("Could not remove temporary dataset file: %s", temp_path)
 
 
 def map_dtype(dtype) -> str:
