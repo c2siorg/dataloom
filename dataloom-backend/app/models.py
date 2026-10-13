@@ -123,6 +123,30 @@ class ProjectFile(SQLModel, table=True):
     project: Project | None = Relationship(back_populates="files")
 
 
+class ProjectColumnMetadata(SQLModel, table=True):
+    """Persisted semantic dtype for a project column."""
+
+    __tablename__ = "project_column_metadata"
+    __table_args__ = (
+        sa.UniqueConstraint("project_id", "column_name", name="uq_project_column_metadata_project_column"),
+    )
+
+    id: uuid_mod.UUID = Field(
+        default_factory=uuid_mod.uuid4,
+        sa_column=Column(sa.Uuid, primary_key=True, default=uuid_mod.uuid4),
+    )
+    project_id: uuid_mod.UUID = Field(
+        sa_column=Column(
+            sa.Uuid,
+            sa.ForeignKey("projects.project_id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    column_name: str = Field(max_length=255)
+    column_dtype: str = Field(max_length=50)
+
+
 class ProjectChangeLog(SQLModel, table=True):
     """A record of a single transformation applied to a project."""
 
@@ -198,6 +222,14 @@ class UndoStep(SQLModel, table=True):
     entries: list = Field(sa_column=Column(sa.JSON, nullable=False))
     before_path: str | None = Field(default=None, sa_column=Column(sa.String, nullable=True))
     after_path: str | None = Field(default=None, sa_column=Column(sa.String, nullable=True))
+    metadata_before: dict | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
+    metadata_after: dict | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
     undone_seq: int | None = Field(default=None, sa_column=Column(sa.Integer, nullable=True))
     created_at: datetime | None = Field(
         default=None,
