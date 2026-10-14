@@ -107,6 +107,22 @@ The frontend development server will start at `http://localhost:3200`.
 4. Commit your changes with a clear, descriptive commit message.
 5. Push your branch to your fork and open a pull request against the `main` branch.
 
+### Benchmarks
+
+`dataloom-backend/tests/benchmarks/` times the backend data path on a generated 100,000-row CSV: datetime inference, uncached file reads, a set of Operations (filter, sort, dropDuplicate, groupby, pivotTables), column profiling and Quality Assessment.
+
+A plain `uv run pytest` runs each benchmark once, untimed, as a smoke test. To time your change and compare it against `main` locally:
+
+```bash
+cd dataloom-backend
+git switch main
+uv run pytest tests/benchmarks --benchmark-enable --benchmark-only --benchmark-autosave
+git switch <your-branch>
+uv run pytest tests/benchmarks --benchmark-enable --benchmark-only --benchmark-compare
+```
+
+Every pull request gets a **Backend Benchmarks** check. It benchmarks `main` and the pull request on the same runner and fails when the min time of any benchmark is more than 25% slower. The check is not required yet.
+
 ### E2E Tests (Playwright)
 
 End-to-end tests use [Playwright](https://playwright.dev/) and exercise the full stack (frontend + backend + database).

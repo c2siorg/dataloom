@@ -38,3 +38,6 @@ uploads/
 # SQLite (local dev)
 *.sqlite3
 *.db
+
+# pytest-benchmark results (--benchmark-autosave)
+.benchmarks/
