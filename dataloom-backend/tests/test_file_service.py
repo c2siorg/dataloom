@@ -243,3 +243,78 @@ class TestStoreUploadPointerReset:
             store_upload(file)
 
         assert original.read_bytes() == content
+
+
+# ---------------------------------------------------------------------------
+# TestValidatedWriteSinglePass
+# ---------------------------------------------------------------------------
+
+
+class CountingReader:
+    """File-like object that counts read() calls and the bytes they return."""
+
+    def __init__(self, content: bytes, fail_after: int | None = None):
+        self._buffer = BytesIO(content)
+        self._fail_after = fail_after
+        self.calls = 0
+        self.bytes_read = 0
+
+    def read(self, size: int = -1) -> bytes:
+        if self._fail_after is not None and self.calls >= self._fail_after:
+            raise OSError("connection lost")
+        self.calls += 1
+        chunk = self._buffer.read(size)
+        self.bytes_read += len(chunk)
+        return chunk
+
+
+class TestValidatedWriteSinglePass:
+    LIMIT = 128 * 1024
+
+    @pytest.fixture
+    def small_limit(self, monkeypatch):
+        monkeypatch.setenv("MAX_UPLOAD_SIZE_BYTES", str(self.LIMIT))
+        get_settings.cache_clear()
+        yield
+        monkeypatch.undo()
+        get_settings.cache_clear()
+
+    @staticmethod
+    def _store(tmp_path, reader: CountingReader) -> Path:
+        file = MockUploadFile("data.csv")
+        file.file = reader
+        target = tmp_path / "data.csv"
+        with (
+            patch("app.services.file_service.sanitize_filename", return_value="data.csv"),
+            patch("app.services.file_service.resolve_upload_path", return_value=target),
+        ):
+            store_upload(file)
+        return target
+
+    def test_upload_is_read_once_and_written_complete(self, tmp_path):
+        content = b"a,b\n" + b"1,2\n" * 50_000  # ~200 KB, several 64 KB chunks
+        reader = CountingReader(content)
+
+        target = self._store(tmp_path, reader)
+
+        assert target.read_bytes() == content
+        assert reader.bytes_read == len(content)
+        # Each full 64 KB chunk, the partial tail, and the empty read that ends the loop.
+        assert reader.calls == len(content) // 65_536 + 2
+        assert sorted(p.name for p in tmp_path.iterdir()) == ["data.csv", "data_copy.csv"]
+
+    def test_oversized_upload_leaves_no_part_file(self, tmp_path, small_limit):
+        reader = CountingReader(b"x" * (self.LIMIT + 1))
+
+        with pytest.raises(ValueError, match="exceeds maximum allowed size of"):
+            self._store(tmp_path, reader)
+
+        assert list(tmp_path.iterdir()) == []
+
+    def test_read_error_leaves_no_part_file(self, tmp_path):
+        reader = CountingReader(b"x" * 200_000, fail_after=1)
+
+        with pytest.raises(OSError, match="connection lost"):
+            self._store(tmp_path, reader)
+
+        assert list(tmp_path.iterdir()) == []

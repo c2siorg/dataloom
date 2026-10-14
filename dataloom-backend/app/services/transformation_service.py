@@ -5,6 +5,7 @@ No side effects -- saving to disk is handled by the caller.
 """
 
 import math
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -657,12 +658,6 @@ def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
 
-    # if not (pd.api.types.is_string_dtype(df[column]) or pd.api.types.is_object_dtype(df[column])):
-    #     raise TransformationError(
-    #         f"Column '{column}' is not a string column (dtype: {df[column].dtype}). "
-    #         "Cast it to string first before using string replace."
-    #     )
-
     df = df.copy()
     df[column] = df[column].astype(str).str.replace(find_value, replace_value, regex=False)
     return df
@@ -691,8 +686,8 @@ def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
 def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
     """Filter DataFrame using a pandas query expression.
 
-    Validates the query for injection attacks, normalizes quote characters,
-    and wraps non-identifier column names in backticks.
+    Validates the query for injection attacks and wraps non-identifier column
+    names in backticks if not already wrapped.
 
     Args:
         df: Source DataFrame.
@@ -700,20 +695,26 @@ def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
 
     Returns:
         Filtered DataFrame.
+
+    Raises:
+        TransformationError: If the query fails to execute.
     """
     # Validate for injection patterns
     validate_query_string(query_string)
 
-    # Normalize quotes
-    query_string = query_string.replace("'", '"').strip()
+    query = query_string.strip()
 
-    # Wrap non-identifier column names in backticks
+    # Wrap non-identifier column names in backticks if not already wrapped
     for col in df.columns:
         if not col.isidentifier():
-            query_string = query_string.replace(col, f"`{col}`")
+            pattern = rf"(?<!`){re.escape(col)}(?!`)"
+            query = re.sub(pattern, f"`{col}`", query)
 
-    logger.debug("Executing query: %s", query_string)
-    return df.query(query_string, local_dict={"__builtins__": {}})
+    logger.debug("Executing query: %s", query)
+    try:
+        return df.query(query, local_dict={"__builtins__": {}})
+    except Exception as e:
+        raise TransformationError(f"Query execution failed: {e}") from e
 
 
 def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, aggfunc: str = "sum") -> pd.DataFrame:

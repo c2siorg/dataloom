@@ -2,6 +2,7 @@
 
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -307,6 +308,9 @@ def _sample_rules_out_datetime(non_null: pd.Series) -> bool:
     skip a column early, never convert one. Conversion stays entirely with the
     full-column rules.
 
+    Note that this gate is statistical, not a proof (unlike exact row counts):
+    a sample might technically under-represent valid dates in a highly skewed column.
+
     Columns at or below the sample size return False — sampling them would
     just do the same work twice.
 
@@ -334,6 +338,56 @@ def _sample_rules_out_datetime(non_null: pd.Series) -> bool:
     # Both DD/MM and MM/DD evidence in the sample means both are in the column,
     # so the full path's _infer_dayfirst would return None and skip it too.
     return _infer_dayfirst(normalized_sample) is None
+
+
+def sample_rules_out_rate(
+    values: pd.Series,
+    predicate: Callable[[pd.Series], pd.Series],
+    *,
+    gate_rate: float = _DATETIME_GATE_RATE,
+) -> bool:
+    """Pre-screen an expensive full-column rate check on a fixed-seed sample.
+
+    True means the predicate held for less than ``gate_rate`` of the sample,
+    which rules out an 80% rule on the full column (see
+    ``_DATETIME_GATE_RATE``), so the caller may skip the full check. False
+    means nothing, and columns at or below the sample size always return
+    False. Like ``_sample_rules_out_datetime``, the gate only ever skips work;
+    every number the caller reports is still computed on the full column.
+
+    Args:
+        values: The values the full check would run on.
+        predicate: Vectorized check mapping a Series to a boolean Series; it
+            must be the same check the full-column path runs.
+        gate_rate: Sample rate below which the column is ruled out.
+
+    Returns:
+        True if the sample rules out the full-column rate.
+    """
+    if len(values) <= _DATETIME_SAMPLE_SIZE:
+        return False
+    sample = values.sample(_DATETIME_SAMPLE_SIZE, random_state=_DATETIME_SAMPLE_SEED)
+    return bool(predicate(sample).mean() < gate_rate)
+
+
+def sample_exceeds_distinct(series: pd.Series, limit: int) -> bool:
+    """Return True when a fixed-seed sample has more than ``limit`` distinct non-null values.
+
+    A sample's distinct values are a subset of the column's, so True proves
+    the full column exceeds ``limit`` as well. False means nothing, and
+    columns at or below the sample size always return False.
+
+    Args:
+        series: The column to check.
+        limit: The distinct-value count to test against.
+
+    Returns:
+        True if the full column certainly has more than ``limit`` distinct values.
+    """
+    if len(series) <= _DATETIME_SAMPLE_SIZE:
+        return False
+    sample = series.sample(_DATETIME_SAMPLE_SIZE, random_state=_DATETIME_SAMPLE_SEED)
+    return bool(sample.nunique(dropna=True) > limit)
 
 
 def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:

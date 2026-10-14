@@ -420,6 +420,12 @@ class UndoStateResponse(BaseModel):
     can_redo: bool
 
 
+class UploadLimitsResponse(BaseModel):
+    """Upload limits the server enforces, so the client can check a file before sending it."""
+
+    max_upload_size_bytes: int
+
+
 # --- Add-file (append) schemas ---
 
 

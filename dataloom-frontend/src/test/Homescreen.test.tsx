@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import HomeScreen from "../Components/Homescreen";
 import * as api from "../api";
@@ -20,6 +20,10 @@ vi.mock("react-router-dom", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-router-dom")>()),
   useNavigate: () => mockNavigate,
 }));
+
+const DEFAULT_LIMIT = 10 * 1024 * 1024;
+const uploadLimits = { maxUploadSizeBytes: DEFAULT_LIMIT };
+vi.mock("../hooks/useUploadLimits", () => ({ default: () => uploadLimits }));
 
 const mockProjects = [
   {
@@ -349,5 +353,71 @@ describe("HomeScreen - Project card metadata and layout", () => {
     expect(screen.getByTestId("new-project-card")).toHaveTextContent(
       ACCEPTED_EXTENSIONS.join(", "),
     );
+  });
+});
+
+describe("HomeScreen - Upload", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(api.getRecentProjects).mockResolvedValue(mockProjects);
+    uploadLimits.maxUploadSizeBytes = 100 * 1024 * 1024;
+  });
+
+  afterEach(() => {
+    uploadLimits.maxUploadSizeBytes = DEFAULT_LIMIT;
+  });
+
+  const openUploadModal = async () => {
+    render(
+      <MemoryRouter>
+        <ToastProvider>
+          <ProjectProvider>
+            <HomeScreen />
+          </ProjectProvider>
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByText("Time series test");
+    fireEvent.click(screen.getAllByTestId("new-project-card")[0]!);
+  };
+
+  it("shows the server's upload limit in the drop zone", async () => {
+    await openUploadModal();
+
+    expect(screen.getByText("Maximum file size: 100 MB")).toBeInTheDocument();
+  });
+
+  it("uploads with progress and abort options, and Cancel keeps the modal open", async () => {
+    vi.mocked(api.uploadProject).mockImplementation(
+      (_file, _name, _description, options) =>
+        new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener("abort", () => reject(new Error("canceled")));
+        }),
+    );
+    await openUploadModal();
+
+    const file = new File(["a,b\n1,2"], "sales.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByTestId("project-name-input"), { target: { value: "Sales" } });
+    fireEvent.change(screen.getByTestId("project-description-input"), {
+      target: { value: "Q1 data" },
+    });
+    fireEvent.change(screen.getByTestId("file-input"), { target: { files: [file] } });
+    fireEvent.click(screen.getByTestId("submit-project"));
+
+    expect(api.uploadProject).toHaveBeenCalledWith(
+      file,
+      "Sales",
+      "Q1 data",
+      expect.objectContaining({
+        onProgress: expect.any(Function),
+        signal: expect.any(AbortSignal),
+      }),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /cancel upload/i }));
+
+    expect(await screen.findByText("Upload cancelled.")).toBeInTheDocument();
+    expect(screen.getByTestId("submit-project")).toBeEnabled();
+    expect(screen.queryByTestId("upload-progress")).not.toBeInTheDocument();
   });
 });

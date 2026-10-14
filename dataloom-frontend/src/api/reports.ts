@@ -7,6 +7,13 @@ import client from "./client";
 /** The parts a report can carry. The dataset overview always prints. */
 export type ReportSection = "overview" | "profiles" | "quality" | "provenance";
 
+/**
+ * Reports are built on demand, and on a large dataset that takes longer than
+ * the client's default API timeout. 0 disables the timeout, so the request
+ * waits for the server instead of failing after 30 seconds.
+ */
+const REPORT_TIMEOUT_MS = 0;
+
 /** A generated report: the PDF itself, plus the filename the server chose. */
 export interface GeneratedReport {
   blob: Blob;
@@ -33,6 +40,7 @@ export const getProjectReport = async (
   const requested = sections && (sections.length > 0 ? sections : ["overview"]);
   const response = await client.get<Blob>(`/projects/${projectId}/report`, {
     responseType: "blob",
+    timeout: REPORT_TIMEOUT_MS,
     params: requested ? { section: requested } : undefined,
     // Axios brackets repeated params by default; FastAPI expects section=a&section=b.
     paramsSerializer: { indexes: null },

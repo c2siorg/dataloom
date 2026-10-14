@@ -28,6 +28,15 @@ vi.mock("../../../context/ToastContext", () => ({
   useToast: () => ({ showToast }),
 }));
 
+const DEFAULT_LIMIT = 10 * 1024 * 1024;
+const uploadLimits = { maxUploadSizeBytes: DEFAULT_LIMIT };
+vi.mock("../../../hooks/useUploadLimits", () => ({ default: () => uploadLimits }));
+
+const uploadOptions = expect.objectContaining({
+  onProgress: expect.any(Function),
+  signal: expect.any(AbortSignal),
+});
+
 const PREVIEW: AppendPreview = {
   matched_columns: ["name"],
   new_columns: ["city"],
@@ -44,6 +53,7 @@ const INVENTORY: ProjectFileEntry[] = [
 beforeEach(() => {
   vi.clearAllMocks();
   getProjectFiles.mockResolvedValue([]);
+  uploadLimits.maxUploadSizeBytes = DEFAULT_LIMIT;
 });
 
 function renderPanel() {
@@ -68,7 +78,7 @@ describe("AddFilePanel", () => {
     const file = chooseFile();
     await waitFor(() => expect(appendButton()).toBeEnabled());
 
-    expect(previewAddFile).toHaveBeenCalledWith("p1", file);
+    expect(previewAddFile).toHaveBeenCalledWith("p1", file, uploadOptions);
     expect(screen.getByText(/2 row\(s\) will be appended to 3/)).toBeInTheDocument();
     expect(screen.getByText(/New column\(s\): city/)).toBeInTheDocument();
     expect(screen.getByText(/Not in this file: age/)).toBeInTheDocument();
@@ -92,7 +102,7 @@ describe("AddFilePanel", () => {
     fireEvent.click(appendButton());
 
     await waitFor(() =>
-      expect(addFileToProject).toHaveBeenCalledWith("p1", expect.any(File), 1, 50),
+      expect(addFileToProject).toHaveBeenCalledWith("p1", expect.any(File), 1, 50, uploadOptions),
     );
     expect(updateData).toHaveBeenCalledWith(["name", "age", "city"], [["Dana", null, "Paris"]], {
       resetColumnOrder: false,
@@ -146,5 +156,49 @@ describe("AddFilePanel", () => {
     await waitFor(() => expect(reappendProjectFile).toHaveBeenCalledWith("p1", "f1", 1, 50));
     expect(updateData).toHaveBeenCalledWith(["name"], [["Dana"]], { resetColumnOrder: false });
     expect(showToast).toHaveBeenCalledWith('Re-appended "feb.csv".', "success");
+  });
+
+  it("rejects a file over the server's limit without uploading it", async () => {
+    uploadLimits.maxUploadSizeBytes = 8;
+    renderPanel();
+
+    chooseFile();
+
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/^File too large/), "warning"),
+    );
+    expect(previewAddFile).not.toHaveBeenCalled();
+  });
+
+  it("shows the size-limit message when the server answers 413", async () => {
+    previewAddFile.mockRejectedValue({ response: { status: 413, data: {} } });
+    renderPanel();
+
+    chooseFile();
+
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(
+        expect.stringMatching(/Maximum allowed size is 10 MB\.$/),
+        "error",
+      ),
+    );
+    expect(appendButton()).toBeDisabled();
+  });
+
+  it("cancels an in-flight preview and resets the selection", async () => {
+    previewAddFile.mockImplementation(
+      (_projectId: string, _file: File, options: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener("abort", () => reject(new Error("canceled")));
+        }),
+    );
+    renderPanel();
+
+    chooseFile();
+    fireEvent.click(await screen.findByRole("button", { name: /cancel upload/i }));
+
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith("Upload cancelled.", "info"));
+    expect(screen.queryByTestId("upload-progress")).not.toBeInTheDocument();
+    expect(appendButton()).toBeDisabled();
   });
 });

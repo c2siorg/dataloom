@@ -166,7 +166,7 @@ jobs:
               const typecheckFailed = report.typecheck === 'failure';
               if (eslintFailed || prettierFailed || typecheckFailed) {
                 let s = '### Frontend\n\n';
-                if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix . --ext js,jsx,ts,tsx` in `dataloom-frontend/`\n';
+                if (eslintFailed) s += '- **ESLint:** Run `npx eslint --fix .` in `dataloom-frontend/`\n';
                 if (prettierFailed) s += '- **Prettier:** Run `npx prettier --write "src/**/*.{js,jsx,ts,tsx,css,md}"` in `dataloom-frontend/`\n';
                 if (typecheckFailed) s += '- **TypeScript:** Run `npx tsc --noEmit` in `dataloom-frontend/` and fix the reported errors\n';
                 sections.push(s);

@@ -29,6 +29,7 @@ from app.database import verify_database_connection
 from app.exceptions import AppException, app_exception_handler
 from app.services.transformation_service import TransformationError
 from app.utils.logging import get_logger, request_id_var, setup_logging
+from app.utils.upload_limits import UploadSizeLimitMiddleware
 
 logger = get_logger(__name__)
 
@@ -60,6 +61,16 @@ async def lifespan(app):
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Registration order decides whether the upload limiter's 413 survives. The
+# last middleware registered runs outermost, so add_request_id (a
+# BaseHTTPMiddleware, registered below) wraps everything added here. Placed
+# outermost itself, the limiter's exception would be wrapped in an
+# ExceptionGroup by BaseHTTPMiddleware's anyio task group, and FastAPI would
+# answer 400 "There was an error parsing the body". Registered above
+# CORSMiddleware it is the innermost user middleware: the 413 survives and
+# carries CORS headers.
+app.add_middleware(UploadSizeLimitMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

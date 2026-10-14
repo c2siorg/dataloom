@@ -15,6 +15,7 @@ os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
 from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
 
 from app import models  # noqa: E402
@@ -23,10 +24,23 @@ from app.main import app  # noqa: E402
 from app.services.auth_service import create_access_token  # noqa: E402
 from app.utils import df_cache  # noqa: E402
 
-# Use SQLite for tests
-TEST_DATABASE_URL = "sqlite:///./test.db"
+# Use SQLite for tests. The database is in-memory: `setup_database` recreates the
+# schema for every test, and doing that against a file costs a disk round trip per
+# table per test, which dominated the suite's runtime.
+TEST_DATABASE_URL = "sqlite://"
 
-engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+# StaticPool keeps every connection request on the one connection that holds the
+# in-memory database. The default pool for an in-memory SQLite URL hands each
+# thread its own connection, and therefore its own empty database — which the
+# blocking `def` routes would hit, since FastAPI runs them in its threadpool
+# rather than on the thread that created the schema.
+# Limitation: all test sessions share one SQLite connection, so these tests do
+# not reproduce file-backed SQLite locking or transaction isolation behavior.
+engine = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 
 # Test user credentials. The hash is a precomputed bcrypt hash (cost 4, for
 # test speed) of TEST_USER_PASSWORD — avoids a slow cost-12 hash per test.

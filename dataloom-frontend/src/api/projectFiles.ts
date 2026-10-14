@@ -5,6 +5,7 @@
  */
 import client from "./client";
 import type { CellValue } from "./types";
+import { uploadRequestConfig, type UploadOptions } from "./uploadOptions";
 
 /** A matched column whose simplified dtype differs between the two files. */
 export interface DtypeClash {
@@ -51,12 +52,18 @@ const asForm = (file: File): FormData => {
  * Stateless — nothing is stored until {@link addFileToProject} confirms.
  * @param projectId - The project ID.
  * @param file - The file to analyze.
+ * @param options - Optional upload progress callback and abort signal.
  * @returns Matched/new/missing columns, dtype clashes, and row counts.
  */
-export const previewAddFile = async (projectId: string, file: File): Promise<AppendPreview> => {
+export const previewAddFile = async (
+  projectId: string,
+  file: File,
+  options?: UploadOptions,
+): Promise<AppendPreview> => {
   const response = await client.post<AppendPreview>(
     `/projects/${projectId}/files/preview`,
     asForm(file),
+    uploadRequestConfig(options),
   );
   return response.data;
 };
@@ -65,6 +72,9 @@ export const previewAddFile = async (projectId: string, file: File): Promise<App
  * Append a file's rows to the project and store it in the file inventory.
  * @param projectId - The project ID.
  * @param file - The file to append.
+ * @param page - Current page.
+ * @param pageSize - Elements per page.
+ * @param options - Optional upload progress callback and abort signal.
  * @returns The combined project data.
  */
 export const addFileToProject = async (
@@ -72,6 +82,7 @@ export const addFileToProject = async (
   file: File,
   page?: number,
   pageSize?: number,
+  options?: UploadOptions,
 ): Promise<AppendResult> => {
   const params = new URLSearchParams();
   if (page !== undefined) params.append("page", String(page));
@@ -80,6 +91,7 @@ export const addFileToProject = async (
   const response = await client.post<AppendResult>(
     `/projects/${projectId}/files?${params.toString()}`,
     asForm(file),
+    uploadRequestConfig(options),
   );
   return response.data;
 };

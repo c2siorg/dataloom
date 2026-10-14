@@ -43,7 +43,11 @@ def _coerce_sentinels(series: pd.Series) -> pd.Series:
     """
     if map_dtype(series.dtype) != "str":
         return series
-    normalized = series.map(lambda v: v.strip().lower() if isinstance(v, str) else v)
+    try:
+        normalized = series.str.strip().str.lower()
+    except AttributeError:
+        # .str refuses an object column that holds no strings at all.
+        normalized = series.map(lambda v: v.strip().lower() if isinstance(v, str) else v)
     return series.where(~normalized.isin(MISSING_VALUE_SENTINELS), other=None)
 
 
