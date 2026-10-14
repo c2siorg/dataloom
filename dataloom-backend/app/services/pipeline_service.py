@@ -7,7 +7,7 @@ add no transformation logic of their own.
 """
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 import pandas as pd
 from fastapi import HTTPException
@@ -20,6 +20,7 @@ from app.services.transformation_service import (
     TRANSFORMATION_REGISTRY,
     TransformationError,
     apply_logged_transformation,
+    operation_label,
 )
 from app.utils.logging import get_logger
 from app.utils.security import safe_transformation_error_detail
@@ -28,6 +29,11 @@ logger = get_logger(__name__)
 
 # One replayable step, as both a saved pipeline and an unsaved draft express it.
 Step = tuple[str, dict]
+
+# Called before step ``index`` of ``total`` runs, with the Operation's label.
+# Whatever it raises propagates unchanged, never as a step failure, so a caller
+# can use it to stop a replay between steps.
+StepHook = Callable[[int, int, str], None]
 
 
 def _step_rejection_reason(action_type: str) -> str | None:
@@ -120,17 +126,26 @@ def _failure_reason(action_type: str, error: Exception) -> str:
     return safe_transformation_error_detail(error)
 
 
-def _replay(df: pd.DataFrame, steps: Sequence[Step]) -> tuple[pd.DataFrame, PipelineCompatibilityResponse | None]:
+def _replay(
+    df: pd.DataFrame, steps: Sequence[Step], on_step: StepHook | None = None
+) -> tuple[pd.DataFrame, PipelineCompatibilityResponse | None]:
     """Replay steps in order, stopping at the first one that fails.
 
     The single replay path behind both the compatibility check and the apply, so
     the two can never disagree about what a pipeline accepts.
 
+    ``on_step`` runs before each step and outside the per-step ``try``: the
+    ``except Exception`` below turns anything a step raises into a step failure,
+    and a hook that stops the replay must not be reported as one.
+
     Returns:
         The DataFrame as far as it got, plus the failure for the first bad step
         (None when every step ran).
     """
+    total = len(steps)
     for number, (action_type, action_details) in enumerate(steps):
+        if on_step is not None:
+            on_step(number, total, operation_label(action_type))
         reason = _step_rejection_reason(action_type)
         if reason is None:
             try:
@@ -153,12 +168,13 @@ def check_steps_compatibility(df: pd.DataFrame, steps: Sequence[Step]) -> Pipeli
     return failure or PipelineCompatibilityResponse(compatible=True)
 
 
-def apply_pipeline(df: pd.DataFrame, steps: Sequence[Step]) -> pd.DataFrame:
+def apply_pipeline(df: pd.DataFrame, steps: Sequence[Step], on_step: StepHook | None = None) -> pd.DataFrame:
     """Replay every step on the DataFrame.
 
     Args:
         df: The target project's current data.
         steps: The steps to replay, in run order.
+        on_step: Optional hook called before each step (see ``StepHook``).
 
     Returns:
         The transformed DataFrame.
@@ -166,7 +182,7 @@ def apply_pipeline(df: pd.DataFrame, steps: Sequence[Step]) -> pd.DataFrame:
     Raises:
         TransformationError: If a step fails, with the step context prepended.
     """
-    result_df, failure = _replay(df, steps)
+    result_df, failure = _replay(df, steps, on_step)
     if failure is not None:
         raise TransformationError(
             f"Pipeline step {failure.failing_step} ({failure.action_type}) failed: {failure.reason}"
@@ -175,7 +191,13 @@ def apply_pipeline(df: pd.DataFrame, steps: Sequence[Step]) -> pd.DataFrame:
 
 
 def apply_pipeline_to_project(
-    db: Session, project: models.Project, pipeline: models.Pipeline, df: pd.DataFrame
+    db: Session,
+    project: models.Project,
+    pipeline: models.Pipeline,
+    df: pd.DataFrame,
+    *,
+    on_step: StepHook | None = None,
+    before_commit: Callable[[], None] | None = None,
 ) -> pd.DataFrame:
     """Replay a pipeline onto a project's working copy and log every step.
 
@@ -185,11 +207,18 @@ def apply_pipeline_to_project(
     The caller supplies the loaded DataFrame so the file is read through the
     endpoint layer's redacting reader.
 
+    The replay runs in memory and the project is written once, at the end, so
+    anything ``on_step`` or ``before_commit`` raises leaves the project exactly
+    as it was.
+
     Args:
         db: Database session.
         project: The target project.
         pipeline: The pipeline to replay.
         df: The project's current data.
+        on_step: Optional hook called before each step (see ``StepHook``).
+        before_commit: Optional hook called after the replay and before the
+            first write.
 
     Returns:
         The transformed DataFrame.
@@ -198,6 +227,8 @@ def apply_pipeline_to_project(
         TransformationError: If a step fails; nothing is written.
     """
     steps = pipeline_steps(pipeline)
-    result_df = apply_pipeline(df, steps)
+    result_df = apply_pipeline(df, steps, on_step)
+    if before_commit is not None:
+        before_commit()
     commit_undoable_change(db, project, result_df, steps)
     return result_df

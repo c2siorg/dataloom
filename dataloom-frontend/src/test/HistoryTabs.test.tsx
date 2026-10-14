@@ -1,34 +1,50 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import { CheckpointsTab } from "../Components/workspace/HistoryTabs";
+import JobBanner from "../Components/workspace/JobBanner";
 import { ToastProvider } from "../context/ToastContext";
-import { HistoryRefreshProvider } from "../context/HistoryRefreshContext";
-import { revertToCheckpoint } from "../api/projects";
+import { ActiveJobProvider } from "../context/ActiveJobContext";
 import { getCheckpoints } from "../api/logs";
-
-vi.mock("../api/projects", () => ({
-  revertToCheckpoint: vi.fn(),
-}));
+import { getJob, listProjectJobs, submitJob } from "../api/jobs";
+import { advance, makeJob } from "./jobFixtures";
 
 vi.mock("../api/logs", () => ({
   getCheckpoints: vi.fn(),
 }));
 
-const mockRevertToCheckpoint = revertToCheckpoint as unknown as Mock;
-const mockGetCheckpoints = getCheckpoints as unknown as Mock;
+vi.mock("../api/jobs", async () => {
+  const actual = await vi.importActual<typeof import("../api/jobs")>("../api/jobs");
+  return {
+    ...actual,
+    submitJob: vi.fn(),
+    getJob: vi.fn(),
+    listProjectJobs: vi.fn(),
+    cancelJob: vi.fn(),
+  };
+});
 
-const mockUpdateData = vi.fn();
-const mockSetPaginationData = vi.fn();
+const mockGetCheckpoints = getCheckpoints as unknown as Mock;
+const mockSubmit = submitJob as unknown as Mock;
+const mockGet = getJob as unknown as Mock;
+const mockList = listProjectJobs as unknown as Mock;
+
+const mockRefreshProject = vi.fn(() => Promise.resolve());
+const mockMarkDataChanged = vi.fn();
 
 vi.mock("../context/ProjectContext", () => ({
   useProjectContext: () => ({
     projectId: "proj-1",
     page: 3,
     pageSize: 50,
-    updateData: mockUpdateData,
-    setPaginationData: mockSetPaginationData,
-    refreshProject: vi.fn(),
+    refreshProject: mockRefreshProject,
+    markDataChanged: mockMarkDataChanged,
   }),
+}));
+
+const mockRefreshLogs = vi.fn();
+vi.mock("../context/HistoryRefreshContext", () => ({
+  useHistoryRefresh: () => ({ refreshLogs: mockRefreshLogs, refreshCheckpoints: vi.fn() }),
+  useHistoryRefreshTokens: () => ({ logsToken: 0, checkpointsToken: 0 }),
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -46,70 +62,84 @@ globalThis.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
-describe("CheckpointsTab - Pagination", () => {
+const revertJob = (overrides = {}) =>
+  makeJob({ kind: "revert", params: { checkpoint_id: "checkpoint-1" }, ...overrides });
+
+const renderComponent = async () => {
+  render(
+    <ToastProvider>
+      <ActiveJobProvider projectId="proj-1">
+        <JobBanner />
+        <CheckpointsTab />
+      </ActiveJobProvider>
+    </ToastProvider>,
+  );
+  await advance(0); // checkpoints and the resume check
+};
+
+const confirmRevert = async () => {
+  fireEvent.click(screen.getAllByRole("button", { name: "Revert" })[0]!);
+  fireEvent.click(screen.getByRole("button", { name: /Confirm/i }));
+  await advance(0);
+};
+
+describe("CheckpointsTab - revert as a job", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
+    mockList.mockResolvedValue([]);
     mockGetCheckpoints.mockResolvedValue([
       { id: "checkpoint-1", created_at: new Date().toISOString(), message: "Initial commit" },
     ]);
   });
 
-  const renderComponent = () => {
-    return render(
-      <ToastProvider>
-        <HistoryRefreshProvider>
-          <CheckpointsTab />
-        </HistoryRefreshProvider>
-      </ToastProvider>,
-    );
-  };
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
-  it("passes current page and pageSize to revertToCheckpoint and consumes paginated response", async () => {
-    mockRevertToCheckpoint.mockResolvedValue({
-      columns: ["A"],
-      rows: [[1]],
-      dtypes: { A: "int" },
-      page: 3,
-      page_size: 50,
-      total_rows: 150,
-      total_pages: 3,
+  it("submits a revert job and reloads the current page when it finishes", async () => {
+    mockSubmit.mockResolvedValue(revertJob());
+    mockGet.mockResolvedValue(revertJob({ status: "succeeded" }));
+    await renderComponent();
+    expect(screen.getByText("Initial commit")).toBeInTheDocument();
+
+    await confirmRevert();
+
+    expect(mockSubmit).toHaveBeenCalledWith("proj-1", {
+      kind: "revert",
+      checkpoint_id: "checkpoint-1",
     });
+    expect(screen.getByRole("progressbar", { name: "Reverting" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Revert" })).toBeDisabled();
 
-    renderComponent();
+    await advance(1000);
 
-    // Wait for checkpoints to load
-    await waitFor(() => {
-      expect(screen.getByText("Initial commit")).toBeInTheDocument();
-    });
+    // The page the user was on (3 of size 50) is what gets reloaded.
+    expect(mockRefreshProject).toHaveBeenCalledWith("proj-1", 3, 50);
+    expect(mockMarkDataChanged).toHaveBeenCalledTimes(1);
+    expect(mockRefreshLogs).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Project reverted successfully!")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Revert" })).toBeEnabled();
+  });
 
-    // Click Revert
-    const revertButtons = screen.getAllByRole("button", { name: "Revert" });
-    fireEvent.click(revertButtons[0]!);
+  it("shows the job's error when the revert fails", async () => {
+    mockSubmit.mockResolvedValue(revertJob());
+    mockGet.mockResolvedValue(revertJob({ status: "failed", error: "File not found" }));
+    await renderComponent();
 
-    // Click Confirm
-    const confirmButton = screen.getByRole("button", { name: /Confirm/i });
-    fireEvent.click(confirmButton);
+    await confirmRevert();
+    await advance(1000);
 
-    await waitFor(() => {
-      // It should have passed projectId, checkpointId, page=3, pageSize=50
-      expect(revertToCheckpoint).toHaveBeenCalledWith("proj-1", "checkpoint-1", 3, 50);
+    expect(screen.getByText("File not found")).toBeInTheDocument();
+    expect(mockRefreshProject).not.toHaveBeenCalled();
+  });
 
-      // Should have passed columns and rows to updateData
-      expect(mockUpdateData).toHaveBeenCalledWith(["A"], [[1]], {
-        dtypes: { A: "int" },
-        resetColumnOrder: false,
-      });
+  it("keeps Revert disabled while a job resumed after a reload is running", async () => {
+    mockList.mockResolvedValue([makeJob({ status: "running" })]);
+    mockGet.mockResolvedValue(makeJob({ status: "running" }));
+    await renderComponent();
 
-      // Should have passed the entire response to setPaginationData
-      expect(mockSetPaginationData).toHaveBeenCalledWith({
-        columns: ["A"],
-        rows: [[1]],
-        dtypes: { A: "int" },
-        page: 3,
-        page_size: 50,
-        total_rows: 150,
-        total_pages: 3,
-      });
-    });
+    expect(screen.getByRole("button", { name: "Revert" })).toBeDisabled();
+    expect(screen.getByTestId("job-banner")).toBeInTheDocument();
   });
 });

@@ -35,6 +35,9 @@ class Settings(BaseSettings):
         undo_snapshot_limit: Maximum number of pre-change snapshots kept per
             project for undo. Older steps fall back to replaying the change log;
             0 turns snapshots off entirely (redo still works).
+        job_workers: Number of threads that execute background jobs.
+        job_max_active_per_user: Maximum queued plus running jobs per user.
+        job_retention_days: Days a finished job is kept before it is purged.
     """
 
     database_url: str
@@ -64,6 +67,9 @@ class Settings(BaseSettings):
     df_cache_max_bytes: int = 268435456
     df_cache_max_entries: int = 16
     undo_snapshot_limit: NonNegativeInt = 20
+    job_workers: int = 2
+    job_max_active_per_user: int = 4
+    job_retention_days: int = 7
 
     model_config = {
         "env_file": ".env",
