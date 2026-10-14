@@ -1,15 +1,16 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider } from "./context/AuthProvider";
 import { ProjectProvider } from "./context/ProjectContext";
 import ErrorBoundary from "./Components/common/ErrorBoundary";
+import LoadingSpinner from "./Components/common/LoadingSpinner";
 import ProtectedRoute from "./Components/ProtectedRoute";
 import AppLayout from "./Components/layout/AppLayout";
 import NotFoundPage from "./pages/NotFoundPage";
 import SignInPage from "./pages/SignInPage";
 import SignUpPage from "./pages/SignUpPage";
 import Homescreen from "./Components/Homescreen";
-import DataScreen from "./Components/DataScreen";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SettingsPage from "./pages/settings/SettingsPage";
@@ -18,6 +19,9 @@ import SettingsPreferencesPage from "./pages/settings/SettingsPreferencesPage";
 import SettingsProjectPage from "./pages/settings/SettingsProjectPage";
 import { ROUTES } from "./constants/routes";
 import { ThemeProvider } from "./context/ThemeContext";
+
+// Loaded on demand so the workspace stays out of the entry bundle.
+const DataScreen = lazy(() => import("./Components/DataScreen"));
 
 /**
  * Root application component with routing, providers, and error boundary.
@@ -40,7 +44,14 @@ export default function App() {
                     <Route element={<AppLayout />}>
                       <Route path="/" element={<Navigate to={ROUTES.home} replace />} />
                       <Route path={ROUTES.home} element={<Homescreen />} />
-                      <Route path={ROUTES.workspace} element={<DataScreen />} />
+                      <Route
+                        path={ROUTES.workspace}
+                        element={
+                          <Suspense fallback={<LoadingSpinner message="Loading workspace…" />}>
+                            <DataScreen />
+                          </Suspense>
+                        }
+                      />
                       <Route
                         path="/profile"
                         element={<Navigate to={ROUTES.settingsAccount} replace />}

@@ -22,6 +22,7 @@ from app.services.transformation_service import (
     pivot_table,
     rename_column,
     standardize_dates,
+    string_replace,
     trim_whitespace,
 )
 
@@ -741,6 +742,24 @@ class TestAdvancedQuery:
         with pytest.raises(HTTPException):
             advanced_query(sample_df, "__import__('os').system('ls')")
 
+    def test_query_with_existing_backticks(self, sample_df):
+        df = sample_df.rename(columns={"name": "full name"})
+        result = advanced_query(df, '`full name` == "Alice"')
+        assert len(result) == 1
+
+    def test_query_with_apostrophe_in_string(self):
+        df = pd.DataFrame({"city": ["St. John's", "New York"]})
+        result = advanced_query(df, 'city == "St. John\'s"')
+        assert len(result) == 1
+
+    def test_query_invalid_column_raises_transformation_error(self, sample_df):
+        with pytest.raises(TransformationError):
+            advanced_query(sample_df, "invalid_column > 10")
+
+    def test_query_malformed_syntax_raises_transformation_error(self, sample_df):
+        with pytest.raises(TransformationError):
+            advanced_query(sample_df, "age >")
+
 
 class TestPivotTable:
     def test_simple_pivot(self):
@@ -1174,3 +1193,43 @@ class TestApplyLoggedTransformation:
     def test_unknown_action_type_raises_transformation_error(self, sample_df):
         with pytest.raises(TransformationError, match="Unknown action type"):
             apply_logged_transformation(sample_df, "nonExistentAction", {})
+
+
+class TestStringReplace:
+    def test_replaces_matching_substring(self, sample_df):
+        result = string_replace(sample_df, "city", "New York", "Los Angeles")
+
+        assert result["city"].tolist() == [
+            "Los Angeles",
+            "Los Angeles",
+            "Chicago",
+        ]
+
+    def test_replaces_multiple_occurrences_in_same_value(self):
+        df = pd.DataFrame({"text": ["foo foo", "foo bar", "bar"]})
+        result = string_replace(df, "text", "foo", "baz")
+        assert result["text"].tolist() == ["baz baz", "baz bar", "bar"]
+
+    def test_does_not_use_regex(self):
+        df = pd.DataFrame({"text": ["a.b", "axb", "a.b.c"]})
+        result = string_replace(df, "text", ".", "-")
+        assert result["text"].tolist() == ["a-b", "axb", "a-b-c"]
+
+    def test_missing_column_raises(self, sample_df):
+        with pytest.raises(TransformationError, match="Column 'missing' not found"):
+            string_replace(sample_df, "missing", "foo", "bar")
+
+    def test_non_string_column_is_converted_to_string(self, sample_df):
+        result = string_replace(sample_df, "age", "3", "4")
+
+        assert result["age"].tolist() == ["40", "25", "45"]
+
+    def test_original_dataframe_is_not_modified(self, sample_df):
+        original = sample_df.copy()
+        string_replace(sample_df, "city", "New York", "Los Angeles")
+        pd.testing.assert_frame_equal(sample_df, original)
+
+    def test_returns_dataframe_with_same_columns(self, sample_df):
+        result = string_replace(sample_df, "city", "New York", "Los Angeles")
+        assert result.columns.tolist() == sample_df.columns.tolist()
+        assert len(result) == len(sample_df)
