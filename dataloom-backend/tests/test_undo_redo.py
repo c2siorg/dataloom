@@ -9,9 +9,11 @@ import os
 import stat
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 
 from app import models
 from app.api.endpoints import projects as projects_endpoint
@@ -382,6 +384,116 @@ class TestSaveRevertDeleteClearHistory:
         assert response.status_code == 200, response.text
         assert not _snapshot_dir(project_id).exists()
         assert db.query(models.UndoStep).count() == 0
+
+    def test_reset_restores_original_data_and_clears_history(self, client, db):
+        project_id = _upload(client)
+        original_rows = _rows(client, project_id)
+
+        _transform(client, project_id, SORT_BY_AGE)
+        _transform(client, project_id, FILTER_AGE_OVER_26)
+
+        response = client.post(f"/projects/{project_id}/reset")
+
+        assert response.status_code == 200, response.text
+        assert response.json()["rows"] == original_rows
+        assert _rows(client, project_id) == original_rows
+        assert _log_types(client, project_id) == []
+        assert _state(client, project_id) == {"can_undo": False, "can_redo": False}
+        assert _steps(db, project_id) == []
+        assert _snapshot_files(project_id) == []
+
+    def test_reset_clears_redo_stack(self, client, db):
+        project_id = self._with_undo_and_redo(client)
+
+        assert _state(client, project_id) == {"can_undo": True, "can_redo": True}
+
+        response = client.post(f"/projects/{project_id}/reset")
+
+        assert response.status_code == 200, response.text
+        assert _state(client, project_id) == {"can_undo": False, "can_redo": False}
+        assert _steps(db, project_id) == []
+        assert _snapshot_files(project_id) == []
+
+    def test_reset_removes_checkpoints(self, client, db):
+        project_id = _upload(client)
+
+        _transform(client, project_id, FILTER_AGE_OVER_26)
+
+        save_response = client.post(
+            f"/projects/{project_id}/save",
+            params={"commit_message": "saved state"},
+        )
+        assert save_response.status_code == 200, save_response.text
+
+        _transform(client, project_id, SORT_BY_AGE)
+
+        assert len(client.get(f"/logs/checkpoints/{project_id}").json()) == 1
+
+        response = client.post(f"/projects/{project_id}/reset")
+
+        assert response.status_code == 200, response.text
+        assert client.get(f"/logs/checkpoints/{project_id}").json() == []
+        assert _log_types(client, project_id) == []
+        assert _state(client, project_id) == {"can_undo": False, "can_redo": False}
+
+    def test_reset_starts_fresh_history(self, client, db):
+        project_id = _upload(client)
+
+        _transform(client, project_id, SORT_BY_AGE)
+        assert _log_types(client, project_id) == ["sort"]
+
+        response = client.post(f"/projects/{project_id}/reset")
+        assert response.status_code == 200, response.text
+
+        _transform(client, project_id, FILTER_AGE_OVER_26)
+
+        assert _log_types(client, project_id) == ["filter"]
+        assert _state(client, project_id) == {"can_undo": True, "can_redo": False}
+
+        assert _undo(client, project_id).status_code == 200
+        assert _state(client, project_id) == {"can_undo": False, "can_redo": True}
+        assert _log_types(client, project_id) == []
+
+    def test_reset_commit_failure_restores_working_file_and_history(self, client, db):
+        project_id = _upload(client)
+        original_rows = _rows(client, project_id)
+
+        _transform(client, project_id, SORT_BY_AGE)
+        transformed_rows = _rows(client, project_id)
+
+        assert transformed_rows != original_rows
+
+        history_before = _log_types(client, project_id)
+        state_before = _state(client, project_id)
+
+        project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
+        assert project is not None
+
+        working_path = project.file_path
+        working_contents_before = Path(working_path).read_bytes()
+
+        with (
+            patch.object(
+                db,
+                "commit",
+                side_effect=SQLAlchemyError("simulated commit failure"),
+            ),
+            pytest.raises(SQLAlchemyError, match="simulated commit failure"),
+        ):
+            from app.services.project_service import reset_project
+
+            reset_project(
+                project_id=uuid.UUID(project_id),
+                page=1,
+                page_size=50,
+                db=db,
+                project=project,
+            )
+
+        assert Path(working_path).read_bytes() == working_contents_before
+        assert _rows(client, project_id) == transformed_rows
+        assert _log_types(client, project_id) == history_before
+        assert _state(client, project_id) == state_before
 
 
 class TestRetention:

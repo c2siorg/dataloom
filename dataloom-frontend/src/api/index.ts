@@ -15,6 +15,7 @@ export {
   getProjectMeta,
   getProjects,
   getUploadLimits,
+  resetProject,
 } from "./projects";
 export type { ExportOptions, ExportResult, UploadLimits } from "./projects";
 export type { UploadOptions } from "./uploadOptions";
