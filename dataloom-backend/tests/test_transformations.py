@@ -55,6 +55,21 @@ class TestFilter:
         assert len(result) == 1
         assert result.iloc[0]["name"] == "Alice"
 
+    def test_filter_equals_boolean(self):
+        df = pd.DataFrame({"name": ["a", "b", "c"], "active": [True, False, True]})
+        for value in ("True", "true", "yes", "1"):
+            assert apply_filter(df, "active", "=", value)["name"].tolist() == ["a", "c"]
+        assert apply_filter(df, "active", "=", "False")["name"].tolist() == ["b"]
+
+    def test_filter_not_equal_boolean(self):
+        df = pd.DataFrame({"name": ["a", "b", "c"], "active": [True, False, True]})
+        assert apply_filter(df, "active", "!=", "true")["name"].tolist() == ["b"]
+
+    def test_filter_invalid_boolean_value(self):
+        df = pd.DataFrame({"active": [True, False]})
+        with pytest.raises(TransformationError, match="Invalid boolean value"):
+            apply_filter(df, "active", "=", "maybe")
+
     def test_filter_greater_than_numeric(self, sample_df):
         result = apply_filter(sample_df, "age", ">", "28")
         assert len(result) == 2

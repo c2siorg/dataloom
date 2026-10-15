@@ -27,19 +27,36 @@ class TransformationError(Exception):
     pass
 
 
+_TRUE_TOKENS = ("true", "1", "yes", "t", "y", "on")
+_FALSE_TOKENS = ("false", "0", "no", "f", "n", "off")
+
+
+def _parse_bool(value) -> bool | None:
+    """Return the boolean a user-typed value stands for, or None if it is not one."""
+    normalized = str(value).strip().lower()
+    if normalized in _TRUE_TOKENS:
+        return True
+    if normalized in _FALSE_TOKENS:
+        return False
+    return None
+
+
 def get_column_type(df: pd.DataFrame, column: str) -> str:
-    """Determine whether a column contains string or numeric data.
+    """Determine whether a column contains string, boolean or numeric data.
 
     Args:
         df: Source DataFrame.
         column: Column name to inspect.
 
     Returns:
-        'string', 'numeric', or 'unknown'.
+        'string', 'boolean', 'numeric', or 'unknown'.
     """
     dtype = df[column].dtype
     if pd.api.types.is_string_dtype(dtype):
         return "string"
+    # pandas counts bool as numeric, so check it first
+    elif pd.api.types.is_bool_dtype(dtype):
+        return "boolean"
     elif pd.api.types.is_numeric_dtype(dtype):
         return "numeric"
     return "unknown"
@@ -74,13 +91,20 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     # Use the original column name from the DataFrame
     column = stripped_to_original[column_stripped]
 
-    # Cast value to numeric if column is numeric (for comparison operators)
+    # Cast value to numeric or boolean if the column is (for comparison operators)
     col_type = get_column_type(df, column)
     if col_type == "numeric" and condition in ("=", "!=", ">", "<", ">=", "<="):
         try:
             value = float(value)
         except ValueError:
             raise TransformationError(f"Invalid numeric value: {value}") from None
+    elif col_type == "boolean" and condition in ("=", "!=", ">", "<", ">=", "<="):
+        parsed = _parse_bool(value)
+        if parsed is None:
+            raise TransformationError(
+                f"Invalid boolean value: {value}. Expected one of: true/false, 1/0, yes/no, t/f, y/n, on/off."
+            )
+        value = parsed
 
     ops = {
         "=": lambda col, val: (
@@ -314,18 +338,14 @@ def change_cell_value(
             # Accepted tokens are a superset of cast_data_type()'s, so a
             # value that cast-to-boolean would accept never gets rejected
             # by a cell edit.
-            normalized = str(value).strip().lower()
-
-            if normalized in ("true", "1", "yes", "t", "y", "on"):
-                value = True
-            elif normalized in ("false", "0", "no", "f", "n", "off"):
-                value = False
-            else:
+            parsed = _parse_bool(value)
+            if parsed is None:
                 raise TransformationError(
                     f"Cannot interpret {value!r} as boolean for column "
                     f"'{column_name}'. Expected one of: true/false, 1/0, "
                     "yes/no, t/f, y/n, on/off."
                 )
+            value = parsed
 
         elif pd.api.types.is_datetime64_any_dtype(col_dtype):
             normalized = str(value).strip()
