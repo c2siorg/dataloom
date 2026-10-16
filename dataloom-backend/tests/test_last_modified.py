@@ -226,4 +226,4 @@ class TestLastModifiedUpdatesOnCheckpoint:
         )
         assert len(logs) == 1
         assert logs[0].applied is True
-        assert logs[0].checkpoint_id == checkpoint.id
+        assert checkpoint.log_position == logs[0].change_log_id

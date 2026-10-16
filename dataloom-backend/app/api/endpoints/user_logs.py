@@ -29,7 +29,6 @@ def get_logs(
             action_type=log.action_type,
             action_details=log.action_details,
             timestamp=log.timestamp,
-            checkpoint_id=log.checkpoint_id,
             applied=log.applied,
         )
         for log in logs

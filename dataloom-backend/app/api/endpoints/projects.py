@@ -19,6 +19,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app import database, models, schemas
 from app.api.dependencies import get_current_user, get_project_or_404, read_project_df
+from app.services import replay_service
 from app.services.file_service import (
     delete_project_files,
     delete_project_snapshots,
@@ -42,6 +43,7 @@ from app.services.project_service import (
     get_recent_projects,
     get_redo_step,
     get_undo_state,
+    log_revert,
     mark_step_redone,
     mark_step_undone,
     rename_project,
@@ -49,7 +51,6 @@ from app.services.project_service import (
     search_projects,
     update_project,
 )
-from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import (
@@ -280,9 +281,11 @@ def revert_to_checkpoint(
 ):
     """Revert project to its original state or to a specific checkpoint.
 
-    When checkpoint_id is provided, replays only the logs up to and including
-    that checkpoint onto the original file. When None, reverts to the original
-    uploaded state.
+    Either way the working copy is rebuilt from the original file by replaying
+    the change log up to the target position, so the result is the data that
+    was there, whatever has happened to the other checkpoints since. The revert
+    itself is appended to that log as a row of its own, which is what keeps a
+    later checkpoint from replaying rows the user has rewound past.
     """
     with project_write_lock(project_id):
         return _revert_to_checkpoint(project_id, checkpoint_id, page, page_size, db, project)
@@ -297,9 +300,12 @@ def _revert_to_checkpoint(
     project: models.Project,
 ) -> dict:
     original_path = get_original_path(project.file_path)
-    df = read_table_safe(original_path)
 
-    if checkpoint_id is not None:
+    if checkpoint_id is None:
+        # A full revert lands on the untouched upload.
+        target_position = None
+        df = read_table_safe(original_path)
+    else:
         checkpoint = (
             db.query(models.Checkpoint)
             .filter(
@@ -311,48 +317,12 @@ def _revert_to_checkpoint(
         if not checkpoint:
             raise HTTPException(status_code=404, detail="Checkpoint not found")
 
-        # Find all checkpoint IDs created at or before the target checkpoint
-        eligible_checkpoint_ids = [
-            c.id
-            for c in db.query(models.Checkpoint)
-            .filter(
-                models.Checkpoint.project_id == project_id,
-                models.Checkpoint.created_at <= checkpoint.created_at,
-            )
-            .all()
-        ]
-
-        logs = (
-            db.query(models.ProjectChangeLog)
-            .filter(
-                models.ProjectChangeLog.project_id == project_id,
-                models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
-                models.ProjectChangeLog.applied == True,  # noqa: E712
-            )
-            .order_by(models.ProjectChangeLog.timestamp)
-            .all()
-        )
-
-        for log in logs:
-            df = apply_logged_transformation(df, log.action_type, log.action_details)
+        target_position = checkpoint.log_position
+        df = replay_service.restore_checkpoint_state(db, project_id, original_path, target_position)
 
     # Write file first — if this fails, DB is unchanged and state remains consistent.
     save_table_safe(df, project.file_path)
-    # Undo and redo cover the unsaved work the revert just discarded.
-    stale_snapshots = discard_undo_history(db, project_id)
-    # Clear unapplied logs so a subsequent save cannot re-apply stale
-    # transformations on top of the reverted file state.
-    # Applies to all reverts (full and partial) to prevent stale log replay.
-    db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied.is_(False),
-    ).delete(synchronize_session="evaluate")
-    try:
-        db.commit()
-    except SQLAlchemyError:
-        db.rollback()
-        raise
-    unlink_snapshots(stale_snapshots)
+    log_revert(db, project_id, checkpoint_id, target_position)
 
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
@@ -573,19 +543,12 @@ def _undo_last_transformation(
 def _replay_change_log(db: Session, project_id: uuid.UUID, working_path: str):
     """Rebuild the working copy's data from the original plus every remaining log row.
 
-    Undo's fallback when a step has no snapshot. Ordered by ``change_log_id``:
-    every row of a pipeline Run shares one timestamp.
+    Undo's fallback when a step has no snapshot. Every row is replayed, revert
+    rows included, so the result is the state the log describes rather than the
+    original file with the steps before the last revert stacked on top of it.
     """
     df = read_table_safe(get_original_path(working_path))
-    remaining_logs = (
-        db.query(models.ProjectChangeLog)
-        .filter(models.ProjectChangeLog.project_id == project_id)
-        .order_by(models.ProjectChangeLog.change_log_id)
-        .all()
-    )
-    for log in remaining_logs:
-        df = apply_logged_transformation(df, log.action_type, log.action_details)
-    return df
+    return replay_service.replay_log_rows(df, replay_service.load_log_rows(db, project_id))
 
 
 def _snapshot_or_500(project_id: uuid.UUID, working_path: str, action: str) -> str:

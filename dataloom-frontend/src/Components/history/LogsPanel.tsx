@@ -19,9 +19,6 @@ const LogsPanel = ({ logs }: LogsPanelProps) => {
                 Timestamp
               </th>
               <th className="py-3 px-4 border-b border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Checkpoint ID
-              </th>
-              <th className="py-3 px-4 border-b border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Applied
               </th>
             </tr>
@@ -37,7 +34,6 @@ const LogsPanel = ({ logs }: LogsPanelProps) => {
                   <td className="py-3 px-4 text-sm text-foreground">
                     {new Date(log.timestamp).toLocaleString()}
                   </td>
-                  <td className="py-3 px-4 text-sm text-foreground">{log.checkpoint_id || "-"}</td>
                   <td className="py-3 px-4 text-sm text-foreground">
                     {log.applied ? "Yes" : "No"}
                   </td>
@@ -45,7 +41,7 @@ const LogsPanel = ({ logs }: LogsPanelProps) => {
               ))
             ) : (
               <tr>
-                <td colSpan={4}>
+                <td colSpan={3}>
                   <EmptyState variant="inline" title="No logs available" />
                 </td>
               </tr>

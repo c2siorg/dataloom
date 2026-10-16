@@ -132,8 +132,8 @@ The single `/transform` endpoint dispatches to basic or complex handlers based o
 ### Database models (PostgreSQL, SQLModel)
 
 - **Project** → `projects` table: id, name, description, file_path, timestamps
-- **ProjectChangeLog** → `user_logs` table: logged transformations with `applied` flag and optional `checkpoint_id`
-- **Checkpoint** → `checkpoints` table: save points that mark sets of applied transformations
+- **ProjectChangeLog** → `user_logs` table: append-only log of applied transformations, with an `applied` flag
+- **Checkpoint** → `checkpoints` table: save points, each recording `log_position`, the last change-log row it replays to (NULL = the original file)
 - **UndoStep** → `undo_steps` table: one user action's unsaved work (`done` or `undone`), its log entries, and its before/after snapshot paths; `user_logs.undo_step_id` links rows to it
 
 ## Conventions

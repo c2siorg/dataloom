@@ -31,10 +31,10 @@ class TestCheckpoint:
         # Create checkpoint
         checkpoint = create_checkpoint(db, project.project_id, "First save")
 
-        # Verify log is now applied
+        # Verify log is now applied, and that the checkpoint points at it
         db.refresh(logs[0])
         assert logs[0].applied is True
-        assert logs[0].checkpoint_id == checkpoint.id
+        assert checkpoint.log_position == logs[0].change_log_id
 
     def test_checkpoint_message(self, db, test_user):
         """Checkpoint should store the commit message."""
