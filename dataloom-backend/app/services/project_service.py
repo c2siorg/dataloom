@@ -15,7 +15,7 @@ from sqlmodel import Session
 
 from app import models
 from app.config import get_settings
-from app.services import report_service, transformation_service
+from app.services import replay_service, report_service, transformation_service
 from app.services.file_service import (
     get_original_path,
     restore_original,
@@ -152,9 +152,9 @@ def get_recent_projects(db: Session, owner_id: uuid.UUID, limit: int = 3) -> lis
 def delete_project(db: Session, project: models.Project) -> None:
     """Delete a project record from the database.
 
-    Associated logs are deleted before checkpoints and undo steps because logs
-    can reference both directly. Snapshot files are the caller's to remove,
-    after this commits.
+    Checkpoints are deleted before the log, because a checkpoint's position
+    points at a log row and the foreign key would otherwise reject the log
+    delete. Snapshot files are the caller's to remove, after this commits.
 
     Args:
         db: Database session.
@@ -164,6 +164,11 @@ def delete_project(db: Session, project: models.Project) -> None:
     project_name = project.name
 
     try:
+        deleted_checkpoints = (
+            db.query(models.Checkpoint)
+            .filter(models.Checkpoint.project_id == project_id)
+            .delete(synchronize_session=False)
+        )
         deleted_logs = (
             db.query(models.ProjectChangeLog)
             .filter(models.ProjectChangeLog.project_id == project_id)
@@ -171,11 +176,6 @@ def delete_project(db: Session, project: models.Project) -> None:
         )
         deleted_steps = (
             db.query(models.UndoStep).filter(models.UndoStep.project_id == project_id).delete(synchronize_session=False)
-        )
-        deleted_checkpoints = (
-            db.query(models.Checkpoint)
-            .filter(models.Checkpoint.project_id == project_id)
-            .delete(synchronize_session=False)
         )
         deleted_files = (
             db.query(models.ProjectFile)
@@ -506,7 +506,12 @@ def mark_step_redone(db: Session, step: models.UndoStep) -> None:
 
 
 def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> models.Checkpoint:
-    """Create a save checkpoint and mark pending logs as applied.
+    """Create a save checkpoint that points at the current end of the log.
+
+    The checkpoint records *where* in the change log the user's data is, it
+    does not claim the rows: restoring it replays the log up to
+    ``log_position``, so a checkpoint that only says how far the log has been
+    replayed cannot be invalidated by a later save, revert or delete.
 
     Args:
         db: Database session.
@@ -518,9 +523,9 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
     """
     checkpoint = models.Checkpoint(project_id=project_id, message=message)
     db.add(checkpoint)
-    db.flush()  # Assigns ID before updating logs
+    db.flush()  # Assigns ID before the position is resolved
 
-    # Mark all unapplied logs as applied under this checkpoint
+    # Mark all unapplied logs as applied: what was unsaved is now saved work.
     logs = (
         db.query(models.ProjectChangeLog)
         .filter(
@@ -532,7 +537,16 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
 
     for log in logs:
         log.applied = True
-        log.checkpoint_id = checkpoint.id
+
+    # The save covers every row the log holds, so it points at the last one.
+    # NULL means the log was still empty and the checkpoint holds the original
+    # file. Rows deleted by undo leave gaps, which is harmless: replaying up to
+    # a gap replays exactly the rows that survive below it.
+    checkpoint.log_position = (
+        db.query(sa.func.max(models.ProjectChangeLog.change_log_id))
+        .filter(models.ProjectChangeLog.project_id == project_id)
+        .scalar()
+    )
 
     project = db.query(models.Project).filter(models.Project.project_id == project_id).first()
 
@@ -541,20 +555,24 @@ def create_checkpoint(db: Session, project_id: uuid.UUID, message: str) -> model
 
     db.commit()
     logger.info(
-        "Checkpoint created: id=%s, project_id=%s, logs_applied=%d",
+        "Checkpoint created: id=%s, project_id=%s, log_position=%s, logs_applied=%d",
         checkpoint.id,
         project_id,
+        checkpoint.log_position,
         len(logs),
     )
     return checkpoint
 
 
-def _logs_to_replay(db: Session, project_id: uuid.UUID, checkpoint_id: uuid.UUID) -> list[models.ProjectChangeLog]:
-    """The applied logs that rebuild a project up to and including a checkpoint.
+def _revert_target_position(db: Session, project_id: uuid.UUID, checkpoint_id: uuid.UUID | None) -> int | None:
+    """The log position a revert lands on, or None for the original upload.
 
     Raises:
         HTTPException: 404 if the checkpoint does not belong to the project.
     """
+    if checkpoint_id is None:
+        return None
+
     checkpoint = (
         db.query(models.Checkpoint)
         .filter(
@@ -565,28 +583,7 @@ def _logs_to_replay(db: Session, project_id: uuid.UUID, checkpoint_id: uuid.UUID
     )
     if not checkpoint:
         raise HTTPException(status_code=404, detail="Checkpoint not found")
-
-    # Find all checkpoint IDs created at or before the target checkpoint
-    eligible_checkpoint_ids = [
-        c.id
-        for c in db.query(models.Checkpoint)
-        .filter(
-            models.Checkpoint.project_id == project_id,
-            models.Checkpoint.created_at <= checkpoint.created_at,
-        )
-        .all()
-    ]
-
-    return (
-        db.query(models.ProjectChangeLog)
-        .filter(
-            models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
-            models.ProjectChangeLog.applied == True,  # noqa: E712
-        )
-        .order_by(models.ProjectChangeLog.change_log_id)
-        .all()
-    )
+    return checkpoint.log_position
 
 
 def revert_project(
@@ -599,10 +596,14 @@ def revert_project(
 ) -> pd.DataFrame:
     """Rebuild a project's working copy from its original file.
 
-    With a checkpoint, replays the applied logs up to and including it; without
-    one, restores the original upload. Unapplied logs are cleared either way, so
-    a later save cannot re-apply stale transformations on top of the reverted
-    data. The caller holds the project's write lock.
+    With a checkpoint, replays the change log up to the position that
+    checkpoint points at; without one, restores the original upload. A revert
+    row in the log replays as the state it restored, so the result is the data
+    that was there even when later checkpoints were saved, deleted or rewound.
+
+    Unapplied logs are cleared and the revert is appended to the log as a row of
+    its own, so a later save cannot re-apply stale transformations on top of the
+    reverted data. The caller holds the project's write lock.
 
     The replay runs in memory and the project is written once, at the end, so
     anything ``on_step`` or ``before_commit`` raises leaves the project exactly
@@ -625,14 +626,14 @@ def revert_project(
             whatever reading the original file raises.
     """
     project_id = project.project_id
-    logs = [] if checkpoint_id is None else _logs_to_replay(db, project_id, checkpoint_id)
-    df = read_table_safe(get_original_path(project.file_path))
-
-    total = len(logs)
-    for index, log in enumerate(logs):
-        if on_step is not None:
-            on_step(index, total, transformation_service.operation_label(log.action_type))
-        df = transformation_service.apply_logged_transformation(df, log.action_type, log.action_details)
+    target_position = _revert_target_position(db, project_id, checkpoint_id)
+    df = replay_service.restore_checkpoint_state(
+        db,
+        project_id,
+        get_original_path(project.file_path),
+        target_position,
+        on_step=on_step,
+    )
 
     if before_commit is not None:
         before_commit()
@@ -650,17 +651,9 @@ def revert_project(
         shutil.copy2(working_path, backup_path)
         save_table_safe(df, project.file_path)
 
-        # Undo and redo cover the unsaved work the revert just discarded.
-        stale_snapshots = discard_undo_history(db, project_id)
-        # Clear unapplied logs so a subsequent save cannot re-apply stale
-        # transformations on top of the reverted file state.
-        # Applies to all reverts (full and partial) to prevent stale log replay.
-        db.query(models.ProjectChangeLog).filter(
-            models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.applied.is_(False),
-        ).delete(synchronize_session="evaluate")
-
-        db.commit()
+        # Records the revert as the log row that makes the rewrite reproducible,
+        # clears the unapplied rows it just discarded and commits.
+        log_revert(db, project_id, checkpoint_id, target_position)
     except Exception:
         db.rollback()
         try:
@@ -675,24 +668,20 @@ def revert_project(
     finally:
         backup_path.unlink(missing_ok=True)
 
-    unlink_snapshots(stale_snapshots)
     return df
 
 
 def get_checkpoints(db: Session, project_id: uuid.UUID) -> list[models.Checkpoint]:
-    """Fetch all checkpoints for a project ordered by creation time descending.
+    """Fetch all a project's checkpoints, newest first.
 
-    Args:
-        db: Database session.
-        project_id: The project to query.
-
-    Returns:
-        List of Checkpoint model instances ordered by created_at desc.
+    ``log_position`` breaks the tie for two checkpoints saved inside the same
+    clock tick, and NULL positions (checkpoints taken before the log started)
+    sort last inside their tick rather than first.
     """
     return (
         db.query(models.Checkpoint)
         .filter(models.Checkpoint.project_id == project_id)
-        .order_by(models.Checkpoint.created_at.desc())
+        .order_by(models.Checkpoint.created_at.desc(), models.Checkpoint.log_position.desc().nullslast())
         .all()
     )
 
@@ -734,11 +723,60 @@ def delete_change_log(db: Session, log: models.ProjectChangeLog) -> None:
     logger.debug("Deleted change log: id=%s, project_id=%s", log.change_log_id, log.project_id)
 
 
-def delete_checkpoint(db: Session, checkpoint_id: uuid.UUID, project_id: uuid.UUID) -> None:
-    """Delete a checkpoint and unlink its associated logs.
+def log_revert(
+    db: Session,
+    project_id: uuid.UUID,
+    checkpoint_id: uuid.UUID | None,
+    log_position: int | None,
+) -> None:
+    """Record a revert in the change log, committing the bookkeeping.
 
-    Logs that referenced this checkpoint are not deleted — they are unlinked
-    (checkpoint_id set to None) so the transformation history is preserved.
+    The revert row is applied work: it is a durable record of where the user
+    rewound to, and undo covers unsaved work only. Its own ``log_position`` is
+    filled in by the database, so a later checkpoint replays past it and lands
+    on the state this revert restored.
+
+    Only the unapplied rows the revert replaced are dropped, together with the
+    undo and redo stacks they belonged to: they are gone from the working copy
+    the revert just wrote, so replaying them again would resurrect them.
+
+    Args:
+        db: Database session.
+        project_id: The project that was reverted.
+        checkpoint_id: The checkpoint the user went back to, or None for the
+            original file.
+        log_position: The log position that checkpoint points at, or None.
+    """
+    stale_snapshots = discard_undo_history(db, project_id)
+    db.query(models.ProjectChangeLog).filter(
+        models.ProjectChangeLog.project_id == project_id,
+        models.ProjectChangeLog.applied.is_(False),
+    ).delete(synchronize_session=False)
+    db.add(
+        models.ProjectChangeLog(
+            project_id=project_id,
+            action_type=replay_service.REVERT_ACTION_TYPE,
+            action_details=replay_service.revert_action_details(checkpoint_id, log_position),
+            applied=True,
+        )
+    )
+    _touch_project(db, project_id)
+    db.commit()
+    unlink_snapshots(stale_snapshots)
+    logger.info(
+        "Revert logged: project_id=%s, checkpoint_id=%s, log_position=%s",
+        project_id,
+        checkpoint_id,
+        log_position,
+    )
+
+
+def delete_checkpoint(db: Session, checkpoint_id: uuid.UUID, project_id: uuid.UUID) -> None:
+    """Delete a checkpoint.
+
+    Only the pointer goes. The change log is shared, untouched history, so the
+    rows the checkpoint covered stay in place and every later checkpoint still
+    resolves its own position. Does not commit.
 
     Args:
         db: Database session.
@@ -760,11 +798,6 @@ def delete_checkpoint(db: Session, checkpoint_id: uuid.UUID, project_id: uuid.UU
 
     if not checkpoint:
         raise HTTPException(status_code=404, detail="Checkpoint not found")
-
-    # Unlink logs referencing this checkpoint
-    db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.checkpoint_id == checkpoint_id).update(
-        {"checkpoint_id": None}, synchronize_session="evaluate"
-    )
 
     db.delete(checkpoint)
     db.flush()
@@ -919,8 +952,9 @@ def _transformation(log: models.ProjectChangeLog) -> dict:
 def collect_provenance(db: Session, project_id: uuid.UUID) -> dict:
     """Gather a project's source files and applied work, grouped by checkpoint.
 
-    Applied transformations that belong to no checkpoint are reported separately
-    as unsaved, matching what the History panel shows. The result is plain dicts
+    A checkpoint owns the log rows up to its position, so a row belongs to the
+    last checkpoint whose position reaches it, and a row past every position is
+    unsaved — matching what the History panel shows. The result is plain dicts
     of display-ready strings, so the report builder stays free of the DB.
 
     Args:
@@ -952,13 +986,30 @@ def collect_provenance(db: Session, project_id: uuid.UUID) -> dict:
         .all()
     )
 
+    # Oldest first, so the first position that reaches a row is the checkpoint
+    # that row was saved under. A NULL position means the checkpoint took the
+    # original file before any row existed: position 0, below every row id, so
+    # it covers nothing. Two saves with no rows between them share a position,
+    # and only the first covers anything; created_at orders them, and when two
+    # land in the same clock tick the id settles it. Either way a row lands in
+    # exactly one group, so nothing is lost or double-counted.
+    boundaries = sorted(
+        (
+            checkpoint.log_position if checkpoint.log_position is not None else 0,
+            checkpoint.created_at,
+            checkpoint.id,
+        )
+        for checkpoint in checkpoints
+    )
+
     by_checkpoint: dict = {}
     unsaved: list[dict] = []
     for log in logs:
-        if log.checkpoint_id is None:
+        owner = _checkpoint_covering(log.change_log_id, boundaries)
+        if owner is None:
             unsaved.append(_transformation(log))
         else:
-            by_checkpoint.setdefault(log.checkpoint_id, []).append(_transformation(log))
+            by_checkpoint.setdefault(owner, []).append(_transformation(log))
 
     return {
         "files": [{"filename": f.original_filename, "uploaded_at": _timestamp(f.uploaded_at)} for f in files],
@@ -972,6 +1023,19 @@ def collect_provenance(db: Session, project_id: uuid.UUID) -> dict:
         ],
         "unsaved": unsaved,
     }
+
+
+def _checkpoint_covering(change_log_id: int, boundaries: list[tuple[int, object, uuid.UUID]]) -> uuid.UUID | None:
+    """Return the first checkpoint in ``boundaries`` whose position reaches ``change_log_id``.
+
+    ``boundaries`` is ordered oldest first, so the first checkpoint that reaches
+    a row is the one the row was saved under; a row past every position has no
+    such checkpoint and stays unsaved.
+    """
+    for position, _created_at, checkpoint_id in boundaries:
+        if change_log_id <= position:
+            return checkpoint_id
+    return None
 
 
 def reset_project(
@@ -1007,12 +1071,14 @@ def reset_project(
         restore_original(original_path, str(working_path))
 
         try:
-            # Delete change logs before their referenced history records.
-            db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.project_id == project_id).delete(
+            # Checkpoints go before the log, because a checkpoint's position
+            # points at a log row and the foreign key would otherwise reject the
+            # log delete.
+            db.query(models.Checkpoint).filter(models.Checkpoint.project_id == project_id).delete(
                 synchronize_session="fetch"
             )
 
-            db.query(models.Checkpoint).filter(models.Checkpoint.project_id == project_id).delete(
+            db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.project_id == project_id).delete(
                 synchronize_session="fetch"
             )
 

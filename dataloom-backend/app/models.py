@@ -124,7 +124,12 @@ class ProjectFile(SQLModel, table=True):
 
 
 class ProjectChangeLog(SQLModel, table=True):
-    """A record of a single transformation applied to a project."""
+    """A record of a single transformation applied to a project.
+
+    The log only grows: a save, a revert and a checkpoint delete all leave its
+    rows alone. Ordering is ``change_log_id`` alone, because every row of a
+    pipeline Run shares one timestamp.
+    """
 
     __tablename__ = "user_logs"
 
@@ -137,10 +142,6 @@ class ProjectChangeLog(SQLModel, table=True):
     timestamp: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime, server_default=func.now(), nullable=False),
-    )
-    checkpoint_id: uuid_mod.UUID | None = Field(
-        default=None,
-        sa_column=Column(sa.Uuid, sa.ForeignKey("checkpoints.id"), nullable=True),
     )
     applied: bool = Field(
         default=False,
@@ -206,7 +207,14 @@ class UndoStep(SQLModel, table=True):
 
 
 class Checkpoint(SQLModel, table=True):
-    """A save point marking a set of applied transformations."""
+    """A save point marking a position in the project's change log.
+
+    ``log_position`` is the last row the save covered, so restoring the
+    checkpoint replays the log up to there. It is NULL for a checkpoint taken
+    before any row was written, which holds the original file. Checkpoints do
+    not own log rows, so deleting one changes nothing about what the later
+    checkpoints restore.
+    """
 
     __tablename__ = "checkpoints"
 
@@ -221,6 +229,10 @@ class Checkpoint(SQLModel, table=True):
     created_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime, server_default=func.now()),
+    )
+    log_position: int | None = Field(
+        default=None,
+        sa_column=Column(sa.Integer, sa.ForeignKey("user_logs.change_log_id"), nullable=True),
     )
 
     project: Project | None = Relationship(back_populates="checkpoints")

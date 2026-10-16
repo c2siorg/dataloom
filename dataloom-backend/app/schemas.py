@@ -744,7 +744,6 @@ class LogResponse(BaseModel):
     action_type: str
     action_details: dict
     timestamp: datetime.datetime
-    checkpoint_id: uuid.UUID | None
     applied: bool
 
 

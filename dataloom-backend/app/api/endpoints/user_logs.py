@@ -6,10 +6,10 @@ from sqlmodel import Session
 
 from app import database, models, schemas
 from app.api import dependencies
+from app.services import replay_service
 from app.services.dataset_comparison_service import compare_dataframes
 from app.services.file_service import get_original_path
 from app.services.project_service import delete_checkpoint, get_checkpoints
-from app.services.transformation_service import apply_logged_transformation
 from app.utils.pandas_helpers import read_table_safe
 
 router = APIRouter()
@@ -34,7 +34,6 @@ def get_logs(
             action_type=log.action_type,
             action_details=log.action_details,
             timestamp=log.timestamp,
-            checkpoint_id=log.checkpoint_id,
             applied=log.applied,
         )
         for log in logs
@@ -67,9 +66,9 @@ def compare_checkpoint(
 ):
     """Compare the current working dataset with a saved checkpoint.
 
-    The checkpoint dataset is reconstructed from the immutable original file
-    by replaying all transformations assigned to checkpoints up to and
-    including the selected checkpoint.
+    The checkpoint dataset is reconstructed from the immutable original file by
+    replaying the change log up to the position the checkpoint points at, which
+    is the same rule a revert uses.
     """
     checkpoint = (
         db.query(models.Checkpoint)
@@ -83,45 +82,15 @@ def compare_checkpoint(
     if checkpoint is None:
         raise HTTPException(status_code=404, detail="Checkpoint not found")
 
-    checkpoints = (
-        db.query(models.Checkpoint)
-        .filter(models.Checkpoint.project_id == project_id)
-        .order_by(models.Checkpoint.created_at.asc())
-        .all()
-    )
-
-    checkpoint_index = next(
-        (index for index, item in enumerate(checkpoints) if item.id == checkpoint_id),
-        None,
-    )
-
-    if checkpoint_index is None:
-        raise HTTPException(status_code=404, detail="Checkpoint not found")
-
-    checkpoint_ids = {item.id for item in checkpoints[: checkpoint_index + 1]}
-
-    logs = (
-        db.query(models.ProjectChangeLog)
-        .filter(
-            models.ProjectChangeLog.project_id == project_id,
-            models.ProjectChangeLog.checkpoint_id.in_(checkpoint_ids),
-            models.ProjectChangeLog.applied.is_(True),
-        )
-        .order_by(models.ProjectChangeLog.change_log_id.asc())
-        .all()
-    )
-
-    original_path = get_original_path(project.file_path)
-
-    checkpoint_df = read_table_safe(original_path)
-
     try:
-        for log in logs:
-            checkpoint_df = apply_logged_transformation(
-                checkpoint_df,
-                log.action_type,
-                log.action_details,
-            )
+        checkpoint_df = replay_service.restore_checkpoint_state(
+            db,
+            project_id,
+            get_original_path(project.file_path),
+            checkpoint.log_position,
+        )
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Unable to reconstruct checkpoint dataset") from exc
 

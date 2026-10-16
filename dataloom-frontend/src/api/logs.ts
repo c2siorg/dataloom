@@ -10,7 +10,6 @@ export interface LogEntry {
   action_type: string;
   action_details: Record<string, unknown>;
   timestamp: string;
-  checkpoint_id: string | null;
   applied: boolean;
 }
 

@@ -70,13 +70,14 @@ class TestLogsEndpoint:
         deleted = db.query(Checkpoint).filter(Checkpoint.id == checkpoint.id).first()
         assert deleted is None
 
-    def test_delete_checkpoint_unlinks_logs(self, client, db, test_user):
+    def test_delete_checkpoint_leaves_the_change_log_alone(self, client, db, test_user):
+        """The log is shared history, so deleting a checkpoint keeps its rows."""
         from app.models import ProjectChangeLog
         from app.services.project_service import create_checkpoint, log_transformation
 
         project = create_project(
             db,
-            name="delete-checkpoint-unlink-project",
+            name="delete-checkpoint-keeps-logs-project",
             file_path="/tmp/test.csv",
             description="",
             owner_id=test_user.id,
@@ -85,11 +86,11 @@ class TestLogsEndpoint:
         checkpoint = create_checkpoint(db, project.project_id, "checkpoint to delete")
 
         log = db.query(ProjectChangeLog).filter(ProjectChangeLog.project_id == project.project_id).first()
-        assert log.checkpoint_id == checkpoint.id
+        assert checkpoint.log_position == log.change_log_id
 
         response = client.delete(f"/logs/checkpoints/{project.project_id}/{checkpoint.id}")
         assert response.status_code == 200
         assert response.json()["success"] is True
 
         db.refresh(log)
-        assert log.checkpoint_id is None
+        assert db.get(ProjectChangeLog, log.change_log_id).applied is True

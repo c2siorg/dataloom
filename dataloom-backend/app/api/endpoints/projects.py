@@ -20,6 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from app import database, models, schemas
 from app.api.dependencies import get_current_user, get_project_or_404, read_project_df
 from app.config import get_settings
+from app.services import replay_service
 from app.services.file_service import (
     delete_project_files,
     delete_project_snapshots,
@@ -53,7 +54,6 @@ from app.services.project_service import (
     search_projects,
     update_project,
 )
-from app.services.transformation_service import apply_logged_transformation
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import (
@@ -285,9 +285,12 @@ def revert_to_checkpoint(
 ):
     """Revert project to its original state or to a specific checkpoint.
 
-    When checkpoint_id is provided, replays only the logs up to and including
-    that checkpoint onto the original file. When None, reverts to the original
-    uploaded state. Answers 409 while a job is rewriting the project.
+    Either way the working copy is rebuilt from the original file by replaying
+    the change log up to the target position, so the result is the data that
+    was there, whatever has happened to the other checkpoints since. The revert
+    itself is appended to that log as a row of its own, which is what keeps a
+    later checkpoint from replaying rows the user has rewound past. Answers 409
+    while a job is rewriting the project.
     """
     ensure_no_active_exclusive_job(db, project_id)
     with project_write_lock(project_id):
@@ -528,19 +531,12 @@ def _undo_last_transformation(
 def _replay_change_log(db: Session, project_id: uuid.UUID, working_path: str):
     """Rebuild the working copy's data from the original plus every remaining log row.
 
-    Undo's fallback when a step has no snapshot. Ordered by ``change_log_id``:
-    every row of a pipeline Run shares one timestamp.
+    Undo's fallback when a step has no snapshot. Every row is replayed, revert
+    rows included, so the result is the state the log describes rather than the
+    original file with the steps before the last revert stacked on top of it.
     """
     df = read_table_safe(get_original_path(working_path))
-    remaining_logs = (
-        db.query(models.ProjectChangeLog)
-        .filter(models.ProjectChangeLog.project_id == project_id)
-        .order_by(models.ProjectChangeLog.change_log_id)
-        .all()
-    )
-    for log in remaining_logs:
-        df = apply_logged_transformation(df, log.action_type, log.action_details)
-    return df
+    return replay_service.replay_log_rows(df, replay_service.load_log_rows(db, project_id))
 
 
 def _snapshot_or_500(project_id: uuid.UUID, working_path: str, action: str) -> str:
