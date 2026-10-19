@@ -87,10 +87,20 @@ export interface DatasetComparison {
   }[];
   total_rows: number;
   total_cells: number;
-  page: number;
+  row_page: number;
+  cell_page: number;
   page_size: number;
-  total_pages: number;
+  total_row_pages: number;
+  total_cell_pages: number;
   matching_strategy: string;
+}
+
+export interface CompareCheckpointOptions {
+  rowPage?: number;
+  cellPage?: number;
+  pageSize?: number;
+  matchColumn?: string;
+  signal?: AbortSignal;
 }
 
 /**
@@ -99,16 +109,16 @@ export interface DatasetComparison {
 export const compareCheckpoint = async (
   projectId: string,
   checkpointId: string,
-  page = 1,
-  pageSize = 50,
-  matchColumn?: string,
+  { rowPage = 1, cellPage = 1, pageSize = 50, matchColumn, signal }: CompareCheckpointOptions = {},
 ): Promise<DatasetComparison> => {
   const response = await client.get(`/logs/checkpoints/${projectId}/${checkpointId}/compare`, {
     params: {
-      page,
+      row_page: rowPage,
+      cell_page: cellPage,
       page_size: pageSize,
       ...(matchColumn ? { match_column: matchColumn } : {}),
     },
+    signal,
   });
 
   return response.data;
