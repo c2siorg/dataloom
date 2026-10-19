@@ -1,0 +1,85 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: benchmarks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Runs PR code, so it gets a read-only token and no secrets (same trust
+# boundary as lint.yml). Results go to the job summary, which needs no token.
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: dataloom-backend
+    env:
+      DATABASE_URL: sqlite:///./test.db
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # the PR merge commit plus its parents; HEAD^1 is main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Benchmark main (baseline)
+        id: baseline
+        run: |
+          git checkout --quiet HEAD^1
+          if [ -d tests/benchmarks ]; then
+            echo "expected=true" >> "$GITHUB_OUTPUT"
+            uv sync --frozen
+            uv run pytest tests/benchmarks --benchmark-enable --benchmark-only \
+              --benchmark-warmup=on --benchmark-min-rounds=10 \
+              --benchmark-storage="$RUNNER_TEMP/benchmarks" --benchmark-save=main
+          else
+            echo "expected=false" >> "$GITHUB_OUTPUT"
+          fi
+          git checkout --quiet "$GITHUB_SHA"
+
+      - name: Benchmark PR and compare
+        run: |
+          uv sync --frozen
+          args=(
+            --benchmark-enable
+            --benchmark-only
+            --benchmark-warmup=on
+            --benchmark-min-rounds=10
+            --benchmark-storage="$RUNNER_TEMP/benchmarks"
+          )
+          baseline=$(find "$RUNNER_TEMP/benchmarks" -type f -name '*_main.json' -print -quit 2>/dev/null || true)
+          if [ -n "$baseline" ]; then
+            args+=(--benchmark-compare="$baseline" --benchmark-compare-fail=min:50%)
+          elif [ "${{ steps.baseline.outputs.expected }}" = "true" ]; then
+            echo "::error::tests/benchmarks exists on main, but no baseline file was produced."
+            exit 1
+          else
+            echo "::warning::No baseline from main (first run of the suite); comparison skipped."
+          fi
+          uv run pytest tests/benchmarks "${args[@]}" | tee "$RUNNER_TEMP/benchmarks.txt"
+
+      - name: Write results to the job summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/benchmarks.txt" ]; then
+            {
+              echo '### Backend benchmarks'
+              echo '```'
+              sed -n '/^-* benchmark: [0-9]* tests -*$/,/^Legend/p' "$RUNNER_TEMP/benchmarks.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
