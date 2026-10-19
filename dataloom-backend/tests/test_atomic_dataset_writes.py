@@ -1,3 +1,6 @@
+import os
+import stat
+
 import pandas as pd
 import pytest
 from fastapi import HTTPException
@@ -14,6 +17,26 @@ def test_save_table_safe_replaces_destination(tmp_path):
     pandas_helpers.save_table_safe(df, path)
 
     assert path.read_text(encoding="utf-8") == "name,age\nBob,30\n"
+
+
+def test_save_table_safe_preserves_existing_file_permissions(tmp_path):
+    path = tmp_path / "dataset.csv"
+    path.write_text("name,age\nAlice,20\n", encoding="utf-8")
+    path.chmod(0o640)
+
+    pandas_helpers.save_table_safe(pd.DataFrame({"name": ["Bob"], "age": [30]}), path)
+
+    assert stat.S_IMODE(path.stat().st_mode) == 0o640
+
+
+def test_save_table_safe_new_file_uses_umask_permissions(tmp_path):
+    path = tmp_path / "dataset.csv"
+    original_umask = os.umask(0o027)
+    try:
+        pandas_helpers.save_table_safe(pd.DataFrame({"name": ["Bob"]}), path)
+        assert stat.S_IMODE(path.stat().st_mode) == 0o640
+    finally:
+        os.umask(original_umask)
 
 
 def test_save_table_safe_preserves_existing_file_when_writer_fails(tmp_path, monkeypatch):
