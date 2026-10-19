@@ -6,7 +6,7 @@ import uuid
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, JsonValue, field_validator, model_validator
 
 # --- Enums ---
 
@@ -706,7 +706,7 @@ class ComparisonRowChange(BaseModel):
     """One added or removed row."""
 
     type: str
-    row: object
+    row: JsonValue
     checkpoint_index: int | None
     current_index: int | None
 
@@ -714,10 +714,10 @@ class ComparisonRowChange(BaseModel):
 class ComparisonCellChange(BaseModel):
     """One changed cell."""
 
-    row: object
+    row: JsonValue
     column: str
-    checkpoint_value: object
-    current_value: object
+    checkpoint_value: JsonValue
+    current_value: JsonValue
 
 
 class DatasetComparisonResponse(BaseModel):
@@ -729,9 +729,11 @@ class DatasetComparisonResponse(BaseModel):
     cells: list[ComparisonCellChange]
     total_rows: int
     total_cells: int
-    page: int
+    row_page: int
+    cell_page: int
     page_size: int
-    total_pages: int
+    total_row_pages: int
+    total_cell_pages: int
     matching_strategy: str
 
 

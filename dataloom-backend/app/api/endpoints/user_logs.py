@@ -58,7 +58,8 @@ def get_project_checkpoints(
 def compare_checkpoint(
     project_id: uuid.UUID,
     checkpoint_id: uuid.UUID,
-    page: int = Query(1, ge=1),
+    row_page: int = Query(1, ge=1),
+    cell_page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     match_column: str | None = Query(None),
     db: Session = Depends(database.get_db),
@@ -104,6 +105,7 @@ def compare_checkpoint(
         .filter(
             models.ProjectChangeLog.project_id == project_id,
             models.ProjectChangeLog.checkpoint_id.in_(checkpoint_ids),
+            models.ProjectChangeLog.applied.is_(True),
         )
         .order_by(models.ProjectChangeLog.change_log_id.asc())
         .all()
@@ -113,12 +115,15 @@ def compare_checkpoint(
 
     checkpoint_df = read_table_safe(original_path)
 
-    for log in logs:
-        checkpoint_df = apply_logged_transformation(
-            checkpoint_df,
-            log.action_type,
-            log.action_details,
-        )
+    try:
+        for log in logs:
+            checkpoint_df = apply_logged_transformation(
+                checkpoint_df,
+                log.action_type,
+                log.action_details,
+            )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Unable to reconstruct checkpoint dataset") from exc
 
     current_df = read_table_safe(Path(project.file_path))
 
@@ -126,7 +131,8 @@ def compare_checkpoint(
         result = compare_dataframes(
             checkpoint_df,
             current_df,
-            page=page,
+            row_page=row_page,
+            cell_page=cell_page,
             page_size=page_size,
             match_column=match_column,
         )
@@ -140,9 +146,11 @@ def compare_checkpoint(
         cells=result.cells,
         total_rows=result.total_rows,
         total_cells=result.total_cells,
-        page=result.page,
+        row_page=result.row_page,
+        cell_page=result.cell_page,
         page_size=result.page_size,
-        total_pages=result.total_pages,
+        total_row_pages=result.total_row_pages,
+        total_cell_pages=result.total_cell_pages,
         matching_strategy=result.matching_strategy,
     )
 

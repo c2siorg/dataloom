@@ -19,6 +19,7 @@ A web-based GUI for data wrangling — manage and transform tabular datasets (CS
 - Apply pandas-powered transformations: filter, sort, pivot, deduplicate, and more
 - Inline cell editing and row/column management
 - Checkpoint system — save and revert dataset states
+- Compare a working dataset with saved checkpoints using positional or identifier-based row matching, with independent pagination for row and cell changes
 - Full action history tracking via change logs
 
 ## Prerequisites

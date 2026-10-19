@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useHistoryRefreshTokens } from "../../context/HistoryRefreshContext";
 import { useActiveJob } from "../../context/ActiveJobContext";
+import { useProjectContext } from "../../context/ProjectContext";
 import { getCheckpoints } from "../../api";
 import { useLogs } from "../../hooks/useLogs";
 import LogsPanel from "../history/LogsPanel";
@@ -42,6 +43,7 @@ export function LogsTab() {
 export function CheckpointsTab() {
   const { projectId } = useParams() as { projectId: string };
   const { startJob, activeWriteJob } = useActiveJob();
+  const { columns } = useProjectContext();
   const { checkpointsToken } = useHistoryRefreshTokens();
   const [checkpoints, setCheckpoints] = useState<CheckpointEntry[] | null>(null);
   const [confirmData, setConfirmData] = useState<ConfirmData | null>(null);
@@ -88,6 +90,7 @@ export function CheckpointsTab() {
       <CheckpointsPanel
         projectId={projectId}
         checkpoints={checkpoints}
+        currentColumns={columns}
         onRevert={handleRevert}
         revertDisabled={activeWriteJob !== null}
         onCheckpointDeleted={fetchCheckpoints}

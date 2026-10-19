@@ -20,7 +20,7 @@ export {
 export type { ExportOptions, ExportResult, UploadLimits } from "./projects";
 export type { UploadOptions } from "./uploadOptions";
 export { getLogs, getCheckpoints, deleteCheckpoint, compareCheckpoint } from "./logs";
-export type { Checkpoint, LogEntry, DatasetComparison } from "./logs";
+export type { Checkpoint, LogEntry, DatasetComparison, CompareCheckpointOptions } from "./logs";
 export {
   transformProject,
   groupByTransform,
