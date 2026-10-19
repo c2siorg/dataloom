@@ -192,7 +192,7 @@ def change_user_password(
 def delete_user_account(db: Session, user: models.User, password: str) -> None:
     """Delete a user account along with all owned projects, logs, undo steps, checkpoints, jobs, and files.
 
-    The database deletion (logs, undo steps, checkpoints, jobs, projects, user) happens in a single
+    The database deletion (checkpoints, logs, undo steps, jobs, projects, user) happens in a single
     transaction so a failure partway through leaves no orphaned records. File
     cleanup happens after the transaction commits, since filesystem operations
     cannot be rolled back alongside the DB transaction.
@@ -212,13 +212,16 @@ def delete_user_account(db: Session, user: models.User, password: str) -> None:
     file_paths = [project.file_path for project in user.projects]
 
     try:
+        # Checkpoints go before the log. A checkpoint's position points at a log
+        # row, and the foreign key rejects deleting that row while the
+        # checkpoint still references it.
+        db.query(models.Checkpoint).filter(models.Checkpoint.project_id.in_(project_ids)).delete(
+            synchronize_session=False
+        )
         db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.project_id.in_(project_ids)).delete(
             synchronize_session=False
         )
         db.query(models.UndoStep).filter(models.UndoStep.project_id.in_(project_ids)).delete(synchronize_session=False)
-        db.query(models.Checkpoint).filter(models.Checkpoint.project_id.in_(project_ids)).delete(
-            synchronize_session=False
-        )
         # Explicit rather than left to the FK cascade, which SQLite does not enforce.
         db.query(models.Job).filter(models.Job.owner_id == user.id).delete(synchronize_session=False)
         db.query(models.Project).filter(models.Project.project_id.in_(project_ids)).delete(synchronize_session=False)

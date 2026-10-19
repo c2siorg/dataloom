@@ -27,6 +27,21 @@ def upgrade() -> None:
     were taken. That rule is cumulative and monotonic, so a checkpoint never
     resolves to a position behind an earlier one, and one taken before the log
     started resolves to NULL — the original file.
+
+    The backfill is best effort, and existing data can restore slightly
+    differently afterwards:
+
+    * It matches on ``timestamp <= created_at``, so a row written in the same
+      second as the checkpoint can land on the wrong side of the boundary.
+    * Rows orphaned when a checkpoint was deleted under the old model (their
+      ``checkpoint_id`` was set to NULL) are absorbed into the next checkpoint's
+      position, so that checkpoint now replays rows it previously skipped.
+
+    The position query is deliberately not filtered by project: ``change_log_id``
+    is one global autoincrement, so "the highest id written by the checkpoint's
+    time" is already a correct cutoff for every project. Run this against a copy
+    of the production database before deploying; the test suite uses SQLite,
+    which does not enforce the foreign key this migration creates.
     """
     op.add_column("checkpoints", sa.Column("log_position", sa.Integer(), nullable=True))
 
@@ -47,6 +62,9 @@ def upgrade() -> None:
         sa.select(checkpoints.c.id, checkpoints.c.created_at).order_by(checkpoints.c.created_at)
     ).all()
     for checkpoint_id, created_at in checkpoint_rows:
+        # change_log_id is one global autoincrement, so the highest id written by
+        # this time is a correct cutoff for every project, not just this
+        # checkpoint's.
         position = bind.execute(
             sa.select(sa.func.max(user_logs.c.change_log_id)).where(user_logs.c.timestamp <= created_at)
         ).scalar()

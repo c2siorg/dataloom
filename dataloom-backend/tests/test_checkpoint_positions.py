@@ -13,7 +13,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app import models
 from app.config import get_settings
-from app.services import project_service, replay_service
+from app.services import auth_service, project_service, replay_service
 from app.services.project_service import create_checkpoint
 
 PEOPLE_CSV = b"name,age,city\nAlice,30,NY\nBob,25,LA\nCharlie,35,SF\n"
@@ -411,33 +411,86 @@ class TestCheckpointService:
 
         assert project.last_modified is not None
 
+
+# bcrypt(cost 4) of PASSWORD; the same fixture credentials the suite's conftest uses.
+PASSWORD = "testpassword"
+PASSWORD_HASH = "$2b$04$jYCMf0hes4R2ULgo.pKfOOGumgg6nJBsRgXVMohokYq4.kF0c50K2"
+
+
+def _fk_engine():
+    """An in-memory SQLite engine that enforces foreign keys, as PostgreSQL does.
+
+    The suite's shared engine does not, so tests that depend on
+    ``checkpoints.log_position -> user_logs.change_log_id`` have to build their
+    own. Without this the constraint is silently ignored and a wrong delete
+    order passes.
+    """
+    engine = create_engine("sqlite://", poolclass=sa.pool.StaticPool)
+    sa.event.listen(engine, "connect", lambda conn, _: conn.cursor().execute("PRAGMA foreign_keys=ON"))
+    SQLModel.metadata.create_all(engine)
+    return engine
+
+
+class TestDeleteOrderWithForeignKeysEnforced:
+    """Anything that deletes log rows must delete the checkpoints pointing at them first."""
+
+    def _seed(self, session, tmp_path):
+        user = models.User(email="fk@test.com", password_hash=PASSWORD_HASH)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+        original = tmp_path / "people.csv"
+        working = tmp_path / "people_copy.csv"
+        original.write_bytes(PEOPLE_CSV)
+        working.write_bytes(PEOPLE_CSV)
+
+        project = models.Project(name="FK", file_path=str(working), owner_id=user.id)
+        session.add(project)
+        session.commit()
+        session.refresh(project)
+
+        _log_rows(session, project.project_id, [("sort", SORT_DETAILS)])
+        create_checkpoint(session, project.project_id, "saved")
+        return user, project
+
     def test_deleting_a_project_removes_checkpoints_before_the_log(self, tmp_path):
-        """The position is a real foreign key, so the delete order matters.
-
-        The suite's SQLite engine does not enforce foreign keys and cannot add
-        one after the fact, so this builds its own engine that does, to catch a
-        ``delete_project`` that drops log rows a checkpoint still points at.
-        """
-        engine = create_engine("sqlite://", poolclass=sa.pool.StaticPool)
-        sa.event.listen(engine, "connect", lambda conn, _: conn.cursor().execute("PRAGMA foreign_keys=ON"))
-        SQLModel.metadata.create_all(engine)
-
+        engine = _fk_engine()
         try:
             with Session(engine) as session:
-                user = models.User(email="fk@test.com", password_hash="x")
-                session.add(user)
-                session.commit()
-                session.refresh(user)
-
-                project = models.Project(name="FK", file_path=str(tmp_path / "p.csv"), owner_id=user.id)
-                session.add(project)
-                session.commit()
-                session.refresh(project)
-
-                _log_rows(session, project.project_id, [("sort", SORT_DETAILS)])
-                create_checkpoint(session, project.project_id, "saved")
+                _user, project = self._seed(session, tmp_path)
 
                 project_service.delete_project(session, project)
+
+                assert session.query(models.Checkpoint).count() == 0
+                assert session.query(models.ProjectChangeLog).count() == 0
+        finally:
+            engine.dispose()
+
+    def test_deleting_an_account_removes_checkpoints_before_the_log(self, tmp_path):
+        """The account path used to delete user_logs before the checkpoints that point at it."""
+        engine = _fk_engine()
+        try:
+            with Session(engine) as session:
+                user, _project = self._seed(session, tmp_path)
+
+                auth_service.delete_user_account(session, user, PASSWORD)
+
+                assert session.query(models.Checkpoint).count() == 0
+                assert session.query(models.ProjectChangeLog).count() == 0
+                assert session.query(models.Project).count() == 0
+                assert session.query(models.User).count() == 0
+        finally:
+            engine.dispose()
+
+    def test_resetting_a_project_removes_checkpoints_before_the_log(self, tmp_path):
+        """The dataset-reset path deletes the same tables and needs the same order."""
+        engine = _fk_engine()
+        try:
+            with Session(engine) as session:
+                _user, project = self._seed(session, tmp_path)
+
+                project_service.reset_project(project.project_id, 1, 10, session, project)
 
                 assert session.query(models.Checkpoint).count() == 0
                 assert session.query(models.ProjectChangeLog).count() == 0
