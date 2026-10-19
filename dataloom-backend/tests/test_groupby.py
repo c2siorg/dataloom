@@ -84,3 +84,7 @@ class TestGroupBy:
     def test_empty_columns(self, sample_df):
         with pytest.raises(TransformationError, match="At least one group-by column is required"):
             group_by(sample_df, [], "salary", "sum")
+
+    def test_agg_column_that_is_also_a_group_column(self, sample_df):
+        with pytest.raises(TransformationError, match="group-by column"):
+            group_by(sample_df, ["department"], "department", "count")
