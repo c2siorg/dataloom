@@ -3,8 +3,8 @@
 import math
 import os
 import re
+import secrets
 import shutil
-import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -127,13 +127,8 @@ def save_table_safe(
     temp_path: Path | None = None
 
     try:
-        fd, temp_name = tempfile.mkstemp(
-            dir=path.parent,
-            prefix=f".{path.name}.",
-            suffix=path.suffix,
-        )
+        fd, temp_path = _create_temp_file(path)
         os.close(fd)
-        temp_path = Path(temp_name)
 
         get_format(path).write(df, temp_path, options)
 
@@ -160,6 +155,18 @@ def save_table_safe(
                 pass
             except OSError:
                 logger.warning("Could not remove temporary dataset file: %s", temp_path)
+
+
+def _create_temp_file(path: Path) -> tuple[int, Path]:
+    """Create an exclusive sibling temporary file with normal file permissions."""
+    flags = os.O_CREAT | os.O_EXCL | os.O_RDWR
+    for _ in range(100):
+        temp_path = path.with_name(f".{path.name}.{secrets.token_hex(8)}{path.suffix}")
+        try:
+            return os.open(temp_path, flags, 0o666), temp_path
+        except FileExistsError:
+            continue
+    raise FileExistsError(f"Could not create a temporary file for {path}")
 
 
 def map_dtype(dtype) -> str:
