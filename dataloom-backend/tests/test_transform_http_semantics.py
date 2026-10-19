@@ -513,3 +513,16 @@ def test_transform_preview_rejects_out_of_bounds_query_params(client, pagination
     )
 
     assert response.status_code == 422
+
+
+def test_transform_groupby_rejects_group_column_as_agg_column(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "groupby",
+            "groupby_params": {"columns": ["city"], "agg_column": "city", "agg_function": "count"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "group-by column" in response.json()["detail"]
