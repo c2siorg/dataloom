@@ -223,6 +223,9 @@ def add_column(df: pd.DataFrame, index: int, name: str) -> pd.DataFrame:
     if index < 0 or index > len(df.columns):
         raise TransformationError(f"Column index {index} out of range (0-{len(df.columns)})")
 
+    if name in df.columns:
+        raise TransformationError(f"Column '{name}' already exists. Please choose a different name.")
+
     df = df.copy()
     df.insert(index, name, None)
     return df
