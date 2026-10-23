@@ -242,6 +242,10 @@ class TestAddColumn:
         with pytest.raises(TransformationError):
             add_column(sample_df, -1, "test")
 
+    def test_add_column_duplicate_name(self, sample_df):
+        with pytest.raises(TransformationError, match="already exists"):
+            add_column(sample_df, 1, "name")
+
 
 class TestDeleteColumn:
     def test_delete_column(self, sample_df):
