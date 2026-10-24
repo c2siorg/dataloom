@@ -170,10 +170,11 @@ def _infer_granularity(series: pd.Series) -> str | None:
     Uses the modal gap between sorted, de-duplicated timestamps. Returns None
     when there are fewer than two distinct values to compare.
     """
-    values = series.dropna().sort_values().unique()
+    # De-duplicate before sorting: timestamps repeat heavily, so this sorts far fewer values.
+    values = series.dropna().drop_duplicates().sort_values()
     if len(values) < 2:
         return None
-    diffs = pd.Series(values).diff().dropna()
+    diffs = values.diff().dropna()
     if diffs.empty:
         return None
     modal = diffs.mode()
@@ -196,14 +197,15 @@ def _infer_granularity(series: pd.Series) -> str | None:
 def _numeric_block(series: pd.Series) -> dict[str, Any]:
     """Descriptive statistics for a numeric column."""
     non_null = series.dropna()
+    q1, q3 = series.quantile([0.25, 0.75]).tolist()
     return {
         "mean": _round(series.mean()),
         "median": _round(series.median()),
         "min": _round(series.min()),
         "max": _round(series.max()),
         "std": _round(series.std()),
-        "q1": _round(series.quantile(0.25)),
-        "q3": _round(series.quantile(0.75)),
+        "q1": _round(q1),
+        "q3": _round(q3),
         "skew": _round(series.skew()),
         "zero_count": int((non_null == 0).sum()),
         "negative_count": int((non_null < 0).sum()),
@@ -307,7 +309,7 @@ def column_profile(df: pd.DataFrame, column: str) -> dict[str, Any]:
         profile.update(numeric_block)
         skew = numeric_block["skew"]
         if non_null_count:
-            zero_fraction = float((series == 0).sum()) / non_null_count
+            zero_fraction = numeric_block["zero_count"] / non_null_count
     elif label == "bool":
         profile.update(_boolean_block(series))
     elif label == "str":
