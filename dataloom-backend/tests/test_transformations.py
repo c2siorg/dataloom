@@ -1234,6 +1234,10 @@ class TestStringReplace:
         with pytest.raises(TransformationError, match="Column 'missing' not found"):
             string_replace(sample_df, "missing", "foo", "bar")
 
+    def test_empty_find_value_raises(self, sample_df):
+        with pytest.raises(TransformationError, match="find_value must not be empty"):
+            string_replace(sample_df, "city", "", "x")
+
     def test_non_string_column_is_converted_to_string(self, sample_df):
         result = string_replace(sample_df, "age", "3", "4")
 

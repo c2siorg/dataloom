@@ -678,6 +678,9 @@ def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
 
+    if not find_value:
+        raise TransformationError("find_value must not be empty")
+
     df = df.copy()
     df[column] = df[column].astype(str).str.replace(find_value, replace_value, regex=False)
     return df
