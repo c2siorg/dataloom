@@ -80,3 +80,7 @@ class TestGroupBy:
     def test_invalid_function(self, sample_df):
         with pytest.raises(TransformationError, match="Unsupported"):
             group_by(sample_df, ["department"], "salary", "invalid_func")
+
+    def test_empty_columns(self, sample_df):
+        with pytest.raises(TransformationError, match="At least one group-by column is required"):
+            group_by(sample_df, [], "salary", "sum")
