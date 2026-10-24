@@ -866,6 +866,9 @@ def group_by(df: pd.DataFrame, columns: list[str], agg_column: str, agg_function
     Raises:
         TransformationError: If columns not found or invalid function.
     """
+    if not columns:
+        raise TransformationError("At least one group-by column is required")
+
     all_cols = columns + [agg_column]
     missing = [c for c in all_cols if c not in df.columns]
     if missing:
