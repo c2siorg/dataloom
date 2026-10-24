@@ -148,31 +148,26 @@ def list_projects(
 
 @router.get("/get/{project_id}", response_model=schemas.ProjectResponse)
 def get_project_details(
-    page: int = 1,
-    pageSize: int = 50,
+    page: int = Query(1, ge=1),
+    pageSize: int = Query(50, ge=1, le=100),
     project: models.Project = Depends(get_project_or_404),
 ):
-    """Fetch full project details including all rows and columns."""
+    """Fetch project details with a page of rows and pagination metadata.
+
+    Pages beyond the dataset clamp to the last page; empty datasets return
+    one empty page. Keep the ``pageSize`` query name for existing clients.
+    """
     with project_read_lock(project.project_id):
         df = read_table_safe(project.file_path)
 
-    total_rows = len(df)
-    total_pages = (total_rows + pageSize - 1) // pageSize
-
-    start = (page - 1) * pageSize
-    end = start + pageSize
-    paginated_df = df.iloc[start:end]
-
-    resp = dataframe_to_response(paginated_df)
+    response_df, pagination = paginate_dataframe(df, page, pageSize)
+    resp = dataframe_to_response(response_df)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
-        "page": page,
-        "page_size": pageSize,
-        "total_rows": total_rows,
-        "total_pages": total_pages,
         **resp,
+        **pagination,
     }
 
 
