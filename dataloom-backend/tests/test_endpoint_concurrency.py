@@ -32,37 +32,47 @@ from httpx import ASGITransport, AsyncClient
 from app import models, schemas
 from app.api import dependencies, endpoints
 from app.api.dependencies import get_project_or_404, load_project_df
-from app.api.endpoints import jobs, pipelines, profiling, project_files, projects, transformations
+from app.api.endpoints import pipelines, project_files, projects, transformations
 from app.main import app
 from app.utils import project_locks
 from app.utils.project_locks import project_read_lock, project_write_lock
 
 
-def test_blocking_routes_are_sync_def():
-    """Routes doing blocking pandas I/O must be plain ``def`` for threadpool offload."""
-    blocking_routes = [
-        projects.get_project_details,
-        projects.save_project,
-        projects.revert_to_checkpoint,
-        projects.export_project,
-        projects.undo_last_transformation,
-        projects.redo_last_transformation,
-        transformations.transform_project,
-        profiling.get_dataset_summary,
-        profiling.get_column_profile,
-        profiling.get_all_column_profiles,
-        profiling.get_correlation_matrix,
-        # Job routes only touch the DB, but inline test mode runs the whole job
-        # inside submit_job, and polls must never wait behind the event loop.
-        jobs.submit_job,
-        jobs.get_job,
-        jobs.list_project_jobs,
-        jobs.cancel_job,
-    ]
-    offenders = [fn.__name__ for fn in blocking_routes if inspect.iscoroutinefunction(fn)]
-    assert not offenders, (
-        f"These routes run blocking pandas I/O and must be plain `def` so FastAPI "
-        f"runs them in a threadpool instead of on the event loop: {offenders}"
+def test_only_explicitly_allowed_routes_are_async():
+    """New async routes must be explicitly reviewed and added to this allowlist.
+
+    Any route not in this set must be a plain ``def`` so FastAPI runs it in its
+    threadpool. The job routes (submit_job, get_job, list_project_jobs,
+    cancel_job) are also plain ``def`` and are covered automatically because
+    this test scans every *.py file in the endpoints package.
+    """
+    allowed_async_routes = {
+        "projects.upload_project",
+        "projects.get_project_meta",
+        "project_files.preview_add_file",
+        "project_files.add_file",
+    }
+    actual_async_routes = set()
+
+    for path in sorted(Path(endpoints.__file__).parent.glob("*.py")):
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.AsyncFunctionDef):
+                continue
+            is_route = any(
+                isinstance(dec, ast.Call)
+                and isinstance(dec.func, ast.Attribute)
+                and isinstance(dec.func.value, ast.Name)
+                and dec.func.value.id == "router"
+                for dec in node.decorator_list
+            )
+            if is_route:
+                actual_async_routes.add(f"{path.stem}.{node.name}")
+
+    assert actual_async_routes == allowed_async_routes, (
+        "Only explicitly allowlisted API routes may be async. "
+        f"Unexpected routes: {sorted(actual_async_routes - allowed_async_routes)}; "
+        f"missing routes: {sorted(allowed_async_routes - actual_async_routes)}"
     )
 
 
