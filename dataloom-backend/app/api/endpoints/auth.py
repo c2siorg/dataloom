@@ -82,7 +82,7 @@ def me(current_user: models.User = Depends(get_current_user)):
 
 
 @router.post("/forgot-password")
-async def forgot_password(
+def forgot_password(
     payload: schemas.ForgotPasswordRequest,
     db: Session = Depends(database.get_db),
     _rate_limit: None = Depends(rate_limit),
@@ -96,7 +96,7 @@ async def forgot_password(
 
 
 @router.post("/reset-password")
-async def reset_password(
+def reset_password(
     payload: schemas.ResetPasswordRequest,
     db: Session = Depends(database.get_db),
     _rate_limit: None = Depends(rate_limit),
