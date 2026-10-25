@@ -584,7 +584,7 @@ def _logs_to_replay(db: Session, project_id: uuid.UUID, checkpoint_id: uuid.UUID
             models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
             models.ProjectChangeLog.applied == True,  # noqa: E712
         )
-        .order_by(models.ProjectChangeLog.timestamp)
+        .order_by(models.ProjectChangeLog.change_log_id)
         .all()
     )
 
@@ -637,22 +637,44 @@ def revert_project(
     if before_commit is not None:
         before_commit()
 
-    # Write file first — if this fails, DB is unchanged and state remains consistent.
-    save_table_safe(df, project.file_path)
-    # Undo and redo cover the unsaved work the revert just discarded.
-    stale_snapshots = discard_undo_history(db, project_id)
-    # Clear unapplied logs so a subsequent save cannot re-apply stale
-    # transformations on top of the reverted file state.
-    # Applies to all reverts (full and partial) to prevent stale log replay.
-    db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied.is_(False),
-    ).delete(synchronize_session="evaluate")
+    working_path = Path(project.file_path)
+    with tempfile.NamedTemporaryFile(
+        dir=working_path.parent,
+        prefix=".revert-backup-",
+        suffix=working_path.suffix,
+        delete=False,
+    ) as backup_file:
+        backup_path = Path(backup_file.name)
+
     try:
+        shutil.copy2(working_path, backup_path)
+        save_table_safe(df, project.file_path)
+
+        # Undo and redo cover the unsaved work the revert just discarded.
+        stale_snapshots = discard_undo_history(db, project_id)
+        # Clear unapplied logs so a subsequent save cannot re-apply stale
+        # transformations on top of the reverted file state.
+        # Applies to all reverts (full and partial) to prevent stale log replay.
+        db.query(models.ProjectChangeLog).filter(
+            models.ProjectChangeLog.project_id == project_id,
+            models.ProjectChangeLog.applied.is_(False),
+        ).delete(synchronize_session="evaluate")
+
         db.commit()
-    except SQLAlchemyError:
+    except Exception:
         db.rollback()
+        try:
+            restore_original(str(backup_path), str(working_path))
+        except Exception:
+            logger.exception(
+                "Failed to restore working file after revert transaction failed: project_id=%s",
+                project_id,
+            )
+            raise
         raise
+    finally:
+        backup_path.unlink(missing_ok=True)
+
     unlink_snapshots(stale_snapshots)
     return df
 
