@@ -874,8 +874,11 @@ def group_by(df: pd.DataFrame, columns: list[str], agg_column: str, agg_function
 
     result = df.groupby(columns, as_index=False)[agg_column].agg(agg_function)
     result.columns = [str(c) for c in result.columns]
-    for col in result.select_dtypes(include=["float"]).columns:
-        result[col] = result[col].round(2)
+    # Round only the aggregated values. Rounding every float column also
+    # rewrites the group keys themselves (keys 1.231 and 1.234 both become
+    # 1.23), so two distinct groups end up labelled with the same key.
+    if pd.api.types.is_float_dtype(result[agg_column]):
+        result[agg_column] = result[agg_column].round(2)
     return result
 
 

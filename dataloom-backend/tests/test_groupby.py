@@ -66,6 +66,17 @@ class TestGroupBy:
         with pytest.raises(TransformationError, match="not found"):
             group_by(sample_df, ["department"], "nonexistent", "sum")
 
+    def test_float_group_keys_are_not_rounded(self):
+        df = pd.DataFrame({"price": [1.231, 1.234, 1.234, 2.5], "qty": [10, 20, 30, 40]})
+        result = group_by(df, ["price"], "qty", "sum")
+        assert list(result["price"]) == [1.231, 1.234, 2.5]
+        assert list(result["qty"]) == [10, 50, 40]
+
+    def test_aggregated_values_are_still_rounded(self):
+        df = pd.DataFrame({"grp": ["a", "a"], "val": [1.111, 2.222]})
+        result = group_by(df, ["grp"], "val", "mean")
+        assert result["val"].iloc[0] == 1.67
+
     def test_invalid_function(self, sample_df):
         with pytest.raises(TransformationError, match="Unsupported"):
             group_by(sample_df, ["department"], "salary", "invalid_func")
