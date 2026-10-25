@@ -779,6 +779,58 @@ class TestAdvancedQuery:
         with pytest.raises(TransformationError):
             advanced_query(sample_df, "age >")
 
+    def test_query_literal_equal_to_column_name_is_not_rewritten(self):
+        # The literal "unit cost" is data, not a column reference: rewriting it
+        # into a backticked column name silently compared the wrong things.
+        df = pd.DataFrame({"unit cost": [10, 20], "city": ["unit cost", "other"]})
+        result = advanced_query(df, 'city == "unit cost"')
+        assert len(result) == 1
+
+    def test_query_overlapping_column_names(self):
+        # "unit cost" is a prefix of "unit cost total"; substituting the
+        # shorter name first used to corrupt the longer reference.
+        df = pd.DataFrame({"unit cost": [1, 2], "unit cost total": [100, 200]})
+        result = advanced_query(df, "unit cost total > 150")
+        assert len(result) == 1
+
+    def test_query_at_reference_blocked(self, sample_df):
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, "@pd.read_csv('/etc/passwd')")
+
+    def test_query_scope_oracle_blocked(self, sample_df, tmp_path):
+        # Regression test for the sandbox escape: this used to evaluate
+        # pd.read_csv against server files and leak the answer through the
+        # filtered row count (3 rows when the guess was right, 0 when wrong).
+        from fastapi import HTTPException
+
+        secret = tmp_path / "secret.csv"
+        secret.write_text("code\n42\n")
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, f"age > 0 and @pd.read_csv('{secret}')['code'].max() == 42")
+
+    def test_query_method_call_blocked(self, sample_df):
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, "age.isin([30])")
+
+    def test_query_attribute_access_blocked(self, sample_df):
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, "name.str.len() > 3")
+
+    def test_query_in_list(self, sample_df):
+        result = advanced_query(sample_df, "age in [25, 35]")
+        assert len(result) == 2
+
+    def test_query_arithmetic_and_boolean(self, sample_df):
+        result = advanced_query(sample_df, "age * 2 > 65")
+        assert len(result) == 1
+        assert result.iloc[0]["name"] == "Charlie"
+
 
 class TestPivotTable:
     def test_simple_pivot(self):

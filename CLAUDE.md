@@ -168,7 +168,7 @@ The single `/transform` endpoint dispatches to basic or complex handlers based o
 - The `Components/` directory has an uppercase C — imports must match exactly
 - `change_cell_value` uses 1-based `col_index` from the frontend (accounts for the S.No. display column); `rename_column` uses 0-based `col_index`
 - Backend auto-runs Alembic migrations on startup via the lifespan handler
-- `advanced_query` passes user input to `df.query()` — always goes through `validate_query_string()` injection check
+- `advanced_query` passes user input to `df.query()` — always goes through `prepare_query_expression()` (AST allowlist validation in `app/utils/security.py`); the regex-only `validate_query_string()` screen is not sufficient on its own
 - Never pass the request's Session to a job: it is closed once the response is sent. Jobs get Sessions from `runner.session_factory`, re-load rows by id, and write progress through their own short-lived Sessions (SQLite allows one writer at a time)
 - Call replay hooks (`on_step`, `before_commit`) outside the per-step `try/except` in `pipeline_service._replay` and the revert loop, or a cancel is reported as "Pipeline step N failed"
 - Keep a single Alembic head: startup runs `upgrade head`, which refuses two. A new migration's `down_revision` is the current `uv run alembic heads`; `tests/test_job_runner.py::test_single_alembic_head` fails otherwise
