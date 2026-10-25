@@ -295,6 +295,220 @@ def prepare_formula_expression(expression: str, columns: list[str]) -> str:
     return executable
 
 
+# Node types an advanced-query expression may contain: comparisons, boolean
+# logic, arithmetic, column references, literals, and list/tuple literals for
+# ``in`` checks. Function calls, attribute access, subscripts, and ``@`` scope
+# references are all absent, so they fail closed — the same fail-closed shape
+# as the formula allowlist above, widened only where filter grammar needs it.
+_ALLOWED_QUERY_NODES = (
+    ast.Expression,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.BoolOp,
+    ast.Compare,
+    ast.Name,
+    ast.Constant,
+    ast.List,
+    ast.Tuple,
+    ast.Load,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+    ast.BitAnd,
+    ast.BitOr,
+    ast.USub,
+    ast.UAdd,
+    ast.Invert,
+    ast.Not,
+    ast.And,
+    ast.Or,
+    ast.Eq,
+    ast.NotEq,
+    ast.Lt,
+    ast.LtE,
+    ast.Gt,
+    ast.GtE,
+    ast.In,
+    ast.NotIn,
+)
+
+
+def _substitute_query_column_names(
+    expression: str, quoted_cols: list[str], columns: set[str]
+) -> tuple[str, dict[str, str]]:
+    """Replace non-identifier column references in a query with placeholder identifiers.
+
+    The scan is left to right and steps over string literals and backticked
+    names, so text inside a literal is never mistaken for a column reference
+    (``city == "unit cost"`` keeps the literal intact even when ``unit cost``
+    is also a column), and a shorter column name never claims part of a longer
+    one that contains it (``quoted_cols`` is longest-first). Already-backticked
+    references go through the same placeholders, so every column reference
+    reaches the AST walk in the same shape.
+
+    Args:
+        expression: The user-supplied query.
+        quoted_cols: Non-identifier column names, longest first.
+        columns: Every column name, used to keep placeholders collision-free.
+
+    Returns:
+        The rewritten expression, and a placeholder-to-backticked-name mapping.
+    """
+    placeholder_by_col: dict[str, str] = {}
+    placeholders: dict[str, str] = {}
+    counter = 0
+
+    def placeholder_for(name: str) -> str:
+        nonlocal counter
+        placeholder = placeholder_by_col.get(name)
+        if placeholder is None:
+            while True:
+                candidate = f"{_FORMULA_PLACEHOLDER_PREFIX}{counter}"
+                counter += 1
+                if candidate not in columns and candidate not in placeholders:
+                    break
+            placeholder_by_col[name] = candidate
+            placeholders[candidate] = f"`{name}`"
+            placeholder = candidate
+        return placeholder
+
+    parts: list[str] = []
+    i = 0
+    while i < len(expression):
+        if expression[i] == "`":
+            end = expression.find("`", i + 1)
+            if end == -1:
+                parts.append(expression[i:])
+                break
+            parts.append(placeholder_for(expression[i + 1 : end]))
+            i = end + 1
+            continue
+        for col in quoted_cols:
+            if expression.startswith(col, i):
+                parts.append(placeholder_for(col))
+                i += len(col)
+                break
+        else:
+            literal = _FORMULA_STRING_LITERAL.match(expression, i)
+            if literal:
+                parts.append(literal.group(0))
+                i = literal.end()
+            else:
+                parts.append(expression[i])
+                i += 1
+    return "".join(parts), placeholders
+
+
+def _swap_placeholders_outside_literals(expression: str, placeholders: dict[str, str]) -> str:
+    """Swap placeholders for their backticked column names, skipping string literals.
+
+    A literal is data, not a column reference, so placeholder-shaped text
+    inside one must reach pandas untouched. Longest placeholder first:
+    ``_dataloom_col_1`` is a prefix of ``_dataloom_col_10``.
+    """
+    if not placeholders:
+        return expression
+    ordered = sorted(placeholders, key=len, reverse=True)
+
+    def swap(chunk: str) -> str:
+        for placeholder in ordered:
+            chunk = chunk.replace(placeholder, placeholders[placeholder])
+        return chunk
+
+    parts: list[str] = []
+    pos = 0
+    for match in _FORMULA_STRING_LITERAL.finditer(expression):
+        parts.append(swap(expression[pos : match.start()]))
+        parts.append(match.group(0))
+        pos = match.end()
+    parts.append(swap(expression[pos:]))
+    return "".join(parts)
+
+
+QUERY_PARSE_ERROR_DETAIL = "Query is not a valid expression"
+
+
+def prepare_query_expression(expression: str, columns: list[str]) -> str:
+    """Validate an advanced-query filter and return the string to execute.
+
+    The query counterpart of :func:`prepare_formula_expression`, with the same
+    fail-closed shape: non-identifier column names are substituted with
+    placeholder identifiers (longest first, stepping over string literals),
+    the result is parsed and walked against an AST allowlist, and the
+    executable string is rebuilt from the exact string the walk approved, so
+    the validated string and the executed string cannot drift apart.
+
+    The regex screen in :func:`validate_query_string` still runs first as
+    defense in depth, but it cannot be the only barrier: numexpr is not a
+    project dependency, so ``DataFrame.query`` runs on the Python engine,
+    whose scope resolution reaches the calling module's globals through
+    ``@name`` references — a filter such as
+    ``@pd.read_csv('/path/to/file.csv')`` reads arbitrary files the server
+    can read and leaks their contents through the filtered row count. Under
+    the allowlist, ``@`` references do not parse at all, and calls, attribute
+    access, and subscripts are rejected, so a query can only compare columns
+    against literals.
+
+    Bare names are not checked against ``columns`` here: in ``df.query`` a
+    bare name can only resolve to a column, and an unknown one raises there,
+    which the caller surfaces as a transformation error — the behaviour the
+    endpoint has always had.
+
+    Args:
+        expression: The user-supplied filter, e.g. ``age > 30 and city == "NY"``.
+        columns: Column names of the target DataFrame.
+
+    Returns:
+        The expression to hand to ``DataFrame.query``.
+
+    Raises:
+        HTTPException: If the query is empty, fails the dangerous-pattern
+            screen, contains the reserved placeholder prefix, is not
+            parseable, or uses syntax outside the allowlist.
+    """
+    if not expression or not expression.strip():
+        raise HTTPException(status_code=400, detail="Query must not be empty")
+
+    validate_query_string(expression)
+
+    if _FORMULA_PLACEHOLDER_PREFIX in expression:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Query must not contain the reserved prefix '{_FORMULA_PLACEHOLDER_PREFIX}'",
+        )
+
+    quoted_cols = sorted((col for col in columns if not _is_bare_column_name(col)), key=len, reverse=True)
+    sanitized, placeholders = _substitute_query_column_names(expression, quoted_cols, set(columns))
+    sanitized = sanitized.strip()
+
+    # ``@name`` scope references are the escape hatch this validation exists
+    # to close; reject them explicitly (with literals blanked out, so an
+    # email-shaped string value is not a false positive) instead of leaving
+    # them to fail the parse below as a generic syntax error.
+    if "@" in _FORMULA_STRING_LITERAL.sub('""', sanitized):
+        raise HTTPException(status_code=400, detail="Query scope references ('@name') are not supported")
+
+    try:
+        tree = ast.parse(sanitized, mode="eval")
+    except SyntaxError as e:
+        raise HTTPException(status_code=400, detail=QUERY_PARSE_ERROR_DETAIL) from e
+
+    for node in ast.walk(tree):
+        if not isinstance(node, _ALLOWED_QUERY_NODES):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Query contains unsupported syntax: {type(node).__name__}",
+            )
+        if isinstance(node, ast.Constant) and not isinstance(node.value, int | float | str | bool | None):
+            raise HTTPException(status_code=400, detail="Query literals must be numbers, strings, booleans, or None")
+
+    return _swap_placeholders_outside_literals(sanitized, placeholders)
+
+
 SAFE_TRANSFORMATION_ERROR_DETAIL = "Invalid transformation request"
 
 _SENSITIVE_TOKEN_MARKERS = (

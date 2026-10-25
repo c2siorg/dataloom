@@ -5,18 +5,18 @@ No side effects -- saving to disk is handled by the caller.
 """
 
 import math
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
+from fastapi import HTTPException
 
 from app.schemas import FillStrategy, MeltParams, OperationType
 from app.services.append_service import append_dataframes
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import parse_datetime_column, read_table_safe
-from app.utils.security import prepare_formula_expression, validate_query_string
+from app.utils.security import QUERY_PARSE_ERROR_DETAIL, prepare_formula_expression, prepare_query_expression
 
 logger = get_logger(__name__)
 
@@ -712,8 +712,10 @@ def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
 def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
     """Filter DataFrame using a pandas query expression.
 
-    Validates the query for injection attacks and wraps non-identifier column
-    names in backticks if not already wrapped.
+    The query is prepared by :func:`prepare_query_expression`: non-identifier
+    column names are wrapped in backticks without rewriting string literals,
+    and the result is validated against an AST allowlist, so the string that
+    is validated is the string that executes.
 
     Args:
         df: Source DataFrame.
@@ -723,22 +725,24 @@ def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
         Filtered DataFrame.
 
     Raises:
+        HTTPException: If the query is empty or uses unsupported syntax.
         TransformationError: If the query fails to execute.
     """
-    # Validate for injection patterns
-    validate_query_string(query_string)
-
-    query = query_string.strip()
-
-    # Wrap non-identifier column names in backticks if not already wrapped
-    for col in df.columns:
-        if not col.isidentifier():
-            pattern = rf"(?<!`){re.escape(col)}(?!`)"
-            query = re.sub(pattern, f"`{col}`", query)
-
-    logger.debug("Executing query: %s", query)
     try:
-        return df.query(query, local_dict={"__builtins__": {}})
+        expr = prepare_query_expression(query_string, list(df.columns))
+    except HTTPException as e:
+        # A query that cannot even parse has always surfaced from this
+        # function as a TransformationError (it used to fail inside
+        # df.query); keep that contract so endpoint and replay error
+        # handling is unchanged. Validation rejections stay HTTPException,
+        # matching the formula path.
+        if e.detail == QUERY_PARSE_ERROR_DETAIL:
+            raise TransformationError(f"Query execution failed: {e.detail}") from e
+        raise
+
+    logger.debug("Executing query: %s", expr)
+    try:
+        return df.query(expr, local_dict={"__builtins__": {}})
     except Exception as e:
         raise TransformationError(f"Query execution failed: {e}") from e
 
