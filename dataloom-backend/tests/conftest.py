@@ -24,6 +24,21 @@ from app.main import app  # noqa: E402
 from app.services.auth_service import create_access_token  # noqa: E402
 from app.utils import df_cache  # noqa: E402
 
+try:
+    from pytest_benchmark.storage.file import FileStorage
+
+    _orig_file_storage_location = FileStorage.location.fget
+
+    def _safe_file_storage_location(self):
+        try:
+            return _orig_file_storage_location(self)
+        except ValueError:
+            return str(self.path)
+
+    FileStorage.location = property(_safe_file_storage_location)
+except ImportError:
+    pass
+
 # Use SQLite for tests. The database is in-memory: `setup_database` recreates the
 # schema for every test, and doing that against a file costs a disk round trip per
 # table per test, which dominated the suite's runtime.
