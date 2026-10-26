@@ -38,6 +38,18 @@ class TestBuildHistogram:
         with pytest.raises(ValueError, match="not numeric"):
             vs.build_histogram(pd.DataFrame({"c": ["a", "b"]}), "c")
 
+    def test_infinite_values_are_ignored(self):
+        spec = vs.build_histogram(pd.DataFrame({"v": [1, 2, np.inf, 4, -np.inf]}), "v", bins=3)
+        data = spec["series"][0]["data"]
+        assert sum(point["y"] for point in data) == 3
+        assert spec["meta"]["total_rows"] == 3
+        assert data[0]["x"].startswith("1")
+        assert data[-1]["x"].endswith("4")
+
+    def test_all_infinite_column_yields_empty_series(self):
+        spec = vs.build_histogram(pd.DataFrame({"v": [np.inf, -np.inf]}), "v")
+        assert spec["series"][0]["data"] == []
+
 
 # --- Service: build_bar_chart ---
 
@@ -190,6 +202,11 @@ class TestSuggestCharts:
         types = [spec["chart_type"] for spec in vs.suggest_charts(pd.DataFrame({"v": [1, 2, 3, 4]}))]
         assert "histogram" in types
 
+    def test_numeric_column_with_infinity_suggests_histogram(self):
+        suggestions = vs.suggest_charts(pd.DataFrame({"v": [1, 2, np.inf, 4]}))
+        histogram = next(spec for spec in suggestions if spec["chart_type"] == "histogram")
+        assert sum(point["y"] for point in histogram["series"][0]["data"]) == 3
+
 
 # --- JSON safety ---
 
@@ -227,6 +244,21 @@ def project_id(client, tmp_path):
     return response.json()["project_id"]
 
 
+@pytest.fixture
+def inf_project_id(client, tmp_path):
+    """Upload a CSV whose only numeric column contains an ``inf`` cell."""
+    csv = tmp_path / "viz_inf.csv"
+    csv.write_text("label,value\na,1\nb,2\nc,inf\nd,4\n")
+    with open(csv, "rb") as f:
+        response = client.post(
+            "/projects/upload",
+            files={"file": ("viz_inf.csv", f, "text/csv")},
+            data={"projectName": "Viz inf", "projectDescription": "fixture"},
+        )
+    assert response.status_code == 200, response.text
+    return response.json()["project_id"]
+
+
 class TestVisualizationEndpoints:
     def test_suggest(self, client, project_id):
         response = client.get(f"/projects/{project_id}/charts/suggest")
@@ -242,6 +274,20 @@ class TestVisualizationEndpoints:
         )
         assert response.status_code == 200, response.text
         assert response.json()["chart_type"] == "histogram"
+
+    def test_histogram_ignores_infinite_values(self, client, inf_project_id):
+        response = client.get(
+            f"/projects/{inf_project_id}/charts",
+            params={"chart_type": "histogram", "column": "value", "bins": 3},
+        )
+        assert response.status_code == 200, response.text
+        assert sum(p["y"] for p in response.json()["series"][0]["data"]) == 3
+
+    def test_suggest_with_infinite_values(self, client, inf_project_id):
+        response = client.get(f"/projects/{inf_project_id}/charts/suggest")
+        assert response.status_code == 200, response.text
+        types = [s["chart_type"] for s in response.json()["suggestions"]]
+        assert "histogram" in types
 
     def test_bar(self, client, project_id):
         response = client.get(
