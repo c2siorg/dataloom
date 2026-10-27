@@ -833,17 +833,107 @@ class TestAdvancedQuery:
 
 
 class TestPivotTable:
-    def test_simple_pivot(self):
-        df = pd.DataFrame(
+    @pytest.fixture
+    def pivot_df(self):
+        return pd.DataFrame(
             {
                 "city": ["NY", "LA", "NY", "LA"],
                 "product": ["A", "A", "B", "B"],
                 "sales": [100, 200, 150, 250],
+                "notes": ["good", "bad", "okay", "great"],
             }
         )
-        result = pivot_table(df, "city", "sales", aggfunc="sum")
+
+    def test_simple_pivot(self, pivot_df):
+        result = pivot_table(pivot_df, "city", "sales", aggfunc="sum")
         assert "city" in result.columns
         assert "sales" in result.columns
+
+    def test_pivot_with_column(self, pivot_df):
+        result = pivot_table(pivot_df, "city", "sales", column="product", aggfunc="sum")
+        assert list(result.columns) == ["city", "A", "B"]
+        assert result.columns.name is None
+
+    def test_pivot_rejects_empty_index(self, pivot_df):
+        with pytest.raises(TransformationError, match="At least one index column is required"):
+            pivot_table(pivot_df, "  ", "sales")
+
+    def test_pivot_rejects_value_as_index_column(self, pivot_df):
+        with pytest.raises(TransformationError, match="cannot also be an index column"):
+            pivot_table(pivot_df, "sales", "sales")
+
+        with pytest.raises(TransformationError, match="cannot also be an index column"):
+            pivot_table(pivot_df, "city, sales", "sales")
+
+    def test_pivot_rejects_pivot_column_as_index_column(self, pivot_df):
+        with pytest.raises(TransformationError, match="cannot also be an index column"):
+            pivot_table(pivot_df, "city", "sales", column="city")
+
+    def test_pivot_rejects_pivot_column_as_value_column(self, pivot_df):
+        with pytest.raises(TransformationError, match="cannot also be the value column"):
+            pivot_table(pivot_df, "city", "sales", column="sales")
+
+    def test_pivot_rejects_unsupported_aggfunc(self, pivot_df):
+        with pytest.raises(TransformationError, match="Unsupported aggregation function"):
+            pivot_table(pivot_df, "city", "sales", aggfunc="invalid_agg")
+
+    def test_pivot_rejects_non_numeric_aggregation(self, pivot_df):
+        with pytest.raises(TransformationError, match="Cannot aggregate column"):
+            pivot_table(pivot_df, "city", "notes", aggfunc="mean")
+
+    def test_pivot_with_multiple_indices(self, pivot_df):
+        result = pivot_table(pivot_df, "city, product", "sales", aggfunc="sum")
+        assert "city" in result.columns
+        assert "product" in result.columns
+        assert "sales" in result.columns
+        assert len(result) == 4
+
+    def test_pivot_count_on_string_column(self, pivot_df):
+        result = pivot_table(pivot_df, "city", "notes", column="product", aggfunc="count")
+        assert list(result.columns) == ["city", "A", "B"]
+        ny_row = result[result["city"] == "NY"]
+        assert ny_row["A"].iloc[0] == 1
+
+    def test_pivot_strips_whitespace_in_column_names(self, pivot_df):
+        result = pivot_table(pivot_df, " city , product ", " sales ", aggfunc="sum")
+        assert "city" in result.columns
+        assert "product" in result.columns
+        assert "sales" in result.columns
+
+    def test_pivot_logged_transformation(self, pivot_df):
+        result = apply_logged_transformation(
+            pivot_df,
+            "pivotTables",
+            {
+                "pivot_query": {
+                    "index": "city",
+                    "value": "sales",
+                    "column": "product",
+                    "aggfun": "sum",
+                }
+            },
+        )
+        assert list(result.columns) == ["city", "A", "B"]
+
+    def test_pivot_deduplicates_index_columns(self, pivot_df):
+        result = pivot_table(pivot_df, "city, city", "sales", aggfunc="sum")
+        assert list(result.columns) == ["city", "sales"]
+        assert len(result) == 2
+
+    def test_pivot_logged_transformation_validation_error(self, pivot_df):
+        with pytest.raises(TransformationError, match="cannot also be an index column"):
+            apply_logged_transformation(
+                pivot_df,
+                "pivotTables",
+                {
+                    "pivot_query": {
+                        "index": "city, sales",
+                        "value": "sales",
+                        "column": None,
+                        "aggfun": "sum",
+                    }
+                },
+            )
 
 
 class TestRenameColumn:
