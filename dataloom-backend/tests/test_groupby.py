@@ -88,3 +88,16 @@ class TestGroupBy:
     def test_agg_column_that_is_also_a_group_column(self, sample_df):
         with pytest.raises(TransformationError, match="group-by column"):
             group_by(sample_df, ["department"], "department", "count")
+
+    def test_non_numeric_aggregation(self, sample_df):
+        with pytest.raises(TransformationError, match="Cannot aggregate column"):
+            group_by(sample_df, ["department"], "employee", "mean")
+
+    def test_non_numeric_aggregation_median(self, sample_df):
+        with pytest.raises(TransformationError, match="Cannot aggregate column"):
+            group_by(sample_df, ["department"], "employee", "median")
+
+    def test_valid_string_count_aggregation(self, sample_df):
+        result = group_by(sample_df, ["department"], "employee", "count")
+        eng = result[result["department"] == "Engineering"]["employee"].iloc[0]
+        assert eng == 2

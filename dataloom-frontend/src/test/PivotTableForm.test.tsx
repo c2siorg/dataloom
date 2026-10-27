@@ -440,4 +440,57 @@ describe("PivotTableForm", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(mockCancelPreview).not.toHaveBeenCalled();
   });
+
+  it("shows an error when pivot column is also an index column", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.selectOptions(screen.getByLabelText("Index"), "amount");
+    const [columnSelect, valueSelect] = getColumnSelects();
+    await user.selectOptions(columnSelect!, "amount");
+    await user.selectOptions(valueSelect!, "created_at");
+
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Pivot column cannot also be an index column.")).toBeInTheDocument();
+    });
+    expect(mockTransformProject).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when value column is also an index column", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.selectOptions(screen.getByLabelText("Index"), "amount");
+    const [columnSelect, valueSelect] = getColumnSelects();
+    await user.selectOptions(columnSelect!, "created_at");
+    await user.selectOptions(valueSelect!, "amount");
+
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Value column cannot also be an index column.")).toBeInTheDocument();
+    });
+    expect(mockTransformProject).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when pivot column equals value column", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.selectOptions(screen.getByLabelText("Index"), "region");
+    const [columnSelect, valueSelect] = getColumnSelects();
+    await user.selectOptions(columnSelect!, "amount");
+    await user.selectOptions(valueSelect!, "amount");
+
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Pivot column and value column must be different."),
+      ).toBeInTheDocument();
+    });
+    expect(mockTransformProject).not.toHaveBeenCalled();
+  });
 });
