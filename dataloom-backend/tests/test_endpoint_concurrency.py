@@ -51,6 +51,8 @@ def test_only_explicitly_allowed_routes_are_async():
         "projects.get_project_meta",
         "project_files.preview_add_file",
         "project_files.add_file",
+        "merges.analyze_file_merge",
+        "merges.execute_file_merge",
     }
     actual_async_routes = set()
 
