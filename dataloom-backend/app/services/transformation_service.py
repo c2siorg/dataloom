@@ -1040,6 +1040,40 @@ def apply_add_file(df: pd.DataFrame, file_path: str) -> pd.DataFrame:
     return append_dataframes(df, new_df)
 
 
+def apply_merge_dataset(
+    df: pd.DataFrame,
+    file_path: str | None = None,
+    left_on: list[str] | str | None = None,
+    right_on: list[str] | str | None = None,
+    how: str = "inner",
+    suffixes: list[str] | tuple[str, str] = ("_left", "_right"),
+) -> pd.DataFrame:
+    """Replay a mergeDataset transformation from an immutable stored file.
+
+    Args:
+        df: Source DataFrame.
+        file_path: Path to the stored lookup file.
+        left_on: Left key column(s).
+        right_on: Right key column(s).
+        how: Relational join type.
+        suffixes: Overlapping column suffixes.
+
+    Returns:
+        The merged DataFrame with normalized columns and index.
+    """
+    if not file_path:
+        logger.warning("No file_path recorded for mergeDataset replay; returning DataFrame unchanged.")
+        return df
+    try:
+        right_df = read_table_safe(Path(file_path))
+    except Exception as e:
+        logger.warning("Could not read stored file for mergeDataset replay: %s", file_path)
+        raise TransformationError("Stored file for this merge is missing or unreadable") from e
+    from app.services.merge_service import merge_dataframes
+
+    return merge_dataframes(df, right_df, left_on=left_on, right_on=right_on, how=how, suffixes=tuple(suffixes))
+
+
 @dataclass(frozen=True)
 class TransformationSpec:
     """Describes how to validate, dispatch, and persist one transformation.
@@ -1283,6 +1317,20 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             d["standardize_dates_params"]["column"],
             d["standardize_dates_params"]["output_format"],
         ),
+    ),
+    OperationType.mergeDataset: TransformationSpec(
+        func="apply_merge_dataset",
+        label="Merge dataset",
+        params_field="merge_params",
+        missing_error="Merge dataset operations must use the /merge endpoint",
+        build_args=lambda d: (
+            (d.get("merge_params") or d).get("file_path"),
+            (d.get("merge_params") or d).get("left_on"),
+            (d.get("merge_params") or d).get("right_on"),
+            (d.get("merge_params") or d).get("how", "inner"),
+            (d.get("merge_params") or d).get("suffixes", ("_left", "_right")),
+        ),
+        reusable=False,
     ),
 }
 

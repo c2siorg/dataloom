@@ -48,6 +48,7 @@ class OperationType(StrEnum):
     addFile = "addFile"
     addFormulaCol = "addFormulaCol"
     standardizeDates = "standardizeDates"
+    mergeDataset = "mergeDataset"
 
 
 class DropDup(StrEnum):
@@ -1094,3 +1095,73 @@ class JobResponse(BaseModel):
     created_at: datetime.datetime
     started_at: datetime.datetime | None
     finished_at: datetime.datetime | None
+
+
+# --- Merge Schemas ---
+
+
+class JoinType(StrEnum):
+    """Supported SQL-standard relational join methods."""
+
+    inner = "inner"
+    left = "left"
+    right = "right"
+    outer = "outer"
+    cross = "cross"
+
+    # Uppercase aliases for backward-compatible member access
+    INNER = "inner"
+    LEFT = "left"
+    RIGHT = "right"
+    OUTER = "outer"
+    CROSS = "cross"
+
+
+class MergeAnalyzeRequest(BaseModel):
+    """Request model for pre-merge alignment analysis against a target project."""
+
+    target_project_id: uuid.UUID
+    left_on: list[str] | str | None = None
+    right_on: list[str] | str | None = None
+    how: JoinType = JoinType.inner
+    suffixes: tuple[str, str] = ("_left", "_right")
+
+
+class MergeColumnInfo(BaseModel):
+    """Information on a column projected in a merge result."""
+
+    name: str
+    dtype: str
+
+
+class MergeAnalysisResponse(BaseModel):
+    """Diagnostic metrics and match rates returned by pre-merge analysis."""
+
+    relationship: str
+    left_row_count: int
+    right_row_count: int
+    matched_left_rows: int
+    unmatched_left_rows: int
+    match_rate_left: float
+    matched_right_rows: int
+    unmatched_right_rows: int
+    match_rate_right: float
+    estimated_output_rows: int
+    has_duplicate_left_keys: bool
+    has_duplicate_right_keys: bool
+    warning: str | None = None
+    column_conflicts: list[str]
+    resulting_columns: list[MergeColumnInfo]
+    sample_unmatched_left_keys: list[JsonValue]
+    sample_unmatched_right_keys: list[JsonValue]
+
+
+class MergeExecuteRequest(BaseModel):
+    """Request payload to execute a relational dataset merge."""
+
+    target_project_id: uuid.UUID
+    left_on: list[str] | str | None = None
+    right_on: list[str] | str | None = None
+    how: JoinType = JoinType.inner
+    suffixes: tuple[str, str] = ("_left", "_right")
+    max_rows_limit: int | None = Field(default=1_000_000, description="Cartesian safety ceiling")
