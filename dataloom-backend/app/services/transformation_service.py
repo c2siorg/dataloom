@@ -666,6 +666,144 @@ def standardize_dates(df: pd.DataFrame, column: str, output_format: str) -> pd.D
     return df
 
 
+def handle_outliers(
+    df: pd.DataFrame,
+    column: str,
+    method: str = "iqr",
+    action: str = "clip",
+    sensitivity: float | None = None,
+    lower_percentile: float | None = None,
+    upper_percentile: float | None = None,
+    flag_column: str | None = None,
+) -> pd.DataFrame:
+    """Detect and remediate statistical outliers in a numeric column.
+
+    Supports Tukey's IQR fences, Z-score distance, and percentile bounds,
+    with four remediation actions:
+    - ``clip`` (Winsorization): Clamp extreme values to lower/upper thresholds.
+    - ``drop``: Remove rows containing outlier values.
+    - ``set_null``: Replace outlier values with NaN for downstream imputation.
+    - ``flag``: Append a boolean indicator column (e.g. ``<col>_is_outlier``).
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to evaluate.
+        method: Outlier detection algorithm: 'iqr', 'zscore', or 'percentile'.
+        action: Remediation strategy: 'clip', 'drop', 'set_null', or 'flag'.
+        sensitivity: Fence multiplier for IQR (default 1.5) or |z| threshold (default 3.0).
+        lower_percentile: Lower quantile for percentile method (default 0.01).
+        upper_percentile: Upper quantile for percentile method (default 0.99).
+        flag_column: Custom name for the boolean indicator column when action='flag'.
+
+    Returns:
+        New transformed DataFrame with outliers remediated.
+
+    Raises:
+        TransformationError: If the column is missing, non-numeric, or parameters are invalid.
+    """
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+    column = stripped_to_original[column_stripped]
+
+    series = df[column]
+    if pd.api.types.is_bool_dtype(series):
+        raise TransformationError(
+            f"Column '{column}' is boolean. Outlier detection requires continuous or discrete numeric data."
+        )
+    if not pd.api.types.is_numeric_dtype(series):
+        numeric_series = pd.to_numeric(series.dropna(), errors="coerce")
+        if numeric_series.isna().any() or numeric_series.empty:
+            raise TransformationError(f"Column '{column}' is not numeric. Outlier detection requires numeric data.")
+        series = pd.to_numeric(series, errors="coerce")
+
+    valid_methods = {"iqr", "zscore", "percentile"}
+    method_str = str(method).lower().strip()
+    if method_str not in valid_methods:
+        raise TransformationError(f"Unknown outlier method: '{method}'. Supported methods: {sorted(valid_methods)}")
+
+    valid_actions = {"clip", "drop", "set_null", "flag"}
+    action_str = str(action).lower().strip()
+    if action_str not in valid_actions:
+        raise TransformationError(f"Unknown outlier action: '{action}'. Supported actions: {sorted(valid_actions)}")
+
+    flag_col = None
+    if action_str == "flag":
+        flag_col = flag_column.strip() if flag_column and flag_column.strip() else f"{column}_is_outlier"
+        if flag_col in df.columns:
+            raise TransformationError(
+                f"Flag column '{flag_col}' already exists in DataFrame. Please specify a different flag_column name."
+            )
+
+    non_null = series.dropna()
+    if len(non_null) < 4:
+        logger.warning(
+            "Column '%s' has fewer than 4 non-null values (%d); skipping outlier detection.", column, len(non_null)
+        )
+        result_df = df.copy()
+        if action_str == "flag" and flag_col is not None:
+            result_df[flag_col] = False
+        return result_df
+
+    if method_str == "iqr":
+        k = 1.5 if sensitivity is None else float(sensitivity)
+        if k <= 0:
+            raise TransformationError("Sensitivity multiplier for IQR method must be positive.")
+        q1 = float(non_null.quantile(0.25))
+        q3 = float(non_null.quantile(0.75))
+        iqr = q3 - q1
+        lower_bound = q1 - k * iqr
+        upper_bound = q3 + k * iqr
+        outlier_mask = (series < lower_bound) | (series > upper_bound)
+
+    elif method_str == "zscore":
+        thresh = 3.0 if sensitivity is None else float(sensitivity)
+        if thresh <= 0:
+            raise TransformationError("Sensitivity threshold for Z-score method must be positive.")
+        mean = float(non_null.mean())
+        std = float(non_null.std(ddof=0))
+        if std == 0 or math.isclose(std, 0.0):
+            outlier_mask = pd.Series(False, index=series.index)
+            lower_bound = mean
+            upper_bound = mean
+        else:
+            lower_bound = mean - thresh * std
+            upper_bound = mean + thresh * std
+            outlier_mask = ((series - mean) / std).abs() > thresh
+
+    elif method_str == "percentile":
+        low_p = 0.01 if lower_percentile is None else float(lower_percentile)
+        high_p = 0.99 if upper_percentile is None else float(upper_percentile)
+        if not (0.0 <= low_p < high_p <= 1.0):
+            raise TransformationError(
+                f"Invalid percentiles: lower ({low_p}) must be less than upper ({high_p}), both in [0, 1]."
+            )
+        lower_bound = float(non_null.quantile(low_p))
+        upper_bound = float(non_null.quantile(high_p))
+        outlier_mask = (series < lower_bound) | (series > upper_bound)
+
+    outlier_mask = outlier_mask.fillna(False)
+    result_df = df.copy()
+
+    if action_str == "clip":
+        result_df[column] = series.clip(lower=lower_bound, upper=upper_bound)
+
+    elif action_str == "drop":
+        result_df = result_df[~outlier_mask].reset_index(drop=True)
+
+    elif action_str == "set_null":
+        if pd.api.types.is_integer_dtype(result_df[column]):
+            result_df[column] = result_df[column].astype(float)
+        result_df.loc[outlier_mask, column] = float("nan")
+
+    elif action_str == "flag":
+        result_df[flag_col] = outlier_mask
+
+    return result_df
+
+
 def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
     """Replace occurrences of a substring in a column.
 
@@ -1243,6 +1381,22 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             d["standardize_dates_params"]["column"],
             d["standardize_dates_params"]["output_format"],
         ),
+    ),
+    OperationType.handleOutliers: TransformationSpec(
+        func="handle_outliers",
+        label="Handle outliers",
+        params_field="outlier_params",
+        missing_error="Outlier parameters required",
+        build_args=lambda d: (
+            d["outlier_params"]["column"],
+            d["outlier_params"].get("method", "iqr"),
+            d["outlier_params"].get("action", "clip"),
+            d["outlier_params"].get("sensitivity"),
+            d["outlier_params"].get("lower_percentile"),
+            d["outlier_params"].get("upper_percentile"),
+            d["outlier_params"].get("flag_column"),
+        ),
+        reusable=True,
     ),
 }
 
