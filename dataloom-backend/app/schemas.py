@@ -49,6 +49,7 @@ class OperationType(StrEnum):
     addFormulaCol = "addFormulaCol"
     standardizeDates = "standardizeDates"
     mergeDataset = "mergeDataset"
+    handleOutliers = "handleOutliers"
 
 
 class DropDup(StrEnum):
@@ -224,6 +225,45 @@ class StandardizeDatesParams(BaseModel):
     output_format: DateOutputFormat
 
 
+class OutlierTransformMethod(StrEnum):
+    """Statistical method for identifying outlier values in transformations."""
+
+    iqr = "iqr"
+    zscore = "zscore"
+    percentile = "percentile"
+
+
+class OutlierAction(StrEnum):
+    """Action to take on detected outlier values."""
+
+    clip = "clip"
+    drop = "drop"
+    set_null = "set_null"
+    flag = "flag"
+
+
+class OutlierParams(BaseModel):
+    """Parameters for statistical outlier detection and remediation."""
+
+    column: str
+    method: OutlierTransformMethod = OutlierTransformMethod.iqr
+    action: OutlierAction = OutlierAction.clip
+    sensitivity: float | None = Field(default=None, gt=0.0)
+    lower_percentile: float | None = Field(default=None, ge=0.0, le=1.0)
+    upper_percentile: float | None = Field(default=None, ge=0.0, le=1.0)
+    flag_column: str | None = None
+
+    @model_validator(mode="after")
+    def validate_percentiles(self):
+        eff_lower = 0.01 if self.lower_percentile is None else self.lower_percentile
+        eff_upper = 0.99 if self.upper_percentile is None else self.upper_percentile
+        if eff_lower >= eff_upper:
+            raise ValueError(
+                f"lower_percentile ({eff_lower}) must be strictly less than upper_percentile ({eff_upper})"
+            )
+        return self
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -381,6 +421,7 @@ class TransformationInput(BaseModel):
     string_replace_params: StringReplaceParams | None = None
     formula_col_params: FormulaColumnParams | None = None
     standardize_dates_params: StandardizeDatesParams | None = None
+    outlier_params: OutlierParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
