@@ -39,13 +39,14 @@ jobs:
       - name: Benchmark main (baseline)
         id: baseline
         run: |
+          benchmark_storage=.benchmarks
           git checkout --quiet HEAD^1
           if [ -d tests/benchmarks ]; then
             echo "expected=true" >> "$GITHUB_OUTPUT"
             uv sync --frozen
             uv run pytest tests/benchmarks --benchmark-enable --benchmark-only \
               --benchmark-warmup=on --benchmark-min-rounds=10 \
-              --benchmark-storage="$RUNNER_TEMP/benchmarks" --benchmark-save=main
+              --benchmark-storage="$benchmark_storage" --benchmark-save=main
           else
             echo "expected=false" >> "$GITHUB_OUTPUT"
           fi
@@ -53,15 +54,16 @@ jobs:
 
       - name: Benchmark PR and compare
         run: |
+          benchmark_storage=.benchmarks
           uv sync --frozen
           args=(
             --benchmark-enable
             --benchmark-only
             --benchmark-warmup=on
             --benchmark-min-rounds=10
-            --benchmark-storage="$RUNNER_TEMP/benchmarks"
+            --benchmark-storage="$benchmark_storage"
           )
-          baseline=$(find "$RUNNER_TEMP/benchmarks" -type f -name '*_main.json' -print -quit 2>/dev/null || true)
+          baseline=$(find "$benchmark_storage" -type f -name '*_main.json' -print -quit 2>/dev/null || true)
           if [ -n "$baseline" ]; then
             args+=(--benchmark-compare="$baseline" --benchmark-compare-fail=min:50%)
           elif [ "${{ steps.baseline.outputs.expected }}" = "true" ]; then
