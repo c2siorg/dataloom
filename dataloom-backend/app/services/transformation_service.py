@@ -168,14 +168,28 @@ def apply_sort(
             columns.append(col_name)
             ascending_list.append(criterion.get("ascending", True))
 
-        return df.sort_values(by=columns, ascending=ascending_list)
+        try:
+            return df.sort_values(by=columns, ascending=ascending_list)
+        except TypeError as e:
+            # A column can hold mixed Python types (e.g. a JSON upload whose
+            # records disagree on a key's type); pandas then cannot compare
+            # its values, which is a client error, not a server fault.
+            raise TransformationError(
+                f"Cannot sort by columns {columns}: values have mixed types that cannot be compared"
+            ) from e
 
     # Single-column mode (backward compatible)
     if column is None:
         raise TransformationError("Column name is required for sorting")
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
-    return df.sort_values(by=column, ascending=ascending)
+    try:
+        return df.sort_values(by=column, ascending=ascending)
+    except TypeError as e:
+        # See the criteria path above: mixed-type values cannot be compared.
+        raise TransformationError(
+            f"Cannot sort by column '{column}': values have mixed types that cannot be compared"
+        ) from e
 
 
 def add_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
