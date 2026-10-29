@@ -126,6 +126,16 @@ class TestBuildLineChart:
         with pytest.raises(ValueError, match="at least one y"):
             vs.build_line_chart(pd.DataFrame({"x": [1]}), "x", [])
 
+    def test_mixed_type_x_column_raises(self):
+        df = pd.DataFrame({"x": [1, "two", 3], "y": [10, 20, 30]})
+        with pytest.raises(ValueError, match="mixed types and cannot be ordered"):
+            vs.build_line_chart(df, "x", ["y"])
+
+    def test_mixed_type_x_column_raises_for_area_chart(self):
+        df = pd.DataFrame({"x": [1, "two", 3], "y": [10, 20, 30]})
+        with pytest.raises(ValueError, match="mixed types and cannot be ordered"):
+            vs.build_area_chart(df, "x", ["y"])
+
 
 # --- Service: build_scatter_plot ---
 
@@ -317,6 +327,26 @@ class TestVisualizationEndpoints:
             params={"chart_type": "histogram", "column": "region"},
         )
         assert response.status_code == 400
+
+    def test_mixed_type_x_line_chart_returns_400(self, client, tmp_path):
+        import json
+
+        path = tmp_path / "mixed.json"
+        path.write_text(json.dumps([{"x": 1, "y": 10}, {"x": "two", "y": 20}, {"x": 3, "y": 30}]))
+        with open(path, "rb") as f:
+            upload = client.post(
+                "/projects/upload",
+                files={"file": ("mixed.json", f, "application/json")},
+                data={"projectName": "Mixed x", "projectDescription": "fixture"},
+            )
+        assert upload.status_code == 200, upload.text
+        pid = upload.json()["project_id"]
+        response = client.get(
+            f"/projects/{pid}/charts",
+            params={"chart_type": "line", "x": "x", "y": ["y"]},
+        )
+        assert response.status_code == 400
+        assert "mixed types" in response.json()["detail"]
 
     def test_unknown_column_returns_404(self, client, project_id):
         response = client.get(
