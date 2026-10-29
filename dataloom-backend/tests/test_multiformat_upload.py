@@ -115,6 +115,46 @@ class TestExportNativeFormat:
         assert response.json()["detail"] == "Legacy .xls files are read-only; export as .xlsx instead."
 
 
+# --- Exports must not carry live spreadsheet formulas ----------------------
+
+FORMULA_SAMPLE = b"name,note\nAlice,=1+1\nBob,\"+2+2+cmd|' /C calc'!A0\"\nCarol,hello\nDave,-5\n"
+
+
+class TestExportFormulaSanitization:
+    """A cell starting with =, +, - or @ must reach a spreadsheet application
+    as text, not as a formula (CWE-1236) — while the stored dataset keeps the
+    original values untouched."""
+
+    def test_native_csv_export_neutralizes_formula_cells(self, client):
+        project_id = _upload(client, FORMULA_SAMPLE, "data.csv").json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export")
+
+        assert response.status_code == 200
+        exported = pd.read_csv(BytesIO(response.content), dtype=str)
+        assert exported["note"].tolist() == ["'=1+1", "'+2+2+cmd|' /C calc'!A0", "hello", "-5"]
+
+    def test_xlsx_export_neutralizes_formula_cells(self, client):
+        project_id = _upload(client, FORMULA_SAMPLE, "data.csv").json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export", params={"format": "xlsx"})
+
+        assert response.status_code == 200
+        exported = pd.read_excel(BytesIO(response.content), dtype=str)
+        assert exported["note"].iloc[0] == "'=1+1"
+        assert exported["note"].iloc[1] == "'+2+2+cmd|' /C calc'!A0"
+
+    def test_export_leaves_the_stored_dataset_untouched(self, client):
+        project_id = _upload(client, FORMULA_SAMPLE, "data.csv").json()["project_id"]
+
+        client.get(f"/projects/{project_id}/export")
+        project = client.get(f"/projects/get/{project_id}")
+
+        assert project.status_code == 200, project.text
+        notes = [row[1] for row in project.json()["rows"]]
+        assert notes == ["=1+1", "+2+2+cmd|' /C calc'!A0", "hello", "-5"]
+
+
 def _decode(content: bytes, ext: str) -> pd.DataFrame:
     """Parse downloaded export bytes for the given target format."""
     if ext == "csv":

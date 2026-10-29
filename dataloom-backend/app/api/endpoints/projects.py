@@ -54,7 +54,13 @@ from app.services.project_service import (
     update_project,
 )
 from app.services.transformation_service import apply_logged_transformation
-from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
+from app.utils.file_formats import (
+    SPREADSHEET_EXPORT_EXTENSIONS,
+    TableWriteOptions,
+    get_format,
+    get_format_for_extension,
+    sanitize_formula_cells,
+)
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import (
     dataframe_to_response,
@@ -359,7 +365,11 @@ def export_project(
         encoding=encoding,
     )
 
-    native = target_fmt.extension == source_fmt.extension and not write_options.has_options()
+    # Spreadsheet targets never take the byte-copy path: formula-leading
+    # cells are neutralised on the way out (see sanitize_formula_cells), so
+    # they always go through the read-and-write conversion below.
+    sanitize = target_fmt.extension in SPREADSHEET_EXPORT_EXTENSIONS
+    native = not sanitize and target_fmt.extension == source_fmt.extension and not write_options.has_options()
 
     # Snapshot under the shared read lock. FileResponse streams after we return,
     # so serving the live working copy could tear if a writer starts mid-download.
@@ -372,6 +382,8 @@ def export_project(
             else:
                 df = read_table_safe(project.file_path)
         if not native:
+            if sanitize:
+                df = sanitize_formula_cells(df)
             save_table_safe(df, Path(tmp_path), write_options)
         return FileResponse(
             tmp_path,
