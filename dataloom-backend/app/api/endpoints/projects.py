@@ -32,6 +32,7 @@ from app.services.file_service import (
 )
 from app.services.job_service import ensure_no_active_exclusive_job
 from app.services.project_service import (
+    advance_working_copy_revision,
     create_checkpoint,
     create_project,
     create_project_column_metadata,
@@ -46,6 +47,7 @@ from app.services.project_service import (
     get_recent_projects,
     get_redo_step,
     get_undo_state,
+    lock_working_copy_revision,
     mark_step_redone,
     mark_step_undone,
     reconcile_project_column_metadata,
@@ -493,6 +495,7 @@ def _undo_last_transformation(
     project: models.Project,
     db: Session,
 ) -> dict:
+    lock_working_copy_revision(db, project_id)
     last_log = get_last_pending_change_log(db, project_id)
     if not last_log:
         raise HTTPException(status_code=404, detail="No transformations to undo")
@@ -515,6 +518,7 @@ def _undo_last_transformation(
             metadata_source = step.metadata_before if isinstance(step.metadata_before, dict) else current_metadata
             metadata = reconcile_project_column_metadata(df, metadata_source)
             replace_project_column_metadata(db, project_id, metadata)
+            advance_working_copy_revision(db, project)
             db.commit()
         else:
             replayed = True
@@ -539,6 +543,7 @@ def _undo_last_transformation(
             metadata_source = step.metadata_before if isinstance(step.metadata_before, dict) else current_metadata
             metadata = reconcile_project_column_metadata(df, metadata_source)
             replace_project_column_metadata(db, project_id, metadata)
+            advance_working_copy_revision(db, project)
             db.commit()
     except Exception as e:
         restored = not working_changed or restore_after_failure(after_path, working_path, project_id)
@@ -619,6 +624,7 @@ def _redo_last_transformation(
     project: models.Project,
     db: Session,
 ) -> dict:
+    lock_working_copy_revision(db, project_id)
     step = get_redo_step(db, project_id)
     if step is None:
         raise HTTPException(status_code=404, detail="Nothing to redo")
@@ -645,6 +651,7 @@ def _redo_last_transformation(
         metadata_source = step.metadata_after if isinstance(step.metadata_after, dict) else current_metadata
         metadata = reconcile_project_column_metadata(df, metadata_source)
         replace_project_column_metadata(db, project_id, metadata)
+        advance_working_copy_revision(db, project)
         db.commit()
     except Exception as e:
         if working_changed:

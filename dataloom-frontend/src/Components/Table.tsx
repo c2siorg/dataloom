@@ -32,6 +32,7 @@ import useColumnProfiles from "../hooks/useColumnProfiles";
 import { useColumnWindow } from "../hooks/useColumnWindow";
 import { useToast } from "../context/ToastContext";
 import { usePanel } from "../context/PanelContext";
+import { isStaleRevisionConflict, STALE_PREVIEW_MESSAGE } from "../utils/errorUtils";
 
 /** Above this many data columns, only the columns in view are rendered. */
 export const VIRTUALIZE_COLUMN_THRESHOLD = 50;
@@ -50,6 +51,7 @@ interface TransformResponse {
   columns: string[];
   rows: Array<Cell[] | Record<string, Cell>>;
   dtypes?: Record<string, string>;
+  working_copy_revision?: number;
 }
 
 type ToastType = "success" | "error" | "info" | "warning";
@@ -489,6 +491,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
             preview: true,
             page: targetPage,
             pageSize: targetPageSize,
+            expectedRevision: pendingTransform.revision,
           },
         )) as unknown as TransformResponse & {
           total_rows: number;
@@ -508,16 +511,21 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
           page: response.page,
           page_size: response.page_size,
         });
-      } catch {
+      } catch (err) {
         // Ignore errors from stale requests.
         if (requestId !== previewRequestIdRef.current) {
           return;
         }
 
-        setToast({
-          message: "Failed to load preview page. Please try again.",
-          type: "error",
-        });
+        if (isStaleRevisionConflict(err)) {
+          cancelPreview();
+          setToast({ message: STALE_PREVIEW_MESSAGE, type: "error" });
+        } else {
+          setToast({
+            message: "Failed to load preview page. Please try again.",
+            type: "error",
+          });
+        }
       } finally {
         // Only the latest request controls the loading state.
         if (requestId === previewRequestIdRef.current) {
@@ -525,7 +533,7 @@ const Table = ({ projectId, showColumnProfiles = false }: TableProps) => {
         }
       }
     },
-    [pendingTransform, updatePreviewPage],
+    [pendingTransform, updatePreviewPage, cancelPreview],
   );
 
   const handlePageChange = async (newPage: number) => {

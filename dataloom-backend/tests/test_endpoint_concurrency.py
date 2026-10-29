@@ -27,6 +27,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
 from app import models, schemas
@@ -121,6 +122,7 @@ def test_concurrent_transforms_for_same_project_do_not_lose_updates(monkeypatch)
         current = df.copy()
 
     monkeypatch.setattr(transformations, "read_table_safe", _read)
+    monkeypatch.setattr(transformations, "lock_working_copy_revision", lambda *_args, **_kwargs: 0)
     monkeypatch.setattr(transformations, "get_project_column_metadata", lambda *_args: {})
     monkeypatch.setattr(transformations, "_dispatch_transform", _transform)
     monkeypatch.setattr(transformations, "commit_undoable_change", lambda _db, _project, df, _entries: _save(df, None))
@@ -136,6 +138,60 @@ def test_concurrent_transforms_for_same_project_do_not_lose_updates(monkeypatch)
         second.result(timeout=2)
 
     assert current["value"].tolist() == [2]
+
+
+def test_two_commits_from_one_preview_revision_cannot_both_succeed(monkeypatch):
+    project_id = uuid.uuid4()
+    project = models.Project(
+        project_id=project_id,
+        name="stale-preview-fixture",
+        file_path="unused.csv",
+        owner_id=uuid.uuid4(),
+    )
+    state = {"revision": 0, "value": 0}
+    start_together = threading.Barrier(3)
+    monkeypatch.setattr(
+        transformations,
+        "lock_working_copy_revision",
+        lambda *_args, **_kwargs: state["revision"],
+    )
+
+    def _commit(*args):
+        revision = args[-1]
+        state["value"] += 1
+        state["revision"] += 1
+        return {"working_copy_revision": revision + 1}
+
+    monkeypatch.setattr(transformations, "_transform_project", _commit)
+    payload = schemas.TransformationInput(operation_type=schemas.OperationType.dropNa)
+
+    def _call():
+        start_together.wait(timeout=2)
+        return transformations.transform_project(
+            project_id,
+            payload,
+            False,
+            1,
+            50,
+            object(),
+            project,
+            expected_revision=0,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(_call)
+        second = executor.submit(_call)
+        start_together.wait(timeout=2)
+        outcomes = []
+        for future in (first, second):
+            try:
+                outcomes.append(future.result(timeout=2))
+            except HTTPException as error:
+                outcomes.append(error.status_code)
+
+    assert sum(isinstance(outcome, dict) for outcome in outcomes) == 1
+    assert outcomes.count(409) == 1
+    assert state == {"revision": 1, "value": 1}
 
 
 def test_same_project_read_does_not_observe_torn_write(tmp_path, db, monkeypatch):
@@ -156,6 +212,7 @@ def test_same_project_read_does_not_observe_torn_write(tmp_path, db, monkeypatch
     )
     monkeypatch.setattr(projects, "get_project_column_metadata", lambda *_args: {})
     monkeypatch.setattr(transformations, "get_project_column_metadata", lambda *_args: {})
+    monkeypatch.setattr(transformations, "lock_working_copy_revision", lambda *_args, **_kwargs: 0)
     write_started = threading.Event()
     allow_finish = threading.Event()
 
@@ -497,6 +554,7 @@ def test_concurrent_appends_for_same_project_do_not_lose_rows(monkeypatch):
     first one is still mid-flight, so its save discards the first one's rows.
     """
     project, state, first_read = _append_fixture(monkeypatch)
+    monkeypatch.setattr(project_files, "lock_working_copy_revision", lambda *_args, **_kwargs: 0)
 
     def _call():
         return project_files._append_and_log(object(), project, "stored.csv", "stored.csv", uuid.uuid4(), 1, 50)
@@ -583,6 +641,7 @@ def test_concurrent_pipeline_applies_do_not_lose_updates(monkeypatch):
 
     monkeypatch.setattr(pipelines, "fetch_owned_pipeline", lambda *args, **kwargs: object())
     monkeypatch.setattr(pipelines, "fetch_owned_project", lambda *args, **kwargs: project)
+    monkeypatch.setattr(pipelines, "lock_working_copy_revision", lambda *_args, **_kwargs: 0)
     monkeypatch.setattr(pipelines, "ensure_no_active_exclusive_job", lambda *args, **kwargs: None)
     monkeypatch.setattr(pipelines, "read_project_df", _read_working_copy)
     monkeypatch.setattr(pipelines, "get_project_column_metadata", lambda *_args: {})

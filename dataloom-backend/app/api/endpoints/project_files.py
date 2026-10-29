@@ -31,6 +31,7 @@ from app.services.project_service import (
     get_project_column_metadata,
     get_project_file,
     get_project_files,
+    lock_working_copy_revision,
 )
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, restore_semantic_dtypes
@@ -101,6 +102,7 @@ def _append_and_log_locked(
     page_size: int,
 ) -> dict:
     """Body of :func:`_append_and_log`; assumes the project write lock is held."""
+    lock_working_copy_revision(db, project.project_id)
     df = restore_semantic_dtypes(read_project_df(project), get_project_column_metadata(db, project.project_id))
     new_df = read_table_safe(Path(stored_path))
     combined = append_dataframes(df, new_df)

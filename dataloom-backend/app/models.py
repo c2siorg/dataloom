@@ -77,6 +77,10 @@ class Project(SQLModel, table=True):
     )
     file_path: str
     original_column_metadata: dict[str, str] | None = Field(default=None, sa_column=Column(sa.JSON, nullable=True))
+    working_copy_revision: int = Field(
+        default=0,
+        sa_column=Column(sa.Integer, nullable=False, server_default="0"),
+    )
 
     owner: User = Relationship(back_populates="projects")
     logs: list["ProjectChangeLog"] = Relationship(

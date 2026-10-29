@@ -387,6 +387,10 @@ class BasicQueryResponse(BaseModel):
 
     project_id: uuid.UUID
     operation_type: str
+    working_copy_revision: int | None = Field(
+        default=None,
+        description="Revision of the working copy used for this result when supplied by the endpoint",
+    )
     row_count: int
     columns: list[str]
     rows: list[list]

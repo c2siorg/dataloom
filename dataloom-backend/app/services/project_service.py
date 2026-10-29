@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlmodel import Session
 
 from app import models
@@ -36,6 +37,42 @@ from app.utils.pandas_helpers import (
 )
 
 logger = get_logger(__name__)
+
+
+def lock_working_copy_revision(db: Session, project_id: uuid.UUID, *, shared: bool = False) -> int:
+    """Lock and return the persisted revision for a working-copy operation.
+
+    PostgreSQL row locks extend the in-process readers/writer lock across
+    application workers. A shared lock is used for previews; writers hold an
+    exclusive row lock through their file and database transaction.
+    """
+    statement = (
+        sa.select(models.Project.working_copy_revision)
+        .where(models.Project.project_id == project_id)
+        .with_for_update(read=shared)
+    )
+    revision = db.execute(statement).scalar_one_or_none()
+    if revision is None:
+        raise HTTPException(status_code=404, detail=f"Project with ID {project_id} not found")
+    return int(revision)
+
+
+def advance_working_copy_revision(db: Session, project: models.Project) -> int:
+    """Advance a project's revision in the caller's file-and-history transaction.
+
+    The project row was locked before the working copy was read. Executing this
+    update before commit makes the revision change atomic with the existing
+    undoable persistence transaction; a rollback leaves it unchanged.
+    """
+    statement = (
+        sa.update(models.Project)
+        .where(models.Project.project_id == project.project_id)
+        .values(working_copy_revision=models.Project.working_copy_revision + 1)
+        .returning(models.Project.working_copy_revision)
+    )
+    revision = db.execute(statement).scalar_one()
+    set_committed_value(project, "working_copy_revision", int(revision))
+    return int(revision)
 
 
 def create_project(
@@ -427,7 +464,7 @@ def commit_undoable_change(
     result_df: pd.DataFrame,
     entries: Sequence[tuple[str, dict]],
     transitions: Sequence[tuple[str, dict, pd.DataFrame, pd.DataFrame]] | None = None,
-) -> None:
+) -> int:
     """Persist a transformed working copy as one atomic undoable action.
 
     The caller must hold the project's exclusive write lock. ``entries`` are
@@ -449,7 +486,7 @@ def commit_undoable_change(
         entries: Ordered ``(action_type, action_details)`` pairs to log.
 
     Returns:
-        None.
+        The new working-copy revision after the transaction commits.
 
     Raises:
         Exception: Re-raises the original reconciliation, file, persistence,
@@ -506,6 +543,7 @@ def commit_undoable_change(
 
         stale_paths += enforce_undo_retention(db, project_id)
 
+        revision = advance_working_copy_revision(db, project)
         db.commit()
 
     except Exception:
@@ -522,6 +560,7 @@ def commit_undoable_change(
         raise
 
     unlink_snapshots(stale_paths)
+    return revision
 
 
 def restore_after_failure(snapshot_path: str, working_path: str, project_id: uuid.UUID) -> bool:
@@ -857,6 +896,7 @@ def revert_project(
             whatever reading the original file raises.
     """
     project_id = project.project_id
+    lock_working_copy_revision(db, project_id)
     logs = [] if checkpoint_id is None else _logs_to_replay(db, project_id, checkpoint_id)
     df = read_table_safe(get_original_path(project.file_path))
     if isinstance(project.original_column_metadata, dict):
@@ -915,6 +955,7 @@ def revert_project(
             models.ProjectChangeLog.project_id == project_id,
             models.ProjectChangeLog.applied.is_(False),
         ).delete(synchronize_session="evaluate")
+        advance_working_copy_revision(db, project)
         db.commit()
     except Exception:
         db.rollback()
@@ -1238,6 +1279,8 @@ def reset_project(
 ) -> dict:
     """Reset a project to its original uploaded state and discard all history."""
 
+    lock_working_copy_revision(db, project_id)
+
     original_path = get_original_path(project.file_path)
     working_path = Path(project.file_path)
 
@@ -1285,6 +1328,7 @@ def reset_project(
             metadata = reconcile_project_column_metadata(df, metadata_source or inferred_metadata)
             replace_project_column_metadata(db, project_id, metadata)
 
+            advance_working_copy_revision(db, project)
             db.commit()
 
         except Exception:

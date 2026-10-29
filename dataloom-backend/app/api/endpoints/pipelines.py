@@ -16,7 +16,7 @@ from app.api.dependencies import (
 )
 from app.services import pipeline_service
 from app.services.job_service import ensure_no_active_exclusive_job
-from app.services.project_service import get_project_column_metadata
+from app.services.project_service import get_project_column_metadata, lock_working_copy_revision
 from app.services.transformation_service import TransformationError
 from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, restore_semantic_dtypes
 from app.utils.project_locks import project_write_lock
@@ -116,6 +116,7 @@ def apply_pipeline(
     # not reentrant, hence read_project_df rather than load_project_df.
     try:
         with project_write_lock(project.project_id):
+            lock_working_copy_revision(db, project.project_id)
             df = restore_semantic_dtypes(read_project_df(project), get_project_column_metadata(db, project.project_id))
             result_df = pipeline_service.apply_pipeline_to_project(db, project, pipeline, df)
     except TransformationError as e:
@@ -126,6 +127,7 @@ def apply_pipeline(
     return {
         "project_id": project.project_id,
         "operation_type": "pipeline",
+        "working_copy_revision": project.working_copy_revision,
         **resp,
         **pagination,
     }

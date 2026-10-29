@@ -264,6 +264,7 @@ class TestApplyPipeline:
 
         body = response.json()
         assert body["operation_type"] == "pipeline"
+        assert body["working_copy_revision"] == 1
         # sample_csv: ages 30, 25, 35, 30 → filter age > 26 keeps 3 rows, sorted by name.
         assert body["row_count"] == 3
         names = [row[body["columns"].index("name")] for row in body["rows"]]
