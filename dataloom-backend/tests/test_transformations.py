@@ -124,6 +124,20 @@ class TestSort:
         with pytest.raises(TransformationError):
             apply_sort(sample_df, "nonexistent", True)
 
+    def test_sort_mixed_type_column(self):
+        """A column holding mixed Python types — e.g. from a JSON upload whose
+        records disagree on a key's type — cannot be compared element-wise.
+        Sorting it must fail as a TransformationError, not as a raw TypeError
+        that the endpoint can only answer with a 500."""
+        df = pd.DataFrame({"v": [1, "x", 2.5], "name": ["a", "b", "c"]})
+        with pytest.raises(TransformationError, match="mixed types"):
+            apply_sort(df, "v", True)
+
+    def test_sort_mixed_type_column_via_criteria(self):
+        df = pd.DataFrame({"v": [1, "x", 2.5], "name": ["a", "b", "c"]})
+        with pytest.raises(TransformationError, match="mixed types"):
+            apply_sort(df, criteria=[{"column": "v", "ascending": True}])
+
     def test_multi_column_sort(self, sample_df):
         """Multi-column sort should sort by multiple criteria in order."""
         criteria = [
