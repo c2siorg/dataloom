@@ -10,8 +10,9 @@ only handles I/O.
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session
 
-from app import models, schemas
+from app import database, models, schemas
 from app.api.dependencies import get_project_or_404, load_project_df
 from app.services import quality_service
 
@@ -25,11 +26,12 @@ router = APIRouter()
 def run_quality_assessment(
     project_id: uuid.UUID,
     request: schemas.QualityAssessRequest | None = None,
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Run a quality assessment on the working copy and return the scored report."""
     config = request or schemas.QualityAssessRequest()
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     try:
         return quality_service.assess_quality(
             df,
