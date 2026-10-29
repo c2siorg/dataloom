@@ -526,3 +526,81 @@ def test_transform_groupby_rejects_group_column_as_agg_column(client, project_id
 
     assert response.status_code == 400, response.text
     assert "group-by column" in response.json()["detail"]
+
+
+def test_transform_groupby_rejects_non_numeric_aggregation(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "groupby",
+            "groupby_params": {"columns": ["city"], "agg_column": "name", "agg_function": "mean"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "Cannot aggregate column" in response.json()["detail"]
+
+
+def test_transform_pivot_rejects_value_as_index_column(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "pivotTables",
+            "pivot_query": {"index": "age", "value": "age", "aggfun": "sum"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "cannot also be an index column" in response.json()["detail"]
+
+
+def test_transform_pivot_rejects_pivot_column_as_index_column(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "pivotTables",
+            "pivot_query": {"index": "city", "column": "city", "value": "age", "aggfun": "sum"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "cannot also be an index column" in response.json()["detail"]
+
+
+def test_transform_pivot_rejects_pivot_column_as_value_column(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "pivotTables",
+            "pivot_query": {"index": "city", "column": "age", "value": "age", "aggfun": "sum"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "cannot also be the value column" in response.json()["detail"]
+
+
+def test_transform_pivot_rejects_empty_index(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "pivotTables",
+            "pivot_query": {"index": "   ", "value": "age", "aggfun": "sum"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "At least one index column is required" in response.json()["detail"]
+
+
+def test_transform_pivot_rejects_non_numeric_aggregation(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "pivotTables",
+            "pivot_query": {"index": "city", "value": "name", "aggfun": "mean"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "Cannot aggregate column" in response.json()["detail"]

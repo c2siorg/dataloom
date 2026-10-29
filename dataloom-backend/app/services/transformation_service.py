@@ -29,6 +29,7 @@ class TransformationError(Exception):
 
 _TRUE_TOKENS = ("true", "1", "yes", "t", "y", "on")
 _FALSE_TOKENS = ("false", "0", "no", "f", "n", "off")
+SUPPORTED_AGG_FUNCTIONS = {"sum", "mean", "count", "min", "max", "median"}
 
 
 def _parse_bool(value) -> bool | None:
@@ -885,7 +886,13 @@ def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
         raise TransformationError(f"Query execution failed: {e}") from e
 
 
-def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, aggfunc: str = "sum") -> pd.DataFrame:
+def pivot_table(
+    df: pd.DataFrame,
+    index: str,
+    value: str,
+    column: str | None = None,
+    aggfunc: str = "sum",
+) -> pd.DataFrame:
     """Create a pivot table from the DataFrame.
 
     Args:
@@ -898,21 +905,48 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
     Returns:
         Pivoted DataFrame with string column names and reset index.
     """
-    index_cols = [c.strip() for c in index.split(",")]
+    if not index or not index.strip():
+        raise TransformationError("At least one index column is required for pivot table")
+
+    index_cols = list(dict.fromkeys(c.strip() for c in index.split(",") if c.strip()))
+    if not index_cols:
+        raise TransformationError("At least one index column is required for pivot table")
+
+    col = column.strip() if isinstance(column, str) and column.strip() else None
+
+    val = value.strip() if isinstance(value, str) else value
 
     # Validate all required columns exist
-    all_cols = index_cols + ([column] if column else []) + [value]
+    all_cols = index_cols + ([col] if col else []) + [val]
     missing = [c for c in all_cols if c not in df.columns]
     if missing:
         raise TransformationError(f"Columns {missing} not found in dataset")
 
-    if column:
-        result = pd.pivot_table(df, index=index_cols, values=value, columns=column, aggfunc=aggfunc)
-    else:
-        result = pd.pivot_table(df, index=index_cols, values=value, aggfunc=aggfunc)
+    if val in index_cols:
+        raise TransformationError(f"Value column '{val}' cannot also be an index column")
 
-    result.columns = result.columns.astype(str)
-    return result.reset_index()
+    if col and col in index_cols:
+        raise TransformationError(f"Pivot column '{col}' cannot also be an index column")
+
+    if col and col == val:
+        raise TransformationError(f"Pivot column '{col}' cannot also be the value column")
+
+    aggfunc_str = aggfunc.value if hasattr(aggfunc, "value") else str(aggfunc)
+    if aggfunc_str not in SUPPORTED_AGG_FUNCTIONS:
+        raise TransformationError(
+            f"Unsupported aggregation function: '{aggfunc_str}'. Supported: {sorted(SUPPORTED_AGG_FUNCTIONS)}"
+        )
+
+    try:
+        if col:
+            result = pd.pivot_table(df, index=index_cols, values=val, columns=col, aggfunc=aggfunc_str)
+        else:
+            result = pd.pivot_table(df, index=index_cols, values=val, aggfunc=aggfunc_str)
+        result.columns = [str(c) for c in result.columns]
+        result.columns.name = None
+        return result.reset_index()
+    except (TypeError, ValueError) as exc:
+        raise TransformationError(f"Cannot aggregate column '{val}' with '{aggfunc_str}': {exc}") from exc
 
 
 def drop_na(df: pd.DataFrame, columns: list[str] | None = None) -> pd.DataFrame:
@@ -1025,11 +1059,17 @@ def group_by(df: pd.DataFrame, columns: list[str], agg_column: str, agg_function
             f"Column '{agg_column}' is a group-by column and cannot also be the aggregation column"
         )
 
-    valid_functions = {"sum", "mean", "count", "min", "max", "median"}
-    if agg_function not in valid_functions:
-        raise TransformationError(f"Unsupported aggregation function: {agg_function}. Use: {valid_functions}")
+    agg_function_str = agg_function.value if hasattr(agg_function, "value") else str(agg_function)
+    if agg_function_str not in SUPPORTED_AGG_FUNCTIONS:
+        raise TransformationError(
+            f"Unsupported aggregation function: '{agg_function_str}'. Supported: {sorted(SUPPORTED_AGG_FUNCTIONS)}"
+        )
 
-    result = df.groupby(columns, as_index=False)[agg_column].agg(agg_function)
+    try:
+        result = df.groupby(columns, as_index=False)[agg_column].agg(agg_function_str)
+    except (TypeError, ValueError) as exc:
+        raise TransformationError(f"Cannot aggregate column '{agg_column}' with '{agg_function_str}': {exc}") from exc
+
     result.columns = [str(c) for c in result.columns]
     # Round only the aggregated values. Rounding every float column also
     # rewrites the group keys themselves (keys 1.231 and 1.234 both become

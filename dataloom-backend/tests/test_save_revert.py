@@ -1,8 +1,13 @@
 """Tests for save and revert logic in the project service."""
 
 import shutil
+from datetime import UTC, datetime
+from unittest.mock import patch
 
 import pandas as pd
+import pytest
+from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import Session
 
 from app import models
 from app.services.project_service import (
@@ -189,3 +194,91 @@ class TestGetCheckpoints:
 
         assert len(result) == 1
         assert result[0].message == "project a save"
+
+
+class TestRevertEndpointRegressions:
+    def test_revert_replays_transformations_in_change_log_id_order(self, client, db, test_user, tmp_path):
+        """Revert must replay transformations ordered by change_log_id so dependent steps succeed."""
+        original_path = tmp_path / "orders.csv"
+        copy_path = tmp_path / "orders_copy.csv"
+
+        pd.DataFrame(
+            {
+                "name": ["Alice", "Bob"],
+                "score": [10, 20],
+            }
+        ).to_csv(original_path, index=False)
+        shutil.copy2(original_path, copy_path)
+
+        project = create_project(
+            db, "Revert Order Test", str(copy_path), "Test sequential dependencies during revert", owner_id=test_user.id
+        )
+
+        now = datetime.now(UTC)
+        log1 = models.ProjectChangeLog(
+            project_id=project.project_id,
+            action_type="addCol",
+            action_details={"add_col_params": {"index": 2, "name": "bonus"}},
+            timestamp=now,
+        )
+        log2 = models.ProjectChangeLog(
+            project_id=project.project_id,
+            action_type="renameCol",
+            action_details={"rename_col_params": {"col_index": 2, "new_name": "extra"}},
+            timestamp=now,
+        )
+        log3 = models.ProjectChangeLog(
+            project_id=project.project_id,
+            action_type="renameCol",
+            action_details={"rename_col_params": {"col_index": 2, "new_name": "final_extra"}},
+            timestamp=now,
+        )
+        log4 = models.ProjectChangeLog(
+            project_id=project.project_id,
+            action_type="addFormulaCol",
+            action_details={"formula_col_params": {"column_name": "double_score", "expression": "score * 2"}},
+            timestamp=now,
+        )
+        db.add_all([log1, log2, log3, log4])
+        db.commit()
+
+        checkpoint = create_checkpoint(db, project.project_id, "dependent transforms checkpoint")
+
+        mutated_df = pd.DataFrame({"mutated": [1, 2]})
+        save_table_safe(mutated_df, project.file_path)
+
+        response = client.post(
+            f"/projects/{project.project_id}/revert",
+            params={"checkpoint_id": str(checkpoint.id)},
+        )
+        assert response.status_code == 200, response.text
+        reverted = response.json()
+        expected_columns = ["name", "score", "final_extra", "double_score"]
+        assert reverted["columns"] == expected_columns
+        assert read_table_safe(project.file_path).columns.tolist() == expected_columns
+
+    def test_revert_restores_working_file_on_database_commit_failure(self, client, db, test_user, tmp_path):
+        """Working file must be preserved if database commit fails during revert."""
+        original_path = tmp_path / "data.csv"
+        copy_path = tmp_path / "data_copy.csv"
+
+        pd.DataFrame({"col_orig": [1, 2]}).to_csv(original_path, index=False)
+        working_df = pd.DataFrame({"col_working": [10, 20]})
+        working_df.to_csv(copy_path, index=False)
+
+        project = create_project(
+            db, "Atomic Revert Test", str(copy_path), "Test rollback on commit failure", owner_id=test_user.id
+        )
+        checkpoint = create_checkpoint(db, project.project_id, "checkpoint 1")
+
+        with (
+            patch.object(Session, "commit", side_effect=SQLAlchemyError("Simulated commit error")),
+            pytest.raises(SQLAlchemyError),
+        ):
+            client.post(
+                f"/projects/{project.project_id}/revert",
+                params={"checkpoint_id": str(checkpoint.id)},
+            )
+
+        current_disk_df = read_table_safe(project.file_path)
+        assert current_disk_df.columns.tolist() == ["col_working"]

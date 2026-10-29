@@ -203,7 +203,7 @@ def recent_projects(
 
 
 @router.patch("/{project_id}/rename", response_model=schemas.RenameProjectResponse)
-async def rename_project_endpoint(
+def rename_project_endpoint(
     payload: schemas.RenameProjectRequest,
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
@@ -385,7 +385,7 @@ def export_project(
 
 
 @router.delete("/{project_id}")
-async def delete_project_endpoint(
+def delete_project_endpoint(
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
@@ -654,7 +654,7 @@ def search_user_projects(
 
 
 @router.patch("/{project_id}", response_model=schemas.UpdateProjectResponse)
-async def update_project_endpoint(
+def update_project_endpoint(
     payload: schemas.UpdateProjectRequest,
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
