@@ -106,6 +106,16 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
                 f"Invalid boolean value: {value}. Expected one of: true/false, 1/0, yes/no, t/f, y/n, on/off."
             )
         value = parsed
+    elif pd.api.types.is_datetime64_any_dtype(df[column].dtype) and condition in ("=", "!=", ">", "<", ">=", "<="):
+        # Numeric and boolean columns validate their filter value above; a
+        # datetime column got no equivalent check, so an unparseable value
+        # reached pandas and raised a raw TypeError (HTTP 500). Validate
+        # parseability here (the original string is kept, so pandas still
+        # does the actual comparison) and reject anything unparseable.
+        try:
+            pd.to_datetime(value)
+        except (ValueError, TypeError, OverflowError):
+            raise TransformationError(f"Invalid datetime value: {value}") from None
 
     ops = {
         "=": lambda col, val: (
@@ -130,7 +140,15 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     if condition_str not in ops:
         raise TransformationError(f"Unsupported filter condition: {condition_str}")
 
-    return ops[condition_str](df[column], value)
+    try:
+        return ops[condition_str](df[column], value)
+    except (TypeError, ValueError) as exc:
+        # Ordering comparisons on values that cannot be compared (e.g. a
+        # mixed-type object column, or a tz-aware column against a naive
+        # value) must surface as a client error, not a 500.
+        raise TransformationError(
+            f"Cannot apply filter condition '{condition_str}' to column '{column}': {exc}"
+        ) from exc
 
 
 def apply_sort(

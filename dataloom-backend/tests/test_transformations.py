@@ -110,6 +110,22 @@ class TestFilter:
         with pytest.raises(TransformationError, match="Unsupported"):
             apply_filter(sample_df, "name", "invalid", "Alice")
 
+    def test_filter_invalid_datetime_value(self):
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", "2024-02-01"])})
+        with pytest.raises(TransformationError, match="Invalid datetime value"):
+            apply_filter(df, "when", ">", "not-a-date")
+
+    def test_filter_valid_datetime_value_still_filters(self):
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", "2024-02-01"])})
+        result = apply_filter(df, "when", ">", "2024-01-15")
+        assert len(result) == 1
+        assert str(result.iloc[0]["when"]) == "2024-02-01 00:00:00"
+
+    def test_filter_mixed_type_column_ordering_is_client_error(self):
+        df = pd.DataFrame({"a": [1, "two", 3.0]})
+        with pytest.raises(TransformationError, match="Cannot apply filter condition"):
+            apply_filter(df, "a", ">", "2")
+
 
 class TestSort:
     def test_sort_ascending(self, sample_df):
