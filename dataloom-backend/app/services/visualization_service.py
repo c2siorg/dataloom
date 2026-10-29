@@ -212,7 +212,17 @@ def _xy_series(df: pd.DataFrame, x_col: str, y_cols: list[str], chart_type: str)
         _require_numeric(df, y)
 
     x_label = map_dtype(df[x_col].dtype)
-    frame = df[[x_col, *y_cols]].dropna(subset=[x_col]).sort_values(x_col)
+    frame = df[[x_col, *y_cols]].dropna(subset=[x_col])
+    try:
+        frame = frame.sort_values(x_col)
+    except TypeError as exc:
+        # A mixed-type x column (e.g. integers and strings from a JSON
+        # upload whose records disagree on a key's type) cannot be ordered.
+        # Report it as a client error (the endpoint maps ValueError to
+        # 400) instead of letting the raw TypeError surface as a 500.
+        raise ValueError(
+            f"Column '{x_col}' contains mixed types and cannot be ordered for a {chart_type} chart"
+        ) from exc
 
     sampled = False
     if frame.shape[0] > MAX_LINE_POINTS:
