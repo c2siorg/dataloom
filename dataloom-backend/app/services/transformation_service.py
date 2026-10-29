@@ -15,8 +15,16 @@ from fastapi import HTTPException
 from app.schemas import FillStrategy, MeltParams, OperationType
 from app.services.append_service import append_dataframes
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import parse_datetime_column, read_table_safe
-from app.utils.security import QUERY_PARSE_ERROR_DETAIL, prepare_formula_expression, prepare_query_expression
+from app.utils.pandas_helpers import (
+    map_dtype,
+    parse_datetime_column,
+    read_table_safe,
+)
+from app.utils.security import (
+    QUERY_PARSE_ERROR_DETAIL,
+    prepare_formula_expression,
+    prepare_query_expression,
+)
 
 logger = get_logger(__name__)
 
@@ -1331,6 +1339,99 @@ def operation_summary(action_type: str, action_details: dict, max_length: int = 
     parts = [f"{key}: {_summary_value(value)}" for key, value in params.items() if value not in (None, "", [], {})]
     summary = ", ".join(parts)
     return summary if len(summary) <= max_length else summary[: max_length - 1] + "…"
+
+
+def apply_metadata_transformation(
+    metadata: dict[str, str],
+    action_type: str,
+    action_details: dict,
+    df_before: pd.DataFrame,
+    df_after: pd.DataFrame,
+) -> dict[str, str]:
+    """Reconcile semantic metadata with one actual transformation result.
+
+    Rename and delete use column positions from the pre-change frame. Other
+    surviving columns retain their semantic type unless the operation changed
+    their values or their actual pandas dtype. This keeps all-null semantic
+    strings stable through row-only operations while allowing fills and casts
+    to establish the resulting column type.
+    """
+
+    def key(column) -> str:
+        return str(column)
+
+    if not df_before.columns.is_unique or not df_after.columns.is_unique:
+        raise TransformationError("Metadata cannot be reconciled for duplicate column labels")
+    if len({key(column) for column in df_before.columns}) != len(df_before.columns) or len(
+        {key(column) for column in df_after.columns}
+    ) != len(df_after.columns):
+        raise TransformationError("Column labels are ambiguous after metadata normalization")
+
+    result = {key(name): dtype for name, dtype in metadata.items()}
+    old_columns = list(df_before.columns)
+    new_columns = list(df_after.columns)
+    normalized_new = {key(name): name for name in new_columns}
+
+    if action_type == OperationType.renameCol:
+        params = action_details["rename_col_params"]
+        index = params["col_index"]
+        if index < 0 or index >= len(old_columns):
+            raise TransformationError(
+                f"Column index {index} is out of range (DataFrame has {len(old_columns)} columns)"
+            )
+        old_name = key(old_columns[index])
+        new_name = key(params["new_name"])
+        dtype = result.pop(old_name, None)
+        if new_name in normalized_new:
+            result[new_name] = dtype or map_dtype(df_after[normalized_new[new_name]].dtype)
+
+    old_by_key = {key(name): name for name in old_columns}
+    result = {name: dtype for name, dtype in result.items() if name in normalized_new}
+    row_only_operations = {
+        OperationType.filter,
+        OperationType.sort,
+        OperationType.addRow,
+        OperationType.delRow,
+        OperationType.sample,
+        OperationType.dropDuplicate,
+        OperationType.advQueryFilter,
+        OperationType.dropNa,
+    }
+
+    for normalized_name, column in normalized_new.items():
+        actual_dtype = map_dtype(df_after[column].dtype)
+        if normalized_name not in result:
+            # A newly inserted blank column has established application
+            # semantics: it is editable text even though pandas uses float64.
+            if action_type == OperationType.addCol and df_after[column].isna().all():
+                result[normalized_name] = "str"
+            else:
+                result[normalized_name] = actual_dtype
+            continue
+
+        old_column = old_by_key.get(normalized_name)
+        if old_column is None:
+            continue
+        before_dtype = map_dtype(df_before[old_column].dtype)
+        if before_dtype != actual_dtype and action_type not in row_only_operations:
+            result[normalized_name] = actual_dtype
+        else:
+            try:
+                before_series = df_before[old_column]
+                after_series = df_after[column]
+                same_rows = (
+                    len(before_series) == len(after_series)
+                    and before_series.index.is_unique
+                    and after_series.index.is_unique
+                    and set(before_series.index) == set(after_series.index)
+                )
+                values_changed = same_rows and not before_series.sort_index().equals(after_series.sort_index())
+            except (ValueError, TypeError):
+                values_changed = True
+            if values_changed:
+                result[normalized_name] = actual_dtype
+
+    return result
 
 
 def apply_logged_transformation(df: pd.DataFrame, action_type: str, action_details: dict) -> pd.DataFrame:

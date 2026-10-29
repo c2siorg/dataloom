@@ -11,9 +11,13 @@ from sqlmodel import Session
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
-from app.services.project_service import commit_undoable_change
+from app.services.project_service import (
+    commit_undoable_change,
+    get_project_column_metadata,
+    reconcile_project_column_metadata,
+)
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe
+from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, restore_semantic_dtypes
 from app.utils.project_locks import project_read_lock, project_write_lock
 from app.utils.security import safe_http_exception_detail, safe_transformation_error_detail
 
@@ -81,8 +85,17 @@ def _transform_project(
 
     try:
         df = read_table_safe(project.file_path)
+        metadata_before = reconcile_project_column_metadata(df, get_project_column_metadata(db, project_id))
+        df = restore_semantic_dtypes(df, metadata_before)
 
         result_df = _dispatch_transform(df, transformation_input)
+        metadata_after = ts.apply_metadata_transformation(
+            metadata_before,
+            operation_type,
+            transformation_input.dict(),
+            df,
+            result_df,
+        )
 
         # A cell edit that produces the same DataFrame is a no-op. Return the current
         # data without rewriting the file or creating a transformation log.
@@ -96,6 +109,9 @@ def _transform_project(
         response_df, pagination = paginate_dataframe(result_df, page, page_size)
 
         resp = dataframe_to_response(response_df)
+        resp["dtypes"] = {
+            str(column): metadata_after.get(str(column), dtype) for column, dtype in resp["dtypes"].items()
+        }
 
         return {
             "project_id": project_id,

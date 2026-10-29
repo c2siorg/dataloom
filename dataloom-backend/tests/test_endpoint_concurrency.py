@@ -121,6 +121,7 @@ def test_concurrent_transforms_for_same_project_do_not_lose_updates(monkeypatch)
         current = df.copy()
 
     monkeypatch.setattr(transformations, "read_table_safe", _read)
+    monkeypatch.setattr(transformations, "get_project_column_metadata", lambda *_args: {})
     monkeypatch.setattr(transformations, "_dispatch_transform", _transform)
     monkeypatch.setattr(transformations, "commit_undoable_change", lambda _db, _project, df, _entries: _save(df, None))
 
@@ -137,7 +138,7 @@ def test_concurrent_transforms_for_same_project_do_not_lose_updates(monkeypatch)
     assert current["value"].tolist() == [2]
 
 
-def test_same_project_read_does_not_observe_torn_write(tmp_path):
+def test_same_project_read_does_not_observe_torn_write(tmp_path, db, monkeypatch):
     """Readers of project.file_path must wait for an in-flight writer.
 
     Format writers truncate the destination in place. If get_project_details,
@@ -153,6 +154,8 @@ def test_same_project_read_does_not_observe_torn_write(tmp_path):
         file_path=str(path),
         owner_id=uuid.uuid4(),
     )
+    monkeypatch.setattr(projects, "get_project_column_metadata", lambda *_args: {})
+    monkeypatch.setattr(transformations, "get_project_column_metadata", lambda *_args: {})
     write_started = threading.Event()
     allow_finish = threading.Event()
 
@@ -164,7 +167,12 @@ def test_same_project_read_does_not_observe_torn_write(tmp_path):
             path.write_text("value\n2\n")
 
     def _read_details():
-        return projects.get_project_details(page=1, pageSize=50, project=project)
+        return projects.get_project_details(
+            page=1,
+            pageSize=50,
+            db=db,
+            project=project,
+        )
 
     def _preview():
         return transformations.transform_project(
@@ -181,7 +189,7 @@ def test_same_project_read_does_not_observe_torn_write(tmp_path):
         )
 
     def _profile_read():
-        return load_project_df(project)
+        return load_project_df(project, db)
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         writer = executor.submit(_writer)
@@ -224,6 +232,8 @@ async def test_slow_read_does_not_block_other_requests(monkeypatch):
         return pd.DataFrame({"a": [1, 2], "b": [3, 4]})
 
     monkeypatch.setattr(projects, "read_table_safe", _slow_read)
+    monkeypatch.setattr(projects, "get_project_column_metadata", lambda *_args: {"a": "int", "b": "int"})
+    monkeypatch.setattr(transformations, "get_project_column_metadata", lambda *_args: {})
 
     def _project_for_request(project_id: uuid.UUID):
         return models.Project(
@@ -353,9 +363,10 @@ def test_concurrent_reads_of_one_project_overlap(monkeypatch):
         return pd.DataFrame({"value": [1]})
 
     monkeypatch.setattr(dependencies, "read_table_safe", _read)
+    monkeypatch.setattr(dependencies, "get_project_column_metadata", lambda *_args: {})
 
     with ThreadPoolExecutor(max_workers=readers) as executor:
-        futures = [executor.submit(load_project_df, project) for _ in range(readers)]
+        futures = [executor.submit(load_project_df, project, object()) for _ in range(readers)]
         frames = [f.result(timeout=5) for f in futures]
 
     assert all(frame["value"].tolist() == [1] for frame in frames)
@@ -473,6 +484,7 @@ def _append_fixture(monkeypatch):
         state["current"] = df.copy()
 
     monkeypatch.setattr(project_files, "read_project_df", _read_working_copy)
+    monkeypatch.setattr(project_files, "get_project_column_metadata", lambda *_args: {})
     monkeypatch.setattr(project_files, "read_table_safe", _read_stored)
     monkeypatch.setattr(project_files, "commit_undoable_change", lambda _db, _project, df, _entries: _save(df, None))
     return project, state, first_read
@@ -500,7 +512,7 @@ def test_concurrent_appends_for_same_project_do_not_lose_rows(monkeypatch):
     assert state["current"]["value"].tolist() == [0, 1, 1]
 
 
-def test_reader_waits_for_an_in_flight_append(tmp_path):
+def test_reader_waits_for_an_in_flight_append(tmp_path, monkeypatch):
     """An append rewrites the working copy, so readers must not see it mid-write."""
     path = tmp_path / "data.csv"
     path.write_text("value\n1\n")
@@ -510,6 +522,7 @@ def test_reader_waits_for_an_in_flight_append(tmp_path):
         file_path=str(path),
         owner_id=uuid.uuid4(),
     )
+    monkeypatch.setattr(dependencies, "get_project_column_metadata", lambda *_args: {})
     write_started = threading.Event()
     allow_finish = threading.Event()
 
@@ -524,7 +537,7 @@ def test_reader_waits_for_an_in_flight_append(tmp_path):
     with ThreadPoolExecutor(max_workers=2) as executor:
         writer = executor.submit(_slow_append)
         assert write_started.wait(timeout=5)
-        reader = executor.submit(load_project_df, project)
+        reader = executor.submit(load_project_df, project, object())
         time.sleep(0.05)
         assert not reader.done()
         allow_finish.set()
@@ -572,6 +585,7 @@ def test_concurrent_pipeline_applies_do_not_lose_updates(monkeypatch):
     monkeypatch.setattr(pipelines, "fetch_owned_project", lambda *args, **kwargs: project)
     monkeypatch.setattr(pipelines, "ensure_no_active_exclusive_job", lambda *args, **kwargs: None)
     monkeypatch.setattr(pipelines, "read_project_df", _read_working_copy)
+    monkeypatch.setattr(pipelines, "get_project_column_metadata", lambda *_args: {})
     monkeypatch.setattr(pipelines.pipeline_service, "apply_pipeline_to_project", _apply)
 
     body = schemas.PipelineApplyRequest(project_id=project_id)

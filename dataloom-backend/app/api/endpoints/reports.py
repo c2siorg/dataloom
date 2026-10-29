@@ -47,7 +47,7 @@ def download_report(
     overview always prints, so a request that names no other section still
     yields a document.
     """
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     chosen = set(section)
 
     summary = profiling_service.dataset_summary(df)

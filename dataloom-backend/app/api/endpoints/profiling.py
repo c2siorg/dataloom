@@ -8,8 +8,9 @@ descriptive — quality assessment is out of scope here.
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlmodel import Session
 
-from app import models, schemas
+from app import database, models, schemas
 from app.api.dependencies import get_project_or_404, load_project_df
 from app.services import profiling_service
 
@@ -19,10 +20,11 @@ router = APIRouter()
 @router.get("/{project_id}/profile/summary", response_model=schemas.DatasetSummaryResponse)
 def get_dataset_summary(
     project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Return a top-level summary of the project's dataset."""
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     return profiling_service.dataset_summary(df)
 
 
@@ -30,6 +32,7 @@ def get_dataset_summary(
 def get_column_profile(
     project_id: uuid.UUID,
     column_name: str = Query(..., description="Name of the column to profile"),
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Return a type-aware profile of a single column.
@@ -39,7 +42,7 @@ def get_column_profile(
     across servers and reverse proxies, which handle ``%2F`` in paths
     inconsistently.
     """
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     try:
         return profiling_service.column_profile(df, column_name)
     except KeyError as e:
@@ -49,6 +52,7 @@ def get_column_profile(
 @router.get("/{project_id}/profile/columns", response_model=schemas.ColumnProfilesResponse)
 def get_all_column_profiles(
     project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Return type-aware profiles for every column from a single dataset read.
@@ -57,15 +61,16 @@ def get_all_column_profiles(
     client needs all columns (e.g. the column-profiles table view) so the
     working copy is read once rather than once per column.
     """
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     return profiling_service.all_column_profiles(df)
 
 
 @router.get("/{project_id}/profile/correlation", response_model=schemas.CorrelationResponse)
 def get_correlation_matrix(
     project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Return the pairwise Pearson correlation over numeric columns."""
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     return profiling_service.correlation_matrix(df)
