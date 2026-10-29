@@ -11,6 +11,7 @@ needed in the transform, save, or revert layers.
 """
 
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -89,6 +90,55 @@ def _read_tsv(path: Path) -> pd.DataFrame:
 
 def _write_tsv(df: pd.DataFrame, path: Path, options: TableWriteOptions | None = None) -> None:
     df.to_csv(path, **_resolve_delimited_options(options, default_sep="\t"))
+
+
+# --- Spreadsheet formula injection ------------------------------------------
+
+# Formats a spreadsheet application (Excel, Google Sheets, LibreOffice Calc)
+# will evaluate formulas in. ``.xls`` is absent because it is read-only here:
+# it is never written, and a native ``.xls`` download serves the uploaded file
+# itself byte for byte.
+SPREADSHEET_EXPORT_EXTENSIONS = frozenset({".csv", ".tsv", ".xlsx"})
+
+_FORMULA_LEADING_CHARS = ("=", "+", "-", "@")
+_PLAIN_NUMBER = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$")
+
+
+def _neutralize_formula_cell(value):
+    """Prefix a formula-leading string cell with a single quote.
+
+    Spreadsheet applications evaluate a cell whose text starts with ``=``,
+    ``+``, ``-`` or ``@`` (optionally after whitespace) as a formula instead
+    of displaying it (CWE-1236). A leading single quote is the conventional
+    escape: the cell is then treated as text. Plain numbers written as text
+    (``-5``, ``+3.14``) are left alone — a spreadsheet parses them as numbers,
+    not formulas, and quoting them would change their displayed value.
+    """
+    if not isinstance(value, str):
+        return value
+    stripped = value.lstrip(" \t\r\n")
+    if not stripped or stripped[0] not in _FORMULA_LEADING_CHARS:
+        return value
+    if _PLAIN_NUMBER.match(stripped):
+        return value
+    return "'" + value
+
+
+def sanitize_formula_cells(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy of ``df`` with spreadsheet-formula cells neutralised.
+
+    Applied at export time only, to the formats in
+    :data:`SPREADSHEET_EXPORT_EXTENSIONS`: the stored dataset and the grid
+    keep the user's original values, while a downloaded file can no longer
+    execute a cell as a formula when opened in a spreadsheet application.
+    Only text cells change; numbers, dates and empty cells pass through.
+    """
+    sanitized = df.copy()
+    for col in sanitized.columns:
+        series = sanitized[col]
+        if series.dtype == object or isinstance(series.dtype, pd.StringDtype):
+            sanitized[col] = series.map(_neutralize_formula_cell)
+    return sanitized
 
 
 # --- JSON (one level of nesting) ------------------------------------------
