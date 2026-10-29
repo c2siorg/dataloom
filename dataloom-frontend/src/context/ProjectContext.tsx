@@ -19,6 +19,7 @@ export interface PaginationInfo {
   total_rows?: number;
   total_pages?: number;
   pageSize?: number;
+  working_copy_revision?: number;
 }
 
 /** The table state captured on entering preview mode, restored on cancel. */
@@ -36,6 +37,7 @@ export interface PreviewSnapshot {
 export interface PendingTransform {
   projectId: string;
   payload: TransformationInput;
+  revision?: number;
 }
 
 /** Options accepted by {@link ProjectContextValue.updateData}. */
@@ -297,7 +299,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       setColumns(previewColumns);
       setRows(previewRows);
       if (previewDtypes) setDtypes(previewDtypes);
-      setPendingTransform(transformInfo);
+      setPendingTransform(
+        transformInfo
+          ? {
+              ...transformInfo,
+              ...(paginationInfo.working_copy_revision !== undefined
+                ? { revision: paginationInfo.working_copy_revision }
+                : {}),
+            }
+          : null,
+      );
 
       // Use pagination metadata returned for the transformed preview.
       setTotalRows(paginationInfo.total_rows ?? previewRows.length);

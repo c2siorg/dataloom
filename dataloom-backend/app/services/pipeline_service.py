@@ -127,7 +127,11 @@ def _failure_reason(action_type: str, error: Exception) -> str:
 
 
 def _replay(
-    df: pd.DataFrame, steps: Sequence[Step], on_step: StepHook | None = None
+    df: pd.DataFrame,
+    steps: Sequence[Step],
+    on_step: StepHook | None = None,
+    *,
+    transitions: list[tuple[str, dict, pd.DataFrame, pd.DataFrame]] | None = None,
 ) -> tuple[pd.DataFrame, PipelineCompatibilityResponse | None]:
     """Replay steps in order, stopping at the first one that fails.
 
@@ -149,7 +153,10 @@ def _replay(
         reason = _step_rejection_reason(action_type)
         if reason is None:
             try:
+                before_df = df
                 df = apply_logged_transformation(df, action_type, action_details)
+                if transitions is not None:
+                    transitions.append((action_type, action_details, before_df, df))
                 continue
             except Exception as e:
                 reason = _failure_reason(action_type, e)
@@ -182,7 +189,7 @@ def apply_pipeline(df: pd.DataFrame, steps: Sequence[Step], on_step: StepHook | 
     Raises:
         TransformationError: If a step fails, with the step context prepended.
     """
-    result_df, failure = _replay(df, steps, on_step)
+    result_df, failure = _replay(df, steps, on_step=on_step)
     if failure is not None:
         raise TransformationError(
             f"Pipeline step {failure.failing_step} ({failure.action_type}) failed: {failure.reason}"
@@ -227,8 +234,13 @@ def apply_pipeline_to_project(
         TransformationError: If a step fails; nothing is written.
     """
     steps = pipeline_steps(pipeline)
-    result_df = apply_pipeline(df, steps, on_step)
+    transitions = []
+    result_df, failure = _replay(df, steps, on_step, transitions=transitions)
+    if failure is not None:
+        raise TransformationError(
+            f"Pipeline step {failure.failing_step} ({failure.action_type}) failed: {failure.reason}"
+        )
     if before_commit is not None:
         before_commit()
-    commit_undoable_change(db, project, result_df, steps)
+    commit_undoable_change(db, project, result_df, steps, transitions=transitions)
     return result_df

@@ -32,35 +32,45 @@ from app.services.file_service import (
 )
 from app.services.job_service import ensure_no_active_exclusive_job
 from app.services.project_service import (
+    advance_working_copy_revision,
     create_checkpoint,
     create_project,
+    create_project_column_metadata,
     delete_project,
     discard_redo_stack,
     discard_undo_history,
     enforce_undo_retention,
     get_last_pending_change_log,
+    get_project_column_metadata,
     get_project_files,
     get_projects,
     get_recent_projects,
     get_redo_step,
     get_undo_state,
+    lock_working_copy_revision,
     mark_step_redone,
     mark_step_undone,
+    reconcile_project_column_metadata,
     rename_project,
+    replace_project_column_metadata,
     reset_project,
     restore_after_failure,
     revert_project,
     search_projects,
     update_project,
 )
-from app.services.transformation_service import apply_logged_transformation
+from app.services.transformation_service import (
+    apply_logged_transformation,
+)
 from app.utils.file_formats import TableWriteOptions, get_format, get_format_for_extension
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import (
     dataframe_to_response,
     dataset_file_stats,
+    map_dtype,
     paginate_dataframe,
     read_table_safe,
+    restore_semantic_dtypes,
     save_table_safe,
 )
 from app.utils.project_locks import project_read_lock, project_write_lock
@@ -106,7 +116,23 @@ async def upload_project(
             raise HTTPException(status_code=400, detail=f"Could not parse the uploaded {ext} file.") from e
         raise
 
-    project = create_project(db, projectName, str(copy_path), projectDescription, current_user.id)
+    try:
+        original_metadata = {str(column): map_dtype(dtype) for column, dtype in df.dtypes.items()}
+        project = create_project(
+            db,
+            projectName,
+            str(copy_path),
+            projectDescription,
+            current_user.id,
+            commit=False,
+            original_column_metadata=original_metadata,
+        )
+        create_project_column_metadata(db, project.project_id, df)
+        db.commit()
+    except Exception:
+        db.rollback()
+        delete_project_files(str(copy_path))
+        raise
 
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
@@ -150,6 +176,7 @@ def list_projects(
 def get_project_details(
     page: int = Query(1, ge=1),
     pageSize: int = Query(50, ge=1, le=100),
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Fetch project details with a page of rows and pagination metadata.
@@ -159,9 +186,11 @@ def get_project_details(
     """
     with project_read_lock(project.project_id):
         df = read_table_safe(project.file_path)
+        dtypes = reconcile_project_column_metadata(df, get_project_column_metadata(db, project.project_id))
+        df = restore_semantic_dtypes(df, dtypes)
 
-    response_df, pagination = paginate_dataframe(df, page, pageSize)
-    resp = dataframe_to_response(response_df)
+        response_df, pagination = paginate_dataframe(df, page, pageSize)
+        resp = dataframe_to_response(response_df)
     return {
         "filename": project.name,
         "file_path": project.file_path,
@@ -254,6 +283,9 @@ def save_project(
             )
 
         df = read_table_safe(project.file_path)
+        metadata = reconcile_project_column_metadata(df, get_project_column_metadata(db, project_id))
+        replace_project_column_metadata(db, project_id, metadata)
+        df = restore_semantic_dtypes(df, metadata)
 
         # Staged here and committed by create_checkpoint, so a failed save
         # cannot leave a redo stack pointing past the saved state.
@@ -463,6 +495,7 @@ def _undo_last_transformation(
     project: models.Project,
     db: Session,
 ) -> dict:
+    lock_working_copy_revision(db, project_id)
     last_log = get_last_pending_change_log(db, project_id)
     if not last_log:
         raise HTTPException(status_code=404, detail="No transformations to undo")
@@ -470,6 +503,7 @@ def _undo_last_transformation(
     last_log_id = last_log.change_log_id
     step = db.get(models.UndoStep, last_log.undo_step_id) if last_log.undo_step_id is not None else None
     working_path = project.file_path
+    current_metadata = get_project_column_metadata(db, project_id)
     # What redo will restore, and what a failed undo puts back.
     after_path = _snapshot_or_500(project_id, working_path, "undo")
     replay_snapshot = None
@@ -480,6 +514,11 @@ def _undo_last_transformation(
             mark_step_undone(db, step, after_path)
             restore_snapshot(step.before_path, working_path)
             working_changed = True
+            df = read_table_safe(working_path)
+            metadata_source = step.metadata_before if isinstance(step.metadata_before, dict) else current_metadata
+            metadata = reconcile_project_column_metadata(df, metadata_source)
+            replace_project_column_metadata(db, project_id, metadata)
+            advance_working_copy_revision(db, project)
             db.commit()
         else:
             replayed = True
@@ -501,6 +540,10 @@ def _undo_last_transformation(
             save_table_safe(df, working_path)
             replay_snapshot = take_snapshot(project_id, working_path)
             step.before_path = replay_snapshot
+            metadata_source = step.metadata_before if isinstance(step.metadata_before, dict) else current_metadata
+            metadata = reconcile_project_column_metadata(df, metadata_source)
+            replace_project_column_metadata(db, project_id, metadata)
+            advance_working_copy_revision(db, project)
             db.commit()
     except Exception as e:
         restored = not working_changed or restore_after_failure(after_path, working_path, project_id)
@@ -513,6 +556,8 @@ def _undo_last_transformation(
     if not replayed:
         # A cache hit: restore_snapshot registered the snapshot's parsed frame.
         df = read_project_df(project)
+    dtypes = reconcile_project_column_metadata(df, get_project_column_metadata(db, project_id))
+    df = restore_semantic_dtypes(df, dtypes)
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
     logger.info("Undo: project_id=%s, log_id=%s, replayed=%s", project_id, last_log_id, replayed)
@@ -579,12 +624,14 @@ def _redo_last_transformation(
     project: models.Project,
     db: Session,
 ) -> dict:
+    lock_working_copy_revision(db, project_id)
     step = get_redo_step(db, project_id)
     if step is None:
         raise HTTPException(status_code=404, detail="Nothing to redo")
 
     step_id, after_path, before_path = step.id, step.after_path, step.before_path
     working_path = project.file_path
+    current_metadata = get_project_column_metadata(db, project_id)
     if not snapshot_exists(after_path):
         # Every deeper redo assumes this step's result, so none of them can
         # run either.
@@ -600,6 +647,11 @@ def _redo_last_transformation(
         evicted = enforce_undo_retention(db, project_id)
         restore_snapshot(after_path, working_path)
         working_changed = True
+        df = read_table_safe(working_path)
+        metadata_source = step.metadata_after if isinstance(step.metadata_after, dict) else current_metadata
+        metadata = reconcile_project_column_metadata(df, metadata_source)
+        replace_project_column_metadata(db, project_id, metadata)
+        advance_working_copy_revision(db, project)
         db.commit()
     except Exception as e:
         if working_changed:
@@ -610,7 +662,7 @@ def _redo_last_transformation(
         raise
     unlink_snapshots([after_path, *evicted])
 
-    df = read_project_df(project)
+    df = restore_semantic_dtypes(df, metadata)
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
     logger.info("Redo: project_id=%s, step=%s", project_id, step_id)

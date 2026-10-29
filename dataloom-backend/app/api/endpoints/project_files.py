@@ -28,11 +28,13 @@ from app.services.file_service import store_added_file
 from app.services.project_service import (
     commit_undoable_change,
     create_project_file,
+    get_project_column_metadata,
     get_project_file,
     get_project_files,
+    lock_working_copy_revision,
 )
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe
+from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, restore_semantic_dtypes
 from app.utils.project_locks import project_write_lock
 from app.utils.security import validate_upload_file
 
@@ -100,7 +102,8 @@ def _append_and_log_locked(
     page_size: int,
 ) -> dict:
     """Body of :func:`_append_and_log`; assumes the project write lock is held."""
-    df = read_project_df(project)
+    lock_working_copy_revision(db, project.project_id)
+    df = restore_semantic_dtypes(read_project_df(project), get_project_column_metadata(db, project.project_id))
     new_df = read_table_safe(Path(stored_path))
     combined = append_dataframes(df, new_df)
 
@@ -127,7 +130,7 @@ def _append_and_log_locked(
     }
 
 
-def _preview_append(file: UploadFile, project: models.Project) -> dict:
+def _preview_append(file: UploadFile, project: models.Project, db: Session) -> dict:
     """Parse an upload and describe how it would align with the working copy.
 
     Blocking throughout: it parses the upload, waits on the project read lock,
@@ -135,13 +138,14 @@ def _preview_append(file: UploadFile, project: models.Project) -> dict:
     loop must offload it.
     """
     new_df = _read_upload_df(file)
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     return analyze_append(df, new_df)
 
 
 @router.post("/{project_id}/files/preview", response_model=schemas.AppendPreviewResponse)
 async def preview_add_file(
     file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Preview how an uploaded file would align with the project's data.
@@ -150,7 +154,7 @@ async def preview_add_file(
     until the client confirms via ``POST /{project_id}/files``.
     """
     await validate_upload_file(file)
-    return await run_in_threadpool(_preview_append, file, project)
+    return await run_in_threadpool(_preview_append, file, project, db)
 
 
 @router.post("/{project_id}/files", response_model=schemas.ProjectResponse)
