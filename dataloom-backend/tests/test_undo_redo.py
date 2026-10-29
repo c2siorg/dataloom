@@ -178,8 +178,7 @@ class TestUndo:
         assert stat.S_IMODE(working_copy.stat().st_mode) == mode
 
     def test_undo_returns_the_data_the_user_had(self, client):
-        """Regression: replay re-ran the sort on the pre-edit text column, so
-        undo returned ``10, 100, 9`` as strings — data the user never had."""
+        """Undo preserves the saved pre-edit state, including text sort order."""
         project_id = _upload(client, b"code,label\nx,first\ny,second\nz,third\n", "codes.csv")
         for row_index, value in enumerate(["10", "9", "100"]):
             _transform(client, project_id, _edit_cell(row_index, 1, value))
@@ -190,7 +189,9 @@ class TestUndo:
 
         assert response.status_code == 200, response.text
         assert response.json()["rows"] == sorted_by_code["rows"]
-        assert [row[0] for row in response.json()["rows"]] == [9, 10, 100]
+        # The source column was semantic text. Dtype restoration keeps those
+        # edited numeric-looking values as text, so sorting remains lexical.
+        assert [row[0] for row in response.json()["rows"]] == ["10", "100", "9"]
 
     def test_undo_never_crosses_a_save(self, client, db):
         """Regression: undo deleted a saved row, changing what its checkpoint restores."""

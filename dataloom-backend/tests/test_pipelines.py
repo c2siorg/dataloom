@@ -9,9 +9,14 @@ import pytest
 from app import models
 from app.services import project_service
 from app.services.pipeline_service import apply_pipeline, check_steps_compatibility, pipeline_steps
-from app.services.project_service import commit_undoable_change
+from app.services.project_service import (
+    commit_undoable_change,
+    get_project_column_metadata,
+    replace_project_column_metadata,
+)
 from app.services.transformation_service import TransformationError
-from app.utils.pandas_helpers import read_table_safe
+from app.utils.pandas_helpers import read_table_safe, save_table_safe
+from app.utils.project_locks import project_write_lock
 
 
 def _upload(client, sample_csv, name):
@@ -339,12 +344,21 @@ class TestCommitUndoableChange:
     def test_logs_every_entry_in_order_as_one_undo_step(self, db, project_id):
         project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
         df = read_table_safe(project.file_path)
+        filter_details = {"parameters": {"column": "age", "condition": ">", "value": "30"}}
+        filtered_df = df[df["age"] > 30]
+        sort_details = {"sort_params": {"column": "name", "ascending": True}}
+        result_df = filtered_df.sort_values("name", ascending=True)
+        transitions = [
+            ("filter", filter_details, df, filtered_df),
+            ("sort", sort_details, filtered_df, result_df),
+        ]
 
         commit_undoable_change(
             db,
             project,
-            df.head(1),
-            [("filter", {"operation_type": "filter"}), ("sort", {"operation_type": "sort"})],
+            result_df,
+            [("filter", filter_details), ("sort", sort_details)],
+            transitions=transitions,
         )
 
         logs = (
@@ -364,6 +378,14 @@ class TestCommitUndoableChange:
         project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
         original_bytes = Path(project.file_path).read_bytes()
         df = read_table_safe(project.file_path)
+        filter_details = {"parameters": {"column": "age", "condition": ">", "value": "30"}}
+        filtered_df = df[df["age"] > 30]
+        sort_details = {"sort_params": {"column": "name", "ascending": True}}
+        result_df = filtered_df.sort_values("name", ascending=True)
+        transitions = [
+            ("filter", filter_details, df, filtered_df),
+            ("sort", sort_details, filtered_df, result_df),
+        ]
 
         def boom(*args, **kwargs):
             raise RuntimeError("db log failure")
@@ -374,10 +396,70 @@ class TestCommitUndoableChange:
             commit_undoable_change(
                 db,
                 project,
-                df.head(1),
-                [("filter", {"operation_type": "filter"}), ("sort", {"operation_type": "sort"})],
+                result_df,
+                [("filter", filter_details), ("sort", sort_details)],
+                transitions=transitions,
             )
 
         assert Path(project.file_path).read_bytes() == original_bytes
         assert db.query(models.ProjectChangeLog).filter_by(project_id=project.project_id).count() == 0
         assert db.query(models.UndoStep).filter_by(project_id=project.project_id).count() == 0
+
+    def test_metadata_failure_restores_file_and_removes_snapshot(self, db, project_id, monkeypatch):
+        project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
+        original_bytes = Path(project.file_path).read_bytes()
+        df = read_table_safe(project.file_path)
+        metadata_rows_before = db.query(models.ProjectColumnMetadata).filter_by(project_id=project.project_id).count()
+        snapshot_dir = Path(project.file_path).parent / "snapshots" / str(project.project_id)
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        snapshots_before = set(snapshot_dir.iterdir())
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("metadata reconciliation failed")
+
+        monkeypatch.setattr(project_service.transformation_service, "apply_metadata_transformation", boom)
+
+        with pytest.raises(RuntimeError, match="metadata reconciliation failed"):
+            commit_undoable_change(db, project, df.head(1), [("sort", {"sort_params": {"column": "age"}})])
+
+        assert Path(project.file_path).read_bytes() == original_bytes
+        assert set(snapshot_dir.iterdir()) == snapshots_before
+        assert (
+            db.query(models.ProjectColumnMetadata).filter_by(project_id=project.project_id).count()
+            == metadata_rows_before
+        )
+        assert db.query(models.UndoStep).filter_by(project_id=project.project_id).count() == 0
+
+    def test_pipeline_rename_preserves_metadata_through_undo_and_redo(self, client, db, project_id):
+        project = db.query(models.Project).filter(models.Project.project_id == uuid.UUID(project_id)).first()
+        before = read_table_safe(project.file_path)
+        before["blank"] = pd.Series([pd.NA] * len(before), dtype="string")
+        save_table_safe(before, Path(project.file_path))
+        metadata = get_project_column_metadata(db, project.project_id)
+        metadata["blank"] = "str"
+        replace_project_column_metadata(db, project.project_id, metadata)
+        db.commit()
+
+        sort_details = {"sort_params": {"column": "age", "ascending": True}}
+        rename_details = {"rename_col_params": {"col_index": len(before.columns) - 1, "new_name": "renamed"}}
+        sorted_df = before.sort_values("age", ascending=True)
+        after = sorted_df.rename(columns={"blank": "renamed"})
+        transitions = [
+            ("sort", sort_details, before, sorted_df),
+            ("renameCol", rename_details, sorted_df, after),
+        ]
+
+        with project_write_lock(project.project_id):
+            commit_undoable_change(
+                db,
+                project,
+                after,
+                [("sort", sort_details), ("renameCol", rename_details)],
+                transitions=transitions,
+            )
+
+        assert get_project_column_metadata(db, project.project_id)["renamed"] == "str"
+        assert client.post(f"/projects/{project_id}/undo").status_code == 200
+        assert get_project_column_metadata(db, project.project_id)["blank"] == "str"
+        assert client.post(f"/projects/{project_id}/redo").status_code == 200
+        assert get_project_column_metadata(db, project.project_id)["renamed"] == "str"
