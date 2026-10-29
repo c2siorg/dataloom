@@ -6,7 +6,13 @@ import pandas as pd
 import pytest
 from fastapi import HTTPException
 
-from app.utils.file_formats import TableWriteOptions, get_format, supported_extensions
+from app.utils.file_formats import (
+    SPREADSHEET_EXPORT_EXTENSIONS,
+    TableWriteOptions,
+    get_format,
+    sanitize_formula_cells,
+    supported_extensions,
+)
 from app.utils.pandas_helpers import read_table_safe, save_table_safe
 
 
@@ -279,3 +285,57 @@ class TestHelperErrors:
         with pytest.raises(HTTPException) as exc:
             read_table_safe(tmp_path / "nope.csv")
         assert exc.value.status_code == 404
+
+
+class TestSanitizeFormulaCells:
+    def test_spreadsheet_extensions_are_the_writable_spreadsheet_formats(self):
+        assert frozenset({".csv", ".tsv", ".xlsx"}) == SPREADSHEET_EXPORT_EXTENSIONS
+
+    def test_formula_leading_cells_are_prefixed_with_a_quote(self):
+        df = pd.DataFrame(
+            {
+                "note": [
+                    "=1+1",
+                    "+2+2+cmd|' /C calc'!A0",
+                    "-2+3+cmd|' /C calc'!A0",
+                    "@SUM(A1:A10)",
+                    "  =1+1",
+                    "\t@SUM(A1:A10)",
+                ]
+            }
+        )
+
+        result = sanitize_formula_cells(df)
+
+        assert result["note"].tolist() == [
+            "'=1+1",
+            "'+2+2+cmd|' /C calc'!A0",
+            "'-2+3+cmd|' /C calc'!A0",
+            "'@SUM(A1:A10)",
+            "'  =1+1",
+            "'\t@SUM(A1:A10)",
+        ]
+
+    def test_plain_values_and_plain_numbers_are_untouched(self):
+        df = pd.DataFrame({"note": ["hello", "-5", "+3.14", "-.5", "1e5", "", "a=b"]})
+
+        result = sanitize_formula_cells(df)
+
+        assert result["note"].tolist() == ["hello", "-5", "+3.14", "-.5", "1e5", "", "a=b"]
+
+    def test_non_text_columns_and_cells_pass_through(self):
+        df = pd.DataFrame({"n": [1, -5, 3], "note": ["=1+1", None, "ok"]})
+
+        result = sanitize_formula_cells(df)
+
+        assert result["n"].tolist() == [1, -5, 3]
+        assert result["note"].iloc[0] == "'=1+1"
+        assert pd.isna(result["note"].iloc[1])
+        assert result["note"].iloc[2] == "ok"
+
+    def test_input_frame_is_not_mutated(self):
+        df = pd.DataFrame({"note": ["=1+1"]})
+
+        sanitize_formula_cells(df)
+
+        assert df["note"].tolist() == ["=1+1"]
