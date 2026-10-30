@@ -54,14 +54,27 @@ function buildCells(): Cell[] {
   return cells;
 }
 
-interface Line {
-  id: number;
-  kind: "in" | "out" | "err";
-  text: string;
+/** Tracks the user's `prefers-reduced-motion` setting. */
+function usePrefersReducedMotion(): boolean {
+  const query = "(prefers-reduced-motion: reduce)";
+  const [reduced, setReduced] = useState(
+    () => typeof window !== "undefined" && window.matchMedia?.(query).matches === true,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia(query);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  return reduced;
 }
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
+  const reducedMotion = usePrefersReducedMotion();
 
   const cells = useMemo(buildCells, []);
   const filledKeys = useMemo(() => cells.filter((c) => c.filled).map((c) => c.key), [cells]);
@@ -70,43 +83,26 @@ export default function NotFoundPage() {
   const [settled, setSettled] = useState(false);
   const [nulled, setNulled] = useState<Set<string>>(new Set());
   const [hovered, setHovered] = useState<Cell | null>(null);
-  const [mouse, setMouse] = useState({ x: 50, y: 40 });
 
-  const [lines] = useState<Line[]>([
-    { id: 0, kind: "out", text: "dataloom shell v1.0 — type 'help' to get unlost" },
-  ]);
-  const termRef = useRef<HTMLDivElement>(null);
+  /* the spotlight position lives in CSS variables, so mouse moves never re-render React */
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const allNulled = nulled.size === filledKeys.length;
 
+  /* with reduced motion the page is simply shown in its final state */
+  const isMounted = mounted || reducedMotion;
+  const isSettled = settled || reducedMotion;
+
   /* entrance animation */
   useEffect(() => {
+    if (reducedMotion) return;
     const t1 = setTimeout(() => setMounted(true), 60);
     const t2 = setTimeout(() => setSettled(true), 1400);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, []);
-
-  /* keep terminal scrolled to bottom */
-  useEffect(() => {
-    const el = termRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [lines]);
-
-  /* keyboard shortcut: H = home, B = back (ignored while typing) */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key.toLowerCase() === "h") navigate(ROUTES.home);
-      if (e.key.toLowerCase() === "b") navigate(-1);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [navigate]);
+  }, [reducedMotion]);
 
   const toggleCell = (key: string) =>
     setNulled((prev) => {
@@ -125,16 +121,17 @@ export default function NotFoundPage() {
   };
 
   const onMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (reducedMotion) return;
+    const el = rootRef.current;
+    if (!el) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    setMouse({
-      x: ((e.clientX - rect.left) / rect.width) * 100,
-      y: ((e.clientY - rect.top) / rect.height) * 100,
-    });
+    el.style.setProperty("--mx", `${((e.clientX - rect.left) / rect.width) * 100}%`);
+    el.style.setProperty("--my", `${((e.clientY - rect.top) / rect.height) * 100}%`);
   };
 
   /* ripple scale based on distance from hovered cell */
   const scaleFor = (cell: Cell) => {
-    if (!hovered) return 1;
+    if (reducedMotion || !hovered) return 1;
     const d = Math.hypot(cell.row - hovered.row, cell.col - hovered.col);
     return 1 + Math.max(0, 0.45 - d * 0.12);
   };
@@ -143,8 +140,9 @@ export default function NotFoundPage() {
 
   return (
     <div
+      ref={rootRef}
       onMouseMove={onMouseMove}
-      className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground"
+      className="relative flex min-h-full w-full flex-col items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground"
     >
       {/* grid background */}
       <div
@@ -159,19 +157,24 @@ export default function NotFoundPage() {
             "radial-gradient(ellipse 70% 60% at 50% 45%, black 30%, transparent 100%)",
         }}
       />
-      {/* cursor spotlight */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 transition-[background] duration-300"
-        style={{
-          background: `radial-gradient(420px circle at ${mouse.x}% ${mouse.y}%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 70%)`,
-        }}
-      />
+      {/* cursor spotlight (skipped entirely for reduced motion) */}
+      {!reducedMotion && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(420px circle at var(--mx, 50%) var(--my, 40%), color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 70%)",
+          }}
+        />
+      )}
 
       <div className="relative z-10 flex w-full max-w-3xl flex-col items-center gap-8">
-        {/* 404 cell grid */}
+        {/* 404 cell grid: decorative toy, exposed to assistive tech as a single image */}
         <div className="flex flex-col items-center gap-4">
           <div
+            role="img"
+            aria-label="Error 404"
             className="grid gap-1.5 sm:gap-2"
             style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
             onMouseLeave={() => setHovered(null)}
@@ -181,38 +184,41 @@ export default function NotFoundPage() {
                 return <div key={cell.key} className="size-6 sm:size-9 md:size-11" />;
               }
               const isNull = nulled.has(cell.key);
-              const scale = mounted ? scaleFor(cell) : 0.4;
+              const scale = isMounted ? scaleFor(cell) : 0.4;
               return (
-                <button
+                <div
                   key={cell.key}
-                  type="button"
-                  aria-label={`Cell ${cell.row},${cell.col}${isNull ? " (NaN)" : ""}`}
+                  aria-hidden
                   onMouseEnter={() => setHovered(cell)}
-                  onFocus={() => setHovered(cell)}
                   onClick={() => toggleCell(cell.key)}
-                  className={`flex size-6 items-center justify-center rounded-md border text-[10px] font-semibold outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-accent sm:size-9 sm:rounded-lg sm:text-xs md:size-11 ${
+                  className={`flex size-6 cursor-pointer select-none items-center justify-center rounded-md border text-[10px] font-semibold transition-colors duration-200 sm:size-9 sm:rounded-lg sm:text-xs md:size-11 ${
                     isNull
                       ? "border-dashed border-danger-border bg-danger-bg text-danger"
                       : "border-accent-hover/40 bg-accent text-white shadow-sm hover:bg-accent-hover"
                   }`}
                   style={{
-                    transform: mounted ? `scale(${scale})` : "translateY(14px) scale(0.4)",
-                    opacity: mounted ? 1 : 0,
-                    transition: settled
-                      ? "transform 180ms ease-out, background-color 200ms, color 200ms"
-                      : `transform 550ms cubic-bezier(0.34,1.56,0.64,1) ${
-                          (cell.row + cell.col) * 55
-                        }ms, opacity 400ms ease ${(cell.row + cell.col) * 55}ms, background-color 200ms`,
+                    transform: isMounted ? `scale(${scale})` : "translateY(14px) scale(0.4)",
+                    opacity: isMounted ? 1 : 0,
+                    transition: reducedMotion
+                      ? "none"
+                      : isSettled
+                        ? "transform 180ms ease-out, background-color 200ms, color 200ms"
+                        : `transform 550ms cubic-bezier(0.34,1.56,0.64,1) ${
+                            (cell.row + cell.col) * 55
+                          }ms, opacity 400ms ease ${(cell.row + cell.col) * 55}ms, background-color 200ms`,
                   }}
                 >
                   {isNull ? "∅" : ""}
-                </button>
+                </div>
               );
             })}
           </div>
 
-          {/* cell inspector */}
-          <div className="flex h-7 items-center gap-2 font-mono text-xs text-muted-foreground">
+          {/* cell inspector (visual flourish only) */}
+          <div
+            aria-hidden
+            className="flex h-7 items-center gap-2 font-mono text-xs text-muted-foreground"
+          >
             <FiDatabase className="size-3.5" />
             {allNulled ? (
               <span className="text-danger">page fully dropped. DROP TABLE pages; ✓</span>
@@ -252,7 +258,6 @@ export default function NotFoundPage() {
           >
             <FiHome className="size-4" />
             Go Home
-            <kbd className="ml-1 rounded border border-white/30 px-1 text-[10px] leading-4">H</kbd>
           </Link>
           <button
             type="button"
@@ -261,9 +266,6 @@ export default function NotFoundPage() {
           >
             <FiArrowLeft className="size-4" />
             Go Back
-            <kbd className="ml-1 rounded border border-app-border px-1 text-[10px] leading-4 text-muted-foreground">
-              B
-            </kbd>
           </button>
           <button
             type="button"
