@@ -604,3 +604,34 @@ def test_transform_pivot_rejects_non_numeric_aggregation(client, project_id):
 
     assert response.status_code == 400, response.text
     assert "Cannot aggregate column" in response.json()["detail"]
+
+
+def test_transform_fill_mean_on_datetime_column_returns_400(client, tmp_path):
+    """fillEmpty mean on a date column must not silently write a nanosecond
+    count into it: a CSV date column with one empty cell is inferred as
+    datetime, and the old to_numeric guard let it through (HTTP 200, the
+    missing date became -3.07e18 and the column flipped to str)."""
+    csv_path = tmp_path / "dates.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["when", "val"])
+        writer.writerow(["2024-01-01", "1"])
+        writer.writerow(["", "2"])
+        writer.writerow(["2024-01-03", "3"])
+    with open(csv_path, "rb") as f:
+        upload = client.post(
+            "/projects/upload",
+            files={"file": ("dates.csv", f, "text/csv")},
+            data={"projectName": "Dates", "projectDescription": "fixture"},
+        )
+    assert upload.status_code == 200, upload.text
+    pid = upload.json()["project_id"]
+    response = client.post(
+        f"/projects/{pid}/transform",
+        json={
+            "operation_type": "fillEmpty",
+            "fill_empty_params": {"index": 0, "strategy": "mean"},
+        },
+    )
+    assert response.status_code == 400, response.text
+    assert "non-numeric" in response.json()["detail"]
