@@ -426,6 +426,24 @@ def _coerce_fill_value_for_column(value, column: pd.Series):
     return value
 
 
+def _is_non_numeric_for_statistics(series: pd.Series) -> bool:
+    """True when a column must not feed the mean/median fill strategies.
+
+    The mean/median branches reject a column only when ``pd.to_numeric``
+    coerces all of its values to NaN, but that guard lets datetimes and
+    booleans through: ``to_numeric`` converts datetimes to nanosecond
+    integers and booleans to 0/1 instead of NaN, so a datetime column
+    would be filled with a raw nanosecond count and a boolean column
+    with 0.5. Object columns of plain Python bools (e.g. a CSV boolean
+    column with a missing value, which pandas reads as object dtype)
+    need the same rejection.
+    """
+    if pd.api.types.is_datetime64_any_dtype(series) or pd.api.types.is_bool_dtype(series):
+        return True
+    non_null = series.dropna()
+    return len(non_null) > 0 and all(isinstance(v, bool) for v in non_null)
+
+
 def fill_empty(
     df: pd.DataFrame,
     fill_value=None,
@@ -464,6 +482,9 @@ def fill_empty(
             df[column_name] = series.fillna(_coerce_fill_value(fill_value))
 
         elif strategy == "mean":
+            if _is_non_numeric_for_statistics(series):
+                raise TransformationError(f"Cannot compute mean on non-numeric column '{column_name}'")
+
             numeric_series = pd.to_numeric(series, errors="coerce")
             if numeric_series.dropna().empty:
                 raise TransformationError(f"Cannot compute mean on non-numeric column '{column_name}'")
@@ -476,6 +497,9 @@ def fill_empty(
             df[column_name] = series.fillna(computed_fill_value)
 
         elif strategy == "median":
+            if _is_non_numeric_for_statistics(series):
+                raise TransformationError(f"Cannot compute median on non-numeric column '{column_name}'")
+
             numeric_series = pd.to_numeric(series, errors="coerce")
             if numeric_series.dropna().empty:
                 raise TransformationError(f"Cannot compute median on non-numeric column '{column_name}'")

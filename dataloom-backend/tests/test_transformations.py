@@ -622,6 +622,38 @@ class TestFillEmpty:
         with pytest.raises(TransformationError, match="Cannot compute median on non-numeric column"):
             fill_empty(df, column_index=0, strategy="median")
 
+    def test_fill_mean_datetime_column_raises(self):
+        # Datetime columns slip through the old to_numeric guard: pandas
+        # converts datetimes to nanosecond integers instead of NaN, so the
+        # "mean" was a raw nanosecond count written back into a date column.
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", None, "2024-01-03"])})
+        with pytest.raises(TransformationError, match="Cannot compute mean on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="mean")
+
+    def test_fill_median_datetime_column_raises(self):
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", None, "2024-01-03"])})
+        with pytest.raises(TransformationError, match="Cannot compute median on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="median")
+
+    def test_fill_mean_boolean_column_raises(self):
+        # Booleans convert to 0/1 under to_numeric, so a boolean column
+        # would otherwise be filled with 0.5 — not a boolean at all.
+        df = pd.DataFrame({"flag": pd.array([True, None, False], dtype="boolean")})
+        with pytest.raises(TransformationError, match="Cannot compute mean on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="mean")
+        df = pd.DataFrame({"flag": [True, None, False]})
+        with pytest.raises(TransformationError, match="Cannot compute mean on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="mean")
+        with pytest.raises(TransformationError, match="Cannot compute median on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="median")
+
+    def test_fill_mode_datetime_column_still_works(self):
+        # Only the numeric statistics are rejected: mode on a datetime
+        # column fills a real date and must keep working.
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", None, "2024-01-01"])})
+        result = fill_empty(df, column_index=0, strategy="mode")
+        assert result["when"].tolist() == list(pd.to_datetime(["2024-01-01", "2024-01-01", "2024-01-01"]))
+
     def test_fill_statistical_strategy_requires_specific_column(self):
         # Statistical strategies need one selected column so the computed value is unambiguous.
         df = pd.DataFrame({"a": [1, None, 3]})
