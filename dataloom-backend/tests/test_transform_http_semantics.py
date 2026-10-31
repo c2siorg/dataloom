@@ -604,3 +604,62 @@ def test_transform_pivot_rejects_non_numeric_aggregation(client, project_id):
 
     assert response.status_code == 400, response.text
     assert "Cannot aggregate column" in response.json()["detail"]
+
+
+def test_transform_fill_custom_text_on_numeric_column_returns_400(client, tmp_path):
+    """fillEmpty custom with a text value on a numeric column must not
+    silently rewrite the column as object dtype: a CSV score column with one
+    empty cell is read as float, and the old code filled it with the string
+    (HTTP 200, the column flipped to mixed types)."""
+    csv_path = tmp_path / "scores.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["score", "name"])
+        writer.writerow(["10", "a"])
+        writer.writerow(["", "b"])
+        writer.writerow(["30", "c"])
+    with open(csv_path, "rb") as f:
+        upload = client.post(
+            "/projects/upload",
+            files={"file": ("scores.csv", f, "text/csv")},
+            data={"projectName": "Scores", "projectDescription": "fixture"},
+        )
+    assert upload.status_code == 200, upload.text
+    pid = upload.json()["project_id"]
+    response = client.post(
+        f"/projects/{pid}/transform",
+        json={
+            "operation_type": "fillEmpty",
+            "fill_empty_params": {"index": 0, "fill_value": "abc", "strategy": "custom"},
+        },
+    )
+    assert response.status_code == 400, response.text
+    assert "non-numeric" in response.json()["detail"]
+
+
+def test_transform_fill_custom_list_value_returns_400(client, tmp_path):
+    """A JSON array as a custom fill value reached fillna() and raised a raw
+    TypeError, answered as HTTP 500. It must be a 400 instead."""
+    csv_path = tmp_path / "names.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["name"])
+        writer.writerow(["a"])
+        writer.writerow([""])
+    with open(csv_path, "rb") as f:
+        upload = client.post(
+            "/projects/upload",
+            files={"file": ("names.csv", f, "text/csv")},
+            data={"projectName": "Names", "projectDescription": "fixture"},
+        )
+    assert upload.status_code == 200, upload.text
+    pid = upload.json()["project_id"]
+    response = client.post(
+        f"/projects/{pid}/transform",
+        json={
+            "operation_type": "fillEmpty",
+            "fill_empty_params": {"index": 0, "fill_value": ["x"], "strategy": "custom"},
+        },
+    )
+    assert response.status_code == 400, response.text
+    assert "single value" in response.json()["detail"]
