@@ -21,6 +21,8 @@ dependencies = [
     "pyarrow>=24.0.0",
     "regex>=2026.7.19",
     "reportlab>=5.0.0",
+    "arabic-reshaper>=3.0.1",
+    "python-bidi>=0.6.12",
 ]
 
 [tool.ruff]
