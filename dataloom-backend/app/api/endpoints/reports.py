@@ -30,7 +30,8 @@ def _quality_settings_line() -> str:
 
 
 def _attachment_filename(project_name: str) -> str:
-    safe = re.sub(r"[^\w.\-]", "_", project_name).strip("_") or "project"
+    """A filename safe for a response header, which only carries latin-1."""
+    safe = re.sub(r"[^\w.\-]|[^\x00-\xff]", "_", project_name).strip("_") or "project"
     return f"{safe}_report.pdf"
 
 

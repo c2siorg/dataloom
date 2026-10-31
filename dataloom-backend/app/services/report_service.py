@@ -31,6 +31,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from app.services.report_fonts import break_lines, draw_text, font_markup, is_rtl, isolate, visual_text
+
 # --- Brand ---------------------------------------------------------------
 
 INK = colors.HexColor("#18181b")  # --app-foreground
@@ -99,6 +101,29 @@ class _Rule(Flowable):
         self.canv.setStrokeColor(self.color)
         self.canv.setLineWidth(self.thickness)
         self.canv.line(0, 0, self.width, 0)
+
+
+class _RtlParagraph(Flowable):
+    """A wrapping paragraph of right-to-left text.
+
+    Bidi reordering applies per line, so lines break in logical order and each is
+    reordered alone. A Paragraph of the reordered text puts the end of the text on
+    its first line.
+    """
+
+    def __init__(self, text: str, style: ParagraphStyle):
+        super().__init__()
+        self.text = text
+        self.style = style
+
+    def wrap(self, availWidth: float, availHeight: float) -> tuple[float, float]:
+        font = self.style.fontName
+        lines = break_lines(self.text, font, self.style.fontSize, availWidth)
+        self._paragraph = Paragraph("<br/>".join(font_markup(visual_text(line), font) for line in lines), self.style)
+        return self._paragraph.wrap(availWidth, availHeight)
+
+    def draw(self) -> None:
+        self._paragraph.drawOn(self.canv, 0, 0)
 
 
 # --- Styles --------------------------------------------------------------
@@ -185,9 +210,10 @@ def _short_date(value: Any) -> str:
     return moment.strftime(TIMESTAMP_FORMAT)
 
 
-def _para(text: Any, style: ParagraphStyle) -> Paragraph:
-    """A table cell that wraps. Paragraph parses markup, so escape user text."""
-    return Paragraph(escape(str(text)), style)
+def _para(text: Any, style: ParagraphStyle) -> Flowable:
+    """Text that wraps and prints in any supported script, with user text escaped."""
+    text = str(text)
+    return _RtlParagraph(text, style) if is_rtl(text) else Paragraph(font_markup(text, style.fontName), style)
 
 
 def _section(title: str, styles: dict[str, ParagraphStyle]) -> list[Any]:
@@ -204,7 +230,7 @@ def _title_block(project_name: str, styles: dict[str, ParagraphStyle]) -> list[A
             [
                 _LoomMark(11 * mm),
                 [
-                    Paragraph(escape(project_name), styles["title"]),
+                    _para(project_name, styles["title"]),
                     Paragraph(f"DataLoom report · generated {generated}", styles["subtitle"]),
                 ],
             ]
@@ -290,7 +316,7 @@ def _profile_notes(profile: dict[str, Any]) -> str:
     top_values = profile.get("top_values")
     if top_values:
         top = top_values[0]
-        parts.insert(0, f"most common “{top['value']}” ({_fmt(top['count'])})")
+        parts.insert(0, f"most common “{isolate(top['value'])}” ({_fmt(top['count'])})")
     dominant = profile.get("dominant_value_percentage")
     if dominant is not None:
         parts.append(f"dominant {_fmt(dominant)}%")
@@ -353,7 +379,7 @@ def _quality_section(
                         f"out of 100 · {len(issues)} issue(s) found" if issues else "out of 100 · no issues found",
                         styles["body"],
                     ),
-                    Paragraph(escape(settings), styles["note"]),
+                    _para(settings, styles["note"]),
                 ],
             ]
         ],
@@ -404,7 +430,7 @@ def _quality_section(
         body.append(Spacer(1, 5 * mm))
         body.append(Paragraph("Suggested fixes", styles["sub"]))
         for remediation in remediations:
-            body.append(Paragraph(f"• {escape(str(remediation.get('suggestion', '')))}", styles["body"]))
+            body.append(_para(f"• {remediation.get('suggestion', '')}", styles["body"]))
 
     return [*body, Spacer(1, 8 * mm)]
 
@@ -461,7 +487,7 @@ def _provenance_section(provenance: dict[str, Any], styles: dict[str, ParagraphS
 
     for checkpoint in checkpoints:
         block = [
-            Paragraph(escape(str(checkpoint.get("message", "Checkpoint"))), styles["sub"]),
+            _para(checkpoint.get("message", "Checkpoint"), styles["sub"]),
             Paragraph(f"Saved {escape(str(checkpoint.get('created_at', '')))}", styles["note"]),
             Spacer(1, 1.5 * mm),
         ]
@@ -497,9 +523,9 @@ def _page_furniture(project_name: str):
         canvas.setStrokeColor(RULE)
         canvas.setLineWidth(0.5)
         canvas.line(18 * mm, y + 4 * mm, 18 * mm + PAGE_WIDTH, y + 4 * mm)
-        canvas.setFont("Helvetica", 7.5)
         canvas.setFillColor(MUTED)
-        canvas.drawString(18 * mm, y, f"DataLoom · {project_name}")
+        draw_text(canvas, 18 * mm, y, f"DataLoom · {visual_text(project_name)}", "Helvetica", 7.5)
+        canvas.setFont("Helvetica", 7.5)
         canvas.drawRightString(18 * mm + PAGE_WIDTH, y, f"Page {doc.page}")
         canvas.restoreState()
 
