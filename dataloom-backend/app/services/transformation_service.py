@@ -7,6 +7,7 @@ No side effects -- saving to disk is handled by the caller.
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -412,18 +413,77 @@ def _coerce_fill_value(value):
     return value
 
 
-def _coerce_fill_value_for_column(value, column: pd.Series):
-    """Coerce a fill value to match a column's dtype when applying across all columns.
+def _coerce_custom_fill_value(value, column: pd.Series, column_name: str, *, coerce_strings: bool = True):
+    """Coerce a custom fillEmpty value to the column's dtype, or reject it.
 
-    Only numeric columns attempt int/float coercion; non-numeric columns receive
-    the raw string unchanged. This prevents a single coerced value (e.g. an int)
-    from being applied to a string column when filling every column at once.
+    ``Series.fillna`` accepts almost anything, and the failure modes are both
+    bad: a value that cannot be stored in a nullable dtype (``Int64``,
+    ``boolean``) or a non-scalar value raises a raw ``TypeError`` that the
+    endpoint can only answer with a 500, while a text value in a float or
+    datetime column silently rewrites the column as object dtype, destroying
+    the type for every later operation. A value that cannot live in the
+    column is a client error, and a value that can live there must keep the
+    column's dtype.
+
+    ``coerce_strings`` preserves the two existing call sites' behaviour for
+    untyped columns: a single-column fill coerces numeric strings (as
+    ``_coerce_fill_value`` always did), while an all-columns fill leaves
+    strings untouched in non-numeric columns.
     """
-    if not isinstance(value, str):
-        return value
-    if pd.api.types.is_numeric_dtype(column):
-        return _coerce_fill_value(value)
-    return value
+    if isinstance(value, (list, dict, set, tuple)):
+        raise TransformationError(
+            f"Fill value for column '{column_name}' must be a single value, not a {type(value).__name__}"
+        )
+
+    dtype = column.dtype
+
+    # pandas counts bool as numeric, so check it before the numeric branch.
+    if pd.api.types.is_bool_dtype(dtype):
+        if isinstance(value, bool):
+            return value
+        parsed = _parse_bool(value)
+        if parsed is None:
+            raise TransformationError(
+                f"Cannot fill boolean column '{column_name}' with {value!r}. Expected a boolean value."
+            )
+        return parsed
+
+    if pd.api.types.is_datetime64_any_dtype(dtype):
+        if isinstance(value, (datetime, date)):
+            return pd.Timestamp(value)
+        if isinstance(value, str):
+            try:
+                return pd.to_datetime(value)
+            except (ValueError, TypeError, OverflowError):
+                pass
+        raise TransformationError(f"Cannot fill datetime column '{column_name}' with {value!r}. Expected a date value.")
+
+    if pd.api.types.is_numeric_dtype(dtype):
+        if isinstance(value, bool):
+            raise TransformationError(f"Cannot fill numeric column '{column_name}' with a boolean value.")
+        coerced = _coerce_fill_value(value)
+        if isinstance(coerced, str):
+            raise TransformationError(f"Cannot fill numeric column '{column_name}' with non-numeric value {value!r}.")
+        if isinstance(coerced, float) and not math.isfinite(coerced):
+            raise TransformationError(f"Cannot fill numeric column '{column_name}' with non-finite value {value!r}.")
+        return coerced
+
+    return _coerce_fill_value(value) if coerce_strings else value
+
+
+def _fillna_custom(series: pd.Series, value, column_name: str, *, coerce_strings: bool = True) -> pd.Series:
+    """Fill a series with a custom value, as a client error on failure.
+
+    The dtype guard above rejects the known un-storable values; this wrap
+    covers whatever pandas still refuses (e.g. a naive date into a
+    timezone-aware datetime column) so it surfaces as a 400, never a 500.
+    """
+    try:
+        return series.fillna(_coerce_custom_fill_value(value, series, column_name, coerce_strings=coerce_strings))
+    except TransformationError:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise TransformationError(f"Cannot fill column '{column_name}' with {value!r}: {exc}") from exc
 
 
 def fill_empty(
@@ -461,7 +521,7 @@ def fill_empty(
         series = df[column_name]
 
         if strategy == "custom":
-            df[column_name] = series.fillna(_coerce_fill_value(fill_value))
+            df[column_name] = _fillna_custom(series, fill_value, column_name)
 
         elif strategy == "mean":
             numeric_series = pd.to_numeric(series, errors="coerce")
@@ -505,7 +565,9 @@ def fill_empty(
         return df
 
     if strategy == "custom":
-        return df.apply(lambda col: col.fillna(_coerce_fill_value_for_column(fill_value, col)))
+        return df.apply(
+            lambda col: _fillna_custom(col, fill_value, str(col.name), coerce_strings=False),
+        )
 
     if strategy == "ffill":
         return df.ffill()

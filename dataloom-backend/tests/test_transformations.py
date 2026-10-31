@@ -562,6 +562,69 @@ class TestFillEmpty:
         with pytest.raises(TransformationError, match="fill value is required"):
             fill_empty(df, strategy="custom")
 
+    def test_fill_custom_text_on_numeric_column_raises(self):
+        # A text fill in a float column used to succeed and silently rewrite
+        # the column as object dtype ([1.0, "abc", 3.0]); it is a client error.
+        df = pd.DataFrame({"score": [1.0, None, 3.0]})
+        with pytest.raises(TransformationError, match="non-numeric"):
+            fill_empty(df, fill_value="abc", column_index=0, strategy="custom")
+
+    def test_fill_custom_numeric_string_on_numeric_column_still_fills(self):
+        df = pd.DataFrame({"score": [1.0, None, 3.0]})
+        result = fill_empty(df, fill_value="5", column_index=0, strategy="custom")
+        assert result["score"].tolist() == [1.0, 5.0, 3.0]
+        assert pd.api.types.is_float_dtype(result["score"])
+
+    def test_fill_custom_text_on_int64_column_raises(self):
+        # A nullable Int64 column (as produced by casting to integer) raised a
+        # raw TypeError from fillna; it must surface as a TransformationError.
+        df = pd.DataFrame({"n": pd.array([1, None, 3], dtype="Int64")})
+        with pytest.raises(TransformationError, match="non-numeric"):
+            fill_empty(df, fill_value="abc", column_index=0, strategy="custom")
+
+    def test_fill_custom_numeric_string_on_int64_column_preserves_dtype(self):
+        df = pd.DataFrame({"n": pd.array([1, None, 3], dtype="Int64")})
+        result = fill_empty(df, fill_value="5", column_index=0, strategy="custom")
+        assert result["n"].tolist() == [1, 5, 3]
+        assert str(result["n"].dtype) == "Int64"
+
+    def test_fill_custom_bool_token_on_boolean_column(self):
+        df = pd.DataFrame({"flag": pd.array([True, None, False], dtype="boolean")})
+        result = fill_empty(df, fill_value="false", column_index=0, strategy="custom")
+        assert result["flag"].tolist() == [True, False, False]
+        assert str(result["flag"].dtype) == "boolean"
+
+    def test_fill_custom_text_on_boolean_column_raises(self):
+        df = pd.DataFrame({"flag": pd.array([True, None, False], dtype="boolean")})
+        with pytest.raises(TransformationError, match="boolean"):
+            fill_empty(df, fill_value="5", column_index=0, strategy="custom")
+
+    def test_fill_custom_date_string_on_datetime_column_preserves_dtype(self):
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", None, "2024-01-03"])})
+        result = fill_empty(df, fill_value="2024-02-01", column_index=0, strategy="custom")
+        assert result["when"].iloc[1] == pd.Timestamp("2024-02-01")
+        assert pd.api.types.is_datetime64_any_dtype(result["when"])
+
+    def test_fill_custom_text_on_datetime_column_raises(self):
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", None, "2024-01-03"])})
+        with pytest.raises(TransformationError, match="date value"):
+            fill_empty(df, fill_value="abc", column_index=0, strategy="custom")
+
+    def test_fill_custom_list_value_raises(self):
+        # fillna() requires a scalar; a JSON array fill value raised a raw
+        # TypeError (HTTP 500) instead of a client error.
+        df = pd.DataFrame({"s": ["a", None, "c"]})
+        with pytest.raises(TransformationError, match="single value"):
+            fill_empty(df, fill_value=["x"], column_index=0, strategy="custom")
+
+    def test_fill_custom_all_columns_rejects_for_typed_column(self):
+        # The all-columns path must apply the same per-column guard: a text
+        # fill over a frame holding a numeric column is rejected, not applied
+        # to the string columns while corrupting the numeric one.
+        df = pd.DataFrame({"score": [1.0, None], "s": ["a", None]})
+        with pytest.raises(TransformationError, match="non-numeric"):
+            fill_empty(df, fill_value="abc", strategy="custom")
+
     def test_fill_mean_for_numeric_column(self):
         # Mean strategy fills NaN with the numeric column average: (10 + 30) / 2 = 20.
         df = pd.DataFrame({"score": [10, None, 30]})
