@@ -1,5 +1,6 @@
 import type { LogEntry } from "../../api";
 import EmptyState from "../common/EmptyState";
+import { formatTransformationDetails } from "./formatTransformationDetails";
 
 interface LogsPanelProps {
   logs: LogEntry[];
@@ -24,8 +25,12 @@ const LogsPanel = ({ logs }: LogsPanelProps) => {
               <th className="py-3 px-4 border-b border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Applied
               </th>
+              <th className="py-3 px-4 border-b border-app-border text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Details
+              </th>
             </tr>
           </thead>
+
           <tbody>
             {logs.length > 0 ? (
               logs.map((log) => (
@@ -33,20 +38,34 @@ const LogsPanel = ({ logs }: LogsPanelProps) => {
                   key={log.id}
                   className="border-b border-app-border hover:bg-surface-hover transition-colors duration-150"
                 >
-                  <td className="py-3 px-4 text-sm text-foreground">{log.action_type}</td>
+                  <td className="py-3 px-4 text-sm text-foreground">
+                    {log.action_type}
+                  </td>
+
                   <td className="py-3 px-4 text-sm text-foreground">
                     {new Date(log.timestamp).toLocaleString()}
                   </td>
-                  <td className="py-3 px-4 text-sm text-foreground">{log.checkpoint_id || "-"}</td>
+
+                  <td className="py-3 px-4 text-sm text-foreground">
+                    {log.checkpoint_id || "-"}
+                  </td>
+
                   <td className="py-3 px-4 text-sm text-foreground">
                     {log.applied ? "Yes" : "No"}
+                  </td>
+
+                  <td className="py-3 px-4 text-sm text-foreground">
+                    {formatTransformationDetails(log.action_details)}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={4}>
-                  <EmptyState variant="inline" title="No logs available" />
+                <td colSpan={5}>
+                  <EmptyState
+                    variant="inline"
+                    title="No logs available"
+                  />
                 </td>
               </tr>
             )}
