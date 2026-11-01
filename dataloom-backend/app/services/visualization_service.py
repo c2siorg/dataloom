@@ -211,6 +211,10 @@ def _xy_series(df: pd.DataFrame, x_col: str, y_cols: list[str], chart_type: str)
         _require_column(df, y)
         _require_numeric(df, y)
 
+    # A repeated y plots once and x can also be a y, but the frame needs unique labels.
+    names = list(dict.fromkeys(y_cols))
+    y_cols = [y for y in names if y != x_col]
+
     x_label = map_dtype(df[x_col].dtype)
     frame = df[[x_col, *y_cols]].dropna(subset=[x_col]).sort_values(x_col)
 
@@ -222,10 +226,10 @@ def _xy_series(df: pd.DataFrame, x_col: str, y_cols: list[str], chart_type: str)
 
     xs = [_x_value(v, x_label) for v in frame[x_col]]
     series = [
-        {"name": y, "data": [{"x": x, "y": _safe_number(v)} for x, v in zip(xs, frame[y], strict=True)]} for y in y_cols
+        {"name": y, "data": [{"x": x, "y": _safe_number(v)} for x, v in zip(xs, frame[y], strict=True)]} for y in names
     ]
-    title = f"{', '.join(y_cols)} over {x_col}"
-    return _spec(chart_type, title, x_col, ", ".join(y_cols), series, {"sampled": sampled or None})
+    title = f"{', '.join(names)} over {x_col}"
+    return _spec(chart_type, title, x_col, ", ".join(names), series, {"sampled": sampled or None})
 
 
 def build_line_chart(df: pd.DataFrame, x_col: str, y_cols: list[str]) -> dict[str, Any]:
@@ -255,7 +259,7 @@ def build_scatter_plot(
     _require_numeric(df, x_col)
     _require_numeric(df, y_col)
 
-    cols = [x_col, y_col] + ([color_col] if color_col else [])
+    cols = list(dict.fromkeys([x_col, y_col] + ([color_col] if color_col else [])))
     if color_col:
         _require_column(df, color_col)
     frame = df[cols].dropna(subset=[x_col, y_col])
