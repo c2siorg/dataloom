@@ -1,5 +1,6 @@
 """Pandas utility functions for safe multi-format I/O and response building."""
 
+import json
 import math
 import os
 import re
@@ -10,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from fastapi import HTTPException
 
@@ -30,13 +32,68 @@ class DatasetFileStats:
     column_count: int | None = None
 
 
+def _to_jsonable(value: Any) -> Any:
+    """Recursively convert a nested value into JSON-serialisable scalars."""
+    if isinstance(value, dict):
+        return {str(key): _to_jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_to_jsonable(item) for item in value]
+    if isinstance(value, set):
+        return [_to_jsonable(item) for item in sorted(value, key=repr)]
+    # pyarrow reads Parquet list columns back as numpy arrays, which are
+    # unhashable and not JSON-serialisable as-is.
+    if isinstance(value, np.ndarray):
+        return _to_jsonable(value.tolist())
+    return value
+
+
+def _scalarize_unhashable_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Store nested cell values as JSON strings, mirroring the JSON reader.
+
+    Parquet is the one supported upload format that can carry nested values
+    into a DataFrame: list columns arrive as numpy arrays and struct columns
+    as dicts. Both are unhashable, so every downstream aggregation over the
+    column (``value_counts`` in profiling, ``duplicated`` in quality checks,
+    ``groupby`` in bar charts) raises a raw ``TypeError``. A tabular tool has
+    no cell editor for nested values, so — exactly as the JSON reader already
+    does for arrays — the nested value becomes its JSON-string representation
+    and every other cell in the column is left untouched.
+    """
+    nested_columns = [
+        column
+        for column in df.select_dtypes(include=["object"]).columns
+        if any(isinstance(v, (list, dict, tuple, set, np.ndarray)) for v in df[column])
+    ]
+    if not nested_columns:
+        return df
+    df = df.copy()
+    for column in nested_columns:
+        df[column] = [
+            json.dumps(_to_jsonable(v), default=str, ensure_ascii=False)
+            if isinstance(v, (list, dict, tuple, set, np.ndarray))
+            else v
+            for v in df[column]
+        ]
+    return df
+
+
 def _read_and_infer(path: Path) -> pd.DataFrame:
     """Parse a dataset file and infer its datetime columns.
 
     Split out of :func:`read_table_safe` so it can be handed to the DataFrame
     cache as a plain ``path -> DataFrame`` loader.
     """
-    return _infer_datetime_columns(get_format(path).read(path))
+    fmt = get_format(path)
+    df = _infer_datetime_columns(fmt.read(path))
+    # Only Parquet can carry nested cells into a DataFrame: CSV/TSV/Excel
+    # cells are always scalars and the JSON reader already scalarises
+    # arrays, so scanning every object column of every read for nested
+    # values would roughly double the cost of a plain CSV read (the
+    # data-path benchmarks regressed ~91% on ``test_read_csv_uncached``
+    # when this ran unconditionally).
+    if fmt.extension == ".parquet":
+        return _scalarize_unhashable_columns(df)
+    return df
 
 
 def read_table_safe(path: Path, *, use_cache: bool = True) -> pd.DataFrame:
