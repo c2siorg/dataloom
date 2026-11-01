@@ -212,7 +212,15 @@ def _xy_series(df: pd.DataFrame, x_col: str, y_cols: list[str], chart_type: str)
         _require_numeric(df, y)
 
     x_label = map_dtype(df[x_col].dtype)
-    frame = df[[x_col, *y_cols]].dropna(subset=[x_col]).sort_values(x_col)
+    # A y column that repeats the x column (or itself) must not produce a
+    # frame with duplicated labels: frame[x_col] would then be a DataFrame,
+    # and the series build below would silently emit null points or fail
+    # with a pandas-internal error. Deduplicate the frame columns while
+    # keeping every requested series — a y equal to x still plots, against
+    # itself, because frame[y] resolves to the single x column.
+    deduped_y = list(dict.fromkeys(y_cols))
+    frame_cols = [x_col] + [y for y in deduped_y if y != x_col]
+    frame = df[frame_cols].dropna(subset=[x_col]).sort_values(x_col)
 
     sampled = False
     if frame.shape[0] > MAX_LINE_POINTS:
@@ -222,10 +230,14 @@ def _xy_series(df: pd.DataFrame, x_col: str, y_cols: list[str], chart_type: str)
 
     xs = [_x_value(v, x_label) for v in frame[x_col]]
     series = [
-        {"name": y, "data": [{"x": x, "y": _safe_number(v)} for x, v in zip(xs, frame[y], strict=True)]} for y in y_cols
+        {
+            "name": y,
+            "data": [{"x": x, "y": _safe_number(v)} for x, v in zip(xs, frame[y], strict=True)],
+        }
+        for y in deduped_y
     ]
-    title = f"{', '.join(y_cols)} over {x_col}"
-    return _spec(chart_type, title, x_col, ", ".join(y_cols), series, {"sampled": sampled or None})
+    title = f"{', '.join(deduped_y)} over {x_col}"
+    return _spec(chart_type, title, x_col, ", ".join(deduped_y), series, {"sampled": sampled or None})
 
 
 def build_line_chart(df: pd.DataFrame, x_col: str, y_cols: list[str]) -> dict[str, Any]:
@@ -255,7 +267,13 @@ def build_scatter_plot(
     _require_numeric(df, x_col)
     _require_numeric(df, y_col)
 
-    cols = [x_col, y_col] + ([color_col] if color_col else [])
+    # As in _xy_series, a colour column equal to x or y (or x equal to y)
+    # must not produce a frame with duplicated labels: frame[x_col] would
+    # then be a DataFrame, so scatter points would silently come out null
+    # and grouping by the colour column would fail with a pandas-internal
+    # error. Deduplicate the frame columns; each name still resolves to
+    # the same single column.
+    cols = list(dict.fromkeys([x_col, y_col] + ([color_col] if color_col else [])))
     if color_col:
         _require_column(df, color_col)
     frame = df[cols].dropna(subset=[x_col, y_col])
