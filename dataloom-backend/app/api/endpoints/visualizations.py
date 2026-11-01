@@ -85,6 +85,7 @@ def _dispatch(df, chart_type, column, category, value, x, y, color, agg, bins):
         return visualization_service.build_area_chart(df, x, y)
 
     # scatter
+    y = list(dict.fromkeys(y))
     if not x or len(y) != 1:
         raise ValueError("scatter chart requires 'x' and exactly one 'y'")
     return visualization_service.build_scatter_plot(df, x, y[0], color)
