@@ -193,6 +193,12 @@ class TestColumnProfileDatetime:
         assert profile["range_days"] == 2
         assert profile["inferred_granularity"] == "day"
 
+    def test_granularity_with_unsorted_duplicate_dates(self):
+        dates = ["2020-03-01", "2020-01-01", "2020-02-01", "2020-01-01", "2020-03-01", "2020-02-01"]
+        df = pd.DataFrame({"d": pd.to_datetime(dates)})
+        profile = ps.column_profile(df, "d")
+        assert profile["inferred_granularity"] == "month"
+
     def test_single_datetime_value_has_no_granularity(self):
         df = pd.DataFrame({"d": pd.to_datetime(["2020-01-01"])})
         profile = ps.column_profile(df, "d")

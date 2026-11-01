@@ -19,8 +19,8 @@ export {
 } from "./projects";
 export type { ExportOptions, ExportResult, UploadLimits } from "./projects";
 export type { UploadOptions } from "./uploadOptions";
-export { getLogs, getCheckpoints, deleteCheckpoint } from "./logs";
-export type { Checkpoint, LogEntry } from "./logs";
+export { getLogs, getCheckpoints, deleteCheckpoint, compareCheckpoint } from "./logs";
+export type { Checkpoint, LogEntry, DatasetComparison, CompareCheckpointOptions } from "./logs";
 export {
   transformProject,
   groupByTransform,
@@ -59,3 +59,12 @@ export {
   checkDraftPipelineSteps,
   applyPipeline,
 } from "./pipelines";
+export {
+  submitJob,
+  getJob,
+  listProjectJobs,
+  cancelJob,
+  isTerminal,
+  TERMINAL_JOB_STATUSES,
+} from "./jobs";
+export type { Job, JobKind, JobProgress, JobRequest, JobStatus } from "./jobs";

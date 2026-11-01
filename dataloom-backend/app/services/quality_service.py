@@ -174,7 +174,7 @@ def detect_outliers(
         if len(non_null) < MIN_OUTLIER_SAMPLE:
             continue
         if method == "iqr":
-            q1, q3 = non_null.quantile(0.25), non_null.quantile(0.75)
+            q1, q3 = non_null.quantile([0.25, 0.75]).tolist()
             iqr = q3 - q1
             if iqr == 0:
                 continue

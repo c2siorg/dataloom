@@ -23,6 +23,7 @@ Conventions:
 
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from app.services.profiling_service import _round, _safe_number
@@ -123,7 +124,8 @@ def build_histogram(df: pd.DataFrame, column: str, bins: int = DEFAULT_BINS) -> 
     _require_numeric(df, column)
     bins = max(MIN_BINS, min(MAX_BINS, int(bins)))
 
-    series = pd.to_numeric(df[column], errors="coerce").dropna()
+    # pd.cut cannot bin +/-inf, so non-finite values are skipped like NaN.
+    series = pd.to_numeric(df[column], errors="coerce").replace([np.inf, -np.inf], np.nan).dropna()
     total = int(series.shape[0])
     if total == 0:
         return _spec("histogram", f"Distribution of {column}", column, "Count", [{"name": "count", "data": []}])

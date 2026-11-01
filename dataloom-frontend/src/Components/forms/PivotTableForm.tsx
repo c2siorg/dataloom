@@ -36,6 +36,21 @@ const PivotTableForm = ({ projectId, onClose, onCapture }: TransformFormProps) =
       return;
     }
 
+    if (index.includes(column)) {
+      setError("Pivot column cannot also be an index column.");
+      return;
+    }
+
+    if (index.includes(value)) {
+      setError("Value column cannot also be an index column.");
+      return;
+    }
+
+    if (column === value) {
+      setError("Pivot column and value column must be different.");
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {

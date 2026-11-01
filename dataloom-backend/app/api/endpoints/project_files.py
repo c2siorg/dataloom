@@ -195,7 +195,7 @@ async def add_file(
 
 
 @router.get("/{project_id}/files", response_model=list[schemas.ProjectFileResponse])
-async def list_project_files(
+def list_project_files(
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):

@@ -24,6 +24,21 @@ from app.main import app  # noqa: E402
 from app.services.auth_service import create_access_token  # noqa: E402
 from app.utils import df_cache  # noqa: E402
 
+try:
+    from pytest_benchmark.storage.file import FileStorage
+
+    _orig_file_storage_location = FileStorage.location.fget
+
+    def _safe_file_storage_location(self):
+        try:
+            return _orig_file_storage_location(self)
+        except ValueError:
+            return str(self.path)
+
+    FileStorage.location = property(_safe_file_storage_location)
+except ImportError:
+    pass
+
 # Use SQLite for tests. The database is in-memory: `setup_database` recreates the
 # schema for every test, and doing that against a file costs a disk round trip per
 # table per test, which dominated the suite's runtime.
@@ -69,6 +84,35 @@ def setup_database():
     SQLModel.metadata.create_all(bind=engine)
     yield
     SQLModel.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def _job_runner():
+    """Run background jobs inline, against the test database.
+
+    Jobs open their own Sessions through the runner's session factory, never the
+    request's Session and never ``app.database.engine`` (which follows `.env`,
+    so it may be Postgres locally or a SQLite engine without
+    ``check_same_thread=False`` in CI). The lifespan's startup recovery goes
+    through the same factory. Inline mode runs each job to completion inside the
+    submitting request, so a test can assert on its outcome straight away; use
+    ``threaded_job_runner`` for real worker threads.
+    """
+    from app.jobs.runner import runner
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(runner, "session_factory", lambda: Session(engine))
+        mp.setattr(runner, "inline", True)
+        yield runner
+
+
+@pytest.fixture
+def threaded_job_runner(_job_runner, monkeypatch):
+    """Run jobs on real worker threads, drained before the tables are dropped."""
+    monkeypatch.setattr(_job_runner, "inline", False)
+    _job_runner.start(2)
+    yield _job_runner
+    _job_runner.drain()
 
 
 @pytest.fixture(autouse=True)

@@ -30,6 +30,7 @@ from app.services.file_service import (
     take_snapshot,
     unlink_snapshots,
 )
+from app.services.job_service import ensure_no_active_exclusive_job
 from app.services.project_service import (
     create_checkpoint,
     create_project,
@@ -48,6 +49,7 @@ from app.services.project_service import (
     rename_project,
     reset_project,
     restore_after_failure,
+    revert_project,
     search_projects,
     update_project,
 )
@@ -146,31 +148,26 @@ def list_projects(
 
 @router.get("/get/{project_id}", response_model=schemas.ProjectResponse)
 def get_project_details(
-    page: int = 1,
-    pageSize: int = 50,
+    page: int = Query(1, ge=1),
+    pageSize: int = Query(50, ge=1, le=100),
     project: models.Project = Depends(get_project_or_404),
 ):
-    """Fetch full project details including all rows and columns."""
+    """Fetch project details with a page of rows and pagination metadata.
+
+    Pages beyond the dataset clamp to the last page; empty datasets return
+    one empty page. Keep the ``pageSize`` query name for existing clients.
+    """
     with project_read_lock(project.project_id):
         df = read_table_safe(project.file_path)
 
-    total_rows = len(df)
-    total_pages = (total_rows + pageSize - 1) // pageSize
-
-    start = (page - 1) * pageSize
-    end = start + pageSize
-    paginated_df = df.iloc[start:end]
-
-    resp = dataframe_to_response(paginated_df)
+    response_df, pagination = paginate_dataframe(df, page, pageSize)
+    resp = dataframe_to_response(response_df)
     return {
         "filename": project.name,
         "file_path": project.file_path,
         "project_id": project.project_id,
-        "page": page,
-        "page_size": pageSize,
-        "total_rows": total_rows,
-        "total_pages": total_pages,
         **resp,
+        **pagination,
     }
 
 
@@ -206,7 +203,7 @@ def recent_projects(
 
 
 @router.patch("/{project_id}/rename", response_model=schemas.RenameProjectResponse)
-async def rename_project_endpoint(
+def rename_project_endpoint(
     payload: schemas.RenameProjectRequest,
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
@@ -290,8 +287,9 @@ def revert_to_checkpoint(
 
     When checkpoint_id is provided, replays only the logs up to and including
     that checkpoint onto the original file. When None, reverts to the original
-    uploaded state.
+    uploaded state. Answers 409 while a job is rewriting the project.
     """
+    ensure_no_active_exclusive_job(db, project_id)
     with project_write_lock(project_id):
         return _revert_to_checkpoint(project_id, checkpoint_id, page, page_size, db, project)
 
@@ -304,63 +302,7 @@ def _revert_to_checkpoint(
     db: Session,
     project: models.Project,
 ) -> dict:
-    original_path = get_original_path(project.file_path)
-    df = read_table_safe(original_path)
-
-    if checkpoint_id is not None:
-        checkpoint = (
-            db.query(models.Checkpoint)
-            .filter(
-                models.Checkpoint.id == checkpoint_id,
-                models.Checkpoint.project_id == project_id,
-            )
-            .first()
-        )
-        if not checkpoint:
-            raise HTTPException(status_code=404, detail="Checkpoint not found")
-
-        # Find all checkpoint IDs created at or before the target checkpoint
-        eligible_checkpoint_ids = [
-            c.id
-            for c in db.query(models.Checkpoint)
-            .filter(
-                models.Checkpoint.project_id == project_id,
-                models.Checkpoint.created_at <= checkpoint.created_at,
-            )
-            .all()
-        ]
-
-        logs = (
-            db.query(models.ProjectChangeLog)
-            .filter(
-                models.ProjectChangeLog.project_id == project_id,
-                models.ProjectChangeLog.checkpoint_id.in_(eligible_checkpoint_ids),
-                models.ProjectChangeLog.applied == True,  # noqa: E712
-            )
-            .order_by(models.ProjectChangeLog.timestamp)
-            .all()
-        )
-
-        for log in logs:
-            df = apply_logged_transformation(df, log.action_type, log.action_details)
-
-    # Write file first — if this fails, DB is unchanged and state remains consistent.
-    save_table_safe(df, project.file_path)
-    # Undo and redo cover the unsaved work the revert just discarded.
-    stale_snapshots = discard_undo_history(db, project_id)
-    # Clear unapplied logs so a subsequent save cannot re-apply stale
-    # transformations on top of the reverted file state.
-    # Applies to all reverts (full and partial) to prevent stale log replay.
-    db.query(models.ProjectChangeLog).filter(
-        models.ProjectChangeLog.project_id == project_id,
-        models.ProjectChangeLog.applied.is_(False),
-    ).delete(synchronize_session="evaluate")
-    try:
-        db.commit()
-    except SQLAlchemyError:
-        db.rollback()
-        raise
-    unlink_snapshots(stale_snapshots)
+    df = revert_project(db, project, checkpoint_id)
 
     response_df, pagination = paginate_dataframe(df, page, page_size)
     resp = dataframe_to_response(response_df)
@@ -443,12 +385,17 @@ def export_project(
 
 
 @router.delete("/{project_id}")
-async def delete_project_endpoint(
+def delete_project_endpoint(
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
-    """Delete a project and its associated files."""
+    """Delete a project and its associated files.
+
+    Answers 409 while a job is rewriting the project: the job would write the
+    working copy back after its files were removed.
+    """
     project_id = project.project_id
+    ensure_no_active_exclusive_job(db, project_id)
     project_name = project.name
     file_path = project.file_path
     # Snapshot inventory paths before the rows are deleted with the project.
@@ -707,7 +654,7 @@ def search_user_projects(
 
 
 @router.patch("/{project_id}", response_model=schemas.UpdateProjectResponse)
-async def update_project_endpoint(
+def update_project_endpoint(
     payload: schemas.UpdateProjectRequest,
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),

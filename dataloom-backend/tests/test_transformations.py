@@ -242,6 +242,10 @@ class TestAddColumn:
         with pytest.raises(TransformationError):
             add_column(sample_df, -1, "test")
 
+    def test_add_column_duplicate_name(self, sample_df):
+        with pytest.raises(TransformationError, match="already exists"):
+            add_column(sample_df, 1, "name")
+
 
 class TestDeleteColumn:
     def test_delete_column(self, sample_df):
@@ -775,19 +779,161 @@ class TestAdvancedQuery:
         with pytest.raises(TransformationError):
             advanced_query(sample_df, "age >")
 
+    def test_query_literal_equal_to_column_name_is_not_rewritten(self):
+        # The literal "unit cost" is data, not a column reference: rewriting it
+        # into a backticked column name silently compared the wrong things.
+        df = pd.DataFrame({"unit cost": [10, 20], "city": ["unit cost", "other"]})
+        result = advanced_query(df, 'city == "unit cost"')
+        assert len(result) == 1
+
+    def test_query_overlapping_column_names(self):
+        # "unit cost" is a prefix of "unit cost total"; substituting the
+        # shorter name first used to corrupt the longer reference.
+        df = pd.DataFrame({"unit cost": [1, 2], "unit cost total": [100, 200]})
+        result = advanced_query(df, "unit cost total > 150")
+        assert len(result) == 1
+
+    def test_query_at_reference_blocked(self, sample_df):
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, "@pd.read_csv('/etc/passwd')")
+
+    def test_query_scope_oracle_blocked(self, sample_df, tmp_path):
+        # Regression test for the sandbox escape: this used to evaluate
+        # pd.read_csv against server files and leak the answer through the
+        # filtered row count (3 rows when the guess was right, 0 when wrong).
+        from fastapi import HTTPException
+
+        secret = tmp_path / "secret.csv"
+        secret.write_text("code\n42\n")
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, f"age > 0 and @pd.read_csv('{secret}')['code'].max() == 42")
+
+    def test_query_method_call_blocked(self, sample_df):
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, "age.isin([30])")
+
+    def test_query_attribute_access_blocked(self, sample_df):
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, "name.str.len() > 3")
+
+    def test_query_in_list(self, sample_df):
+        result = advanced_query(sample_df, "age in [25, 35]")
+        assert len(result) == 2
+
+    def test_query_arithmetic_and_boolean(self, sample_df):
+        result = advanced_query(sample_df, "age * 2 > 65")
+        assert len(result) == 1
+        assert result.iloc[0]["name"] == "Charlie"
+
 
 class TestPivotTable:
-    def test_simple_pivot(self):
-        df = pd.DataFrame(
+    @pytest.fixture
+    def pivot_df(self):
+        return pd.DataFrame(
             {
                 "city": ["NY", "LA", "NY", "LA"],
                 "product": ["A", "A", "B", "B"],
                 "sales": [100, 200, 150, 250],
+                "notes": ["good", "bad", "okay", "great"],
             }
         )
-        result = pivot_table(df, "city", "sales", aggfunc="sum")
+
+    def test_simple_pivot(self, pivot_df):
+        result = pivot_table(pivot_df, "city", "sales", aggfunc="sum")
         assert "city" in result.columns
         assert "sales" in result.columns
+
+    def test_pivot_with_column(self, pivot_df):
+        result = pivot_table(pivot_df, "city", "sales", column="product", aggfunc="sum")
+        assert list(result.columns) == ["city", "A", "B"]
+        assert result.columns.name is None
+
+    def test_pivot_rejects_empty_index(self, pivot_df):
+        with pytest.raises(TransformationError, match="At least one index column is required"):
+            pivot_table(pivot_df, "  ", "sales")
+
+    def test_pivot_rejects_value_as_index_column(self, pivot_df):
+        with pytest.raises(TransformationError, match="cannot also be an index column"):
+            pivot_table(pivot_df, "sales", "sales")
+
+        with pytest.raises(TransformationError, match="cannot also be an index column"):
+            pivot_table(pivot_df, "city, sales", "sales")
+
+    def test_pivot_rejects_pivot_column_as_index_column(self, pivot_df):
+        with pytest.raises(TransformationError, match="cannot also be an index column"):
+            pivot_table(pivot_df, "city", "sales", column="city")
+
+    def test_pivot_rejects_pivot_column_as_value_column(self, pivot_df):
+        with pytest.raises(TransformationError, match="cannot also be the value column"):
+            pivot_table(pivot_df, "city", "sales", column="sales")
+
+    def test_pivot_rejects_unsupported_aggfunc(self, pivot_df):
+        with pytest.raises(TransformationError, match="Unsupported aggregation function"):
+            pivot_table(pivot_df, "city", "sales", aggfunc="invalid_agg")
+
+    def test_pivot_rejects_non_numeric_aggregation(self, pivot_df):
+        with pytest.raises(TransformationError, match="Cannot aggregate column"):
+            pivot_table(pivot_df, "city", "notes", aggfunc="mean")
+
+    def test_pivot_with_multiple_indices(self, pivot_df):
+        result = pivot_table(pivot_df, "city, product", "sales", aggfunc="sum")
+        assert "city" in result.columns
+        assert "product" in result.columns
+        assert "sales" in result.columns
+        assert len(result) == 4
+
+    def test_pivot_count_on_string_column(self, pivot_df):
+        result = pivot_table(pivot_df, "city", "notes", column="product", aggfunc="count")
+        assert list(result.columns) == ["city", "A", "B"]
+        ny_row = result[result["city"] == "NY"]
+        assert ny_row["A"].iloc[0] == 1
+
+    def test_pivot_strips_whitespace_in_column_names(self, pivot_df):
+        result = pivot_table(pivot_df, " city , product ", " sales ", aggfunc="sum")
+        assert "city" in result.columns
+        assert "product" in result.columns
+        assert "sales" in result.columns
+
+    def test_pivot_logged_transformation(self, pivot_df):
+        result = apply_logged_transformation(
+            pivot_df,
+            "pivotTables",
+            {
+                "pivot_query": {
+                    "index": "city",
+                    "value": "sales",
+                    "column": "product",
+                    "aggfun": "sum",
+                }
+            },
+        )
+        assert list(result.columns) == ["city", "A", "B"]
+
+    def test_pivot_deduplicates_index_columns(self, pivot_df):
+        result = pivot_table(pivot_df, "city, city", "sales", aggfunc="sum")
+        assert list(result.columns) == ["city", "sales"]
+        assert len(result) == 2
+
+    def test_pivot_logged_transformation_validation_error(self, pivot_df):
+        with pytest.raises(TransformationError, match="cannot also be an index column"):
+            apply_logged_transformation(
+                pivot_df,
+                "pivotTables",
+                {
+                    "pivot_query": {
+                        "index": "city, sales",
+                        "value": "sales",
+                        "column": None,
+                        "aggfun": "sum",
+                    }
+                },
+            )
 
 
 class TestRenameColumn:
@@ -1233,6 +1379,10 @@ class TestStringReplace:
     def test_missing_column_raises(self, sample_df):
         with pytest.raises(TransformationError, match="Column 'missing' not found"):
             string_replace(sample_df, "missing", "foo", "bar")
+
+    def test_empty_find_value_raises(self, sample_df):
+        with pytest.raises(TransformationError, match="find_value must not be empty"):
+            string_replace(sample_df, "city", "", "x")
 
     def test_non_string_column_is_converted_to_string(self, sample_df):
         result = string_replace(sample_df, "age", "3", "4")

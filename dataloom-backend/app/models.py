@@ -5,7 +5,7 @@ and save checkpoints.
 """
 
 import uuid as uuid_mod
-from datetime import datetime
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, func
@@ -270,3 +270,83 @@ class PipelineStep(SQLModel, table=True):
     action_details: dict = Field(sa_column=sa.Column(sa.JSON, nullable=False))
 
     pipeline: Pipeline | None = Relationship(back_populates="steps")
+
+
+JOB_QUEUED = "queued"
+JOB_RUNNING = "running"
+JOB_SUCCEEDED = "succeeded"
+JOB_FAILED = "failed"
+JOB_CANCELLED = "cancelled"
+JOB_ACTIVE_STATUSES = (JOB_QUEUED, JOB_RUNNING)
+JOB_TERMINAL_STATUSES = (JOB_SUCCEEDED, JOB_FAILED, JOB_CANCELLED)
+
+# At most one exclusive (write) job per project may be queued or running. Both
+# dialects get the same predicate so the SQLite test schema enforces it too.
+_ACTIVE_EXCLUSIVE_JOB = "is_exclusive AND status IN ('queued', 'running')"
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
+class Job(SQLModel, table=True):
+    """One execution of slow work off the request path.
+
+    A Job is how work runs, never what the work is: a pipeline Run executed as a
+    Job is still a Run, and appears in the Change Log exactly as a synchronous
+    one does. The row holds the work's parameters, its progress and a small
+    result — never row data.
+
+    ``status`` moves ``queued`` → ``running`` → ``succeeded`` | ``failed`` |
+    ``cancelled``; a queued job may also be cancelled directly. Every transition
+    is a conditional UPDATE on the expected current status, so a cancel racing a
+    worker's claim resolves to exactly one outcome.
+
+    ``is_exclusive`` marks work that rewrites the project (a Run, a revert); the
+    partial unique index keeps at most one such job active per project.
+    ``cancel_requested`` stays set on a job that finished anyway, so the client
+    can say the cancel arrived too late.
+    """
+
+    __tablename__ = "jobs"
+    __table_args__ = (
+        sa.Index(
+            "ux_jobs_active_exclusive_project",
+            "project_id",
+            unique=True,
+            postgresql_where=sa.text(_ACTIVE_EXCLUSIVE_JOB),
+            sqlite_where=sa.text(_ACTIVE_EXCLUSIVE_JOB),
+        ),
+        sa.Index("ix_jobs_project_id_status", "project_id", "status"),
+        sa.Index("ix_jobs_owner_id_status", "owner_id", "status"),
+    )
+
+    id: uuid_mod.UUID = Field(
+        default_factory=uuid7,
+        sa_column=Column(sa.Uuid, primary_key=True, default=uuid7),
+    )
+    owner_id: uuid_mod.UUID = Field(
+        sa_column=Column(sa.Uuid, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    )
+    project_id: uuid_mod.UUID = Field(
+        sa_column=Column(sa.Uuid, sa.ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False),
+    )
+    kind: str = Field(sa_column=Column(sa.String(32), nullable=False))
+    is_exclusive: bool = Field(sa_column=Column(sa.Boolean, nullable=False))
+    status: str = Field(default=JOB_QUEUED, sa_column=Column(sa.String(16), nullable=False))
+    progress_current: int = Field(default=0, sa_column=Column(sa.Integer, nullable=False))
+    progress_total: int | None = Field(default=None, sa_column=Column(sa.Integer, nullable=True))
+    progress_message: str = Field(default="", sa_column=Column(sa.String(200), nullable=False))
+    params: dict = Field(default_factory=dict, sa_column=Column(sa.JSON, nullable=False))
+    result: dict | None = Field(default=None, sa_column=Column(sa.JSON, nullable=True))
+    error: str | None = Field(default=None, sa_column=Column(sa.Text, nullable=True))
+    cancel_requested: bool = Field(
+        default=False,
+        sa_column=Column(sa.Boolean, server_default=sa.false(), nullable=False),
+    )
+    created_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    started_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    finished_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))

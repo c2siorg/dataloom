@@ -4,6 +4,7 @@ import { LuChartColumnBig, LuSparkles } from "react-icons/lu";
 import type { ChartSpec, ChartType } from "../../api/visualizations";
 import { useChartView } from "../../context/ChartViewContext";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useProjectReadsOnHold } from "../../context/ActiveJobContext";
 import useChartSuggestions from "../../hooks/useChartSuggestions";
 import useCorrelation from "../../hooks/useCorrelation";
 import CorrelationHeatmap from "../profiling/CorrelationHeatmap";
@@ -55,8 +56,10 @@ export function ChartsTab() {
   // this container on click rather than holding a ref to the renderer itself.
   const chartRef = useRef<HTMLDivElement>(null);
 
-  const { suggestions } = useChartSuggestions(projectId, true, dataVersion);
-  const correlation = useCorrelation(projectId, mode === "heatmap", dataVersion);
+  // Held off while a job rewrites the project (see SummaryTab).
+  const readsOnHold = useProjectReadsOnHold();
+  const { suggestions } = useChartSuggestions(projectId, !readsOnHold, dataVersion);
+  const correlation = useCorrelation(projectId, mode === "heatmap" && !readsOnHold, dataVersion);
   const hasCorrelation = columns.filter((c) => isNumeric(dtypes[c])).length >= 2;
 
   const suggestionCards = (

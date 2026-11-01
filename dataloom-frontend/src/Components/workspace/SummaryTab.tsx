@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useWorkspaceTabs, type WorkspaceTab } from "../../context/WorkspaceTabsContext";
 import { useProjectContext } from "../../context/ProjectContext";
+import { useProjectReadsOnHold } from "../../context/ActiveJobContext";
 import useDatasetSummary from "../../hooks/useDatasetSummary";
 import DatasetSummaryPanel from "../profiling/DatasetSummaryPanel";
 
@@ -22,8 +23,11 @@ export function SummaryTab() {
   const { projectId } = useParams() as { projectId: string };
   const { dataVersion } = useProjectContext();
   const { closeTab } = useWorkspaceTabs();
-  // The tab only mounts while active, so it is always "enabled" when rendered.
-  const { summary, error, refetch } = useDatasetSummary(projectId, true, dataVersion);
+  // The tab only mounts while active, so it is enabled whenever rendered —
+  // except while a job may be rewriting the project, when the read would wait
+  // for it; the job's completion bumps dataVersion and the summary loads then.
+  const readsOnHold = useProjectReadsOnHold();
+  const { summary, error, refetch } = useDatasetSummary(projectId, !readsOnHold, dataVersion);
 
   return (
     <div className="flex-1 overflow-auto p-4">

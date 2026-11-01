@@ -5,18 +5,18 @@ No side effects -- saving to disk is handled by the caller.
 """
 
 import math
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
+from fastapi import HTTPException
 
 from app.schemas import FillStrategy, MeltParams, OperationType
 from app.services.append_service import append_dataframes
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import parse_datetime_column, read_table_safe
-from app.utils.security import prepare_formula_expression, validate_query_string
+from app.utils.security import QUERY_PARSE_ERROR_DETAIL, prepare_formula_expression, prepare_query_expression
 
 logger = get_logger(__name__)
 
@@ -29,6 +29,7 @@ class TransformationError(Exception):
 
 _TRUE_TOKENS = ("true", "1", "yes", "t", "y", "on")
 _FALSE_TOKENS = ("false", "0", "no", "f", "n", "off")
+SUPPORTED_AGG_FUNCTIONS = {"sum", "mean", "count", "min", "max", "median"}
 
 
 def _parse_bool(value) -> bool | None:
@@ -222,6 +223,9 @@ def add_column(df: pd.DataFrame, index: int, name: str) -> pd.DataFrame:
     """
     if index < 0 or index > len(df.columns):
         raise TransformationError(f"Column index {index} out of range (0-{len(df.columns)})")
+
+    if name in df.columns:
+        raise TransformationError(f"Column '{name}' already exists. Please choose a different name.")
 
     df = df.copy()
     df.insert(index, name, None)
@@ -678,6 +682,9 @@ def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
 
+    if not find_value:
+        raise TransformationError("find_value must not be empty")
+
     df = df.copy()
     df[column] = df[column].astype(str).str.replace(find_value, replace_value, regex=False)
     return df
@@ -706,8 +713,10 @@ def drop_duplicates(df: pd.DataFrame, columns: str, keep) -> pd.DataFrame:
 def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
     """Filter DataFrame using a pandas query expression.
 
-    Validates the query for injection attacks and wraps non-identifier column
-    names in backticks if not already wrapped.
+    The query is prepared by :func:`prepare_query_expression`: non-identifier
+    column names are wrapped in backticks without rewriting string literals,
+    and the result is validated against an AST allowlist, so the string that
+    is validated is the string that executes.
 
     Args:
         df: Source DataFrame.
@@ -717,27 +726,35 @@ def advanced_query(df: pd.DataFrame, query_string: str) -> pd.DataFrame:
         Filtered DataFrame.
 
     Raises:
+        HTTPException: If the query is empty or uses unsupported syntax.
         TransformationError: If the query fails to execute.
     """
-    # Validate for injection patterns
-    validate_query_string(query_string)
-
-    query = query_string.strip()
-
-    # Wrap non-identifier column names in backticks if not already wrapped
-    for col in df.columns:
-        if not col.isidentifier():
-            pattern = rf"(?<!`){re.escape(col)}(?!`)"
-            query = re.sub(pattern, f"`{col}`", query)
-
-    logger.debug("Executing query: %s", query)
     try:
-        return df.query(query, local_dict={"__builtins__": {}})
+        expr = prepare_query_expression(query_string, list(df.columns))
+    except HTTPException as e:
+        # A query that cannot even parse has always surfaced from this
+        # function as a TransformationError (it used to fail inside
+        # df.query); keep that contract so endpoint and replay error
+        # handling is unchanged. Validation rejections stay HTTPException,
+        # matching the formula path.
+        if e.detail == QUERY_PARSE_ERROR_DETAIL:
+            raise TransformationError(f"Query execution failed: {e.detail}") from e
+        raise
+
+    logger.debug("Executing query: %s", expr)
+    try:
+        return df.query(expr, local_dict={"__builtins__": {}})
     except Exception as e:
         raise TransformationError(f"Query execution failed: {e}") from e
 
 
-def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, aggfunc: str = "sum") -> pd.DataFrame:
+def pivot_table(
+    df: pd.DataFrame,
+    index: str,
+    value: str,
+    column: str | None = None,
+    aggfunc: str = "sum",
+) -> pd.DataFrame:
     """Create a pivot table from the DataFrame.
 
     Args:
@@ -750,21 +767,48 @@ def pivot_table(df: pd.DataFrame, index: str, value: str, column: str = None, ag
     Returns:
         Pivoted DataFrame with string column names and reset index.
     """
-    index_cols = [c.strip() for c in index.split(",")]
+    if not index or not index.strip():
+        raise TransformationError("At least one index column is required for pivot table")
+
+    index_cols = list(dict.fromkeys(c.strip() for c in index.split(",") if c.strip()))
+    if not index_cols:
+        raise TransformationError("At least one index column is required for pivot table")
+
+    col = column.strip() if isinstance(column, str) and column.strip() else None
+
+    val = value.strip() if isinstance(value, str) else value
 
     # Validate all required columns exist
-    all_cols = index_cols + ([column] if column else []) + [value]
+    all_cols = index_cols + ([col] if col else []) + [val]
     missing = [c for c in all_cols if c not in df.columns]
     if missing:
         raise TransformationError(f"Columns {missing} not found in dataset")
 
-    if column:
-        result = pd.pivot_table(df, index=index_cols, values=value, columns=column, aggfunc=aggfunc)
-    else:
-        result = pd.pivot_table(df, index=index_cols, values=value, aggfunc=aggfunc)
+    if val in index_cols:
+        raise TransformationError(f"Value column '{val}' cannot also be an index column")
 
-    result.columns = result.columns.astype(str)
-    return result.reset_index()
+    if col and col in index_cols:
+        raise TransformationError(f"Pivot column '{col}' cannot also be an index column")
+
+    if col and col == val:
+        raise TransformationError(f"Pivot column '{col}' cannot also be the value column")
+
+    aggfunc_str = aggfunc.value if hasattr(aggfunc, "value") else str(aggfunc)
+    if aggfunc_str not in SUPPORTED_AGG_FUNCTIONS:
+        raise TransformationError(
+            f"Unsupported aggregation function: '{aggfunc_str}'. Supported: {sorted(SUPPORTED_AGG_FUNCTIONS)}"
+        )
+
+    try:
+        if col:
+            result = pd.pivot_table(df, index=index_cols, values=val, columns=col, aggfunc=aggfunc_str)
+        else:
+            result = pd.pivot_table(df, index=index_cols, values=val, aggfunc=aggfunc_str)
+        result.columns = [str(c) for c in result.columns]
+        result.columns.name = None
+        return result.reset_index()
+    except (TypeError, ValueError) as exc:
+        raise TransformationError(f"Cannot aggregate column '{val}' with '{aggfunc_str}': {exc}") from exc
 
 
 def drop_na(df: pd.DataFrame, columns: list[str] | None = None) -> pd.DataFrame:
@@ -863,19 +907,37 @@ def group_by(df: pd.DataFrame, columns: list[str], agg_column: str, agg_function
     Raises:
         TransformationError: If columns not found or invalid function.
     """
+    if not columns:
+        raise TransformationError("At least one group-by column is required")
+
     all_cols = columns + [agg_column]
     missing = [c for c in all_cols if c not in df.columns]
     if missing:
         raise TransformationError(f"Columns {missing} not found in dataset")
 
-    valid_functions = {"sum", "mean", "count", "min", "max", "median"}
-    if agg_function not in valid_functions:
-        raise TransformationError(f"Unsupported aggregation function: {agg_function}. Use: {valid_functions}")
+    # The aggregated column replaces itself in the result, so the group labels would be lost
+    if agg_column in columns:
+        raise TransformationError(
+            f"Column '{agg_column}' is a group-by column and cannot also be the aggregation column"
+        )
 
-    result = df.groupby(columns, as_index=False)[agg_column].agg(agg_function)
+    agg_function_str = agg_function.value if hasattr(agg_function, "value") else str(agg_function)
+    if agg_function_str not in SUPPORTED_AGG_FUNCTIONS:
+        raise TransformationError(
+            f"Unsupported aggregation function: '{agg_function_str}'. Supported: {sorted(SUPPORTED_AGG_FUNCTIONS)}"
+        )
+
+    try:
+        result = df.groupby(columns, as_index=False)[agg_column].agg(agg_function_str)
+    except (TypeError, ValueError) as exc:
+        raise TransformationError(f"Cannot aggregate column '{agg_column}' with '{agg_function_str}': {exc}") from exc
+
     result.columns = [str(c) for c in result.columns]
-    for col in result.select_dtypes(include=["float"]).columns:
-        result[col] = result[col].round(2)
+    # Round only the aggregated values. Rounding every float column also
+    # rewrites the group keys themselves (keys 1.231 and 1.234 both become
+    # 1.23), so two distinct groups end up labelled with the same key.
+    if pd.api.types.is_float_dtype(result[agg_column]):
+        result[agg_column] = result[agg_column].round(2)
     return result
 
 
