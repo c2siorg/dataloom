@@ -112,6 +112,26 @@ class TestBuildLineChart:
         spec = vs.build_line_chart(df, "x", ["a", "b"])
         assert [s["name"] for s in spec["series"]] == ["a", "b"]
 
+    @pytest.mark.parametrize("build", [vs.build_line_chart, vs.build_area_chart])
+    def test_x_in_y_plots_the_series_against_itself(self, build):
+        df = pd.DataFrame({"n": [2, 1, 3], "m": [20, 10, 30]})
+        spec = build(df, "n", ["m", "n"])
+        assert [s["name"] for s in spec["series"]] == ["m", "n"]
+        assert spec["series"][1]["data"] == [{"x": 1, "y": 1}, {"x": 2, "y": 2}, {"x": 3, "y": 3}]
+        assert [p["y"] for p in spec["series"][0]["data"]] == [10, 20, 30]
+
+    def test_repeated_y_plots_once(self):
+        df = pd.DataFrame({"x": [1, 2], "a": [3, 4], "b": [5, 6]})
+        spec = vs.build_line_chart(df, "x", ["b", "a", "b"])
+        assert [s["name"] for s in spec["series"]] == ["b", "a"]
+        assert spec["title"] == "b, a over x"
+        assert spec["y_label"] == "b, a"
+
+    def test_x_as_only_y_keeps_labels(self):
+        spec = vs.build_line_chart(pd.DataFrame({"n": [1, 2]}), "n", ["n", "n"])
+        assert len(spec["series"]) == 1
+        assert spec["title"] == "n over n"
+
     def test_downsamples_large_input(self):
         df = pd.DataFrame({"x": range(10000), "y": range(10000)})
         spec = vs.build_line_chart(df, "x", ["y"])
@@ -150,6 +170,24 @@ class TestBuildScatter:
     def test_non_numeric_axis_raises(self):
         with pytest.raises(ValueError, match="not numeric"):
             vs.build_scatter_plot(pd.DataFrame({"x": ["a"], "y": [1]}), "x", "y")
+
+    def test_same_x_and_y_plots_the_diagonal(self):
+        spec = vs.build_scatter_plot(pd.DataFrame({"n": [1, None, 3]}), "n", "n")
+        assert spec["series"][0]["data"] == [{"x": 1, "y": 1}, {"x": 3, "y": 3}]
+
+    @pytest.mark.parametrize("color", ["n", "m"])
+    def test_color_by_axis_column_groups_by_it(self, color):
+        df = pd.DataFrame({"n": [1, 1, 2], "m": [5, 5, 7]})
+        spec = vs.build_scatter_plot(df, "n", "m", color_col=color)
+        groups = {s["name"]: s["data"] for s in spec["series"]}
+        assert len(groups) == 2
+        assert sorted(len(data) for data in groups.values()) == [1, 2]
+        assert {"x": 2, "y": 7} in [point for data in groups.values() for point in data]
+
+    def test_color_equal_to_x_and_y(self):
+        df = pd.DataFrame({"n": [1, 2]})
+        spec = vs.build_scatter_plot(df, "n", "n", color_col="n")
+        assert [s["data"] for s in spec["series"]] == [[{"x": 1, "y": 1}], [{"x": 2, "y": 2}]]
 
 
 # --- Service: build_pie_chart ---
@@ -305,6 +343,50 @@ class TestVisualizationEndpoints:
         )
         assert response.status_code == 200, response.text
         assert response.json()["chart_type"] == "scatter"
+
+    def test_scatter_same_x_and_y_returns_diagonal(self, client, project_id):
+        response = client.get(
+            f"/projects/{project_id}/charts",
+            params={"chart_type": "scatter", "x": "cost", "y": "cost"},
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()["series"][0]["data"]
+        assert [p["x"] for p in data] == [5, 8, 12, 15]
+        assert all(p["x"] == p["y"] for p in data)
+
+    def test_scatter_repeated_y_plots_once(self, client, project_id):
+        response = client.get(
+            f"/projects/{project_id}/charts",
+            params={"chart_type": "scatter", "x": "revenue", "y": ["cost", "cost"]},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["y_label"] == "cost"
+
+    def test_scatter_two_distinct_y_returns_400(self, client, project_id):
+        response = client.get(
+            f"/projects/{project_id}/charts",
+            params={"chart_type": "scatter", "x": "revenue", "y": ["cost", "revenue"]},
+        )
+        assert response.status_code == 400
+
+    def test_scatter_color_by_x_groups_by_it(self, client, project_id):
+        response = client.get(
+            f"/projects/{project_id}/charts",
+            params={"chart_type": "scatter", "x": "revenue", "y": "cost", "color": "revenue"},
+        )
+        assert response.status_code == 200, response.text
+        assert len(response.json()["series"]) == 4
+
+    @pytest.mark.parametrize("chart_type", ["line", "area"])
+    def test_line_x_in_and_repeated_y(self, client, project_id, chart_type):
+        response = client.get(
+            f"/projects/{project_id}/charts",
+            params={"chart_type": chart_type, "x": "revenue", "y": ["cost", "revenue", "cost"]},
+        )
+        assert response.status_code == 200, response.text
+        series = response.json()["series"]
+        assert [s["name"] for s in series] == ["cost", "revenue"]
+        assert all(p["x"] == p["y"] for p in series[1]["data"])
 
     def test_missing_required_param_returns_400(self, client, project_id):
         response = client.get(f"/projects/{project_id}/charts", params={"chart_type": "histogram"})
