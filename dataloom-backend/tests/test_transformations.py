@@ -528,6 +528,24 @@ class TestChangeCellValue:
         assert result.at[1, "value"] == pytest.approx(10.5)
         assert result["value"].dtype == object
 
+    def test_non_scalar_value_on_object_column_raises(self):
+        # A mixed-type column (e.g. from a JSON upload whose records disagree
+        # on a key's type) is object dtype, and assigning a list or dict into
+        # an object cell succeeds silently — while the same edit on a
+        # StringDtype column raises. The stored value then serializes as its
+        # string form on reload, so the edit does not round-trip.
+        df = pd.DataFrame({"m": pd.Series([1, "two", 3], dtype=object), "v": [10, 20, 30]})
+        for value in (["x"], {"k": 1}):
+            with pytest.raises(TransformationError, match="single value"):
+                change_cell_value(df, 0, 1, value)
+
+    def test_single_element_list_on_string_column_raises(self):
+        # pandas unwraps a one-element list when assigning into a StringDtype
+        # cell, so ["x"] used to succeed as "x" while ["x", "y"] raised.
+        df = pd.DataFrame({"name": pd.array(["a", "b"], dtype="string")})
+        with pytest.raises(TransformationError, match="single value"):
+            change_cell_value(df, 0, 1, ["x"])
+
     def test_change_cell_uses_position_after_sort(self):
         df = pd.DataFrame(
             {

@@ -383,6 +383,20 @@ def change_cell_value(
 
             value = parsed
 
+    if isinstance(value, (list, dict, set, tuple)):
+        # The typed branches above already reject collections (a list cannot
+        # parse as an int, float, bool, or datetime), but the fall-through
+        # branch for string/object columns has no conversion step: assigning
+        # a list or dict into an object-dtype cell succeeds silently, while
+        # the same edit on a StringDtype column raises below. A mixed-type
+        # column (e.g. from a JSON upload whose records disagree on a key's
+        # type) is object dtype, so without this guard a JSON array/object
+        # cell edit is accepted and shown back as a list/dict, yet saves as
+        # its string form on reload — the edit does not round-trip.
+        raise TransformationError(
+            f"Cell value for column '{column_name}' must be a single value, not a {type(value).__name__}."
+        )
+
     try:
         df.iat[row_index, col_index - 1] = value
     except (TypeError, ValueError, OverflowError) as exc:
