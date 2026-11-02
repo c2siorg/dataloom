@@ -604,3 +604,30 @@ def test_transform_pivot_rejects_non_numeric_aggregation(client, project_id):
 
     assert response.status_code == 400, response.text
     assert "Cannot aggregate column" in response.json()["detail"]
+
+
+def test_transform_cell_edit_with_list_value_on_mixed_column_returns_400(client, tmp_path):
+    """A JSON array as a cell value on a mixed-type (object-dtype) column was
+    accepted and echoed back as a list, but saved as its string form on
+    reload — the edit did not round-trip. It must be a 400 instead."""
+    import json
+
+    path = tmp_path / "mixed.json"
+    path.write_text(json.dumps([{"m": 1, "v": 10}, {"m": "two", "v": 20}, {"m": 3, "v": 30}]))
+    with open(path, "rb") as f:
+        upload = client.post(
+            "/projects/upload",
+            files={"file": ("mixed.json", f, "application/json")},
+            data={"projectName": "Mixed", "projectDescription": "fixture"},
+        )
+    assert upload.status_code == 200, upload.text
+    pid = upload.json()["project_id"]
+    response = client.post(
+        f"/projects/{pid}/transform",
+        json={
+            "operation_type": "changeCellValue",
+            "change_cell_value": {"row_index": 0, "col_index": 1, "fill_value": ["x"]},
+        },
+    )
+    assert response.status_code == 400, response.text
+    assert "single value" in response.json()["detail"]
