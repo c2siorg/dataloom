@@ -833,6 +833,11 @@ class ForgotPasswordRequest(BaseModel):
 
     email: EmailStr
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower()
+
 
 class ResetPasswordRequest(BaseModel):
     """Request body for resetting password with token."""
@@ -868,6 +873,11 @@ class UpdateEmailRequest(BaseModel):
     """Request body for updating the authenticated user's email."""
 
     email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower()
 
 
 class ChangePasswordRequest(BaseModel):
