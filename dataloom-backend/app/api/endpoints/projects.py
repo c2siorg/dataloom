@@ -693,7 +693,12 @@ def reset_project_endpoint(
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
-    """Reset the project to its original uploaded state and discard all history."""
+    """Reset the project to its original uploaded state and discard all history.
+
+    Answers 409 while a job is rewriting the project, rather than waiting on its
+    lock and then discarding the work it just committed.
+    """
+    ensure_no_active_exclusive_job(db, project_id)
     with project_write_lock(project_id):
         return reset_project(
             project_id,

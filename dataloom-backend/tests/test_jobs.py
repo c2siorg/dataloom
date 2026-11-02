@@ -606,6 +606,20 @@ class TestGuards:
         assert client.post(f"/projects/{project_id}/revert").status_code == 409
         assert client.post(f"/pipelines/{pipeline_id}/apply", json={"project_id": project_id}).status_code == 409
 
+    def test_reset_is_a_409_while_a_job_is_active(self, client, db, test_user, project_id):
+        _transform(client, project_id, FILTER)
+        active = _active_job(db, test_user, project_id)
+
+        blocked = client.post(f"/projects/{project_id}/reset")
+        assert blocked.status_code == 409
+        assert blocked.json()["active_job_id"] == str(active.id)
+        assert _count(db, models.ProjectChangeLog) == 1
+
+        active.status = "succeeded"
+        db.commit()
+        assert client.post(f"/projects/{project_id}/reset").status_code == 200
+        assert _count(db, models.ProjectChangeLog) == 0
+
     def test_non_exclusive_job_does_not_block_sync_writes(self, client, db, test_user, project_id):
         _active_job(db, test_user, project_id, is_exclusive=False)
 
