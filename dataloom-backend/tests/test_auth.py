@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from app import models
 from app.services.auth_service import create_user, verify_password
+from tests.conftest import TEST_USER_PASSWORD
 
 
 def _signup(client, email, password="Testpassword@123"):
@@ -116,6 +117,26 @@ class TestProfileManagement:
         response = client.patch("/auth/me/email", json={"email": "not-an-email"})
 
         assert response.status_code == 422
+
+    def test_update_email_normalizes_case(self, client, anon_client):
+        """Should store the email lowercase so signin, which lowercases, still finds the account."""
+        response = client.patch("/auth/me/email", json={"email": "Updated.User@Test.com"})
+
+        assert response.status_code == 200
+        assert response.json()["email"] == "updated.user@test.com"
+
+        signin = anon_client.post(
+            "/auth/signin", json={"email": "Updated.User@Test.com", "password": TEST_USER_PASSWORD}
+        )
+        assert signin.status_code == 200
+
+    def test_update_email_duplicate_differing_in_case_returns_409(self, client, db):
+        """Should reject an email that only differs in case from another account's."""
+        create_user(db, "existing@test.com", "password123")
+
+        response = client.patch("/auth/me/email", json={"email": "Existing@Test.com"})
+
+        assert response.status_code == 409
 
     def test_change_password_success(self, client, test_user, db):
         """Should change password when current password is valid."""
@@ -284,6 +305,19 @@ class TestPasswordReset:
         token = db.query(models.PasswordResetToken).first()
         assert token is not None
         assert token.used is False
+
+    def test_forgot_password_mixed_case_email_creates_token(self, anon_client, db):
+        """Should find the account however the email's case is typed, as signin does."""
+        user = create_user(db, "mixedcase@example.com", "Password@123")
+
+        with patch("app.services.auth_service.send_reset_email") as mock_send:
+            response = anon_client.post("/auth/forgot-password", json={"email": "MixedCase@Example.com"})
+
+        assert response.status_code == 200
+        mock_send.assert_called_once()
+        assert mock_send.call_args.args[0] == "mixedcase@example.com"
+        token = db.query(models.PasswordResetToken).filter(models.PasswordResetToken.user_id == user.id).first()
+        assert token is not None
 
     def test_reset_password_valid_token(self, anon_client, db):
         """Should reset password with a valid token."""
