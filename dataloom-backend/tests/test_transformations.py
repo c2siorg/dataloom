@@ -995,6 +995,24 @@ class TestCastDataType:
         assert result["flag"].iloc[4]
         assert not result["flag"].iloc[5]
 
+    def test_cast_to_boolean_rejects_unrecognised_values(self):
+        df = pd.DataFrame({"flag": ["maybe", "true"]})
+        with pytest.raises(TransformationError, match="Cannot interpret 'maybe' as boolean"):
+            cast_data_type(df, "flag", "boolean")
+
+    def test_cast_to_boolean_rejects_non_boolean_numbers(self):
+        df = pd.DataFrame({"flag": [2, 0]})
+        with pytest.raises(TransformationError, match="Cannot interpret 2 as boolean"):
+            cast_data_type(df, "flag", "boolean")
+
+    def test_cast_to_boolean_accepts_integral_floats_and_keeps_nulls(self):
+        df = pd.DataFrame({"flag": [1.0, 0.0, None, ""]})
+        result = cast_data_type(df, "flag", "boolean")
+        assert result["flag"].iloc[0] is True
+        assert result["flag"].iloc[1] is False
+        assert result["flag"].iloc[2] is None
+        assert result["flag"].iloc[3] is None
+
     def test_cast_to_datetime(self):
         df = pd.DataFrame({"date": ["2024-01-01", "2024-06-15"]})
         result = cast_data_type(df, "date", "datetime")
