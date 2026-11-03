@@ -5,6 +5,7 @@ No side effects -- saving to disk is handled by the caller.
 """
 
 import math
+import numbers
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,6 +41,41 @@ def _parse_bool(value) -> bool | None:
     if normalized in _FALSE_TOKENS:
         return False
     return None
+
+
+def _cast_to_bool(value, column: str) -> bool | None:
+    """Interpret one value as a boolean for :func:`cast_data_type`.
+
+    Nulls and blank strings stay null. Integral numbers map 1/0 (including 1.0/0.0, whose
+    string form "1.0" is not a boolean token), and every other value must
+    be one of the :func:`_parse_bool` tokens. Anything else raises
+    TransformationError instead of silently becoming null: the previous
+    implementation mapped every unrecognised value (e.g. "maybe", 2, 1.0)
+    to None, so casting a column to boolean quietly destroyed its data.
+    """
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        raise TransformationError(f"Cannot interpret {value!r} as boolean for column '{column}'.") from None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, numbers.Real):
+        if float(value) in (0.0, 1.0):
+            return bool(value)
+        raise TransformationError(
+            f"Cannot interpret {value!r} as boolean for column '{column}'. "
+            "Expected a boolean value: true, false, 1, 0, yes, no, t, f, y, n, on, off."
+        )
+    if isinstance(value, str) and not value.strip():
+        return None
+    parsed = _parse_bool(value)
+    if parsed is None:
+        raise TransformationError(
+            f"Cannot interpret {value!r} as boolean for column '{column}'. "
+            "Expected a boolean value: true, false, 1, 0, yes, no, t, f, y, n, on, off."
+        )
+    return parsed
 
 
 def get_column_type(df: pd.DataFrame, column: str) -> str:
@@ -339,7 +375,7 @@ def change_cell_value(
                 )
 
         elif pd.api.types.is_bool_dtype(col_dtype):
-            # Accepted tokens are a superset of cast_data_type()'s, so a
+            # Same token set as cast_data_type()'s boolean branch, so a
             # value that cast-to-boolean would accept never gets rejected
             # by a cell edit.
             parsed = _parse_bool(value)
@@ -575,13 +611,7 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
             else:
                 df[column] = df[column].astype(float)
         elif target_type == "boolean":
-            truthy = {"true", "1", "yes", "y", "on"}
-            falsy = {"false", "0", "no", "n", "off"}
-            df[column] = df[column].apply(
-                lambda v: (
-                    True if str(v).strip().lower() in truthy else (False if str(v).strip().lower() in falsy else None)
-                )
-            )
+            df[column] = df[column].apply(lambda v: _cast_to_bool(v, column))
         elif target_type == "datetime":
             df[column] = pd.to_datetime(df[column], errors="coerce")
         else:

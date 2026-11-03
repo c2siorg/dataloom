@@ -166,6 +166,19 @@ def test_transform_maps_transformation_error_to_400(client, project_id):
     assert "not found" in response.json()["detail"].lower()
 
 
+def test_transform_cast_to_boolean_rejects_unrecognised_values(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "castDataType",
+            "cast_data_type_params": {"column": "city", "target_type": "boolean"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "cannot interpret" in response.json()["detail"].lower()
+
+
 def test_transform_redacts_file_not_found_path_detail(client, project_id, monkeypatch):
     from app.api.endpoints import transformations as transformations_endpoint
 
