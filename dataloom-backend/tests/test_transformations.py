@@ -881,6 +881,21 @@ class TestPivotTable:
         with pytest.raises(TransformationError, match="Cannot aggregate column"):
             pivot_table(pivot_df, "city", "notes", aggfunc="mean")
 
+    def test_pivot_rejects_column_values_that_collide_after_string_conversion(self):
+        """Pivot column values are stringified for the result, so values that
+        differ only by type (1 and "1", from a JSON upload whose records
+        disagree on a key's type) would silently produce two columns with the
+        same name — and every later column-by-name operation then acts on
+        both at once (deleting one index deletes both). Reject the pivot
+        instead of producing an ambiguous dataset."""
+        df = pd.DataFrame({"grp": ["x", "x", "x"], "cat": [1, "1", 1], "v": [10, 20, 30]})
+        with pytest.raises(TransformationError, match="duplicate column names"):
+            pivot_table(df, "grp", "v", column="cat", aggfunc="sum")
+
+        df_float = pd.DataFrame({"grp": ["x", "x"], "cat": [1.0, "1.0"], "v": [10, 20]})
+        with pytest.raises(TransformationError, match="duplicate column names"):
+            pivot_table(df_float, "grp", "v", column="cat", aggfunc="sum")
+
     def test_pivot_with_multiple_indices(self, pivot_df):
         result = pivot_table(pivot_df, "city, product", "sales", aggfunc="sum")
         assert "city" in result.columns

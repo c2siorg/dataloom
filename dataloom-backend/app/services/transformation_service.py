@@ -805,6 +805,20 @@ def pivot_table(
         else:
             result = pd.pivot_table(df, index=index_cols, values=val, aggfunc=aggfunc_str)
         result.columns = [str(c) for c in result.columns]
+        # Pivot column values are stringified for the result, so values that
+        # differ only by type (1 and "1", e.g. from a JSON upload whose
+        # records disagree on a key's type) would silently produce two
+        # columns with the same name — and every later column-by-name
+        # operation then acts on both at once, so deleting one of them
+        # deletes both. Reject the pivot instead of producing an ambiguous
+        # dataset. (A pivoted value equal to an index column name is already
+        # rejected below, when reset_index cannot insert it twice.)
+        duplicates = sorted({c for c in result.columns if list(result.columns).count(c) > 1})
+        if duplicates:
+            raise TransformationError(
+                f"Pivot produces duplicate column names {duplicates}: pivot column values "
+                "that differ only by type collapse to the same column name"
+            )
         result.columns.name = None
         return result.reset_index()
     except (TypeError, ValueError) as exc:
