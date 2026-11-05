@@ -1001,6 +1001,24 @@ class TestCastDataType:
         assert pd.api.types.is_datetime64_any_dtype(result["date"])
         assert result["date"].iloc[0] == pd.Timestamp("2024-01-01")
 
+    def test_cast_to_datetime_rejects_unparseable_values(self):
+        df = pd.DataFrame({"city": ["Paris", "London"]})
+        with pytest.raises(TransformationError, match="not a valid date"):
+            cast_data_type(df, "city", "datetime")
+
+    def test_cast_to_datetime_rejects_mixed_parseable_and_garbage(self):
+        df = pd.DataFrame({"date": ["2024-01-01", "garbage"]})
+        with pytest.raises(TransformationError, match="not a valid date"):
+            cast_data_type(df, "date", "datetime")
+
+    def test_cast_to_datetime_keeps_nulls_and_blanks_null(self):
+        df = pd.DataFrame({"date": ["2024-01-01", None, ""]})
+        result = cast_data_type(df, "date", "datetime")
+        assert pd.api.types.is_datetime64_any_dtype(result["date"])
+        assert result["date"].iloc[0] == pd.Timestamp("2024-01-01")
+        assert pd.isna(result["date"].iloc[1])
+        assert pd.isna(result["date"].iloc[2])
+
     def test_cast_invalid_column(self, sample_df):
         with pytest.raises(TransformationError, match="not found"):
             cast_data_type(sample_df, "nonexistent", "integer")

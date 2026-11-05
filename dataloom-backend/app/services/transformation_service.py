@@ -583,7 +583,20 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
                 )
             )
         elif target_type == "datetime":
-            df[column] = pd.to_datetime(df[column], errors="coerce")
+            parsed = pd.to_datetime(df[column], errors="coerce")
+            # Nulls and blank strings stay null (the same contract as the
+            # boolean branch); any other value that does not parse is a
+            # client error, not a silent null — casting a text column to
+            # datetime used to return 200 with every value wiped to NaT.
+            present = df[column].notna()
+            is_blank_string = df[column].map(lambda v: isinstance(v, str) and v.strip() == "")
+            unparseable = parsed.isna() & present & ~is_blank_string
+            if unparseable.any():
+                first_bad = df[column][unparseable].iloc[0]
+                raise TransformationError(
+                    f"Cannot cast column '{column}' to datetime: value {first_bad!r} is not a valid date"
+                )
+            df[column] = parsed
         else:
             raise TransformationError(f"Unsupported target type: {target_type}")
     except TransformationError:
