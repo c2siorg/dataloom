@@ -191,8 +191,17 @@ def add_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
     if index < 0 or index > len(df):
         raise TransformationError(f"Row index {index} out of range (0-{len(df)})")
 
-    new_row = pd.DataFrame([[" "] * len(df.columns)], columns=df.columns, index=[index])
-    return pd.concat([df.iloc[:index], new_row, df.iloc[index:]]).reset_index(drop=True)
+    # Use real missing values so numeric columns stay numeric (a " " placeholder
+    # turned them into text and broke sort/filter on them).
+    new_row = df.iloc[:0].reindex([index])
+    result = pd.concat([df.iloc[:index], new_row, df.iloc[index:]]).reset_index(drop=True)
+
+    # A missing value would upcast int columns to float; keep them integer with
+    # pandas' nullable Int64, as cast_data_type does.
+    for column in df.columns:
+        if pd.api.types.is_integer_dtype(df[column]):
+            result[column] = result[column].astype("Int64")
+    return result
 
 
 def delete_row(df: pd.DataFrame, index: int) -> pd.DataFrame:

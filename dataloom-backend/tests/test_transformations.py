@@ -157,7 +157,7 @@ class TestAddRow:
     def test_add_row_at_beginning(self, sample_df):
         result = add_row(sample_df, 0)
         assert len(result) == 4
-        assert result.iloc[0]["name"] == " "
+        assert result.iloc[0].isna().all()
 
     def test_add_row_at_end(self, sample_df):
         result = add_row(sample_df, 3)
@@ -166,6 +166,22 @@ class TestAddRow:
     def test_add_row_out_of_range(self, sample_df):
         with pytest.raises(TransformationError):
             add_row(sample_df, -1)
+
+    def test_add_row_keeps_numeric_columns_numeric(self, sample_df):
+        """A blank row must not turn numeric columns into text (#649)."""
+        result = add_row(sample_df, 1)
+        assert pd.api.types.is_integer_dtype(result["age"])
+        assert result["age"][0] == 30
+        assert pd.isna(result["age"][1])
+
+        floats = add_row(pd.DataFrame({"price": [1.5, 2.5]}), 1)
+        assert floats["price"].dtype == float
+
+    def test_add_row_then_sort_and_filter_numeric_column(self, sample_df):
+        """Sort and filter on a numeric column still work after adding a row (#649)."""
+        result = add_row(sample_df, 1)
+        assert apply_sort(result, "age")["age"].dropna().tolist() == [25, 30, 35]
+        assert apply_filter(result, "age", ">", "28")["age"].tolist() == [30, 35]
 
 
 class TestDeleteRow:
@@ -1145,7 +1161,7 @@ class TestApplyLoggedTransformation:
             {"row_params": {"index": 1}},
         )
         assert len(result) == 4
-        assert result.iloc[1]["name"] == " "
+        assert result.iloc[1].isna().all()
 
     # ------------------------------------------------------------------ delRow
     def test_del_row(self, sample_df):
