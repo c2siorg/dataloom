@@ -53,3 +53,5 @@ export const ADD_FORMULA_COLUMN = "addFormulaCol";
 export const STANDARDIZE_DATES = "standardizeDates";
 /** Detect and remediate statistical outliers */
 export const HANDLE_OUTLIERS = "handleOutliers";
+/** Scale and normalize numeric column values */
+export const SCALE_NUMERIC = "scaleNumeric";
