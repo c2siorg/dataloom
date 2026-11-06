@@ -667,6 +667,127 @@ def standardize_dates(df: pd.DataFrame, column: str, output_format: str) -> pd.D
     return df
 
 
+def scale_numeric(
+    df: pd.DataFrame,
+    column: str,
+    method: str = "minmax",
+    target_min: float = 0.0,
+    target_max: float = 1.0,
+    output_column: str | None = None,
+) -> pd.DataFrame:
+    """Scale and normalize values in a numeric column.
+
+    Supports four statistical scaling techniques:
+    - ``minmax``: Linearly project values into ``[target_min, target_max]``.
+    - ``standard``: Standardize to zero mean and unit variance (Z-score).
+    - ``robust``: Center by median and scale by Interquartile Range (IQR).
+    - ``maxabs``: Scale by the maximum absolute value into ``[-1, 1]``.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to scale.
+        method: Scaling algorithm: 'minmax', 'standard', 'robust', or 'maxabs'.
+        target_min: Lower bound for 'minmax' scaling (default 0.0).
+        target_max: Upper bound for 'minmax' scaling (default 1.0).
+        output_column: Optional name for a new destination column. If omitted,
+            the transformation overwrites the source column in-place.
+
+    Returns:
+        New DataFrame with scaled values.
+
+    Raises:
+        TransformationError: If the column is missing, non-numeric, boolean,
+            parameters are invalid, or output_column collides with existing columns.
+    """
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+    column = stripped_to_original[column_stripped]
+
+    series = df[column]
+    if pd.api.types.is_bool_dtype(series):
+        raise TransformationError(
+            f"Column '{column}' is boolean. Feature scaling requires continuous or discrete numeric data."
+        )
+    if not pd.api.types.is_numeric_dtype(series):
+        numeric_series = pd.to_numeric(series.dropna(), errors="coerce")
+        if numeric_series.isna().any() or numeric_series.empty:
+            raise TransformationError(f"Column '{column}' is not numeric. Feature scaling requires numeric data.")
+        series = pd.to_numeric(series, errors="coerce")
+
+    valid_methods = {"minmax", "standard", "robust", "maxabs"}
+    method_str = str(method).lower().strip()
+    if method_str not in valid_methods:
+        raise TransformationError(f"Unknown scaling method: '{method}'. Supported methods: {sorted(valid_methods)}")
+
+    if method_str == "minmax" and target_min >= target_max:
+        raise TransformationError(f"target_min ({target_min}) must be strictly less than target_max ({target_max}).")
+
+    target_col = column
+    if output_column is not None:
+        out_col_clean = output_column.strip()
+        if not out_col_clean:
+            raise TransformationError("output_column must not be empty or whitespace only.")
+        if out_col_clean in df.columns:
+            raise TransformationError(
+                f"Output column '{out_col_clean}' already exists in DataFrame. Please specify a distinct output_column."
+            )
+        target_col = out_col_clean
+
+    non_null = series.dropna()
+    result_df = df.copy()
+
+    if non_null.empty:
+        if target_col != column:
+            result_df[target_col] = pd.Series(float("nan"), index=df.index, dtype=float)
+        else:
+            result_df[target_col] = result_df[target_col].astype(float)
+        return result_df
+
+    if method_str == "minmax":
+        min_val = float(non_null.min())
+        max_val = float(non_null.max())
+        diff = max_val - min_val
+        if diff == 0 or math.isclose(diff, 0.0):
+            scaled_series = pd.Series(target_min, index=series.index, dtype=float)
+            scaled_series[series.isna()] = float("nan")
+        else:
+            scaled_series = (series - min_val) / diff * (target_max - target_min) + target_min
+
+    elif method_str == "standard":
+        mean_val = float(non_null.mean())
+        std_val = float(non_null.std(ddof=0))
+        if std_val == 0 or math.isclose(std_val, 0.0):
+            scaled_series = pd.Series(0.0, index=series.index, dtype=float)
+            scaled_series[series.isna()] = float("nan")
+        else:
+            scaled_series = (series - mean_val) / std_val
+
+    elif method_str == "robust":
+        median_val = float(non_null.median())
+        q1 = float(non_null.quantile(0.25))
+        q3 = float(non_null.quantile(0.75))
+        iqr = q3 - q1
+        if iqr == 0 or math.isclose(iqr, 0.0):
+            scaled_series = pd.Series(0.0, index=series.index, dtype=float)
+            scaled_series[series.isna()] = float("nan")
+        else:
+            scaled_series = (series - median_val) / iqr
+
+    elif method_str == "maxabs":
+        max_abs = float(non_null.abs().max())
+        if max_abs == 0 or math.isclose(max_abs, 0.0):
+            scaled_series = pd.Series(0.0, index=series.index, dtype=float)
+            scaled_series[series.isna()] = float("nan")
+        else:
+            scaled_series = series / max_abs
+
+    result_df[target_col] = scaled_series.astype(float)
+    return result_df
+
+
 def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
     """Replace occurrences of a substring in a column.
 
@@ -1283,6 +1404,20 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             d["standardize_dates_params"]["column"],
             d["standardize_dates_params"]["output_format"],
         ),
+    ),
+    OperationType.scaleNumeric: TransformationSpec(
+        func="scale_numeric",
+        label="Scale numeric features",
+        params_field="scale_numeric_params",
+        missing_error="Scale numeric parameters required",
+        build_args=lambda d: (
+            d["scale_numeric_params"]["column"],
+            d["scale_numeric_params"].get("method", "minmax"),
+            d["scale_numeric_params"].get("target_min", 0.0),
+            d["scale_numeric_params"].get("target_max", 1.0),
+            d["scale_numeric_params"].get("output_column"),
+        ),
+        reusable=True,
     ),
 }
 
