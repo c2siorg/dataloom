@@ -101,3 +101,21 @@ class TestGroupBy:
         result = group_by(sample_df, ["department"], "employee", "count")
         eng = result[result["department"] == "Engineering"]["employee"].iloc[0]
         assert eng == 2
+
+    def test_sum_rejects_text_column(self, sample_df):
+        # pandas silently concatenates strings for sum, so grouping by
+        # department and summing employee names used to return "AliceBob".
+        with pytest.raises(TransformationError, match="Cannot sum text column"):
+            group_by(sample_df, ["department"], "employee", "sum")
+
+    def test_sum_still_works_on_object_dtype_integers(self):
+        # A mixed-type upload can leave an all-integer column as object
+        # dtype; the text guard must not reject those values.
+        df = pd.DataFrame(
+            {
+                "city": ["a", "a", "b"],
+                "qty": pd.Series([10, 20, 30], dtype=object),
+            }
+        )
+        result = group_by(df, ["city"], "qty", "sum")
+        assert list(result["qty"]) == [30, 30]
