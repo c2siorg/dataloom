@@ -541,6 +541,19 @@ def test_transform_groupby_rejects_non_numeric_aggregation(client, project_id):
     assert "Cannot aggregate column" in response.json()["detail"]
 
 
+def test_transform_groupby_rejects_sum_on_text_column(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "groupby",
+            "groupby_params": {"columns": ["city"], "agg_column": "name", "agg_function": "sum"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "Cannot sum text column" in response.json()["detail"]
+
+
 def test_transform_pivot_rejects_value_as_index_column(client, project_id):
     response = client.post(
         f"/projects/{project_id}/transform",
