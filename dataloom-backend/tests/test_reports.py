@@ -139,13 +139,12 @@ class TestCollectProvenance:
         db.refresh(project)
         return project
 
-    def _log(self, db, project, action_type, details, checkpoint_id=None):
+    def _log(self, db, project, action_type, details):
         log = models.ProjectChangeLog(
             project_id=project.project_id,
             action_type=action_type,
             action_details=details,
             applied=True,
-            checkpoint_id=checkpoint_id,
         )
         db.add(log)
         db.commit()
@@ -153,8 +152,8 @@ class TestCollectProvenance:
 
     def test_transformations_are_grouped_under_their_checkpoint(self, db, test_user):
         project = self._project(db, test_user)
-        checkpoint = project_service.create_checkpoint(db, project.project_id, "Cleaned up")
-        self._log(db, project, "trimWhitespace", {"trim_whitespace_params": {"column": "name"}}, checkpoint.id)
+        self._log(db, project, "trimWhitespace", {"trim_whitespace_params": {"column": "name"}})
+        project_service.create_checkpoint(db, project.project_id, "Cleaned up")
 
         provenance = project_service.collect_provenance(db, project.project_id)
 
@@ -163,16 +162,48 @@ class TestCollectProvenance:
         assert group["message"] == "Cleaned up"
         assert [t["label"] for t in group["transformations"]] == ["Trim whitespace"]
         assert group["transformations"][0]["summary"] == "column: name"
+        assert provenance["unsaved"] == []
 
-    def test_transformations_without_a_checkpoint_are_reported_as_unsaved(self, db, test_user):
+    def test_every_row_lands_in_exactly_one_group(self, db, test_user):
         project = self._project(db, test_user)
-        checkpoint = project_service.create_checkpoint(db, project.project_id, "Saved")
-        self._log(db, project, "sort", {"sort_params": {"column": "age"}}, checkpoint.id)
+        self._log(db, project, "trimWhitespace", {"trim_whitespace_params": {"column": "name"}})
+        project_service.create_checkpoint(db, project.project_id, "Cleaned up")
+        self._log(db, project, "sort", {"sort_params": {"column": "age"}})
+        self._log(db, project, "dropNa", {})
+        project_service.create_checkpoint(db, project.project_id, "Sorted")
+
+        provenance = project_service.collect_provenance(db, project.project_id)
+
+        grouped = [t["label"] for group in provenance["checkpoints"] for t in group["transformations"]]
+        assert sorted(grouped + [t["label"] for t in provenance["unsaved"]]) == [
+            "Drop missing values",
+            "Sort",
+            "Trim whitespace",
+        ]
+        # The row saved under the first checkpoint stays there.
+        assert [t["label"] for t in provenance["checkpoints"][0]["transformations"]] == ["Trim whitespace"]
+
+    def test_transformations_past_every_checkpoint_are_reported_as_unsaved(self, db, test_user):
+        project = self._project(db, test_user)
+        project_service.create_checkpoint(db, project.project_id, "Saved")
+        self._log(db, project, "sort", {"sort_params": {"column": "age"}})
+
+        provenance = project_service.collect_provenance(db, project.project_id)
+
+        assert [t["label"] for t in provenance["checkpoints"][0]["transformations"]] == []
+        assert [t["label"] for t in provenance["unsaved"]] == ["Sort"]
+
+    def test_a_later_checkpoint_takes_the_rows_between_it_and_the_last_one(self, db, test_user):
+        project = self._project(db, test_user)
+        project_service.create_checkpoint(db, project.project_id, "First")
+        self._log(db, project, "sort", {"sort_params": {"column": "age"}})
+        project_service.create_checkpoint(db, project.project_id, "Second")
         self._log(db, project, "dropNa", {})
 
         provenance = project_service.collect_provenance(db, project.project_id)
 
-        assert [t["label"] for t in provenance["checkpoints"][0]["transformations"]] == ["Sort"]
+        assert [t["label"] for t in provenance["checkpoints"][0]["transformations"]] == []
+        assert [t["label"] for t in provenance["checkpoints"][1]["transformations"]] == ["Sort"]
         assert [t["label"] for t in provenance["unsaved"]] == ["Drop missing values"]
 
     def test_unapplied_transformations_are_left_out(self, db, test_user):

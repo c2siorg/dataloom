@@ -22,7 +22,7 @@ from app.jobs import context as job_context
 from app.jobs import runner as runner_module
 from app.jobs.registry import PROJECT_GONE
 from app.main import app
-from app.services import job_service, project_service
+from app.services import job_service, replay_service
 from app.services.auth_service import create_access_token
 from app.utils.security import SAFE_TRANSFORMATION_ERROR_DETAIL
 
@@ -78,9 +78,26 @@ def _working_copy(db, project_id) -> Path:
 
 
 def _log_state(client, project_id):
-    """The change log as replay sees it: order, operation, details, applied."""
+    """The change log as replay sees it: order, operation, details, applied.
+
+    ``change_log_id`` is one global sequence, so two projects with identical
+    histories hold different positions. Positions are normalised to the
+    project's own first row, and a revert row's target checkpoint id — which is
+    per project by construction — is dropped, so the two logs compare row for
+    row.
+    """
     logs = sorted(client.get(f"/logs/{project_id}").json(), key=lambda log: log["id"])
-    return [(log["action_type"], log["action_details"], log["applied"]) for log in logs]
+    if not logs:
+        return []
+    offset = logs[0]["id"] - 1
+    state = []
+    for log in logs:
+        details = dict(log["action_details"])
+        details.pop("checkpoint_id", None)
+        if isinstance(details.get("log_position"), int):
+            details["log_position"] -= offset
+        state.append((log["action_type"], details, log["applied"]))
+    return state
 
 
 def _count(db, model, *where) -> int:
@@ -576,7 +593,8 @@ class TestRedaction:
         def _boom(*args, **kwargs):
             raise error
 
-        monkeypatch.setattr(project_service, "read_table_safe", _boom)
+        # The replay reads the original file through replay_service now.
+        monkeypatch.setattr(replay_service, "read_table_safe", _boom)
         monkeypatch.setattr(runner_module.logger, "exception", lambda *args, **kwargs: None)
 
         job = _submit(client, project_id, {"kind": "revert"}).json()
