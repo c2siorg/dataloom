@@ -99,6 +99,14 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
             value = float(value)
         except ValueError:
             raise TransformationError(f"Invalid numeric value: {value}") from None
+        if math.isnan(value):
+            # NaN never equals anything, not even itself, so "=" would
+            # silently return no rows (even when the column holds NaN) and
+            # "!=" would silently return every row including the NaN ones.
+            raise TransformationError(
+                "Invalid numeric value: 'nan' never matches any row "
+                "(NaN is never equal to itself). Use dropNa to remove missing values."
+            )
     elif col_type == "boolean" and condition in ("=", "!=", ">", "<", ">=", "<="):
         parsed = _parse_bool(value)
         if parsed is None:
