@@ -166,6 +166,21 @@ def test_transform_maps_transformation_error_to_400(client, project_id):
     assert "not found" in response.json()["detail"].lower()
 
 
+def test_transform_filter_nan_value_returns_400(client, project_id):
+    # NaN never equals anything, so filtering a numeric column for "nan"
+    # would silently return no rows instead of the missing-value rows.
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "filter",
+            "parameters": {"column": "age", "condition": "=", "value": "nan"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "Invalid numeric value" in response.json()["detail"]
+
+
 def test_transform_redacts_file_not_found_path_detail(client, project_id, monkeypatch):
     from app.api.endpoints import transformations as transformations_endpoint
 
