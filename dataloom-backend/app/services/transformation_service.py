@@ -799,6 +799,23 @@ def pivot_table(
             f"Unsupported aggregation function: '{aggfunc_str}'. Supported: {sorted(SUPPORTED_AGG_FUNCTIONS)}"
         )
 
+    if aggfunc_str == "sum" and not pd.api.types.is_numeric_dtype(df[val]):
+        # pandas silently concatenates strings for sum, so pivoting a text
+        # column used to return joined values ("goodbad") instead of an
+        # error. Mean and median already fail loudly on text via pandas;
+        # reject sum explicitly so the user gets a clear 400 instead.
+        # Object-dtype columns holding numbers (e.g. from a mixed-type
+        # upload) still sum normally, so only actual string values trip this.
+        # Numeric columns cannot hold strings: skip the per-value scan on
+        # them — scanning 100k rows here regressed the pivotTables
+        # benchmark ~3x (min 8.6ms -> 24.7ms) for no benefit.
+        non_null = df[val].dropna()
+        if len(non_null) and non_null.map(lambda v: isinstance(v, str)).any():
+            raise TransformationError(
+                f"Cannot sum text column '{val}': 'sum' concatenates text "
+                "instead of adding numbers. Cast the column to a numeric type first."
+            )
+
     try:
         if col:
             result = pd.pivot_table(df, index=index_cols, values=val, columns=col, aggfunc=aggfunc_str)

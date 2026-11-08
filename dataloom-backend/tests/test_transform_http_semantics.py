@@ -604,3 +604,16 @@ def test_transform_pivot_rejects_non_numeric_aggregation(client, project_id):
 
     assert response.status_code == 400, response.text
     assert "Cannot aggregate column" in response.json()["detail"]
+
+
+def test_transform_pivot_rejects_sum_on_text_column(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "pivotTables",
+            "pivot_query": {"index": "city", "value": "name", "aggfun": "sum"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "Cannot sum text column" in response.json()["detail"]

@@ -881,6 +881,24 @@ class TestPivotTable:
         with pytest.raises(TransformationError, match="Cannot aggregate column"):
             pivot_table(pivot_df, "city", "notes", aggfunc="mean")
 
+    def test_pivot_rejects_sum_on_text_column(self, pivot_df):
+        # pandas silently concatenates strings for sum, so pivoting the
+        # notes column with sum used to return joined values ("goodbad").
+        with pytest.raises(TransformationError, match="Cannot sum text column"):
+            pivot_table(pivot_df, "city", "notes", aggfunc="sum")
+
+    def test_pivot_sum_still_works_on_object_dtype_integers(self):
+        # A mixed-type upload can leave an all-integer column as object
+        # dtype; the text guard must not reject those values.
+        df = pd.DataFrame(
+            {
+                "city": ["a", "a", "b"],
+                "qty": pd.Series([10, 20, 30], dtype=object),
+            }
+        )
+        result = pivot_table(df, "city", "qty", aggfunc="sum")
+        assert list(result["qty"]) == [30, 30]
+
     def test_pivot_with_multiple_indices(self, pivot_df):
         result = pivot_table(pivot_df, "city, product", "sales", aggfunc="sum")
         assert "city" in result.columns
