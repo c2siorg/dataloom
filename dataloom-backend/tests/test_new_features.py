@@ -87,10 +87,17 @@ class TestCastDataType:
         assert result.iloc[0]["val"] == 10
 
     def test_cast_to_integer_with_nan(self):
+        # "abc" is not a number: casting now rejects it instead of silently
+        # nulling it (same contract as the boolean/datetime branches).
         df = pd.DataFrame({"val": ["10", "abc", "30"]})
+        with pytest.raises(TransformationError, match="not a valid number"):
+            cast_data_type(df, "val", "integer")
+
+    def test_cast_to_integer_keeps_nulls_null(self):
+        df = pd.DataFrame({"val": ["10", None, "30"]})
         result = cast_data_type(df, "val", "integer")
-        assert pd.isna(result.iloc[1]["val"])
         assert result.iloc[0]["val"] == 10
+        assert pd.isna(result.iloc[1]["val"])
 
     def test_cast_to_float(self):
         df = pd.DataFrame({"val": ["1.5", "2.7", "3.14"]})
