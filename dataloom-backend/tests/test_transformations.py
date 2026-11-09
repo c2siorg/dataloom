@@ -967,14 +967,42 @@ class TestCastDataType:
         assert result["age"].iloc[1] == "25"
 
     def test_cast_to_integer(self):
-        df = pd.DataFrame({"val": ["1", "2", "bad", None]})
+        df = pd.DataFrame({"val": ["1", "2", None]})
         result = cast_data_type(df, "val", "integer")
         assert result["val"].iloc[0] == 1
-        assert pd.isna(result["val"].iloc[2])  # coerced NaN
-        assert pd.isna(result["val"].iloc[3])  # coerced NaN
+        assert pd.isna(result["val"].iloc[2])  # null stays null
+
+    def test_cast_to_integer_rejects_unparseable_values(self):
+        df = pd.DataFrame({"city": ["Paris", "London"]})
+        with pytest.raises(TransformationError, match="not a valid number"):
+            cast_data_type(df, "city", "integer")
+
+    def test_cast_to_integer_rejects_mixed_parseable_and_garbage(self):
+        df = pd.DataFrame({"val": ["1", "bad"]})
+        with pytest.raises(TransformationError, match="not a valid number"):
+            cast_data_type(df, "val", "integer")
+
+    def test_cast_to_float_rejects_unparseable_values(self):
+        df = pd.DataFrame({"city": ["Paris", "London"]})
+        with pytest.raises(TransformationError, match="not a valid number"):
+            cast_data_type(df, "city", "float")
+
+    def test_cast_to_numeric_keeps_nulls_and_blanks_null(self):
+        df = pd.DataFrame({"val": ["1", None, ""]})
+        result = cast_data_type(df, "val", "integer")
+        assert result["val"].iloc[0] == 1
+        assert pd.isna(result["val"].iloc[1])
+        assert pd.isna(result["val"].iloc[2])
+
+    def test_cast_to_float_accepts_float_literals(self):
+        df = pd.DataFrame({"val": ["nan", "inf", "3"]})
+        result = cast_data_type(df, "val", "float")
+        assert pd.isna(result["val"].iloc[0])
+        assert result["val"].iloc[1] == float("inf")
+        assert result["val"].iloc[2] == 3.0
 
     def test_cast_to_float(self):
-        df = pd.DataFrame({"val": ["1.5", "2.7", "bad"]})
+        df = pd.DataFrame({"val": ["1.5", "2.7", "3.14"]})
         result = cast_data_type(df, "val", "float")
         assert pd.api.types.is_float_dtype(result["val"])
         assert result["val"].iloc[0] == 1.5
