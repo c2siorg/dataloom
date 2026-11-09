@@ -568,12 +568,33 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
         if target_type == "string":
             df[column] = df[column].astype(str)
         elif target_type in ("integer", "float"):
-            df[column] = pd.to_numeric(df[column], errors="coerce")
+            coerced = pd.to_numeric(df[column], errors="coerce")
+            # Nulls and blank strings stay null (the same contract as the
+            # boolean and datetime branches); any other value that does not
+            # parse is a client error, not a silent null — casting a text
+            # column to a number used to return 200 with every value wiped.
+            # Strings float() itself accepts ("nan", "inf", ...) parse to
+            # real floats and stay allowed.
+            present = df[column].notna()
+            is_blank_string = df[column].map(lambda v: isinstance(v, str) and v.strip() == "")
+            is_float_literal = df[column].map(
+                lambda v: (
+                    isinstance(v, str)
+                    and v.strip().lower()
+                    in {"nan", "+nan", "-nan", "inf", "+inf", "-inf", "infinity", "+infinity", "-infinity"}
+                )
+            )
+            unparseable = coerced.isna() & present & ~is_blank_string & ~is_float_literal
+            if unparseable.any():
+                first_bad = df[column][unparseable].iloc[0]
+                raise TransformationError(
+                    f"Cannot cast column '{column}' to {target_type}: value {first_bad!r} is not a valid number"
+                )
             if target_type == "integer":
-                # Use pandas' nullable Int64 so NaNs from coerced values coexist with ints.
-                df[column] = df[column].astype("Int64")
+                # Use pandas' nullable Int64 so NaNs from nulls/blanks coexist with ints.
+                df[column] = coerced.astype("Int64")
             else:
-                df[column] = df[column].astype(float)
+                df[column] = coerced.astype(float)
         elif target_type == "boolean":
             truthy = {"true", "1", "yes", "y", "on"}
             falsy = {"false", "0", "no", "n", "off"}
