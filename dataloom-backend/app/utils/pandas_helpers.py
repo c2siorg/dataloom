@@ -235,6 +235,11 @@ _DATETIME_SAMPLE_SEED = 20260919
 # a 1,000-value sample at 80% is about 1.3 percentage points.
 _DATETIME_GATE_RATE = 0.5
 
+# A 1,000-value sample with more distinct values than this comes from a column
+# where most values appear about once, so checking distinct values would not
+# save work. A column whose values each appear twice already samples about 997.
+_MOSTLY_UNIQUE_SAMPLE_DISTINCT = 990
+
 
 def _infer_dayfirst(values: pd.Series) -> bool | None:
     """Infer day-first vs month-first convention from unambiguous rows.
@@ -479,12 +484,28 @@ def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
             continue
 
         normalized_values = string_values.str.strip()
-        date_like_rate = normalized_values.map(_looks_like_datetime).mean()
+
+        # Date columns repeat values heavily (many rows per day), so check each
+        # distinct value once and weight by its count. Both checks depend only
+        # on the values, so the results are identical to checking every row.
+        # A mostly-unique column gains nothing from this and pays for building
+        # the distinct values, so it keeps the per-row path; a sample spots
+        # most such columns before value_counts runs on the whole column.
+        mostly_unique = sample_exceeds_distinct(normalized_values, _MOSTLY_UNIQUE_SAMPLE_DISTINCT)
+        counts = None if mostly_unique else normalized_values.value_counts(sort=False)
+        if counts is not None and len(counts) * 2 <= len(normalized_values):
+            distinct_values = counts.index.to_series()
+            looks_like_date = distinct_values.map(_looks_like_datetime).to_numpy()
+            date_like_rate = counts.to_numpy()[looks_like_date].sum() / len(normalized_values)
+            dayfirst_candidates = distinct_values
+        else:
+            date_like_rate = normalized_values.map(_looks_like_datetime).mean()
+            dayfirst_candidates = normalized_values
 
         if date_like_rate < _MIN_DATETIME_RATE:
             continue
 
-        dayfirst = _infer_dayfirst(normalized_values)
+        dayfirst = _infer_dayfirst(dayfirst_candidates)
 
         if dayfirst is None:
             # Mixes DD/MM and MM/DD conventions across rows — too ambiguous
