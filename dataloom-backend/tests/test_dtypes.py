@@ -429,6 +429,75 @@ class TestSampledPreGate:
         assert result_with_gate.dtypes.to_dict() == result_without_gate.dtypes.to_dict()
 
 
+def _per_row_path(monkeypatch):
+    """Force the per-row checks, as if every column were mostly unique."""
+    monkeypatch.setattr("app.utils.pandas_helpers.sample_exceeds_distinct", lambda series, limit: True)
+
+
+class TestDistinctValueChecks:
+    """Columns with repeated values run the date checks once per distinct value.
+
+    Each case compares against the per-row path, which must give the same result.
+    """
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            pytest.param(_dates(300) * 20, id="repeated_iso_dates"),
+            pytest.param(["13/01/2024", "05/06/2024", "28/02/2024"] * 2000, id="repeated_day_first"),
+            pytest.param(["01/13/2024", "05/06/2024", "02/28/2024"] * 2000, id="repeated_month_first"),
+            pytest.param(["05/06/2024"] * 5000 + ["13/01/2024", "01/13/2024"], id="rare_conflicting_conventions"),
+            pytest.param(["2024-01-05", " 2024-01-05", "2024-01-05 "] * 2000, id="whitespace_variants"),
+            pytest.param(_dates(40) * 100 + _notes(10) * 100, id="exactly_at_threshold"),
+            pytest.param(_dates(39) * 100 + _notes(11) * 100, id="just_below_threshold"),
+        ],
+    )
+    def test_same_result_as_per_row_checks(self, monkeypatch, values):
+        random.Random(0).shuffle(values)
+        df = pd.DataFrame({"event_date": values})
+
+        distinct_result = _infer_datetime_columns(df)
+        _per_row_path(monkeypatch)
+        per_row_result = _infer_datetime_columns(df)
+
+        assert distinct_result.dtypes.to_dict() == per_row_result.dtypes.to_dict()
+        assert distinct_result["event_date"].equals(per_row_result["event_date"])
+
+    def test_day_first_dates_parse_correctly(self):
+        df = pd.DataFrame({"event_date": ["13/01/2024", "05/06/2024"] * 2000})
+
+        result = _infer_datetime_columns(df)
+
+        assert result.at[0, "event_date"] == pd.Timestamp("2024-01-13")
+        assert result.at[1, "event_date"] == pd.Timestamp("2024-06-05")
+
+    def test_checks_each_distinct_value_once(self, monkeypatch):
+        from app.utils import pandas_helpers
+
+        checked = []
+        real_check = pandas_helpers._looks_like_datetime
+
+        def counting_check(value):
+            checked.append(value)
+            return real_check(value)
+
+        monkeypatch.setattr(pandas_helpers, "_looks_like_datetime", counting_check)
+        df = pd.DataFrame({"event_date": _dates(300) * 20})
+
+        _infer_datetime_columns(df)
+
+        # 1,000 sampled values for the pre-gate, then each of the 300 distinct values once.
+        assert len(checked) == _DATETIME_SAMPLE_SIZE + 300
+
+    def test_mostly_unique_column_still_converts(self):
+        timestamps = pd.date_range("2024-01-01", periods=5000, freq="min")
+        df = pd.DataFrame({"created_at": [str(ts) for ts in timestamps]})
+
+        result = _infer_datetime_columns(df)
+
+        assert pd.api.types.is_datetime64_any_dtype(result["created_at"])
+
+
 class TestSampleRulesOutDatetime:
     def test_small_column_is_never_ruled_out(self):
         non_null = pd.Series(_notes(_DATETIME_SAMPLE_SIZE))
