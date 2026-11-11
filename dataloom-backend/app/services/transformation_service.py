@@ -565,6 +565,24 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
 
     df = df.copy()
     try:
+        # Casting between numeric and datetime dtypes silently reinterprets
+        # the values instead of converting them: pandas reads numbers as
+        # nanoseconds since 1970-01-01 (a year column becomes 1970-01-01)
+        # and dates as nanosecond counts (2024-01-01 becomes
+        # 1704067200000000). There is no unit parameter, so neither
+        # direction has a correct result — refuse instead of returning
+        # nonsense.
+        if target_type == "datetime" and pd.api.types.is_numeric_dtype(df[column]):
+            raise TransformationError(
+                f"Cannot cast numeric column '{column}' to datetime: "
+                "numbers would be read as nanoseconds since 1970-01-01"
+            )
+        if target_type in ("integer", "float") and pd.api.types.is_datetime64_any_dtype(df[column]):
+            raise TransformationError(
+                f"Cannot cast datetime column '{column}' to {target_type}: "
+                "dates would become nanosecond counts since 1970-01-01"
+            )
+
         if target_type == "string":
             df[column] = df[column].astype(str)
         elif target_type in ("integer", "float"):
