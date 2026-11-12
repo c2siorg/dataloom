@@ -358,6 +358,31 @@ class TestChangeCellValue:
         ):
             change_cell_value(sample_df, 0, 2, "hello")
 
+    def test_int_cell_value_above_int64_max_raises(self, sample_df):
+        # 2**63 does not fit int64: assigning it made pandas raise an
+        # uncaught AssertionError (HTTP 500) instead of a client error.
+        with pytest.raises(TransformationError, match="out of range"):
+            change_cell_value(sample_df, 0, 2, 2**63)
+
+    def test_int_cell_value_above_int64_max_as_string_raises(self, sample_df):
+        # The frontend sends cell values as strings, so the same overflow
+        # must be rejected in string form too.
+        with pytest.raises(TransformationError, match="out of range"):
+            change_cell_value(sample_df, 0, 2, "9223372036854775808")
+
+    def test_int_cell_value_below_int64_min_raises(self, sample_df):
+        with pytest.raises(TransformationError, match="out of range"):
+            change_cell_value(sample_df, 0, 2, -(2**63) - 1)
+
+    def test_int_cell_value_at_int64_bounds_accepted(self, sample_df):
+        result = change_cell_value(sample_df, 0, 2, 2**63 - 1)
+        assert result.iloc[0]["age"] == 2**63 - 1
+        assert pd.api.types.is_integer_dtype(result["age"].dtype)
+
+        result = change_cell_value(sample_df, 0, 2, -(2**63))
+        assert result.iloc[0]["age"] == -(2**63)
+        assert pd.api.types.is_integer_dtype(result["age"].dtype)
+
     def test_invalid_int_edit_does_not_modify_original_dataframe(
         self,
         sample_df,

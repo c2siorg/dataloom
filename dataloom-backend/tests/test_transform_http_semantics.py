@@ -166,6 +166,21 @@ def test_transform_maps_transformation_error_to_400(client, project_id):
     assert "not found" in response.json()["detail"].lower()
 
 
+def test_transform_change_cell_int64_overflow_returns_400(client, project_id):
+    # Editing the int "age" column (col_index 2) to 2**63 used to return
+    # HTTP 500: pandas raised an uncaught AssertionError on assignment.
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "changeCellValue",
+            "change_cell_value": {"row_index": 0, "col_index": 2, "fill_value": 9223372036854775808},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "out of range" in response.json()["detail"]
+
+
 def test_transform_redacts_file_not_found_path_detail(client, project_id, monkeypatch):
     from app.api.endpoints import transformations as transformations_endpoint
 

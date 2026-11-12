@@ -324,6 +324,20 @@ def change_cell_value(
                 # integers retain their exact values.
                 df[column_name] = df[column_name].astype(object)
                 value = decimal_value
+            else:
+                # Reject values the column dtype cannot store: pandas raises
+                # an uncaught AssertionError when such a value is assigned
+                # below (HTTP 500), instead of a catchable error.
+                bits = 8 * col_dtype.itemsize
+                if col_dtype.kind == "u":
+                    low, high = 0, 2**bits - 1
+                else:
+                    low, high = -(2 ** (bits - 1)), 2 ** (bits - 1) - 1
+                if value < low or value > high:
+                    raise TransformationError(
+                        f"Value {value!r} is out of range for integer column "
+                        f"'{column_name}' ({col_dtype}: {low} to {high})."
+                    )
 
         elif pd.api.types.is_float_dtype(col_dtype):
             try:
