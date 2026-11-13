@@ -1001,6 +1001,31 @@ class TestCastDataType:
         assert pd.api.types.is_datetime64_any_dtype(result["date"])
         assert result["date"].iloc[0] == pd.Timestamp("2024-01-01")
 
+    def test_cast_numeric_to_datetime_rejected(self):
+        df = pd.DataFrame({"year": [2024, 2025]})
+        with pytest.raises(TransformationError, match="nanoseconds"):
+            cast_data_type(df, "year", "datetime")
+
+    def test_cast_float_to_datetime_rejected(self):
+        df = pd.DataFrame({"year": [2024.0, 2025.0]})
+        with pytest.raises(TransformationError, match="nanoseconds"):
+            cast_data_type(df, "year", "datetime")
+
+    def test_cast_datetime_to_integer_rejected(self):
+        df = pd.DataFrame({"date": pd.to_datetime(["2024-01-01", "2024-06-15"])})
+        with pytest.raises(TransformationError, match="nanosecond"):
+            cast_data_type(df, "date", "integer")
+
+    def test_cast_datetime_to_float_rejected(self):
+        df = pd.DataFrame({"date": pd.to_datetime(["2024-01-01", "2024-06-15"])})
+        with pytest.raises(TransformationError, match="nanosecond"):
+            cast_data_type(df, "date", "float")
+
+    def test_cast_bool_to_integer_still_allowed(self):
+        df = pd.DataFrame({"flag": [True, False]})
+        result = cast_data_type(df, "flag", "integer")
+        assert result["flag"].tolist() == [1, 0]
+
     def test_cast_invalid_column(self, sample_df):
         with pytest.raises(TransformationError, match="not found"):
             cast_data_type(sample_df, "nonexistent", "integer")
