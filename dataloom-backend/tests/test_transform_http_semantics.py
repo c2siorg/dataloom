@@ -875,3 +875,29 @@ def test_transform_pivot_with_colliding_column_values_returns_400(client, tmp_pa
     )
     assert response.status_code == 400, response.text
     assert "duplicate column names" in response.json()["detail"]
+
+
+def test_transform_formula_int_overflow_rejected(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "addFormulaCol",
+            "formula_col_params": {"column_name": "big", "expression": "age ** 1000"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "overflows" in response.json()["detail"]
+
+
+def test_transform_formula_in_range_int_allowed(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "addFormulaCol",
+            "formula_col_params": {"column_name": "next_age", "expression": "age + 1"},
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert "next_age" in response.json()["columns"]
