@@ -141,6 +141,86 @@ class TestAddFormulaColumn:
         result = add_formula_column(sample_df, "ratio", "price / 0")
         assert np.isinf(result["ratio"]).all()
 
+    def test_power_overflow_rejected(self):
+        df = pd.DataFrame({"a": [2, 3]})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "a ** 1000")
+
+    def test_multiplication_overflow_rejected(self):
+        df = pd.DataFrame({"a": [1000000000, 2]})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "a * a * a")
+
+    def test_uint_overflow_rejected(self):
+        df = pd.DataFrame({"a": pd.array([2**32, 3], dtype="uint64")})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "a * a")
+
+    def test_giant_constant_exponent_rejected(self):
+        # The exact re-check must refuse a ** 99999999 before computing it:
+        # the true result is ~30M digits and cannot fit int64, so this is
+        # an overflow, not a value worth materialising.
+        df = pd.DataFrame({"a": [2, 3]})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "a ** 99999999")
+
+    def test_giant_column_exponent_rejected(self):
+        df = pd.DataFrame({"a": [2, 3], "b": [99999999, 5]})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "a ** b")
+
+    def test_column_exponent_in_range_allowed(self):
+        df = pd.DataFrame({"a": [2, 3], "b": [10, 10]})
+        result = add_formula_column(df, "c", "a ** b")
+        assert result["c"].tolist() == [1024, 59049]
+
+    def test_negative_overflow_rejected(self):
+        # Subtracting 1 from the smallest int64 wraps to the largest; the
+        # exact value (-2**63 - 1) does not fit, so it must be a 400.
+        df = pd.DataFrame({"a": [-9223372036854775808], "b": [1]})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "a - b")
+
+    def test_backtick_column_power_overflow_rejected(self):
+        df = pd.DataFrame({"my col": [2, 3]})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "my col ** 1000")
+
+    def test_bool_column_formula_allowed(self):
+        df = pd.DataFrame({"a": [True, False, True]})
+        result = add_formula_column(df, "c", "a + 1")
+        assert result["c"].tolist() == [2, 1, 2]
+
+    def test_comparison_with_power_uses_exact_values(self):
+        # The power forces the fallback path, so the comparison around it
+        # must also be evaluated exactly rather than on wrapped values.
+        df = pd.DataFrame({"a": [2, 3]})
+        result = add_formula_column(df, "c", "(a ** 10) > 100")
+        assert result["c"].tolist() == [True, True]
+
+    def test_in_range_int_formula_allowed(self):
+        df = pd.DataFrame({"a": [1000000000, 1000000000], "b": [1000000000, 3]})
+        result = add_formula_column(df, "c", "a * b")
+        assert result["c"].tolist() == [1000000000000000000, 3000000000]
+
+    def test_large_in_range_subtraction_above_2_pow_53_allowed(self):
+        # Epoch-nanosecond-scale operands: the exact difference is small,
+        # and it must not be rejected just because the operands exceed the
+        # 2**53 float64 precision limit.
+        df = pd.DataFrame({"ts1": [1700000000000000000], "ts2": [1700000000000000300]})
+        result = add_formula_column(df, "c", "ts2 - ts1")
+        assert result["c"].tolist() == [300]
+
+    def test_large_in_range_modulo_above_2_pow_53_allowed(self):
+        df = pd.DataFrame({"a": [1700000000000000300], "b": [97]})
+        result = add_formula_column(df, "c", "a % b")
+        assert result["c"].tolist() == [73]
+
+    def test_int_formula_with_nulls_allowed(self):
+        df = pd.DataFrame({"a": pd.array([2, None], dtype="Int64")})
+        result = add_formula_column(df, "c", "a + 1")
+        assert result["c"].tolist() == [3, pd.NA]
+
     def test_blank_name_raises(self, sample_df):
         with pytest.raises(TransformationError, match="empty"):
             add_formula_column(sample_df, "   ", "price * 2")

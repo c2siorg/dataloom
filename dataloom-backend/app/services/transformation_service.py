@@ -4,8 +4,12 @@ Each function takes a DataFrame and parameters, returns a new DataFrame.
 No side effects -- saving to disk is handled by the caller.
 """
 
+import ast
+import keyword
 import math
 import numbers
+import operator
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -1615,12 +1619,242 @@ def sample_rows(df: pd.DataFrame, sample_size: int, random_seed: int | None = No
     return sampled.reset_index(drop=True)
 
 
+class _ExactIntTooLargeError(Exception):
+    """Internal: an exact intermediate exceeded _EXACT_INT_BIT_CAP bits."""
+
+    pass
+
+
+# Largest exact integer the overflow re-check will materialise, in bits.
+# int64 values are at most 63 bits, so legitimate intermediates stay far
+# below this; anything above it cannot fit the result dtype anyway, and
+# refusing to compute it keeps ``a ** 99999999`` from hanging the worker.
+_EXACT_INT_BIT_CAP = 8192
+
+_EXACT_BINOPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+
+_EXACT_COMPARE_OPS = {
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+}
+
+
+def _exact_int_min_max(value) -> tuple[int, int] | None:
+    """(min, max) of the integer values in a scalar or Series, or None.
+
+    Returns None when the value is not integral throughout (floats, strings,
+    or mixed object columns): those paths cannot produce a giant int, so no
+    size estimate applies to them.
+    """
+    if isinstance(value, bool):
+        return (int(value), int(value))
+    if isinstance(value, numbers.Integral):
+        return (int(value), int(value))
+    if isinstance(value, pd.Series):
+        if len(value) == 0:
+            return (0, 0)
+        try:
+            low = value.min()
+            high = value.max()
+        except TypeError:
+            return None
+        if isinstance(low, (bool, numbers.Integral)) and isinstance(high, (bool, numbers.Integral)):
+            return (int(low), int(high))
+        return None
+    return None
+
+
+def _check_pow_size(base, exponent) -> None:
+    """Raise _ExactIntTooLargeError if ``base ** exponent`` would be huge.
+
+    Estimated from the largest base magnitude and the largest non-negative
+    exponent before anything is computed: a negative exponent can only
+    produce a float (or 1), and a base of 0, 1, or -1 stays bounded, so
+    those need no check.
+    """
+    base_range = _exact_int_min_max(base)
+    exp_range = _exact_int_min_max(exponent)
+    if base_range is None or exp_range is None or exp_range[1] <= 0:
+        return
+    max_base = max(abs(base_range[0]), abs(base_range[1]))
+    if max_base <= 1:
+        return
+    if exp_range[1] * max(1, max_base.bit_length()) > _EXACT_INT_BIT_CAP:
+        raise _ExactIntTooLargeError(f"{max_base} ** {exp_range[1]} exceeds the exact-evaluation cap")
+
+
+def _eval_exact_node(node, namespace: dict[str, pd.Series]):
+    """Evaluate one AST node of a validated formula with exact arithmetic.
+
+    Only the node types the formula allowlist permits are implemented, so a
+    node outside that set fails closed instead of executing. Column values
+    are object-dtype Series holding Python ints, so arithmetic is exact;
+    boolean logic follows pandas ``eval`` semantics (elementwise ``&``/``|``
+    on Series, short-circuit ``and``/``or`` on scalars).
+    """
+    if isinstance(node, ast.Expression):
+        return _eval_exact_node(node.body, namespace)
+    if isinstance(node, ast.Constant):
+        if not isinstance(node.value, int | float | str | bool):
+            raise TransformationError(f"Formula contains unsupported literal: {type(node.value).__name__}")
+        return node.value
+    if isinstance(node, ast.Name):
+        if node.id not in namespace:
+            raise NameError(f"Unknown name '{node.id}' in formula")
+        return namespace[node.id]
+    if isinstance(node, ast.BinOp):
+        left = _eval_exact_node(node.left, namespace)
+        right = _eval_exact_node(node.right, namespace)
+        if isinstance(node.op, ast.Pow):
+            _check_pow_size(left, right)
+        try:
+            return _EXACT_BINOPS[type(node.op)](left, right)
+        except KeyError:
+            raise TransformationError(f"Formula contains unsupported operator: {type(node.op).__name__}") from None
+    if isinstance(node, ast.UnaryOp):
+        value = _eval_exact_node(node.operand, namespace)
+        if isinstance(node.op, ast.USub):
+            return -value
+        if isinstance(node.op, ast.UAdd):
+            return +value
+        if isinstance(node.op, ast.Not):
+            return ~value if isinstance(value, pd.Series) else (not value)
+        raise TransformationError(f"Formula contains unsupported operator: {type(node.op).__name__}")
+    if isinstance(node, ast.BoolOp):
+        values = [_eval_exact_node(child, namespace) for child in node.values]
+        if any(isinstance(value, pd.Series) for value in values):
+            result = values[0]
+            for value in values[1:]:
+                result = (result & value) if isinstance(node.op, ast.And) else (result | value)
+            return result
+        result = values[0]
+        for value in values[1:]:
+            result = (result and value) if isinstance(node.op, ast.And) else (result or value)
+        return result
+    if isinstance(node, ast.Compare):
+        left = _eval_exact_node(node.left, namespace)
+        result = None
+        for op, comparator in zip(node.ops, node.comparators, strict=True):
+            right = _eval_exact_node(comparator, namespace)
+            try:
+                compared = _EXACT_COMPARE_OPS[type(op)](left, right)
+            except KeyError:
+                raise TransformationError(f"Formula contains unsupported operator: {type(op).__name__}") from None
+            result = compared if result is None else (result & compared)
+            left = right
+        return result
+    raise TransformationError(f"Formula contains unsupported syntax: {type(node).__name__}")
+
+
+def _evaluate_formula_exactly(df: pd.DataFrame, expr: str) -> pd.Series:
+    """Re-evaluate an already-validated formula with exact integer arithmetic.
+
+    Integer and boolean columns are converted to object dtype, which holds
+    arbitrary-precision Python ints, so no intermediate result wraps or
+    rounds. The frame is a shallow copy: columns are only replaced on the
+    copy, never mutated, so the caller's data is untouched.
+
+    ``DataFrame.eval`` handles most expressions on the converted frame. The
+    few it refuses on object dtype (notably ``**``) fall back to a restricted
+    AST walker over the same validated expression — never raw ``eval()``.
+    The walker only implements the node types the formula allowlist permits,
+    and it refuses powers whose result would exceed ``_EXACT_INT_BIT_CAP``
+    bits before computing them, so ``a ** 99999999`` is rejected instead of
+    materialising a gigantic int.
+    """
+    ref_df = df.copy(deep=False)
+    for col in ref_df.columns:
+        if pd.api.types.is_integer_dtype(ref_df[col].dtype) or pd.api.types.is_bool_dtype(ref_df[col].dtype):
+            ref_df[col] = ref_df[col].astype(object)
+    try:
+        return ref_df.eval(expr, local_dict={"__builtins__": {}})
+    except TypeError:
+        # pandas' expression parser refuses a few operators (notably **)
+        # on object dtype even though the arithmetic itself is well-defined
+        # for Python ints. Evaluate the same validated expression directly
+        # over the converted columns instead: non-identifier column names
+        # appear backtick-wrapped in the validated string, so swap each for
+        # a generated placeholder bound to that column.
+        namespace: dict[str, pd.Series] = {}
+        rewritten = expr
+        for position, col in enumerate(ref_df.columns):
+            if f"`{col}`" in rewritten:
+                placeholder = f"_exact_ref_col_{position}"
+                rewritten = rewritten.replace(f"`{col}`", placeholder)
+                namespace[placeholder] = ref_df[col]
+            elif isinstance(col, str) and col.isidentifier() and not keyword.iskeyword(col):
+                namespace[col] = ref_df[col]
+        tree = ast.parse(rewritten, mode="eval")
+        try:
+            return _eval_exact_node(tree.body, namespace)
+        except _ExactIntTooLargeError:
+            raise TransformationError("Formula result overflows the 64-bit integer range") from None
+
+
+def _reject_formula_int_overflow(df: pd.DataFrame, expr: str, result: pd.Series) -> None:
+    """Reject a formula whose integer result silently wrapped past its range.
+
+    pandas evaluates integer arithmetic in fixed-width dtypes, so
+    ``a ** 1000`` wraps modulo 2**64 instead of erroring. Re-evaluate the
+    same expression exactly (see ``_evaluate_formula_exactly``) and reject
+    when an exact value disagrees with the computed one: disagreement means
+    the true result does not fit the result dtype, so the computed value
+    wrapped. Exact comparison also keeps large in-range formulas working —
+    subtracting two epoch-nanosecond timestamps (~1.7e18, above the 2**53
+    float64 precision limit) is checked exactly instead of against a
+    rounded float reference. Only integer-dtype results are checked; float,
+    boolean and object results cannot wrap this way. If the exact
+    re-evaluation cannot run, the original result is left untouched, with a
+    warning logged, rather than breaking a formula that works today.
+    """
+    if not isinstance(result, pd.Series):
+        return
+    if not pd.api.types.is_integer_dtype(result.dtype):
+        return
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            ref = _evaluate_formula_exactly(df, expr)
+    except TransformationError:
+        # The re-check itself concluded the result overflows (e.g. the
+        # exact-evaluation cap refused a giant power): that is a verdict,
+        # not a failure to check, so it must reach the caller as a 400.
+        raise
+    except Exception:
+        logger.warning("Could not re-check a formula result for integer overflow; leaving it unchecked")
+        return
+    if not isinstance(ref, pd.Series):
+        return
+    ref_vals = ref.to_numpy(dtype=object)
+    int_vals = result.to_numpy(dtype=object)
+    ref_na = pd.isna(ref_vals)
+    int_na = pd.isna(int_vals)
+    both_present = ~ref_na & ~int_na
+    mismatched = bool((ref_na != int_na).any()) or bool((ref_vals[both_present] != int_vals[both_present]).any())
+    if mismatched:
+        raise TransformationError("Formula result overflows the 64-bit integer range")
+
+
 def add_formula_column(df: pd.DataFrame, column_name: str, expression: str) -> pd.DataFrame:
     """Add a computed column evaluated from a sandboxed formula expression.
 
     The expression is validated against an AST allowlist (arithmetic,
     comparisons, boolean logic, column references, and literals only) before
-    being evaluated with ``DataFrame.eval`` — never raw ``eval()``.
+    being evaluated with ``DataFrame.eval`` — never raw ``eval()``. The
+    integer-overflow re-check uses the same validated expression through a
+    restricted AST walker, also without ``eval()``.
 
     Args:
         df: Source DataFrame.
@@ -1631,8 +1865,9 @@ def add_formula_column(df: pd.DataFrame, column_name: str, expression: str) -> p
         DataFrame with the computed column appended.
 
     Raises:
-        TransformationError: If the target name is blank, already exists, or the
-            formula cannot be evaluated against the dataset.
+        TransformationError: If the target name is blank, already exists, the
+            formula cannot be evaluated against the dataset, or its integer
+            result overflows the 64-bit range.
         HTTPException: If the formula fails validation — empty, dangerous,
             unparseable, or referencing an unknown column.
     """
@@ -1656,6 +1891,8 @@ def add_formula_column(df: pd.DataFrame, column_name: str, expression: str) -> p
 
     if isinstance(result, pd.DataFrame):
         raise TransformationError("Formula must produce a single column of values")
+
+    _reject_formula_int_overflow(df, expr, result)
 
     df[column_name] = result
     return df
