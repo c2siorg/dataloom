@@ -105,6 +105,32 @@ def test_transform_del_row_removes_target_row(client, project_id):
     assert names == ["Alice", "Charlie", "Alice"]
 
 
+def test_transform_del_col_on_last_column_returns_400_and_project_still_loads(client, tmp_path):
+    csv_path = tmp_path / "one_column.csv"
+    csv_path.write_text("only\n1\n2\n3\n")
+
+    with open(csv_path, "rb") as f:
+        response = client.post(
+            "/projects/upload",
+            files={"file": ("one_column.csv", f, "text/csv")},
+            data={"projectName": "One column", "projectDescription": "fixture"},
+        )
+    assert response.status_code == 200, response.text
+    project_id = response.json()["project_id"]
+
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={"operation_type": "delCol", "del_col_params": {"index": 0}},
+    )
+    assert response.status_code == 400, response.text
+    assert "only remaining column" in response.json()["detail"]
+
+    # The working copy must be untouched: a later read still succeeds.
+    response = client.get(f"/projects/get/{project_id}")
+    assert response.status_code == 200, response.text
+    assert response.json()["columns"] == ["only"]
+
+
 def test_transform_rename_col_updates_columns(client, project_id):
     response = client.post(
         f"/projects/{project_id}/transform",

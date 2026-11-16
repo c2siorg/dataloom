@@ -322,6 +322,14 @@ def delete_column(df: pd.DataFrame, index: int) -> pd.DataFrame:
     if index < 0 or index >= len(df.columns):
         raise TransformationError(f"Column index {index} out of range (0-{len(df.columns) - 1})")
 
+    if len(df.columns) == 1:
+        # Deleting the only column leaves a zero-column frame. Saving that
+        # writes an empty file, and the next read of a CSV/TSV working copy
+        # fails with "No columns to parse from file", so the project stops
+        # loading until an undo or revert. A dataset with no columns is not
+        # a usable state, so refuse it here instead of persisting it.
+        raise TransformationError("Cannot delete the only remaining column")
+
     column_name = df.columns[index]
     return df.drop(column_name, axis=1)
 
