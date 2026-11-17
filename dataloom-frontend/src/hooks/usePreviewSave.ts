@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { transformProject } from "../api";
 import { useProjectContext } from "../context/ProjectContext";
 import { useHistoryRefresh } from "../context/HistoryRefreshContext";
+import { isStaleRevisionConflict, STALE_PREVIEW_MESSAGE } from "../utils/errorUtils";
 
 interface PreviewSaveOptions {
   clearError: () => void;
@@ -17,17 +18,26 @@ interface PreviewSaveOptions {
  * use `saving` to disable UI while the request is in flight.
  */
 const usePreviewSave = ({ clearError, handleError, onClose }: PreviewSaveOptions) => {
-  const { confirmPreview, refreshProject, pageSize, pendingTransform } = useProjectContext();
+  const { confirmPreview, cancelPreview, refreshProject, pageSize, pendingTransform } =
+    useProjectContext();
   const { refreshLogs } = useHistoryRefresh();
   const [saving, setSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
     if (!pendingTransform?.payload) return;
+    if (pendingTransform.revision === undefined) {
+      cancelPreview();
+      handleError(
+        new Error("This preview is missing its dataset revision. Apply the transformation again."),
+      );
+      return;
+    }
     setSaving(true);
     clearError();
     try {
       await transformProject(pendingTransform.projectId, pendingTransform.payload, {
         preview: false,
+        expectedRevision: pendingTransform.revision,
       });
       confirmPreview();
       await refreshProject(pendingTransform.projectId, 1, pageSize);
@@ -35,13 +45,19 @@ const usePreviewSave = ({ clearError, handleError, onClose }: PreviewSaveOptions
       refreshLogs();
       onClose();
     } catch (err) {
-      handleError(err);
+      if (isStaleRevisionConflict(err)) {
+        cancelPreview();
+        handleError(new Error(STALE_PREVIEW_MESSAGE));
+      } else {
+        handleError(err);
+      }
     } finally {
       setSaving(false);
     }
   }, [
     pendingTransform,
     clearError,
+    cancelPreview,
     confirmPreview,
     refreshProject,
     pageSize,

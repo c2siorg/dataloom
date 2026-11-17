@@ -9,6 +9,7 @@ import type { Pagination, ProjectDetails, TableResponse } from "./types";
 export interface TransformResult extends TableResponse, Partial<Pagination> {
   project_id: string;
   operation_type: string;
+  working_copy_revision?: number;
 }
 
 /** A transformation request body. `operation_type` selects the operation. */
@@ -25,6 +26,8 @@ export interface TransformOptions {
   page?: number;
   /** Number of preview rows per page. */
   pageSize?: number;
+  /** Revision that a preview-derived commit must still match. */
+  expectedRevision?: number;
 }
 
 /**
@@ -37,12 +40,13 @@ export interface TransformOptions {
 export const transformProject = async (
   projectId: string,
   transformationInput: TransformationInput,
-  { preview = false, page, pageSize }: TransformOptions = {},
+  { preview = false, page, pageSize, expectedRevision }: TransformOptions = {},
 ): Promise<TransformResult> => {
   const params = {
     ...(preview ? { preview: true } : {}),
     ...(page !== undefined ? { page } : {}),
     ...(pageSize !== undefined ? { page_size: pageSize } : {}),
+    ...(expectedRevision !== undefined ? { expected_revision: expectedRevision } : {}),
   };
 
   const response = await client.post(`/projects/${projectId}/transform`, transformationInput, {

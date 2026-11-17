@@ -56,6 +56,9 @@ const StringReplaceForm = ({ projectId, onClose, onCapture }: TransformFormProps
           total_pages: response.total_pages,
           page: response.page,
           page_size: response.page_size,
+          ...(response.working_copy_revision !== undefined
+            ? { working_copy_revision: response.working_copy_revision }
+            : {}),
         },
       );
     } catch (error) {

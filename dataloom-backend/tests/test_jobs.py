@@ -188,6 +188,7 @@ class TestPipelineRunJob:
         assert polled["error"] is None
         assert polled["result"] == {"steps": 3, "rows": 3, "columns": 4}
         assert polled["started_at"] is not None and polled["finished_at"] is not None
+        assert db.get(models.Project, uuid.UUID(twin_project_id)).working_copy_revision == 1
 
         assert _working_copy(db, twin_project_id).read_bytes() == _working_copy(db, project_id).read_bytes()
         assert _log_state(client, twin_project_id) == _log_state(client, project_id)

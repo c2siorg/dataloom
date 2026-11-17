@@ -22,6 +22,7 @@ from app.jobs.context import JobContext, JobFailed
 from app.schemas import JobKind, PipelineRunJobParams, RevertJobParams
 from app.services import pipeline_service, project_service
 from app.services.job_service import ClaimedJob
+from app.services.project_service import lock_working_copy_revision
 from app.utils.project_locks import project_write_lock
 
 READING_MESSAGE = "Reading project data"
@@ -94,6 +95,7 @@ def _run_pipeline(ctx: JobContext, session: Session, job: ClaimedJob) -> dict[st
     # Same lock, same order as POST /pipelines/{id}/apply: read, replay and write
     # under one exclusive hold (see the comment there).
     with project_write_lock(project.project_id):
+        lock_working_copy_revision(session, project.project_id)
         ctx.stage(READING_MESSAGE)
         df = read_project_df(project)
         result_df = pipeline_service.apply_pipeline_to_project(

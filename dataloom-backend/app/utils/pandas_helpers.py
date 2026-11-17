@@ -187,6 +187,95 @@ def map_dtype(dtype) -> str:
     return "unknown"
 
 
+def restore_semantic_dtypes(df: pd.DataFrame, metadata: dict[str, str]) -> pd.DataFrame:
+    """Restore persisted semantic column types after a file round trip.
+
+    CSV readers infer all-null columns as floats and nullable integers as
+    floats. Metadata is applied at the load boundary only where conversion is
+    safe. Stale or incompatible entries are logged and left at their inferred
+    dtype so bad metadata cannot make a readable project fail to load.
+    """
+    if not isinstance(metadata, dict):
+        logger.warning("Ignoring malformed semantic dtype metadata container: type=%s", type(metadata).__name__)
+        return df
+
+    if not df.columns.is_unique:
+        raise ValueError("Cannot restore semantic dtypes for duplicate column labels")
+
+    column_by_key = {str(column): column for column in df.columns}
+    if len(column_by_key) != len(df.columns):
+        raise ValueError("Column labels are ambiguous after metadata normalization")
+
+    restored = df
+    for name, semantic_type in metadata.items():
+        column = column_by_key.get(str(name))
+        if column is None:
+            logger.warning("Ignoring stale semantic dtype metadata for missing column: column=%r", name)
+            continue
+        series = restored[column]
+        try:
+            if semantic_type == "str":
+                if isinstance(series.dtype, pd.StringDtype) and getattr(series.dtype, "storage", "python") == "python":
+                    continue
+                converted = series.astype(pd.StringDtype(storage="python"))
+            elif semantic_type == "int":
+                if str(series.dtype) == "Int64":
+                    continue
+                numeric = pd.to_numeric(series.replace(r"^\s*$", pd.NA, regex=True), errors="raise")
+                non_null = numeric.dropna()
+                if not non_null.empty and not (non_null % 1 == 0).all():
+                    raise ValueError("values are not integral")
+                converted = numeric.astype("Int64")
+            elif semantic_type == "float":
+                if str(series.dtype) == "Float64":
+                    continue
+                converted = pd.to_numeric(series.replace(r"^\s*$", pd.NA, regex=True), errors="raise").astype("Float64")
+            elif semantic_type == "bool":
+                if str(series.dtype) == "boolean":
+                    continue
+                truthy = {"true": True, "1": True, "yes": True, "y": True, "on": True}
+                falsy = {"false": False, "0": False, "no": False, "n": False, "off": False}
+
+                def parse_bool(value, true_values=truthy, false_values=falsy):
+                    if pd.isna(value):
+                        return pd.NA
+                    if isinstance(value, str) and not value.strip():
+                        return pd.NA
+                    if isinstance(value, bool):
+                        return value
+                    if value in (0, 1):
+                        return bool(value)
+                    key = str(value).strip().lower()
+                    if key in true_values:
+                        return True
+                    if key in false_values:
+                        return False
+                    raise ValueError(f"invalid boolean value {value!r}")
+
+                converted = series.map(parse_bool).astype("boolean")
+            elif semantic_type == "datetime":
+                if pd.api.types.is_datetime64_any_dtype(series.dtype):
+                    continue
+                if pd.api.types.is_numeric_dtype(series.dtype):
+                    raise ValueError("numeric values are not date strings")
+                converted = pd.to_datetime(series.replace(r"^\s*$", pd.NA, regex=True), errors="raise")
+            else:
+                logger.warning("Ignoring unsupported persisted dtype metadata: column=%r dtype=%r", name, semantic_type)
+                continue
+        except (TypeError, ValueError, OverflowError) as exc:
+            logger.warning(
+                "Ignoring incompatible persisted dtype metadata: column=%r dtype=%r reason=%s",
+                name,
+                semantic_type,
+                exc,
+            )
+            continue
+        if restored is df:
+            restored = df.copy()
+        restored[column] = converted
+    return restored
+
+
 _TIME_SUFFIX = (
     r"(?:[ T]\d{1,2}:\d{2}"
     r"(?::\d{2}(?:\.\d{1,6})?)?"

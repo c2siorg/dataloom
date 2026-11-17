@@ -93,3 +93,37 @@ class TestLogsEndpoint:
 
         db.refresh(log)
         assert log.checkpoint_id is None
+
+    def test_checkpoint_boundary_limits_replayed_logs(self, db, test_user):
+        from app.models import ProjectChangeLog
+        from app.services.project_service import _logs_to_replay, create_checkpoint, log_transformation
+
+        project = create_project(
+            db,
+            name="checkpoint-boundaries",
+            file_path="/tmp/checkpoint-boundaries.csv",
+            description="",
+            owner_id=test_user.id,
+        )
+        log_transformation(db, project.project_id, "first", {})
+        first_log = db.query(ProjectChangeLog).filter_by(project_id=project.project_id).one()
+        first_checkpoint = create_checkpoint(db, project.project_id, "first")
+
+        log_transformation(db, project.project_id, "second", {})
+        second_log = (
+            db.query(ProjectChangeLog)
+            .filter_by(project_id=project.project_id)
+            .order_by(ProjectChangeLog.change_log_id.desc())
+            .first()
+        )
+        second_checkpoint = create_checkpoint(db, project.project_id, "second")
+
+        assert first_checkpoint.last_change_log_id == first_log.change_log_id
+        assert second_checkpoint.last_change_log_id == second_log.change_log_id
+        assert [log.change_log_id for log in _logs_to_replay(db, project.project_id, first_checkpoint.id)] == [
+            first_log.change_log_id
+        ]
+        assert [log.change_log_id for log in _logs_to_replay(db, project.project_id, second_checkpoint.id)] == [
+            first_log.change_log_id,
+            second_log.change_log_id,
+        ]

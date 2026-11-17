@@ -56,12 +56,13 @@ class Project(SQLModel, table=True):
     """A user-uploaded project with metadata and file reference."""
 
     __tablename__ = "projects"
+    __table_args__ = (sa.Index("ix_datasets_dataset_id", "project_id"),)
 
     project_id: uuid_mod.UUID = Field(
         default_factory=uuid_mod.uuid4,
         sa_column=Column(sa.Uuid, primary_key=True, default=uuid_mod.uuid4),
     )
-    name: str = Field(index=True)
+    name: str
     description: str | None = None
     upload_date: datetime | None = Field(
         default=None,
@@ -75,6 +76,11 @@ class Project(SQLModel, table=True):
         sa_column=Column(sa.Uuid, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
     )
     file_path: str
+    original_column_metadata: dict[str, str] | None = Field(default=None, sa_column=Column(sa.JSON, nullable=True))
+    working_copy_revision: int = Field(
+        default=0,
+        sa_column=Column(sa.Integer, nullable=False, server_default="0"),
+    )
 
     owner: User = Relationship(back_populates="projects")
     logs: list["ProjectChangeLog"] = Relationship(
@@ -123,6 +129,30 @@ class ProjectFile(SQLModel, table=True):
     project: Project | None = Relationship(back_populates="files")
 
 
+class ProjectColumnMetadata(SQLModel, table=True):
+    """Persisted semantic dtype for a project column."""
+
+    __tablename__ = "project_column_metadata"
+    __table_args__ = (
+        sa.UniqueConstraint("project_id", "column_name", name="uq_project_column_metadata_project_column"),
+    )
+
+    id: uuid_mod.UUID = Field(
+        default_factory=uuid_mod.uuid4,
+        sa_column=Column(sa.Uuid, primary_key=True, default=uuid_mod.uuid4),
+    )
+    project_id: uuid_mod.UUID = Field(
+        sa_column=Column(
+            sa.Uuid,
+            sa.ForeignKey("projects.project_id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+    column_name: str = Field(max_length=255)
+    column_dtype: str = Field(max_length=50)
+
+
 class ProjectChangeLog(SQLModel, table=True):
     """A record of a single transformation applied to a project."""
 
@@ -140,7 +170,7 @@ class ProjectChangeLog(SQLModel, table=True):
     )
     checkpoint_id: uuid_mod.UUID | None = Field(
         default=None,
-        sa_column=Column(sa.Uuid, sa.ForeignKey("checkpoints.id"), nullable=True),
+        sa_column=Column(sa.Uuid, sa.ForeignKey("checkpoints.id", ondelete="SET NULL"), nullable=True),
     )
     applied: bool = Field(
         default=False,
@@ -198,6 +228,14 @@ class UndoStep(SQLModel, table=True):
     entries: list = Field(sa_column=Column(sa.JSON, nullable=False))
     before_path: str | None = Field(default=None, sa_column=Column(sa.String, nullable=True))
     after_path: str | None = Field(default=None, sa_column=Column(sa.String, nullable=True))
+    metadata_before: dict | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
+    metadata_after: dict | None = Field(
+        default=None,
+        sa_column=Column(sa.JSON, nullable=True),
+    )
     undone_seq: int | None = Field(default=None, sa_column=Column(sa.Integer, nullable=True))
     created_at: datetime | None = Field(
         default=None,
@@ -209,11 +247,13 @@ class Checkpoint(SQLModel, table=True):
     """A save point marking a set of applied transformations."""
 
     __tablename__ = "checkpoints"
+    __table_args__ = (sa.Index("ix_checkpoints_id", "id"),)
 
     id: uuid_mod.UUID = Field(
         default_factory=uuid_mod.uuid4,
         sa_column=Column(sa.Uuid, primary_key=True, default=uuid_mod.uuid4),
     )
+    last_change_log_id: int | None = Field(default=None, sa_column=Column(sa.Integer, nullable=True))
     project_id: uuid_mod.UUID = Field(
         sa_column=Column(sa.Uuid, sa.ForeignKey("projects.project_id"), nullable=False),
     )
@@ -222,6 +262,7 @@ class Checkpoint(SQLModel, table=True):
         default=None,
         sa_column=Column(DateTime, server_default=func.now()),
     )
+    metadata_snapshot: dict | None = Field(default=None, sa_column=Column(sa.JSON, nullable=True))
 
     project: Project | None = Relationship(back_populates="checkpoints")
 

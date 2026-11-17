@@ -64,6 +64,7 @@ describe("PreviewWorkflow — updateData propagation", () => {
       total_pages: 1,
       page: 1,
       page_size: 50,
+      working_copy_revision: 4,
     });
 
     const { getByTestId, getByText } = render(<FilterForm projectId="proj-1" onClose={vi.fn()} />);
@@ -105,6 +106,7 @@ describe("PreviewWorkflow — updateData propagation", () => {
           total_pages: 1,
           page: 1,
           page_size: 50,
+          working_copy_revision: 4,
         },
       );
     });
@@ -146,6 +148,7 @@ describe("PreviewWorkflow — Newly migrated forms (TrimWhitespaceForm)", () => 
       total_pages: 1,
       page: 1,
       page_size: 50,
+      working_copy_revision: 7,
     });
 
     const { getByText } = render(<TrimWhitespaceForm projectId="proj-1" onClose={vi.fn()} />);
@@ -176,6 +179,7 @@ describe("PreviewWorkflow — Newly migrated forms (TrimWhitespaceForm)", () => 
           total_pages: 1,
           page: 1,
           page_size: 50,
+          working_copy_revision: 7,
         },
       );
     });

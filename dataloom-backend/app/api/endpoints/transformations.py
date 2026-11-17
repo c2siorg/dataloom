@@ -11,9 +11,14 @@ from sqlmodel import Session
 from app import database, models, schemas
 from app.api.dependencies import get_project_or_404
 from app.services import transformation_service as ts
-from app.services.project_service import commit_undoable_change
+from app.services.project_service import (
+    commit_undoable_change,
+    get_project_column_metadata,
+    lock_working_copy_revision,
+    reconcile_project_column_metadata,
+)
 from app.utils.logging import get_logger
-from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe
+from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, read_table_safe, restore_semantic_dtypes
 from app.utils.project_locks import project_read_lock, project_write_lock
 from app.utils.security import safe_http_exception_detail, safe_transformation_error_detail
 
@@ -54,18 +59,42 @@ def transform_project(
     page_size: int = Query(50, ge=1, le=100, description="Rows per preview page."),
     db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
+    expected_revision: int | None = None,
 ):
     """Apply a transformation to a project.
 
     Routes to the appropriate internal handler based on operation_type.
 
-    A preview only reads ``project.file_path``, so it takes the shared read lock
-    and stays concurrent with other previews; a real transform rewrites the file
-    and needs the exclusive write lock.
+    A preview holds a shared project lock and database row lock for the full
+    read/transform. A commit holds the corresponding exclusive locks, checks a
+    supplied preview revision, and keeps them through persistence. The revision
+    remains optional for legacy API clients, which retain their prior behavior
+    without stale-preview protection. The frontend's preview-save flow always
+    supplies it.
     """
     lock = project_read_lock if preview else project_write_lock
     with lock(project_id):
-        return _transform_project(project_id, transformation_input, preview, page, page_size, db, project)
+        current_revision = lock_working_copy_revision(db, project_id, shared=preview)
+        if expected_revision is not None and expected_revision != current_revision:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "stale_dataset_revision",
+                    "message": (
+                        "The dataset changed after this preview was generated. Refresh the preview before saving."
+                    ),
+                },
+            )
+        return _transform_project(
+            project_id,
+            transformation_input,
+            preview,
+            page,
+            page_size,
+            db,
+            project,
+            current_revision,
+        )
 
 
 def _transform_project(
@@ -76,13 +105,23 @@ def _transform_project(
     page_size: int,
     db: Session,
     project: models.Project,
+    working_copy_revision: int = 0,
 ) -> dict:
     operation_type = getattr(transformation_input, "operation_type", "<unknown>")
 
     try:
         df = read_table_safe(project.file_path)
+        metadata_before = reconcile_project_column_metadata(df, get_project_column_metadata(db, project_id))
+        df = restore_semantic_dtypes(df, metadata_before)
 
         result_df = _dispatch_transform(df, transformation_input)
+        metadata_after = ts.apply_metadata_transformation(
+            metadata_before,
+            operation_type,
+            transformation_input.dict(),
+            df,
+            result_df,
+        )
 
         # A cell edit that produces the same DataFrame is a no-op. Return the current
         # data without rewriting the file or creating a transformation log.
@@ -91,15 +130,26 @@ def _transform_project(
         )
 
         if not preview and not is_noop_cell_edit:
-            commit_undoable_change(db, project, result_df, [(operation_type, transformation_input.dict())])
+            new_revision = commit_undoable_change(
+                db,
+                project,
+                result_df,
+                [(operation_type, transformation_input.dict())],
+            )
+            if new_revision is not None:
+                working_copy_revision = new_revision
 
         response_df, pagination = paginate_dataframe(result_df, page, page_size)
 
         resp = dataframe_to_response(response_df)
+        resp["dtypes"] = {
+            str(column): metadata_after.get(str(column), dtype) for column, dtype in resp["dtypes"].items()
+        }
 
         return {
             "project_id": project_id,
             "operation_type": operation_type,
+            "working_copy_revision": working_copy_revision,
             **resp,
             **pagination,
         }
