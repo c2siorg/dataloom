@@ -12,8 +12,9 @@ reliably across servers and proxies.
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlmodel import Session
 
-from app import models, schemas
+from app import database, models, schemas
 from app.api.dependencies import get_project_or_404, load_project_df
 from app.services import visualization_service
 
@@ -23,10 +24,11 @@ router = APIRouter()
 @router.get("/{project_id}/charts/suggest", response_model=schemas.ChartSuggestionsResponse)
 def suggest_charts(
     project_id: uuid.UUID,
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Return up to three charts recommended from the dataset's column shapes."""
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     return {"suggestions": visualization_service.suggest_charts(df)}
 
 
@@ -42,6 +44,7 @@ def get_chart(
     color: str | None = Query(None, description="Optional color-grouping column for a scatter chart"),
     agg: schemas.AggFunc = Query(schemas.AggFunc.sum, description="Aggregation for a bar chart"),
     bins: int = Query(visualization_service.DEFAULT_BINS, description="Bucket count for a histogram"),
+    db: Session = Depends(database.get_db),
     project: models.Project = Depends(get_project_or_404),
 ):
     """Build one chart from the project's dataset.
@@ -51,7 +54,7 @@ def get_chart(
     combinations (missing params, or a column whose dtype the chart can't use)
     return 400; an unknown column returns 404.
     """
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     try:
         return _dispatch(df, chart_type, column, category, value, x, y, color, agg, bins)
     except KeyError as e:

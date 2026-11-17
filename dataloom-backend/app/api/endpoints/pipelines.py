@@ -16,8 +16,9 @@ from app.api.dependencies import (
 )
 from app.services import pipeline_service
 from app.services.job_service import ensure_no_active_exclusive_job
+from app.services.project_service import get_project_column_metadata
 from app.services.transformation_service import TransformationError
-from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe
+from app.utils.pandas_helpers import dataframe_to_response, paginate_dataframe, restore_semantic_dtypes
 from app.utils.project_locks import project_write_lock
 from app.utils.security import safe_transformation_error_detail
 
@@ -71,7 +72,7 @@ def check_steps(
 ):
     """Dry-run an unsaved list of draft steps against a project (before saving)."""
     project = fetch_owned_project(db, body.project_id, current_user)
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     return pipeline_service.check_steps_compatibility(
         df, [(step.action_type, step.action_details) for step in body.steps]
     )
@@ -87,7 +88,7 @@ def check_pipeline(
     """Dry-run a pipeline against a project and report the first failing step."""
     pipeline = fetch_owned_pipeline(db, pipeline_id, current_user)
     project = fetch_owned_project(db, body.project_id, current_user)
-    df = load_project_df(project)
+    df = load_project_df(project, db)
     return pipeline_service.check_steps_compatibility(df, pipeline_service.pipeline_steps(pipeline))
 
 
@@ -115,7 +116,7 @@ def apply_pipeline(
     # not reentrant, hence read_project_df rather than load_project_df.
     try:
         with project_write_lock(project.project_id):
-            df = read_project_df(project)
+            df = restore_semantic_dtypes(read_project_df(project), get_project_column_metadata(db, project.project_id))
             result_df = pipeline_service.apply_pipeline_to_project(db, project, pipeline, df)
     except TransformationError as e:
         raise HTTPException(status_code=400, detail=safe_transformation_error_detail(e)) from e
