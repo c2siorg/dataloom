@@ -3,23 +3,24 @@
 Thank you for your interest in contributing to DataLoom! This document provides guidelines and instructions for contributing.
 
 ## Contents
-- [**Picking Up Work**](#picking-up-work)
-- [**Getting Started**](#getting-started)
-- [**Development Setup**](#development-setup)
+
+- [Picking Up Work](#picking-up-work)
+- [Getting Started](#getting-started)
+- [Development Setup](#development-setup)
   - [Prerequisites](#prerequisites)
   - [Database Setup](#database-setup)
   - [Backend Setup](#backend-setup)
-  - [Migrations](#migrations)
+    - [Migrations](#migrations)
   - [Frontend Setup](#frontend-setup)
-- [**Development Workflow**](#development-workflow)
+- [Development Workflow](#development-workflow)
   - [Benchmarks](#benchmarks)
-  - [E2E Tests (Playright)](#e2e-tests-playwright)
-- [**Code Style**](#code-style)
+  - [E2E Tests (Playwright)](#e2e-tests-playwright)
+- [Code Style](#code-style)
   - [Frontend](#frontend)
   - [Backend](#backend)
-- [**Reporting Bugs**](#reporting-bugs)
-- [**Requesting Features**](#requesting-features)
-- [**License**](#license)
+- [Reporting Bugs](#reporting-bugs)
+- [Requesting Features](#requesting-features)
+- [License](#license)
 
 ## Picking Up Work
 

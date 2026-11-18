@@ -110,6 +110,22 @@ class TestFilter:
         with pytest.raises(TransformationError, match="Unsupported"):
             apply_filter(sample_df, "name", "invalid", "Alice")
 
+    def test_filter_invalid_datetime_value(self):
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", "2024-02-01"])})
+        with pytest.raises(TransformationError, match="Invalid datetime value"):
+            apply_filter(df, "when", ">", "not-a-date")
+
+    def test_filter_valid_datetime_value_still_filters(self):
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", "2024-02-01"])})
+        result = apply_filter(df, "when", ">", "2024-01-15")
+        assert len(result) == 1
+        assert str(result.iloc[0]["when"]) == "2024-02-01 00:00:00"
+
+    def test_filter_mixed_type_column_ordering_is_client_error(self):
+        df = pd.DataFrame({"a": [1, "two", 3.0]})
+        with pytest.raises(TransformationError, match="Cannot apply filter condition"):
+            apply_filter(df, "a", ">", "2")
+
 
 class TestSort:
     def test_sort_ascending(self, sample_df):
@@ -123,6 +139,20 @@ class TestSort:
     def test_sort_invalid_column(self, sample_df):
         with pytest.raises(TransformationError):
             apply_sort(sample_df, "nonexistent", True)
+
+    def test_sort_mixed_type_column(self):
+        """A column holding mixed Python types — e.g. from a JSON upload whose
+        records disagree on a key's type — cannot be compared element-wise.
+        Sorting it must fail as a TransformationError, not as a raw TypeError
+        that the endpoint can only answer with a 500."""
+        df = pd.DataFrame({"v": [1, "x", 2.5], "name": ["a", "b", "c"]})
+        with pytest.raises(TransformationError, match="mixed types"):
+            apply_sort(df, "v", True)
+
+    def test_sort_mixed_type_column_via_criteria(self):
+        df = pd.DataFrame({"v": [1, "x", 2.5], "name": ["a", "b", "c"]})
+        with pytest.raises(TransformationError, match="mixed types"):
+            apply_sort(df, criteria=[{"column": "v", "ascending": True}])
 
     def test_multi_column_sort(self, sample_df):
         """Multi-column sort should sort by multiple criteria in order."""
@@ -622,6 +652,38 @@ class TestFillEmpty:
         with pytest.raises(TransformationError, match="Cannot compute median on non-numeric column"):
             fill_empty(df, column_index=0, strategy="median")
 
+    def test_fill_mean_datetime_column_raises(self):
+        # Datetime columns slip through the old to_numeric guard: pandas
+        # converts datetimes to nanosecond integers instead of NaN, so the
+        # "mean" was a raw nanosecond count written back into a date column.
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", None, "2024-01-03"])})
+        with pytest.raises(TransformationError, match="Cannot compute mean on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="mean")
+
+    def test_fill_median_datetime_column_raises(self):
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", None, "2024-01-03"])})
+        with pytest.raises(TransformationError, match="Cannot compute median on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="median")
+
+    def test_fill_mean_boolean_column_raises(self):
+        # Booleans convert to 0/1 under to_numeric, so a boolean column
+        # would otherwise be filled with 0.5 — not a boolean at all.
+        df = pd.DataFrame({"flag": pd.array([True, None, False], dtype="boolean")})
+        with pytest.raises(TransformationError, match="Cannot compute mean on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="mean")
+        df = pd.DataFrame({"flag": [True, None, False]})
+        with pytest.raises(TransformationError, match="Cannot compute mean on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="mean")
+        with pytest.raises(TransformationError, match="Cannot compute median on non-numeric column"):
+            fill_empty(df, column_index=0, strategy="median")
+
+    def test_fill_mode_datetime_column_still_works(self):
+        # Only the numeric statistics are rejected: mode on a datetime
+        # column fills a real date and must keep working.
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", None, "2024-01-01"])})
+        result = fill_empty(df, column_index=0, strategy="mode")
+        assert result["when"].tolist() == list(pd.to_datetime(["2024-01-01", "2024-01-01", "2024-01-01"]))
+
     def test_fill_statistical_strategy_requires_specific_column(self):
         # Statistical strategies need one selected column so the computed value is unambiguous.
         df = pd.DataFrame({"a": [1, None, 3]})
@@ -995,11 +1057,47 @@ class TestCastDataType:
         assert result["flag"].iloc[4]
         assert not result["flag"].iloc[5]
 
+    def test_cast_to_boolean_rejects_unrecognised_values(self):
+        df = pd.DataFrame({"flag": ["maybe", "true"]})
+        with pytest.raises(TransformationError, match="Cannot interpret 'maybe' as boolean"):
+            cast_data_type(df, "flag", "boolean")
+
+    def test_cast_to_boolean_rejects_non_boolean_numbers(self):
+        df = pd.DataFrame({"flag": [2, 0]})
+        with pytest.raises(TransformationError, match="Cannot interpret 2 as boolean"):
+            cast_data_type(df, "flag", "boolean")
+
+    def test_cast_to_boolean_accepts_integral_floats_and_keeps_nulls(self):
+        df = pd.DataFrame({"flag": [1.0, 0.0, None, ""]})
+        result = cast_data_type(df, "flag", "boolean")
+        assert result["flag"].iloc[0] is True
+        assert result["flag"].iloc[1] is False
+        assert result["flag"].iloc[2] is None
+        assert result["flag"].iloc[3] is None
+
     def test_cast_to_datetime(self):
         df = pd.DataFrame({"date": ["2024-01-01", "2024-06-15"]})
         result = cast_data_type(df, "date", "datetime")
         assert pd.api.types.is_datetime64_any_dtype(result["date"])
         assert result["date"].iloc[0] == pd.Timestamp("2024-01-01")
+
+    def test_cast_to_datetime_rejects_unparseable_values(self):
+        df = pd.DataFrame({"city": ["Paris", "London"]})
+        with pytest.raises(TransformationError, match="not a valid date"):
+            cast_data_type(df, "city", "datetime")
+
+    def test_cast_to_datetime_rejects_mixed_parseable_and_garbage(self):
+        df = pd.DataFrame({"date": ["2024-01-01", "garbage"]})
+        with pytest.raises(TransformationError, match="not a valid date"):
+            cast_data_type(df, "date", "datetime")
+
+    def test_cast_to_datetime_keeps_nulls_and_blanks_null(self):
+        df = pd.DataFrame({"date": ["2024-01-01", None, ""]})
+        result = cast_data_type(df, "date", "datetime")
+        assert pd.api.types.is_datetime64_any_dtype(result["date"])
+        assert result["date"].iloc[0] == pd.Timestamp("2024-01-01")
+        assert pd.isna(result["date"].iloc[1])
+        assert pd.isna(result["date"].iloc[2])
 
     def test_cast_invalid_column(self, sample_df):
         with pytest.raises(TransformationError, match="not found"):

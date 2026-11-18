@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from app.api.endpoints import (
     auth,
     jobs,
+    merges,
     pipelines,
     profiling,
     project_files,
@@ -140,6 +141,7 @@ app.include_router(projects.router, prefix="/projects", tags=["projects"])
 app.include_router(transformations.router, prefix="/projects", tags=["transformations"])
 app.include_router(profiling.router, prefix="/projects", tags=["profiling"])
 app.include_router(quality.router, prefix="/projects", tags=["quality"])
+app.include_router(merges.router, prefix="/projects", tags=["merges"])
 app.include_router(project_files.router, prefix="/projects", tags=["project_files"])
 app.include_router(visualizations.router, prefix="/projects", tags=["visualizations"])
 app.include_router(user_logs.router, prefix="/logs", tags=["user_logs"])

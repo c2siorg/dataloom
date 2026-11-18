@@ -1,5 +1,6 @@
 """Pandas utility functions for safe multi-format I/O and response building."""
 
+import json
 import math
 import os
 import re
@@ -10,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from fastapi import HTTPException
 
@@ -30,13 +32,68 @@ class DatasetFileStats:
     column_count: int | None = None
 
 
+def _to_jsonable(value: Any) -> Any:
+    """Recursively convert a nested value into JSON-serialisable scalars."""
+    if isinstance(value, dict):
+        return {str(key): _to_jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_to_jsonable(item) for item in value]
+    if isinstance(value, set):
+        return [_to_jsonable(item) for item in sorted(value, key=repr)]
+    # pyarrow reads Parquet list columns back as numpy arrays, which are
+    # unhashable and not JSON-serialisable as-is.
+    if isinstance(value, np.ndarray):
+        return _to_jsonable(value.tolist())
+    return value
+
+
+def _scalarize_unhashable_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Store nested cell values as JSON strings, mirroring the JSON reader.
+
+    Parquet is the one supported upload format that can carry nested values
+    into a DataFrame: list columns arrive as numpy arrays and struct columns
+    as dicts. Both are unhashable, so every downstream aggregation over the
+    column (``value_counts`` in profiling, ``duplicated`` in quality checks,
+    ``groupby`` in bar charts) raises a raw ``TypeError``. A tabular tool has
+    no cell editor for nested values, so — exactly as the JSON reader already
+    does for arrays — the nested value becomes its JSON-string representation
+    and every other cell in the column is left untouched.
+    """
+    nested_columns = [
+        column
+        for column in df.select_dtypes(include=["object"]).columns
+        if any(isinstance(v, (list, dict, tuple, set, np.ndarray)) for v in df[column])
+    ]
+    if not nested_columns:
+        return df
+    df = df.copy()
+    for column in nested_columns:
+        df[column] = [
+            json.dumps(_to_jsonable(v), default=str, ensure_ascii=False)
+            if isinstance(v, (list, dict, tuple, set, np.ndarray))
+            else v
+            for v in df[column]
+        ]
+    return df
+
+
 def _read_and_infer(path: Path) -> pd.DataFrame:
     """Parse a dataset file and infer its datetime columns.
 
     Split out of :func:`read_table_safe` so it can be handed to the DataFrame
     cache as a plain ``path -> DataFrame`` loader.
     """
-    return _infer_datetime_columns(get_format(path).read(path))
+    fmt = get_format(path)
+    df = _infer_datetime_columns(fmt.read(path))
+    # Only Parquet can carry nested cells into a DataFrame: CSV/TSV/Excel
+    # cells are always scalars and the JSON reader already scalarises
+    # arrays, so scanning every object column of every read for nested
+    # values would roughly double the cost of a plain CSV read (the
+    # data-path benchmarks regressed ~91% on ``test_read_csv_uncached``
+    # when this ran unconditionally).
+    if fmt.extension == ".parquet":
+        return _scalarize_unhashable_columns(df)
+    return df
 
 
 def read_table_safe(path: Path, *, use_cache: bool = True) -> pd.DataFrame:
@@ -234,6 +291,11 @@ _DATETIME_SAMPLE_SEED = 20260919
 # rule out a column the full check would have converted: the standard error of
 # a 1,000-value sample at 80% is about 1.3 percentage points.
 _DATETIME_GATE_RATE = 0.5
+
+# A 1,000-value sample with more distinct values than this comes from a column
+# where most values appear about once, so checking distinct values would not
+# save work. A column whose values each appear twice already samples about 997.
+_MOSTLY_UNIQUE_SAMPLE_DISTINCT = 990
 
 
 def _infer_dayfirst(values: pd.Series) -> bool | None:
@@ -479,12 +541,28 @@ def _infer_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
             continue
 
         normalized_values = string_values.str.strip()
-        date_like_rate = normalized_values.map(_looks_like_datetime).mean()
+
+        # Date columns repeat values heavily (many rows per day), so check each
+        # distinct value once and weight by its count. Both checks depend only
+        # on the values, so the results are identical to checking every row.
+        # A mostly-unique column gains nothing from this and pays for building
+        # the distinct values, so it keeps the per-row path; a sample spots
+        # most such columns before value_counts runs on the whole column.
+        mostly_unique = sample_exceeds_distinct(normalized_values, _MOSTLY_UNIQUE_SAMPLE_DISTINCT)
+        counts = None if mostly_unique else normalized_values.value_counts(sort=False)
+        if counts is not None and len(counts) * 2 <= len(normalized_values):
+            distinct_values = counts.index.to_series()
+            looks_like_date = distinct_values.map(_looks_like_datetime).to_numpy()
+            date_like_rate = counts.to_numpy()[looks_like_date].sum() / len(normalized_values)
+            dayfirst_candidates = distinct_values
+        else:
+            date_like_rate = normalized_values.map(_looks_like_datetime).mean()
+            dayfirst_candidates = normalized_values
 
         if date_like_rate < _MIN_DATETIME_RATE:
             continue
 
-        dayfirst = _infer_dayfirst(normalized_values)
+        dayfirst = _infer_dayfirst(dayfirst_candidates)
 
         if dayfirst is None:
             # Mixes DD/MM and MM/DD conventions across rows — too ambiguous

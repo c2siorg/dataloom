@@ -5,6 +5,7 @@ No side effects -- saving to disk is handled by the caller.
 """
 
 import math
+import numbers
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,6 +41,41 @@ def _parse_bool(value) -> bool | None:
     if normalized in _FALSE_TOKENS:
         return False
     return None
+
+
+def _cast_to_bool(value, column: str) -> bool | None:
+    """Interpret one value as a boolean for :func:`cast_data_type`.
+
+    Nulls and blank strings stay null. Integral numbers map 1/0 (including 1.0/0.0, whose
+    string form "1.0" is not a boolean token), and every other value must
+    be one of the :func:`_parse_bool` tokens. Anything else raises
+    TransformationError instead of silently becoming null: the previous
+    implementation mapped every unrecognised value (e.g. "maybe", 2, 1.0)
+    to None, so casting a column to boolean quietly destroyed its data.
+    """
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        raise TransformationError(f"Cannot interpret {value!r} as boolean for column '{column}'.") from None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, numbers.Real):
+        if float(value) in (0.0, 1.0):
+            return bool(value)
+        raise TransformationError(
+            f"Cannot interpret {value!r} as boolean for column '{column}'. "
+            "Expected a boolean value: true, false, 1, 0, yes, no, t, f, y, n, on, off."
+        )
+    if isinstance(value, str) and not value.strip():
+        return None
+    parsed = _parse_bool(value)
+    if parsed is None:
+        raise TransformationError(
+            f"Cannot interpret {value!r} as boolean for column '{column}'. "
+            "Expected a boolean value: true, false, 1, 0, yes, no, t, f, y, n, on, off."
+        )
+    return parsed
 
 
 def get_column_type(df: pd.DataFrame, column: str) -> str:
@@ -106,6 +142,16 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
                 f"Invalid boolean value: {value}. Expected one of: true/false, 1/0, yes/no, t/f, y/n, on/off."
             )
         value = parsed
+    elif pd.api.types.is_datetime64_any_dtype(df[column].dtype) and condition in ("=", "!=", ">", "<", ">=", "<="):
+        # Numeric and boolean columns validate their filter value above; a
+        # datetime column got no equivalent check, so an unparseable value
+        # reached pandas and raised a raw TypeError (HTTP 500). Validate
+        # parseability here (the original string is kept, so pandas still
+        # does the actual comparison) and reject anything unparseable.
+        try:
+            pd.to_datetime(value)
+        except (ValueError, TypeError, OverflowError):
+            raise TransformationError(f"Invalid datetime value: {value}") from None
 
     ops = {
         "=": lambda col, val: (
@@ -130,7 +176,15 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     if condition_str not in ops:
         raise TransformationError(f"Unsupported filter condition: {condition_str}")
 
-    return ops[condition_str](df[column], value)
+    try:
+        return ops[condition_str](df[column], value)
+    except (TypeError, ValueError) as exc:
+        # Ordering comparisons on values that cannot be compared (e.g. a
+        # mixed-type object column, or a tz-aware column against a naive
+        # value) must surface as a client error, not a 500.
+        raise TransformationError(
+            f"Cannot apply filter condition '{condition_str}' to column '{column}': {exc}"
+        ) from exc
 
 
 def apply_sort(
@@ -168,14 +222,28 @@ def apply_sort(
             columns.append(col_name)
             ascending_list.append(criterion.get("ascending", True))
 
-        return df.sort_values(by=columns, ascending=ascending_list)
+        try:
+            return df.sort_values(by=columns, ascending=ascending_list)
+        except TypeError as e:
+            # A column can hold mixed Python types (e.g. a JSON upload whose
+            # records disagree on a key's type); pandas then cannot compare
+            # its values, which is a client error, not a server fault.
+            raise TransformationError(
+                f"Cannot sort by columns {columns}: values have mixed types that cannot be compared"
+            ) from e
 
     # Single-column mode (backward compatible)
     if column is None:
         raise TransformationError("Column name is required for sorting")
     if column not in df.columns:
         raise TransformationError(f"Column '{column}' not found")
-    return df.sort_values(by=column, ascending=ascending)
+    try:
+        return df.sort_values(by=column, ascending=ascending)
+    except TypeError as e:
+        # See the criteria path above: mixed-type values cannot be compared.
+        raise TransformationError(
+            f"Cannot sort by column '{column}': values have mixed types that cannot be compared"
+        ) from e
 
 
 def add_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
@@ -339,7 +407,7 @@ def change_cell_value(
                 )
 
         elif pd.api.types.is_bool_dtype(col_dtype):
-            # Accepted tokens are a superset of cast_data_type()'s, so a
+            # Same token set as cast_data_type()'s boolean branch, so a
             # value that cast-to-boolean would accept never gets rejected
             # by a cell edit.
             parsed = _parse_bool(value)
@@ -426,6 +494,24 @@ def _coerce_fill_value_for_column(value, column: pd.Series):
     return value
 
 
+def _is_non_numeric_for_statistics(series: pd.Series) -> bool:
+    """True when a column must not feed the mean/median fill strategies.
+
+    The mean/median branches reject a column only when ``pd.to_numeric``
+    coerces all of its values to NaN, but that guard lets datetimes and
+    booleans through: ``to_numeric`` converts datetimes to nanosecond
+    integers and booleans to 0/1 instead of NaN, so a datetime column
+    would be filled with a raw nanosecond count and a boolean column
+    with 0.5. Object columns of plain Python bools (e.g. a CSV boolean
+    column with a missing value, which pandas reads as object dtype)
+    need the same rejection.
+    """
+    if pd.api.types.is_datetime64_any_dtype(series) or pd.api.types.is_bool_dtype(series):
+        return True
+    non_null = series.dropna()
+    return len(non_null) > 0 and all(isinstance(v, bool) for v in non_null)
+
+
 def fill_empty(
     df: pd.DataFrame,
     fill_value=None,
@@ -464,6 +550,9 @@ def fill_empty(
             df[column_name] = series.fillna(_coerce_fill_value(fill_value))
 
         elif strategy == "mean":
+            if _is_non_numeric_for_statistics(series):
+                raise TransformationError(f"Cannot compute mean on non-numeric column '{column_name}'")
+
             numeric_series = pd.to_numeric(series, errors="coerce")
             if numeric_series.dropna().empty:
                 raise TransformationError(f"Cannot compute mean on non-numeric column '{column_name}'")
@@ -476,6 +565,9 @@ def fill_empty(
             df[column_name] = series.fillna(computed_fill_value)
 
         elif strategy == "median":
+            if _is_non_numeric_for_statistics(series):
+                raise TransformationError(f"Cannot compute median on non-numeric column '{column_name}'")
+
             numeric_series = pd.to_numeric(series, errors="coerce")
             if numeric_series.dropna().empty:
                 raise TransformationError(f"Cannot compute median on non-numeric column '{column_name}'")
@@ -575,15 +667,22 @@ def cast_data_type(df: pd.DataFrame, column: str, target_type: str) -> pd.DataFr
             else:
                 df[column] = df[column].astype(float)
         elif target_type == "boolean":
-            truthy = {"true", "1", "yes", "y", "on"}
-            falsy = {"false", "0", "no", "n", "off"}
-            df[column] = df[column].apply(
-                lambda v: (
-                    True if str(v).strip().lower() in truthy else (False if str(v).strip().lower() in falsy else None)
-                )
-            )
+            df[column] = df[column].apply(lambda v: _cast_to_bool(v, column))
         elif target_type == "datetime":
-            df[column] = pd.to_datetime(df[column], errors="coerce")
+            parsed = pd.to_datetime(df[column], errors="coerce")
+            # Nulls and blank strings stay null (the same contract as the
+            # boolean branch); any other value that does not parse is a
+            # client error, not a silent null — casting a text column to
+            # datetime used to return 200 with every value wiped to NaT.
+            present = df[column].notna()
+            is_blank_string = df[column].map(lambda v: isinstance(v, str) and v.strip() == "")
+            unparseable = parsed.isna() & present & ~is_blank_string
+            if unparseable.any():
+                first_bad = df[column][unparseable].iloc[0]
+                raise TransformationError(
+                    f"Cannot cast column '{column}' to datetime: value {first_bad!r} is not a valid date"
+                )
+            df[column] = parsed
         else:
             raise TransformationError(f"Unsupported target type: {target_type}")
     except TransformationError:
@@ -927,6 +1026,20 @@ def group_by(df: pd.DataFrame, columns: list[str], agg_column: str, agg_function
             f"Unsupported aggregation function: '{agg_function_str}'. Supported: {sorted(SUPPORTED_AGG_FUNCTIONS)}"
         )
 
+    if agg_function_str == "sum":
+        # pandas silently concatenates strings for sum, so summing a text
+        # column used to return joined values ("AliceBob") instead of an
+        # error. Mean and median already fail loudly on text via pandas;
+        # reject sum explicitly so the user gets a clear 400 instead.
+        # Object-dtype columns holding numbers (e.g. from a mixed-type
+        # upload) still sum normally, so only actual string values trip this.
+        non_null = df[agg_column].dropna()
+        if len(non_null) and non_null.map(lambda v: isinstance(v, str)).any():
+            raise TransformationError(
+                f"Cannot sum text column '{agg_column}': 'sum' concatenates text "
+                "instead of adding numbers. Cast the column to a numeric type first."
+            )
+
     try:
         result = df.groupby(columns, as_index=False)[agg_column].agg(agg_function_str)
     except (TypeError, ValueError) as exc:
@@ -1038,6 +1151,40 @@ def apply_add_file(df: pd.DataFrame, file_path: str) -> pd.DataFrame:
         logger.warning("Could not read stored file for addFile replay: %s", file_path)
         raise TransformationError("Stored file for this append is missing or unreadable") from e
     return append_dataframes(df, new_df)
+
+
+def apply_merge_dataset(
+    df: pd.DataFrame,
+    file_path: str | None = None,
+    left_on: list[str] | str | None = None,
+    right_on: list[str] | str | None = None,
+    how: str = "inner",
+    suffixes: list[str] | tuple[str, str] = ("_left", "_right"),
+) -> pd.DataFrame:
+    """Replay a mergeDataset transformation from an immutable stored file.
+
+    Args:
+        df: Source DataFrame.
+        file_path: Path to the stored lookup file.
+        left_on: Left key column(s).
+        right_on: Right key column(s).
+        how: Relational join type.
+        suffixes: Overlapping column suffixes.
+
+    Returns:
+        The merged DataFrame with normalized columns and index.
+    """
+    if not file_path:
+        logger.warning("No file_path recorded for mergeDataset replay; returning DataFrame unchanged.")
+        return df
+    try:
+        right_df = read_table_safe(Path(file_path))
+    except Exception as e:
+        logger.warning("Could not read stored file for mergeDataset replay: %s", file_path)
+        raise TransformationError("Stored file for this merge is missing or unreadable") from e
+    from app.services.merge_service import merge_dataframes
+
+    return merge_dataframes(df, right_df, left_on=left_on, right_on=right_on, how=how, suffixes=tuple(suffixes))
 
 
 @dataclass(frozen=True)
@@ -1283,6 +1430,20 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             d["standardize_dates_params"]["column"],
             d["standardize_dates_params"]["output_format"],
         ),
+    ),
+    OperationType.mergeDataset: TransformationSpec(
+        func="apply_merge_dataset",
+        label="Merge dataset",
+        params_field="merge_params",
+        missing_error="Merge dataset operations must use the /merge endpoint",
+        build_args=lambda d: (
+            (d.get("merge_params") or d).get("file_path"),
+            (d.get("merge_params") or d).get("left_on"),
+            (d.get("merge_params") or d).get("right_on"),
+            (d.get("merge_params") or d).get("how", "inner"),
+            (d.get("merge_params") or d).get("suffixes", ("_left", "_right")),
+        ),
+        reusable=False,
     ),
 }
 
