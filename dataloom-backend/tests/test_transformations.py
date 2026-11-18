@@ -70,6 +70,26 @@ class TestFilter:
         with pytest.raises(TransformationError, match="Invalid boolean value"):
             apply_filter(df, "active", "=", "maybe")
 
+    def test_filter_numeric_nan_equals_raises(self):
+        # NaN never equals anything, not even itself, so "=" would silently
+        # return no rows even when the column holds NaN values.
+        df = pd.DataFrame({"qty": [1.0, float("nan"), 3.0]})
+        with pytest.raises(TransformationError, match="Invalid numeric value"):
+            apply_filter(df, "qty", "=", "nan")
+
+    def test_filter_numeric_nan_not_equals_raises(self):
+        # "!=" has the mirror-image lie: it returns every row, NaN ones included.
+        df = pd.DataFrame({"qty": [1.0, float("nan"), 3.0]})
+        with pytest.raises(TransformationError, match="Invalid numeric value"):
+            apply_filter(df, "qty", "!=", "nan")
+
+    def test_filter_numeric_inf_still_compares(self):
+        # Infinity is a well-defined comparison value, so it stays allowed.
+        df = pd.DataFrame({"qty": [1.0, float("inf"), 3.0]})
+        result = apply_filter(df, "qty", "=", "inf")
+        assert len(result) == 1
+        assert result.iloc[0]["qty"] == float("inf")
+
     def test_filter_greater_than_numeric(self, sample_df):
         result = apply_filter(sample_df, "age", ">", "28")
         assert len(result) == 2
