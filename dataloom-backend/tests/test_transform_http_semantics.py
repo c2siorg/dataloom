@@ -133,6 +133,18 @@ def test_transform_cast_to_datetime_rejects_unparseable_values(client, project_i
     assert response.status_code == 400, response.text
 
 
+def test_transform_cast_to_integer_rejects_unparseable_values(client, project_id):
+    response = client.post(
+        f"/projects/{project_id}/transform",
+        json={
+            "operation_type": "castDataType",
+            "cast_data_type_params": {"column": "city", "target_type": "integer"},
+        },
+    )
+
+    assert response.status_code == 400, response.text
+
+
 def test_transform_unrecognised_operation_type_returns_422(client, project_id):
     response = client.post(
         f"/projects/{project_id}/transform",
