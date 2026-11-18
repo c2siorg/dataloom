@@ -4,8 +4,10 @@ Each function takes a DataFrame and parameters, returns a new DataFrame.
 No side effects -- saving to disk is handled by the caller.
 """
 
+import keyword
 import math
 import numbers
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -1081,6 +1083,78 @@ def sample_rows(df: pd.DataFrame, sample_size: int, random_seed: int | None = No
     return sampled.reset_index(drop=True)
 
 
+def _evaluate_formula_exactly(df: pd.DataFrame, expr: str) -> pd.Series:
+    """Re-evaluate an already-validated formula with exact integer arithmetic.
+
+    Integer and boolean columns are converted to object dtype, which holds
+    arbitrary-precision Python ints, so no intermediate result wraps or
+    rounds. The frame is a shallow copy: columns are only replaced on the
+    copy, never mutated, so the caller's data is untouched.
+    """
+    ref_df = df.copy(deep=False)
+    for col in ref_df.columns:
+        if pd.api.types.is_integer_dtype(ref_df[col].dtype) or pd.api.types.is_bool_dtype(ref_df[col].dtype):
+            ref_df[col] = ref_df[col].astype(object)
+    try:
+        return ref_df.eval(expr, local_dict={"__builtins__": {}})
+    except TypeError:
+        # pandas' expression parser refuses a few operators (notably **)
+        # on object dtype even though the arithmetic itself is well-defined
+        # for Python ints. Evaluate the same validated expression directly
+        # over the converted columns instead: non-identifier column names
+        # appear backtick-wrapped in the validated string, so swap each for
+        # a generated placeholder bound to that column.
+        namespace: dict[str, pd.Series] = {}
+        rewritten = expr
+        for position, col in enumerate(ref_df.columns):
+            if f"`{col}`" in rewritten:
+                placeholder = f"_exact_ref_col_{position}"
+                rewritten = rewritten.replace(f"`{col}`", placeholder)
+                namespace[placeholder] = ref_df[col]
+            elif col.isidentifier() and not keyword.iskeyword(col):
+                namespace[col] = ref_df[col]
+        return eval(rewritten, {"__builtins__": {}}, namespace)
+
+
+def _reject_formula_int_overflow(df: pd.DataFrame, expr: str, result: pd.Series) -> None:
+    """Reject a formula whose integer result silently wrapped past its range.
+
+    pandas evaluates integer arithmetic in fixed-width dtypes, so
+    ``a ** 1000`` wraps modulo 2**64 instead of erroring. Re-evaluate the
+    same expression exactly (see ``_evaluate_formula_exactly``) and reject
+    when an exact value disagrees with the computed one: disagreement means
+    the true result does not fit the result dtype, so the computed value
+    wrapped. Exact comparison also keeps large in-range formulas working —
+    subtracting two epoch-nanosecond timestamps (~1.7e18, above the 2**53
+    float64 precision limit) is checked exactly instead of against a
+    rounded float reference. Only integer-dtype results are checked; float,
+    boolean and object results cannot wrap this way. If the exact
+    re-evaluation cannot run, the original result is left untouched, with a
+    warning logged, rather than breaking a formula that works today.
+    """
+    if not isinstance(result, pd.Series):
+        return
+    if not pd.api.types.is_integer_dtype(result.dtype):
+        return
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            ref = _evaluate_formula_exactly(df, expr)
+    except Exception:
+        logger.warning("Could not re-check a formula result for integer overflow; leaving it unchecked")
+        return
+    if not isinstance(ref, pd.Series):
+        return
+    ref_vals = ref.to_numpy(dtype=object)
+    int_vals = result.to_numpy(dtype=object)
+    ref_na = pd.isna(ref_vals)
+    int_na = pd.isna(int_vals)
+    both_present = ~ref_na & ~int_na
+    mismatched = bool((ref_na != int_na).any()) or bool((ref_vals[both_present] != int_vals[both_present]).any())
+    if mismatched:
+        raise TransformationError("Formula result overflows the 64-bit integer range")
+
+
 def add_formula_column(df: pd.DataFrame, column_name: str, expression: str) -> pd.DataFrame:
     """Add a computed column evaluated from a sandboxed formula expression.
 
@@ -1097,8 +1171,9 @@ def add_formula_column(df: pd.DataFrame, column_name: str, expression: str) -> p
         DataFrame with the computed column appended.
 
     Raises:
-        TransformationError: If the target name is blank, already exists, or the
-            formula cannot be evaluated against the dataset.
+        TransformationError: If the target name is blank, already exists, the
+            formula cannot be evaluated against the dataset, or its integer
+            result overflows the 64-bit range.
         HTTPException: If the formula fails validation — empty, dangerous,
             unparseable, or referencing an unknown column.
     """
@@ -1122,6 +1197,8 @@ def add_formula_column(df: pd.DataFrame, column_name: str, expression: str) -> p
 
     if isinstance(result, pd.DataFrame):
         raise TransformationError("Formula must produce a single column of values")
+
+    _reject_formula_int_overflow(df, expr, result)
 
     df[column_name] = result
     return df

@@ -141,6 +141,44 @@ class TestAddFormulaColumn:
         result = add_formula_column(sample_df, "ratio", "price / 0")
         assert np.isinf(result["ratio"]).all()
 
+    def test_power_overflow_rejected(self):
+        df = pd.DataFrame({"a": [2, 3]})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "a ** 1000")
+
+    def test_multiplication_overflow_rejected(self):
+        df = pd.DataFrame({"a": [1000000000, 2]})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "a * a * a")
+
+    def test_uint_overflow_rejected(self):
+        df = pd.DataFrame({"a": pd.array([2**32, 3], dtype="uint64")})
+        with pytest.raises(TransformationError, match="overflows"):
+            add_formula_column(df, "c", "a * a")
+
+    def test_in_range_int_formula_allowed(self):
+        df = pd.DataFrame({"a": [1000000000, 1000000000], "b": [1000000000, 3]})
+        result = add_formula_column(df, "c", "a * b")
+        assert result["c"].tolist() == [1000000000000000000, 3000000000]
+
+    def test_large_in_range_subtraction_above_2_pow_53_allowed(self):
+        # Epoch-nanosecond-scale operands: the exact difference is small,
+        # and it must not be rejected just because the operands exceed the
+        # 2**53 float64 precision limit.
+        df = pd.DataFrame({"ts1": [1700000000000000000], "ts2": [1700000000000000300]})
+        result = add_formula_column(df, "c", "ts2 - ts1")
+        assert result["c"].tolist() == [300]
+
+    def test_large_in_range_modulo_above_2_pow_53_allowed(self):
+        df = pd.DataFrame({"a": [1700000000000000300], "b": [97]})
+        result = add_formula_column(df, "c", "a % b")
+        assert result["c"].tolist() == [73]
+
+    def test_int_formula_with_nulls_allowed(self):
+        df = pd.DataFrame({"a": pd.array([2, None], dtype="Int64")})
+        result = add_formula_column(df, "c", "a + 1")
+        assert result["c"].tolist() == [3, pd.NA]
+
     def test_blank_name_raises(self, sample_df):
         with pytest.raises(TransformationError, match="empty"):
             add_formula_column(sample_df, "   ", "price * 2")
