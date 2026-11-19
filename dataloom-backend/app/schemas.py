@@ -49,6 +49,7 @@ class OperationType(StrEnum):
     addFormulaCol = "addFormulaCol"
     standardizeDates = "standardizeDates"
     mergeDataset = "mergeDataset"
+    mathTransform = "mathTransform"
 
 
 class DropDup(StrEnum):
@@ -224,6 +225,25 @@ class StandardizeDatesParams(BaseModel):
     output_format: DateOutputFormat
 
 
+class MathFunction(StrEnum):
+    """Supported mathematical transformation functions."""
+
+    log = "log"
+    log10 = "log10"
+    log1p = "log1p"
+    exp = "exp"
+    sqrt = "sqrt"
+    abs = "abs"
+
+
+class MathTransformParams(BaseModel):
+    """Parameters for applying a mathematical function to a numeric column."""
+
+    column: str
+    func: MathFunction = MathFunction.log
+    output_column: str | None = None
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -381,6 +401,7 @@ class TransformationInput(BaseModel):
     string_replace_params: StringReplaceParams | None = None
     formula_col_params: FormulaColumnParams | None = None
     standardize_dates_params: StandardizeDatesParams | None = None
+    math_transform_params: MathTransformParams | None = None
 
 
 class BasicQueryResponse(BaseModel):

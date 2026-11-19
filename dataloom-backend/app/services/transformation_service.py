@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from fastapi import HTTPException
 
@@ -766,6 +767,105 @@ def standardize_dates(df: pd.DataFrame, column: str, output_format: str) -> pd.D
     return df
 
 
+def math_transform(
+    df: pd.DataFrame,
+    column: str,
+    func: str = "log",
+    output_column: str | None = None,
+) -> pd.DataFrame:
+    """Apply a mathematical function (log, log10, log1p, exp, sqrt, abs) to a numeric column.
+
+    Args:
+        df: Source DataFrame.
+        column: Numeric column name to transform.
+        func: Mathematical function name: 'log', 'log10', 'log1p', 'exp', 'sqrt', or 'abs'.
+        output_column: Destination column name. If omitted, transforms in-place.
+
+    Returns:
+        Transformed DataFrame.
+
+    Raises:
+        TransformationError: If the column does not exist, is not numeric, values violate
+            domain constraints (e.g. non-positive values for log), or output column collides.
+    """
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+    column = stripped_to_original[column_stripped]
+
+    valid_funcs = {"log", "log10", "log1p", "exp", "sqrt", "abs"}
+    func_str = str(func).lower().strip()
+    if func_str not in valid_funcs:
+        raise TransformationError(f"Unknown math function: '{func}'. Supported functions: {sorted(valid_funcs)}")
+
+    series = df[column]
+    if pd.api.types.is_bool_dtype(series):
+        raise TransformationError(f"Column '{column}' is boolean. Math transform requires a numeric column.")
+    if not pd.api.types.is_numeric_dtype(series):
+        try:
+            numeric_test = pd.to_numeric(series.dropna(), errors="raise")
+            if numeric_test.empty and not series.empty:
+                raise TransformationError(f"Column '{column}' does not contain numeric data.")
+        except (ValueError, TypeError) as err:
+            raise TransformationError(
+                f"Column '{column}' is not numeric. Math transform requires an integer or float column."
+            ) from err
+        series_numeric = pd.to_numeric(series, errors="coerce")
+    else:
+        series_numeric = series
+
+    target_col = column
+    if output_column is not None:
+        out_col_clean = output_column.strip()
+        if not out_col_clean:
+            raise TransformationError("output_column must not be empty or whitespace only.")
+        if out_col_clean in stripped_to_original and out_col_clean != column_stripped:
+            raise TransformationError(
+                f"Output column '{out_col_clean}' already exists in DataFrame. Please specify a distinct output_column."
+            )
+        target_col = out_col_clean
+
+    non_null = series_numeric.dropna()
+    if not non_null.empty:
+        if np.isinf(non_null).any():
+            raise TransformationError(f"Cannot compute '{func_str}' on column '{column}': contains infinite values.")
+        if func_str in ("log", "log10") and (non_null <= 0).any():
+            raise TransformationError(
+                f"Cannot compute '{func_str}' on column '{column}': contains non-positive values (<= 0)."
+            )
+        elif func_str == "log1p" and (non_null <= -1).any():
+            raise TransformationError(f"Cannot compute 'log1p' on column '{column}': contains values <= -1.")
+        elif func_str == "sqrt" and (non_null < 0).any():
+            raise TransformationError(f"Cannot compute 'sqrt' on column '{column}': contains negative values (< 0).")
+
+    if func_str == "log":
+        computed = np.log(series_numeric.astype(float))
+    elif func_str == "log10":
+        computed = np.log10(series_numeric.astype(float))
+    elif func_str == "log1p":
+        computed = np.log1p(series_numeric.astype(float))
+    elif func_str == "exp":
+        with np.errstate(over="ignore"):
+            computed = np.exp(series_numeric.astype(float))
+        if np.isinf(computed).any():
+            raise TransformationError(
+                f"Function 'exp' caused numerical overflow on column '{column}'. Values exceed maximum float limit."
+            )
+    elif func_str == "sqrt":
+        computed = np.sqrt(series_numeric.astype(float))
+    elif func_str == "abs":
+        if pd.api.types.is_integer_dtype(series_numeric) and (series_numeric == -9223372036854775808).any():
+            computed = series_numeric.astype(float).abs()
+        else:
+            computed = series_numeric.abs()
+
+    result_df = df.copy()
+    result_df[target_col] = computed
+    return result_df
+
+
 def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
     """Replace occurrences of a substring in a column.
 
@@ -1444,6 +1544,18 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             (d.get("merge_params") or d).get("suffixes", ("_left", "_right")),
         ),
         reusable=False,
+    ),
+    OperationType.mathTransform: TransformationSpec(
+        func="math_transform",
+        label="Apply mathematical function",
+        params_field="math_transform_params",
+        missing_error="Math transform parameters required",
+        build_args=lambda d: (
+            d["math_transform_params"]["column"],
+            d["math_transform_params"].get("func", "log"),
+            d["math_transform_params"].get("output_column"),
+        ),
+        reusable=True,
     ),
 }
 
