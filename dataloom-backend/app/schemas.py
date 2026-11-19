@@ -51,6 +51,7 @@ class OperationType(StrEnum):
     mergeDataset = "mergeDataset"
     handleOutliers = "handleOutliers"
     scaleNumeric = "scaleNumeric"
+    mathTransform = "mathTransform"
 
 
 class DropDup(StrEnum):
@@ -290,6 +291,25 @@ class ScaleNumericParams(BaseModel):
         return self
 
 
+class MathFunction(StrEnum):
+    """Supported mathematical transformation functions."""
+
+    log = "log"
+    log10 = "log10"
+    log1p = "log1p"
+    exp = "exp"
+    sqrt = "sqrt"
+    abs = "abs"
+
+
+class MathTransformParams(BaseModel):
+    """Parameters for applying a mathematical function to a numeric column."""
+
+    column: str
+    func: MathFunction = MathFunction.log
+    output_column: str | None = None
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -449,6 +469,7 @@ class TransformationInput(BaseModel):
     standardize_dates_params: StandardizeDatesParams | None = None
     outlier_params: OutlierParams | None = None
     scale_numeric_params: ScaleNumericParams | None = None
+    math_transform_params: MathTransformParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
