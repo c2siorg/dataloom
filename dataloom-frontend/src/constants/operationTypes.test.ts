@@ -18,4 +18,5 @@ test("operation type constants match backend contract", () => {
   expect(ops.DROP_NA).toBe("dropNa");
   expect(ops.MELT).toBe("melt");
   expect(ops.ADD_FILE).toBe("addFile");
+  expect(ops.TEXT_TRANSFORM).toBe("textTransform");
 });

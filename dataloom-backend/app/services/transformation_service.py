@@ -766,6 +766,91 @@ def standardize_dates(df: pd.DataFrame, column: str, output_format: str) -> pd.D
     return df
 
 
+def text_transform(
+    df: pd.DataFrame,
+    column: str,
+    mode: str = "lower",
+    output_column: str | None = None,
+) -> pd.DataFrame:
+    """Apply casing standardization or pattern cleaning to a text column.
+
+    Supports:
+    - ``lower``: Converts characters to lowercase.
+    - ``upper``: Converts characters to uppercase.
+    - ``title``: Capitalizes the first letter of each word.
+    - ``capitalize``: Capitalizes the first letter of the sentence/string.
+    - ``alphanumeric_only``: Strips non-alphanumeric punctuation and symbols while preserving whitespace.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to transform.
+        mode: Text transformation mode.
+        output_column: Destination column name. If omitted, transforms in-place.
+
+    Returns:
+        Transformed DataFrame.
+
+    Raises:
+        TransformationError: If the column does not exist, mode is unknown, or output_column collides.
+    """
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+    column = stripped_to_original[column_stripped]
+
+    valid_modes = {"lower", "upper", "title", "capitalize", "alphanumeric_only"}
+    mode_str = str(mode).lower().strip()
+    if mode_str not in valid_modes:
+        raise TransformationError(f"Unknown text transform mode: '{mode}'. Supported modes: {sorted(valid_modes)}")
+
+    target_col = column
+    if output_column is not None:
+        out_col_clean = output_column.strip()
+        if not out_col_clean:
+            raise TransformationError("output_column must not be empty or whitespace only.")
+        if out_col_clean in stripped_to_original and out_col_clean != column_stripped:
+            raise TransformationError(
+                f"Output column '{out_col_clean}' already exists in DataFrame. Please specify a distinct output_column."
+            )
+        target_col = out_col_clean
+
+    series = df[column]
+    if (
+        pd.api.types.is_bool_dtype(series)
+        or pd.api.types.is_numeric_dtype(series)
+        or pd.api.types.is_datetime64_any_dtype(series)
+    ):
+        raise TransformationError(
+            f"Column '{column}' is not a text column. Text transformations require string or object data."
+        )
+
+    result_df = df.copy()
+
+    mask = series.notna()
+    result_col = pd.Series(index=series.index, dtype=object)
+
+    if mask.any():
+        str_series = series.loc[mask].astype(str)
+        if mode_str == "lower":
+            transformed = str_series.str.lower()
+        elif mode_str == "upper":
+            transformed = str_series.str.upper()
+        elif mode_str == "title":
+            transformed = str_series.str.title()
+        elif mode_str == "capitalize":
+            transformed = str_series.str.capitalize()
+        elif mode_str == "alphanumeric_only":
+            transformed = str_series.str.replace(r"[^\w\s]|_", "", regex=True)
+        else:
+            transformed = str_series
+        result_col.loc[mask] = transformed
+
+    result_df[target_col] = result_col.where(mask, None)
+    return result_df
+
+
 def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
     """Replace occurrences of a substring in a column.
 
@@ -1444,6 +1529,18 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             (d.get("merge_params") or d).get("suffixes", ("_left", "_right")),
         ),
         reusable=False,
+    ),
+    OperationType.textTransform: TransformationSpec(
+        func="text_transform",
+        label="Transform text casing and patterns",
+        params_field="text_transform_params",
+        missing_error="Text transform parameters required",
+        build_args=lambda d: (
+            d["text_transform_params"]["column"],
+            d["text_transform_params"].get("mode", "lower"),
+            d["text_transform_params"].get("output_column"),
+        ),
+        reusable=True,
     ),
 }
 
