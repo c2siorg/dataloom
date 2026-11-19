@@ -55,3 +55,5 @@ export const STANDARDIZE_DATES = "standardizeDates";
 export const HANDLE_OUTLIERS = "handleOutliers";
 /** Scale and normalize numeric column values */
 export const SCALE_NUMERIC = "scaleNumeric";
+/** Clamp numeric column values within lower and/or upper bounds */
+export const CLIP_NUMERIC = "clipNumeric";

@@ -1,6 +1,7 @@
 """Pydantic request/response schemas for all API endpoints."""
 
 import datetime
+import math
 import re
 import uuid
 from enum import StrEnum
@@ -51,6 +52,7 @@ class OperationType(StrEnum):
     mergeDataset = "mergeDataset"
     handleOutliers = "handleOutliers"
     scaleNumeric = "scaleNumeric"
+    clipNumeric = "clipNumeric"
 
 
 class DropDup(StrEnum):
@@ -290,6 +292,31 @@ class ScaleNumericParams(BaseModel):
         return self
 
 
+class ClipNumericParams(BaseModel):
+    """Parameters for clamping numeric column values within a range.
+
+    Accepts lower, upper, or both boundaries. Single-point clamping (lower == upper)
+    is supported.
+    """
+
+    column: str
+    lower: float | None = None
+    upper: float | None = None
+    output_column: str | None = None
+
+    @model_validator(mode="after")
+    def validate_bounds(self):
+        if self.lower is not None and (math.isnan(self.lower) or math.isinf(self.lower)):
+            raise ValueError("Lower bound must not be NaN or Inf.")
+        if self.upper is not None and (math.isnan(self.upper) or math.isinf(self.upper)):
+            raise ValueError("Upper bound must not be NaN or Inf.")
+        if self.lower is None and self.upper is None:
+            raise ValueError("At least one of 'lower' or 'upper' boundary must be provided.")
+        if self.lower is not None and self.upper is not None and self.lower > self.upper:
+            raise ValueError(f"Lower bound ({self.lower}) cannot be greater than upper bound ({self.upper}).")
+        return self
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -449,6 +476,7 @@ class TransformationInput(BaseModel):
     standardize_dates_params: StandardizeDatesParams | None = None
     outlier_params: OutlierParams | None = None
     scale_numeric_params: ScaleNumericParams | None = None
+    clip_numeric_params: ClipNumericParams | None = None
 
 
 class BasicQueryResponse(BaseModel):

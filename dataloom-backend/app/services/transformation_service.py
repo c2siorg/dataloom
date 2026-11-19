@@ -1200,6 +1200,92 @@ def scale_numeric(
     return result_df
 
 
+def clip_numeric(
+    df: pd.DataFrame,
+    column: str,
+    lower: float | None = None,
+    upper: float | None = None,
+    output_column: str | None = None,
+) -> pd.DataFrame:
+    """Clamp numeric column values within lower and/or upper bounds.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to clip.
+        lower: Minimum allowable value (values below are clamped to lower).
+        upper: Maximum allowable value (values above are clamped to upper).
+        output_column: Destination column name. If omitted, transforms in-place.
+
+    Returns:
+        Transformed DataFrame.
+
+    Raises:
+        TransformationError: If the column is missing, non-numeric, bounds are invalid,
+            or output column collides with an existing column.
+    """
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+    column = stripped_to_original[column_stripped]
+
+    if lower is not None and (math.isnan(lower) or math.isinf(lower)):
+        raise TransformationError("Lower bound must not be NaN or Inf.")
+    if upper is not None and (math.isnan(upper) or math.isinf(upper)):
+        raise TransformationError("Upper bound must not be NaN or Inf.")
+    if lower is None and upper is None:
+        raise TransformationError("At least one of 'lower' or 'upper' boundary must be provided.")
+    if lower is not None and upper is not None and lower > upper:
+        raise TransformationError(f"Lower bound ({lower}) cannot be greater than upper bound ({upper}).")
+
+    series = df[column]
+    if pd.api.types.is_bool_dtype(series):
+        raise TransformationError(f"Column '{column}' is boolean. Clamping requires a numeric column.")
+    if not pd.api.types.is_numeric_dtype(series):
+        non_null_series = series.dropna()
+        if non_null_series.empty and not series.empty:
+            raise TransformationError(f"Column '{column}' does not contain numeric data.")
+        try:
+            pd.to_numeric(non_null_series, errors="raise")
+        except (ValueError, TypeError) as err:
+            raise TransformationError(
+                f"Column '{column}' is not numeric. Clamping requires an integer or float column."
+            ) from err
+        series_numeric = pd.to_numeric(series, errors="coerce")
+    else:
+        series_numeric = series
+
+    target_col = column
+    if output_column is not None:
+        out_col_clean = output_column.strip()
+        if not out_col_clean:
+            raise TransformationError("output_column must not be empty or whitespace only.")
+        if out_col_clean in stripped_to_original and out_col_clean != column_stripped:
+            raise TransformationError(
+                f"Output column '{out_col_clean}' already exists in DataFrame. Please specify a distinct output_column."
+            )
+        target_col = column if out_col_clean == column_stripped else out_col_clean
+
+    result_df = df.copy()
+    if pd.api.types.is_integer_dtype(series):
+        orig_dtype = series.dtype
+        lower_is_int = lower is None or float(lower).is_integer()
+        upper_is_int = upper is None or float(upper).is_integer()
+        if lower_is_int and upper_is_int:
+            clipped = series.clip(
+                lower=int(lower) if lower is not None else None,
+                upper=int(upper) if upper is not None else None,
+            ).astype(orig_dtype)
+        else:
+            clipped = series_numeric.clip(lower=lower, upper=upper)
+    else:
+        clipped = series_numeric.clip(lower=lower, upper=upper)
+
+    result_df[target_col] = clipped
+    return result_df
+
+
 def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
     """Replace occurrences of a substring in a column.
 
@@ -1920,6 +2006,19 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             d["scale_numeric_params"].get("target_min", 0.0),
             d["scale_numeric_params"].get("target_max", 1.0),
             d["scale_numeric_params"].get("output_column"),
+        ),
+        reusable=True,
+    ),
+    OperationType.clipNumeric: TransformationSpec(
+        func="clip_numeric",
+        label="Clamp numeric values to boundaries",
+        params_field="clip_numeric_params",
+        missing_error="Clip numeric parameters required",
+        build_args=lambda d: (
+            d["clip_numeric_params"]["column"],
+            d["clip_numeric_params"].get("lower"),
+            d["clip_numeric_params"].get("upper"),
+            d["clip_numeric_params"].get("output_column"),
         ),
         reusable=True,
     ),
