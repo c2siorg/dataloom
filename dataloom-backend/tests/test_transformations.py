@@ -286,6 +286,18 @@ class TestDeleteColumn:
         with pytest.raises(TransformationError):
             delete_column(sample_df, 10)
 
+    def test_delete_last_column_raises(self):
+        # A zero-column frame cannot be saved and re-read (an empty CSV has
+        # no columns to parse), so deleting the only column must be refused.
+        df = pd.DataFrame({"only": [1, 2, 3]})
+        with pytest.raises(TransformationError, match="only remaining column"):
+            delete_column(df, 0)
+
+    def test_delete_column_from_two_columns_works(self):
+        df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        result = delete_column(df, 0)
+        assert result.columns.tolist() == ["b"]
+
 
 class TestChangeCellValue:
     def test_change_cell(self, sample_df):
