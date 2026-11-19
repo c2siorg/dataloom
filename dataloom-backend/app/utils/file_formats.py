@@ -81,7 +81,10 @@ def _read_csv(path: Path) -> pd.DataFrame:
 
 
 def _write_csv(df: pd.DataFrame, path: Path, options: TableWriteOptions | None = None) -> None:
-    df.to_csv(path, **_resolve_delimited_options(options, default_sep=","))
+    resolved = _resolve_delimited_options(options, default_sep=",")
+    encoding = resolved.pop("encoding")
+    with open(path, "w", newline="", encoding=encoding) as f:
+        df.to_csv(f, lineterminator="\n", **resolved)
 
 
 def _read_tsv(path: Path) -> pd.DataFrame:
@@ -89,7 +92,10 @@ def _read_tsv(path: Path) -> pd.DataFrame:
 
 
 def _write_tsv(df: pd.DataFrame, path: Path, options: TableWriteOptions | None = None) -> None:
-    df.to_csv(path, **_resolve_delimited_options(options, default_sep="\t"))
+    resolved = _resolve_delimited_options(options, default_sep="\t")
+    encoding = resolved.pop("encoding")
+    with open(path, "w", newline="", encoding=encoding) as f:
+        df.to_csv(f, lineterminator="\n", **resolved)
 
 
 # --- Spreadsheet formula injection ------------------------------------------
