@@ -49,6 +49,7 @@ class OperationType(StrEnum):
     addFormulaCol = "addFormulaCol"
     standardizeDates = "standardizeDates"
     mergeDataset = "mergeDataset"
+    encodeCategorical = "encodeCategorical"
 
 
 class DropDup(StrEnum):
@@ -224,6 +225,31 @@ class StandardizeDatesParams(BaseModel):
     output_format: DateOutputFormat
 
 
+class EncodingMethod(StrEnum):
+    """Supported algorithms for encoding categorical variables."""
+
+    one_hot = "one_hot"
+    label = "label"
+    frequency = "frequency"
+
+
+class EncodeCategoricalParams(BaseModel):
+    """Parameters for encoding categorical variables into numeric representations."""
+
+    column: str
+    method: EncodingMethod = EncodingMethod.one_hot
+    prefix: str | None = None
+    drop_first: bool = False
+    max_categories: int = Field(default=50, gt=0, le=500)
+    output_column: str | None = None
+
+    @model_validator(mode="after")
+    def validate_params(self):
+        if self.method == EncodingMethod.one_hot and self.output_column is not None:
+            raise ValueError("output_column cannot be specified for 'one_hot' encoding (use 'prefix' instead)")
+        return self
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -381,6 +407,7 @@ class TransformationInput(BaseModel):
     string_replace_params: StringReplaceParams | None = None
     formula_col_params: FormulaColumnParams | None = None
     standardize_dates_params: StandardizeDatesParams | None = None
+    encode_categorical_params: EncodeCategoricalParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
