@@ -86,7 +86,7 @@ def test_transform_add_row_inserts_blank_row_at_index(client, project_id):
     data = response.json()
     assert data["row_count"] == 5
     assert len(data["rows"]) == 5
-    assert data["rows"][1] == [" ", " ", " "]
+    assert data["rows"][1] == [None, None, None]
 
 
 def test_transform_del_row_removes_target_row(client, project_id):

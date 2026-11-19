@@ -273,10 +273,12 @@ def add_row(df: pd.DataFrame, index: int) -> pd.DataFrame:
     new_row = df.iloc[:0].reindex([index])
     result = pd.concat([df.iloc[:index], new_row, df.iloc[index:]]).reset_index(drop=True)
 
-    # A missing value would upcast int columns to float; keep them integer with
-    # pandas' nullable Int64, as cast_data_type does.
+    # A missing value would upcast int columns to float and bool columns to
+    # object; keep them typed with pandas' nullable Int64 and boolean dtypes.
     for column in df.columns:
-        if pd.api.types.is_integer_dtype(df[column]):
+        if pd.api.types.is_bool_dtype(df[column]):
+            result[column] = result[column].astype("boolean")
+        elif pd.api.types.is_integer_dtype(df[column]):
             result[column] = result[column].astype("Int64")
     return result
 
