@@ -19,6 +19,7 @@ from app.services.transformation_service import (
     drop_duplicates,
     drop_na,
     fill_empty,
+    get_column_type,
     pivot_table,
     rename_column,
     standardize_dates,
@@ -206,6 +207,15 @@ class TestAddRow:
 
         floats = add_row(pd.DataFrame({"price": [1.5, 2.5]}), 1)
         assert floats["price"].dtype == float
+
+    def test_add_row_keeps_boolean_columns_boolean(self):
+        """A blank row must not turn a bool column into object dtype."""
+        df = pd.DataFrame({"active": [True, False]})
+        result = add_row(df, 1)
+        assert get_column_type(result, "active") == "boolean"
+        assert result["active"][0]
+        assert pd.isna(result["active"][1])
+        assert not result["active"][2]
 
     def test_add_row_then_sort_and_filter_numeric_column(self, sample_df):
         """Sort and filter on a numeric column still work after adding a row (#649)."""
