@@ -51,6 +51,7 @@ class OperationType(StrEnum):
     mergeDataset = "mergeDataset"
     handleOutliers = "handleOutliers"
     scaleNumeric = "scaleNumeric"
+    binNumeric = "binNumeric"
 
 
 class DropDup(StrEnum):
@@ -290,6 +291,47 @@ class ScaleNumericParams(BaseModel):
         return self
 
 
+class BinningMethod(StrEnum):
+    """Supported strategies for binning numeric data."""
+
+    equal_width = "equal_width"
+    equal_frequency = "equal_frequency"
+    custom = "custom"
+
+
+class BinNumericParams(BaseModel):
+    """Parameters for binning and discretizing a numeric column."""
+
+    column: str
+    method: BinningMethod = BinningMethod.equal_width
+    bins: int = Field(default=5, ge=2, le=100)
+    custom_edges: list[float] | None = None
+    labels: list[str] | None = None
+    include_lowest: bool = True
+    right: bool = True
+    output_column: str | None = None
+
+    @model_validator(mode="after")
+    def validate_binning_params(self):
+        if self.method == BinningMethod.custom:
+            if not self.custom_edges or len(self.custom_edges) < 2:
+                raise ValueError("custom_edges must contain at least 2 boundary values when method is 'custom'")
+            for i in range(len(self.custom_edges) - 1):
+                if self.custom_edges[i] >= self.custom_edges[i + 1]:
+                    raise ValueError("custom_edges must be strictly monotonically increasing")
+            if self.labels is not None and len(self.labels) != len(self.custom_edges) - 1:
+                raise ValueError(
+                    f"Number of labels ({len(self.labels)}) must equal "
+                    f"number of intervals ({len(self.custom_edges) - 1})"
+                )
+        else:
+            if self.custom_edges is not None:
+                raise ValueError("custom_edges can only be specified when method is 'custom'")
+            if self.labels is not None and len(self.labels) != self.bins:
+                raise ValueError(f"Number of labels ({len(self.labels)}) must equal bins ({self.bins})")
+        return self
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -449,6 +491,7 @@ class TransformationInput(BaseModel):
     standardize_dates_params: StandardizeDatesParams | None = None
     outlier_params: OutlierParams | None = None
     scale_numeric_params: ScaleNumericParams | None = None
+    bin_numeric_params: BinNumericParams | None = None
 
 
 class BasicQueryResponse(BaseModel):

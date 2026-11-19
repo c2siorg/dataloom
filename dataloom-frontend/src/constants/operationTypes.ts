@@ -55,3 +55,5 @@ export const STANDARDIZE_DATES = "standardizeDates";
 export const HANDLE_OUTLIERS = "handleOutliers";
 /** Scale and normalize numeric column values */
 export const SCALE_NUMERIC = "scaleNumeric";
+/** Discretize continuous numeric values into bins */
+export const BIN_NUMERIC = "binNumeric";
