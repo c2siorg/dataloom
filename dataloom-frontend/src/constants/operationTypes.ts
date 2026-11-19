@@ -55,3 +55,5 @@ export const STANDARDIZE_DATES = "standardizeDates";
 export const HANDLE_OUTLIERS = "handleOutliers";
 /** Scale and normalize numeric column values */
 export const SCALE_NUMERIC = "scaleNumeric";
+/** Extract individual date or time components */
+export const EXTRACT_DATE_PART = "extractDatePart";
