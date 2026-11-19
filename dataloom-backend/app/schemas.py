@@ -51,6 +51,7 @@ class OperationType(StrEnum):
     mergeDataset = "mergeDataset"
     handleOutliers = "handleOutliers"
     scaleNumeric = "scaleNumeric"
+    textTransform = "textTransform"
 
 
 class DropDup(StrEnum):
@@ -290,6 +291,24 @@ class ScaleNumericParams(BaseModel):
         return self
 
 
+class TextTransformCase(StrEnum):
+    """Supported text transformation and casing modes."""
+
+    lower = "lower"
+    upper = "upper"
+    title = "title"
+    capitalize = "capitalize"
+    alphanumeric_only = "alphanumeric_only"
+
+
+class TextTransformParams(BaseModel):
+    """Parameters for casing and pattern transformation on text columns."""
+
+    column: str
+    mode: TextTransformCase = TextTransformCase.lower
+    output_column: str | None = None
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -449,6 +468,7 @@ class TransformationInput(BaseModel):
     standardize_dates_params: StandardizeDatesParams | None = None
     outlier_params: OutlierParams | None = None
     scale_numeric_params: ScaleNumericParams | None = None
+    text_transform_params: TextTransformParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
