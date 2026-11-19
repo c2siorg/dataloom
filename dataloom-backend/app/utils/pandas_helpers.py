@@ -192,7 +192,7 @@ def save_table_safe(
         if path.exists():
             shutil.copymode(path, temp_path)
 
-        with temp_path.open("rb") as temp_file:
+        with temp_path.open("r+b") as temp_file:
             os.fsync(temp_file.fileno())
 
         os.replace(temp_path, path)
