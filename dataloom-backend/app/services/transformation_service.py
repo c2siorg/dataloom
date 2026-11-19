@@ -1200,6 +1200,145 @@ def scale_numeric(
     return result_df
 
 
+def encode_categorical(
+    df: pd.DataFrame,
+    column: str,
+    method: str = "one_hot",
+    prefix: str | None = None,
+    drop_first: bool = False,
+    max_categories: int = 50,
+    output_column: str | None = None,
+) -> pd.DataFrame:
+    """Encode categorical column values into numeric representations.
+
+    Supports three encoding techniques:
+    - ``one_hot``: Expands discrete categories into binary 0/1 indicator columns.
+      Optionally drops the first category level (``drop_first=True``) to prevent
+      multicollinearity in linear regression.
+    - ``label``: Maps unique category levels to sequential integers (0, 1, 2, ...),
+      preserving missing (NaN) values.
+    - ``frequency``: Replaces categories with their relative frequency (count / total non-nulls).
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to encode.
+        method: Algorithm name: 'one_hot', 'label', or 'frequency'.
+        prefix: Custom prefix for generated one-hot columns (default: column name).
+        drop_first: Whether to omit the first category level in one-hot encoding.
+        max_categories: Maximum allowed distinct categories for one-hot encoding before raising an error.
+        output_column: Name for the destination column when using 'label' or 'frequency'.
+            If omitted, updates the column in-place.
+
+    Returns:
+        Transformed DataFrame.
+
+    Raises:
+        TransformationError: If the column is missing, category count exceeds max_categories in one_hot,
+            output column name collides with existing columns, or method is invalid.
+    """
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+    column = stripped_to_original[column_stripped]
+
+    valid_methods = {"one_hot", "label", "frequency"}
+    method_str = str(method).lower().strip()
+    if method_str not in valid_methods:
+        raise TransformationError(f"Unknown encoding method: '{method}'. Supported methods: {sorted(valid_methods)}")
+
+    series = df[column]
+    non_null = series.dropna()
+
+    try:
+        distinct_categories = sorted(non_null.unique())
+    except TypeError:
+        distinct_categories = sorted(non_null.astype(str).unique())
+
+    num_categories = len(distinct_categories)
+
+    result_df = df.copy()
+
+    if method_str == "one_hot":
+        if output_column is not None:
+            raise TransformationError(
+                "output_column cannot be specified for 'one_hot' encoding (use 'prefix' instead)."
+            )
+
+        if len(df) == 0:
+            return result_df
+
+        if non_null.empty:
+            raise TransformationError(
+                f"Cannot perform one-hot encoding on column '{column}': column contains only missing/null values."
+            )
+
+        if num_categories > max_categories:
+            raise TransformationError(
+                f"Column '{column}' contains {num_categories} unique categories, "
+                f"which exceeds the safety limit of {max_categories}. "
+                "Please increase max_categories if intentional or filter the dataset first."
+            )
+
+        prefix_str = prefix.strip() if prefix and prefix.strip() else column
+        str_distinct = [str(cat) for cat in distinct_categories]
+        categories_to_encode = str_distinct[1:] if drop_first else str_distinct
+
+        dummy_col_names = [f"{prefix_str}_{cat}" for cat in categories_to_encode]
+        collisions = [
+            col
+            for col in dummy_col_names
+            if col.strip() in stripped_to_original and stripped_to_original[col.strip()] != column
+        ]
+        if collisions:
+            raise TransformationError(
+                f"Generated dummy column(s) {collisions} already exist in DataFrame. "
+                "Please specify a distinct prefix to avoid overwriting existing data."
+            )
+
+        col_pos = list(df.columns).index(column)
+        left = df.iloc[:, :col_pos]
+        right = df.iloc[:, col_pos + 1 :]
+        dummy_dict = {
+            f"{prefix_str}_{cat}": ((series.astype(str) == cat) & series.notna()).astype(int)
+            for cat in categories_to_encode
+        }
+        dummy_df = pd.DataFrame(dummy_dict, index=df.index)
+        return pd.concat([left, dummy_df, right], axis=1)
+
+    target_col = column
+    if output_column is not None:
+        out_col_clean = output_column.strip()
+        if not out_col_clean:
+            raise TransformationError("output_column must not be empty or whitespace only.")
+        if out_col_clean in stripped_to_original and out_col_clean != column_stripped:
+            raise TransformationError(
+                f"Output column '{out_col_clean}' already exists in DataFrame. Please specify a distinct output_column."
+            )
+        target_col = column if out_col_clean == column_stripped else out_col_clean
+
+    if non_null.empty:
+        if target_col != column:
+            result_df[target_col] = pd.Series(float("nan"), index=df.index, dtype=float)
+        else:
+            result_df[target_col] = result_df[target_col].astype(float)
+        return result_df
+
+    if method_str == "label":
+        mapping = {cat: float(idx) for idx, cat in enumerate(distinct_categories)}
+        encoded = series.map(mapping)
+        result_df[target_col] = encoded.astype(float)
+        return result_df
+
+    elif method_str == "frequency":
+        total_count = len(non_null)
+        freq_map = (non_null.value_counts() / total_count).to_dict()
+        encoded = series.map(freq_map)
+        result_df[target_col] = encoded.astype(float)
+        return result_df
+
+
 def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
     """Replace occurrences of a substring in a column.
 
@@ -1906,6 +2045,21 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             d["scale_numeric_params"].get("target_min", 0.0),
             d["scale_numeric_params"].get("target_max", 1.0),
             d["scale_numeric_params"].get("output_column"),
+        ),
+        reusable=True,
+    ),
+    OperationType.encodeCategorical: TransformationSpec(
+        func="encode_categorical",
+        label="Encode categorical variables",
+        params_field="encode_categorical_params",
+        missing_error="Categorical encoding parameters required",
+        build_args=lambda d: (
+            d["encode_categorical_params"]["column"],
+            d["encode_categorical_params"].get("method", "one_hot"),
+            d["encode_categorical_params"].get("prefix"),
+            d["encode_categorical_params"].get("drop_first", False),
+            d["encode_categorical_params"].get("max_categories", 50),
+            d["encode_categorical_params"].get("output_column"),
         ),
         reusable=True,
     ),
