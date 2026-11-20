@@ -46,14 +46,20 @@ export default function SignUpPage() {
       await signup(email, password);
       navigate(next || ROUTES.home, { replace: true });
     } catch (err: unknown) {
-      // `detail` is a string for most errors, but an array of objects for
-      // FastAPI 422 validation failures — only a string is safe to render.
-      const detail = (err as { response?: { data?: { detail?: unknown } } } | null)?.response?.data
-        ?.detail;
-      showToast(
-        typeof detail === "string" ? detail : "Could not create your account. Please try again.",
-        "error",
-      );
+  const detail = (err as { response?: { data?: { detail?: unknown } } } | null)?.response?.data
+    ?.detail;
+
+  let message = "Could not create your account. Please try again.";
+  if (typeof detail === "string") {
+    message = detail;
+  } else if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((d) => (typeof d?.msg === "string" ? d.msg.replace(/^Value error,\s*/, "") : null))
+      .filter(Boolean);
+    if (msgs.length > 0) message = msgs.join(" ");
+  }
+
+  showToast(message, "error");
     } finally {
       setSubmitting(false);
     }
