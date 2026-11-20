@@ -132,12 +132,20 @@ def sanitize_formula_cells(df: pd.DataFrame) -> pd.DataFrame:
     keep the user's original values, while a downloaded file can no longer
     execute a cell as a formula when opened in a spreadsheet application.
     Only text cells change; numbers, dates and empty cells pass through.
+
+    Column headers get the same treatment: a header starting with ``=``,
+    ``+``, ``-`` or ``@`` is written verbatim into the header row of a CSV/TSV
+    export (and stored as a live formula cell by the XLSX writer), so a
+    dataset whose column is named e.g. ``=2+5`` would hand the spreadsheet a
+    formula in the header row. Headers are neutralised with the same rule as
+    cells; the stored dataset keeps the original names.
     """
     sanitized = df.copy()
     for col in sanitized.columns:
         series = sanitized[col]
         if series.dtype == object or isinstance(series.dtype, pd.StringDtype):
             sanitized[col] = series.map(_neutralize_formula_cell)
+    sanitized.columns = [_neutralize_formula_cell(label) for label in sanitized.columns]
     return sanitized
 
 

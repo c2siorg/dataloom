@@ -339,3 +339,34 @@ class TestSanitizeFormulaCells:
         sanitize_formula_cells(df)
 
         assert df["note"].tolist() == ["=1+1"]
+
+    def test_formula_leading_headers_are_prefixed_with_a_quote(self):
+        df = pd.DataFrame(
+            {
+                "=2+5": ["Alice"],
+                "@cmd": ["Bob"],
+                "+total": ["Carol"],
+                "  -off": ["Dave"],
+                "note": ["hello"],
+            }
+        )
+
+        result = sanitize_formula_cells(df)
+
+        assert list(result.columns) == ["'=2+5", "'@cmd", "'+total", "'  -off", "note"]
+        # Cell values are neutralised by the same rule, as before.
+        assert result["note"].tolist() == ["hello"]
+
+    def test_plain_number_and_normal_headers_are_untouched(self):
+        df = pd.DataFrame({"-5": ["a"], "name": ["b"], 0: ["c"]})
+
+        result = sanitize_formula_cells(df)
+
+        assert list(result.columns) == ["-5", "name", 0]
+
+    def test_header_neutralisation_does_not_mutate_the_input_frame(self):
+        df = pd.DataFrame({"=2+5": ["Alice"]})
+
+        sanitize_formula_cells(df)
+
+        assert list(df.columns) == ["=2+5"]
