@@ -196,6 +196,18 @@ class TestRoundTrip:
             "2022",
         ]
 
+    @pytest.mark.parametrize("ext", [".csv", ".tsv"])
+    def test_delimited_write_emits_lf_only(self, ext, tmp_path):
+        """CSV/TSV must be written with LF line endings, never CRLF (Windows regression)."""
+        df = pd.DataFrame({"name": ["Alice", "Bob"], "note": ["plain", "line one\nline two"]})
+        path = tmp_path / f"data{ext}"
+
+        get_format(path).write(df, path, TableWriteOptions())
+
+        data = path.read_bytes()
+        assert b"\r" not in data
+        assert data.count(b"\n") == 4  # header + 2 rows + the newline embedded in a field
+
 
 class TestJson:
     def test_flat_records(self, tmp_path):
