@@ -119,6 +119,11 @@ class TestExportNativeFormat:
 
 FORMULA_SAMPLE = b"name,note\nAlice,=1+1\nBob,\"+2+2+cmd|' /C calc'!A0\"\nCarol,hello\nDave,-5\n"
 
+# A column whose *name* starts with a formula character: the header row is
+# written verbatim into CSV/TSV exports, so the name itself is the vector.
+HEADER_FORMULA_SAMPLE = b"=2+5,note\nAlice,hello\nBob,world\n"
+HEADER_FORMULA_SAMPLE_AT = b"name,@cmd\nAlice,hello\nBob,world\n"
+
 
 class TestExportFormulaSanitization:
     """A cell starting with =, +, - or @ must reach a spreadsheet application
@@ -153,6 +158,40 @@ class TestExportFormulaSanitization:
         assert project.status_code == 200, project.text
         notes = [row[1] for row in project.json()["rows"]]
         assert notes == ["=1+1", "+2+2+cmd|' /C calc'!A0", "hello", "-5"]
+
+    def test_native_csv_export_neutralizes_formula_headers(self, client):
+        project_id = _upload(client, HEADER_FORMULA_SAMPLE, "data.csv").json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export")
+
+        assert response.status_code == 200
+        assert response.content.decode().splitlines()[0] == "'=2+5,note"
+
+    def test_tsv_export_neutralizes_formula_headers(self, client):
+        project_id = _upload(client, HEADER_FORMULA_SAMPLE_AT, "data.csv").json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export", params={"format": "tsv"})
+
+        assert response.status_code == 200
+        assert response.content.decode().splitlines()[0] == "name\t'@cmd"
+
+    def test_xlsx_export_neutralizes_formula_headers(self, client):
+        project_id = _upload(client, HEADER_FORMULA_SAMPLE, "data.csv").json()["project_id"]
+
+        response = client.get(f"/projects/{project_id}/export", params={"format": "xlsx"})
+
+        assert response.status_code == 200
+        exported = pd.read_excel(BytesIO(response.content), dtype=str)
+        assert list(exported.columns) == ["'=2+5", "note"]
+
+    def test_export_leaves_formula_headers_untouched_in_the_stored_dataset(self, client):
+        project_id = _upload(client, HEADER_FORMULA_SAMPLE, "data.csv").json()["project_id"]
+
+        client.get(f"/projects/{project_id}/export")
+        project = client.get(f"/projects/get/{project_id}")
+
+        assert project.status_code == 200, project.text
+        assert project.json()["columns"] == ["=2+5", "note"]
 
 
 def _decode(content: bytes, ext: str) -> pd.DataFrame:
