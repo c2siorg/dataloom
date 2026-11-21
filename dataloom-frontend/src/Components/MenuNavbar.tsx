@@ -313,7 +313,6 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
           <button
             key={tabName}
             data-testid={`tab-${tabName.toLowerCase()}`}
-            title={TAB_DESCRIPTIONS[tabName]}
             onClick={() => {
               handleMouseLeave();
               setActiveTab(tabName);
@@ -345,7 +344,7 @@ const MenuNavbar = ({ projectId }: MenuNavbarProps) => {
                     <div key={item.label} className="flex flex-col items-center">
                       <button
                         data-testid={`toolbar-${item.label.toLowerCase().replace(/ /g, "-")}`}
-                        title={item.hover}
+                        title={item.disabled ? item.hover : undefined}
                         onClick={() => {
                           handleMouseLeave();
                           item.onClick();
