@@ -49,6 +49,7 @@ class OperationType(StrEnum):
     addFormulaCol = "addFormulaCol"
     standardizeDates = "standardizeDates"
     mergeDataset = "mergeDataset"
+    textTransform = "textTransform"
 
 
 class DropDup(StrEnum):
@@ -224,6 +225,24 @@ class StandardizeDatesParams(BaseModel):
     output_format: DateOutputFormat
 
 
+class TextTransformCase(StrEnum):
+    """Supported text transformation and casing modes."""
+
+    lower = "lower"
+    upper = "upper"
+    title = "title"
+    capitalize = "capitalize"
+    alphanumeric_only = "alphanumeric_only"
+
+
+class TextTransformParams(BaseModel):
+    """Parameters for casing and pattern transformation on text columns."""
+
+    column: str
+    mode: TextTransformCase = TextTransformCase.lower
+    output_column: str | None = None
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -381,6 +400,7 @@ class TransformationInput(BaseModel):
     string_replace_params: StringReplaceParams | None = None
     formula_col_params: FormulaColumnParams | None = None
     standardize_dates_params: StandardizeDatesParams | None = None
+    text_transform_params: TextTransformParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
