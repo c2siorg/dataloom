@@ -114,20 +114,23 @@ beforeEach(() => {
 });
 
 describe("MenuNavbar", () => {
-  it("renders ribbon tabs and toolbar buttons with title attributes", () => {
+  it("renders ribbon tabs and toolbar buttons with hover tooltips", () => {
     render(<MenuNavbar projectId="p1" />);
 
     const fileTab = screen.getByTestId("tab-file");
     expect(fileTab).toBeInTheDocument();
-    expect(fileTab).toHaveAttribute(
-      "title",
+    expect(fileTab).not.toHaveAttribute("title");
+    fireEvent.mouseEnter(fileTab);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
       "Manage project checkpoints, export data, and view history.",
     );
+    fireEvent.mouseLeave(fileTab);
 
     const saveButton = screen.getByTestId("toolbar-save");
     expect(saveButton).toBeInTheDocument();
-    expect(saveButton).toHaveAttribute(
-      "title",
+    expect(saveButton).not.toHaveAttribute("title");
+    fireEvent.mouseEnter(saveButton);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
       "Save the current state of the project as a new checkpoint.",
     );
   });
@@ -178,7 +181,9 @@ describe("MenuNavbar", () => {
       render(<MenuNavbar projectId="p1" />);
 
       const redo = screen.getByTestId("toolbar-redo");
-      expect(redo).toHaveAttribute("title", "Redo the last undone transformation.");
+      fireEvent.mouseEnter(redo);
+      expect(screen.getByRole("tooltip")).toHaveTextContent("Redo the last undone transformation.");
+      fireEvent.mouseLeave(redo);
       expect(screen.getByTestId("toolbar-undo").compareDocumentPosition(redo)).toBe(
         Node.DOCUMENT_POSITION_FOLLOWING,
       );
