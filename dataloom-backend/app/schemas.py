@@ -49,6 +49,7 @@ class OperationType(StrEnum):
     addFormulaCol = "addFormulaCol"
     standardizeDates = "standardizeDates"
     mergeDataset = "mergeDataset"
+    scaleNumeric = "scaleNumeric"
 
 
 class DropDup(StrEnum):
@@ -224,6 +225,31 @@ class StandardizeDatesParams(BaseModel):
     output_format: DateOutputFormat
 
 
+class ScalingMethod(StrEnum):
+    """Supported mathematical methods for scaling numeric features."""
+
+    minmax = "minmax"
+    standard = "standard"
+    robust = "robust"
+    maxabs = "maxabs"
+
+
+class ScaleNumericParams(BaseModel):
+    """Parameters for scaling and normalizing numeric columns."""
+
+    column: str
+    method: ScalingMethod = ScalingMethod.minmax
+    target_min: float = 0.0
+    target_max: float = 1.0
+    output_column: str | None = None
+
+    @model_validator(mode="after")
+    def validate_target_range(self):
+        if self.method == ScalingMethod.minmax and self.target_min >= self.target_max:
+            raise ValueError("target_min must be strictly less than target_max for minmax scaling")
+        return self
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -381,6 +407,7 @@ class TransformationInput(BaseModel):
     string_replace_params: StringReplaceParams | None = None
     formula_col_params: FormulaColumnParams | None = None
     standardize_dates_params: StandardizeDatesParams | None = None
+    scale_numeric_params: ScaleNumericParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
