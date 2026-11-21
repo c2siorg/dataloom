@@ -49,6 +49,7 @@ class OperationType(StrEnum):
     addFormulaCol = "addFormulaCol"
     standardizeDates = "standardizeDates"
     mergeDataset = "mergeDataset"
+    extractDatePart = "extractDatePart"
 
 
 class DropDup(StrEnum):
@@ -224,6 +225,25 @@ class StandardizeDatesParams(BaseModel):
     output_format: DateOutputFormat
 
 
+class DateComponent(StrEnum):
+    """Supported datetime component fields."""
+
+    year = "year"
+    month = "month"
+    day = "day"
+    day_of_week = "day_of_week"
+    hour = "hour"
+    quarter = "quarter"
+
+
+class ExtractDatePartParams(BaseModel):
+    """Parameters for extracting individual date or time components."""
+
+    column: str
+    component: DateComponent = DateComponent.year
+    output_column: str | None = None
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -381,6 +401,7 @@ class TransformationInput(BaseModel):
     string_replace_params: StringReplaceParams | None = None
     formula_col_params: FormulaColumnParams | None = None
     standardize_dates_params: StandardizeDatesParams | None = None
+    extract_date_part_params: ExtractDatePartParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
