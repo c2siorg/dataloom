@@ -51,3 +51,5 @@ export const ADD_FILE = "addFile";
 export const ADD_FORMULA_COLUMN = "addFormulaCol";
 /** Rewrite a date column into a single consistent format */
 export const STANDARDIZE_DATES = "standardizeDates";
+/** Encode categorical column values into numeric representations */
+export const ENCODE_CATEGORICAL = "encodeCategorical";
