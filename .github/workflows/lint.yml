@@ -6,9 +6,10 @@ on:
   push:
     branches: [main]
 
+# Prefix differs from ci.yml so a push to main does not cancel the other workflow.
 concurrency:
   group: >-
-    ci-${{
+    lint-${{
       github.event_name == 'pull_request'
         && format('pr-{0}', github.event.pull_request.number)
         || github.ref
