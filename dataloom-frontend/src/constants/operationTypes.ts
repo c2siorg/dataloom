@@ -55,3 +55,5 @@ export const STANDARDIZE_DATES = "standardizeDates";
 export const HANDLE_OUTLIERS = "handleOutliers";
 /** Scale and normalize numeric column values */
 export const SCALE_NUMERIC = "scaleNumeric";
+/** Apply casing standardization or pattern cleaning to a text column */
+export const TEXT_TRANSFORM = "textTransform";
