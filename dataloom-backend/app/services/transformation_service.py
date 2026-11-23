@@ -1200,6 +1200,171 @@ def scale_numeric(
     return result_df
 
 
+def bin_numeric(
+    df: pd.DataFrame,
+    column: str,
+    method: str = "equal_width",
+    bins: int = 5,
+    custom_edges: list[float] | None = None,
+    labels: list[str] | None = None,
+    include_lowest: bool = True,
+    right: bool = True,
+    output_column: str | None = None,
+) -> pd.DataFrame:
+    """Discretize continuous numeric column values into discrete interval bins or labels.
+
+    Supports three discretization algorithms:
+    - ``equal_width``: Segments the observed numeric range linearly into equal-width bins.
+      Handles constant columns gracefully by placing all non-null values in a single bin.
+    - ``equal_frequency``: Computes sample quantiles so each bin contains approximately equal
+      observations (drops duplicate quantile boundaries if necessary).
+    - ``custom``: Segments values based on explicit monotonic cutoff thresholds.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name to bin.
+        method: Binning algorithm: 'equal_width', 'equal_frequency', or 'custom'.
+        bins: Number of bins for equal_width or equal_frequency (default: 5).
+        custom_edges: Monotonically increasing list of edge cutoffs for 'custom'.
+        labels: Optional explicit text labels for generated bins.
+        include_lowest: Whether first interval includes the minimum bound.
+        right: Whether intervals include the right or left edge.
+        output_column: Destination column name. If omitted, replaces in-place.
+
+    Returns:
+        Transformed DataFrame.
+
+    Raises:
+        TransformationError: If the column is missing, non-numeric, custom edges/labels
+            are invalid, or output column collides with an existing column.
+    """
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+    column = stripped_to_original[column_stripped]
+
+    valid_methods = {"equal_width", "equal_frequency", "custom"}
+    method_str = str(method).lower().strip()
+    if method_str not in valid_methods:
+        raise TransformationError(f"Unknown binning method: '{method}'. Supported methods: {sorted(valid_methods)}")
+
+    series = df[column]
+    if pd.api.types.is_bool_dtype(series):
+        raise TransformationError(
+            f"Column '{column}' is boolean. Binning requires a numeric column (integer or float)."
+        )
+    if not pd.api.types.is_numeric_dtype(series):
+        non_null_raw = series.dropna()
+        if not non_null_raw.empty:
+            try:
+                pd.to_numeric(non_null_raw, errors="raise")
+            except (ValueError, TypeError) as err:
+                raise TransformationError(
+                    f"Column '{column}' is not numeric. Binning requires an integer or float column."
+                ) from err
+        series_numeric = pd.to_numeric(series, errors="coerce")
+    else:
+        series_numeric = series
+
+    target_col = column
+    if output_column is not None:
+        out_col_clean = output_column.strip()
+        if not out_col_clean:
+            raise TransformationError("output_column must not be empty or whitespace only.")
+        if out_col_clean in stripped_to_original and out_col_clean != column_stripped:
+            raise TransformationError(
+                f"Output column '{out_col_clean}' already exists in DataFrame. Please specify a distinct output_column."
+            )
+        target_col = column if out_col_clean == column_stripped else out_col_clean
+
+    if method_str != "custom" and custom_edges is not None:
+        raise TransformationError("custom_edges can only be specified when method is 'custom'.")
+
+    # Validate custom edges and labels upfront before checking data fullness
+    if method_str == "custom":
+        if not custom_edges or len(custom_edges) < 2:
+            raise TransformationError("custom_edges must contain at least 2 boundary values when method is 'custom'.")
+        for i in range(len(custom_edges) - 1):
+            if custom_edges[i] >= custom_edges[i + 1]:
+                raise TransformationError("custom_edges must be strictly monotonically increasing.")
+        expected_labels = len(custom_edges) - 1
+        if labels is not None and len(labels) != expected_labels:
+            raise TransformationError(
+                f"Number of labels ({len(labels)}) must equal number of intervals ({expected_labels})."
+            )
+    else:
+        if labels is not None and len(labels) != bins:
+            raise TransformationError(f"Number of labels ({len(labels)}) must equal bins ({bins}).")
+
+    result_df = df.copy()
+    non_null = series_numeric.dropna()
+    if non_null.empty:
+        result_df[target_col] = pd.Series(None, index=df.index, dtype=object)
+        return result_df
+
+    if method_str == "custom":
+        try:
+            cat_result = pd.cut(
+                series_numeric,
+                bins=custom_edges,
+                labels=labels,
+                include_lowest=include_lowest,
+                right=right,
+            )
+        except Exception as e:
+            raise TransformationError(f"Custom binning failed: {e}") from e
+
+    elif method_str == "equal_frequency":
+        try:
+            cat_result = pd.qcut(
+                series_numeric,
+                q=bins,
+                labels=labels,
+                duplicates="drop",
+            )
+        except ValueError as e:
+            if labels is not None and "Bin labels must be one fewer" in str(e):
+                raise TransformationError(
+                    f"Cannot bin into {bins} equal frequency intervals with explicit labels "
+                    "due to duplicate quantile boundaries (tied values). "
+                    "Try fewer bins or method='equal_width'."
+                ) from e
+            raise TransformationError(f"Equal frequency binning failed: {e}") from e
+        except Exception as e:
+            raise TransformationError(f"Quantile binning failed: {e}") from e
+
+    else:  # equal_width
+        min_val = non_null.min()
+        max_val = non_null.max()
+        if min_val == max_val:
+            default_label = labels[0] if labels else f"[{min_val}]"
+            binned_constant = series_numeric.map(lambda x: default_label if pd.notna(x) else None)
+            result_df[target_col] = binned_constant
+            return result_df
+
+        try:
+            cat_result = pd.cut(
+                series_numeric,
+                bins=bins,
+                labels=labels,
+                include_lowest=include_lowest,
+                right=right,
+            )
+        except Exception as e:
+            raise TransformationError(f"Equal width binning failed: {e}") from e
+
+    if labels is not None:
+        binned = cat_result.astype(object)
+        binned = binned.where(cat_result.notna(), None)
+    else:
+        binned = cat_result.map(lambda interval: str(interval) if pd.notna(interval) else None)
+
+    result_df[target_col] = binned
+    return result_df
+
+
 def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
     """Replace occurrences of a substring in a column.
 
@@ -1906,6 +2071,23 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             d["scale_numeric_params"].get("target_min", 0.0),
             d["scale_numeric_params"].get("target_max", 1.0),
             d["scale_numeric_params"].get("output_column"),
+        ),
+        reusable=True,
+    ),
+    OperationType.binNumeric: TransformationSpec(
+        func="bin_numeric",
+        label="Discretize numeric column into bins",
+        params_field="bin_numeric_params",
+        missing_error="Bin numeric parameters required",
+        build_args=lambda d: (
+            d["bin_numeric_params"]["column"],
+            d["bin_numeric_params"].get("method", "equal_width"),
+            d["bin_numeric_params"].get("bins", 5),
+            d["bin_numeric_params"].get("custom_edges"),
+            d["bin_numeric_params"].get("labels"),
+            d["bin_numeric_params"].get("include_lowest", True),
+            d["bin_numeric_params"].get("right", True),
+            d["bin_numeric_params"].get("output_column"),
         ),
         reusable=True,
     ),
