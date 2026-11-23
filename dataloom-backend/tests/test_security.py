@@ -99,3 +99,37 @@ class TestPrepareQueryExpression:
     def test_subscript_blocked(self):
         with pytest.raises(HTTPException):
             prepare_query_expression("age[0] > 3", ["age"])
+
+    def test_small_string_repetition_passes(self):
+        assert prepare_query_expression('city == "a" * 3', ["city"]) == 'city == "a" * 3'
+
+    def test_string_repetition_at_cap_passes(self):
+        assert prepare_query_expression('city == "a" * 100000', ["city"]) == 'city == "a" * 100000'
+
+    def test_huge_string_repetition_blocked(self):
+        with pytest.raises(HTTPException) as exc_info:
+            prepare_query_expression('city == "a" * 100001', ["city"])
+        assert "100000" in exc_info.value.detail
+
+    def test_power_folded_repetition_blocked(self):
+        with pytest.raises(HTTPException):
+            prepare_query_expression('city == "a" * 10 ** 9', ["city"])
+
+    def test_subtraction_folded_repetition_blocked(self):
+        # 10 ** 9 - 1 folds to a value just under a billion; it must still
+        # read as huge, not as the 100,000 the sentinel arithmetic would
+        # otherwise produce.
+        with pytest.raises(HTTPException):
+            prepare_query_expression('city == "a" * (10 ** 9 - 1)', ["city"])
+
+    def test_nested_repetition_blocked(self):
+        with pytest.raises(HTTPException):
+            prepare_query_expression('city == ("a" * 1000) * 101', ["city"])
+
+    def test_reversed_repetition_blocked(self):
+        with pytest.raises(HTTPException):
+            prepare_query_expression('city == 100001 * "a"', ["city"])
+
+    def test_concatenated_repetitions_blocked(self):
+        with pytest.raises(HTTPException):
+            prepare_query_expression('city == "a" * 60000 + "b" * 60000', ["city"])

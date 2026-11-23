@@ -1068,6 +1068,16 @@ class TestAdvancedQuery:
         assert len(result) == 1
         assert result.iloc[0]["name"] == "Charlie"
 
+    def test_query_small_string_repetition_evaluates(self, sample_df):
+        result = advanced_query(sample_df, 'name == "a" * 1')
+        assert len(result) == 0
+
+    def test_query_huge_string_repetition_blocked(self, sample_df):
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, 'name == "a" * 100001')
+
 
 class TestPivotTable:
     @pytest.fixture

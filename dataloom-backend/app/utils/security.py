@@ -157,6 +157,132 @@ def _is_bare_column_name(col: str) -> bool:
     return col.isidentifier() and not keyword.iskeyword(col)
 
 
+# Largest single string a formula or advanced query may build by repetition.
+# A short expression can otherwise allocate gigabytes from almost nothing:
+# ``"a" * 10 ** 9`` is 18 characters and builds a 1 GB string per cell
+# (measured 5.8 GB peak RSS on a 3-row frame before the worker was killed).
+# 100,000 characters per produced value is far above any legitimate padding
+# or label use, and caps the damage at ~100 KB per cell.
+_MAX_REPEATED_STRING_CHARS = 100_000
+
+# Sentinel returned by _fold_constant_int when a constant folds past the
+# repetition cap: anything above the cap is equivalent for the bound check,
+# and folding must never build the value it exists to reject.
+_HUGE_CONSTANT = _MAX_REPEATED_STRING_CHARS + 1
+
+
+def _fold_constant_int(node: ast.AST) -> int | None:
+    """Fold a pure constant-integer expression, or None if not constant.
+
+    Covers int literals (bools excluded: ``True`` is not a repeat count),
+    unary ``+``/``-``, and ``+``/``-``/``*``/``**``/``//``/``%`` over folded
+    ints. A fold that would pass the repetition cap returns the
+    ``_HUGE_CONSTANT`` sentinel instead of the real value, so folding can
+    never build the value it exists to reject — and any operation on a
+    sentinel stays a sentinel, so a huge value can never be folded down to
+    a small one (``10 ** 9 - 1`` must still read as huge). A negative power
+    yields a float (or raises for ``0 ** -1``), never an integer repeat
+    count, so it returns None, and a zero divisor does the same.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, int) and not isinstance(node.value, bool):
+        return node.value if abs(node.value) <= _MAX_REPEATED_STRING_CHARS else _HUGE_CONSTANT
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        value = _fold_constant_int(node.operand)
+        if value is None or value == _HUGE_CONSTANT:
+            return value
+        return -value if isinstance(node.op, ast.USub) else value
+    if isinstance(node, ast.BinOp):
+        left = _fold_constant_int(node.left)
+        right = _fold_constant_int(node.right)
+        if left is None or right is None:
+            return None
+        if left == _HUGE_CONSTANT or right == _HUGE_CONSTANT:
+            # ``x ** 0`` is 1 whatever x is; every other op on a huge
+            # operand stays huge.
+            if isinstance(node.op, ast.Pow) and right == 0:
+                return 1
+            return _HUGE_CONSTANT
+        if isinstance(node.op, ast.Add):
+            total = left + right
+        elif isinstance(node.op, ast.Sub):
+            total = left - right
+        elif isinstance(node.op, ast.Mult):
+            total = left * right
+        elif isinstance(node.op, ast.Pow):
+            if right < 0:
+                return None
+            if right > 17 and abs(left) > 1:
+                return _HUGE_CONSTANT
+            total = left**right
+        elif isinstance(node.op, ast.FloorDiv):
+            if right == 0:
+                return None
+            total = left // right
+        elif isinstance(node.op, ast.Mod):
+            if right == 0:
+                return None
+            total = left % right
+        else:
+            return None
+        return total if abs(total) <= _MAX_REPEATED_STRING_CHARS else _HUGE_CONSTANT
+    return None
+
+
+def _string_length_bound(node: ast.AST) -> int | None:
+    """Upper bound on the length of a constant string expression, or None.
+
+    A string literal bounds itself; ``str * int`` multiplies the string bound
+    by the folded repeat count (either order); ``str + str`` adds the bounds,
+    so a concatenation of two giant repetitions is caught too. Anything
+    involving a column or other non-constant value returns None: its length
+    depends on data and cannot be bounded statically. (A repeat count that
+    depends on a column fails at evaluation — pandas cannot multiply a string
+    by a Series — so leaving it unvalidated is safe.)
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return len(node.value)
+    if isinstance(node, ast.BinOp):
+        if isinstance(node.op, ast.Mult):
+            for string_node, count_node in ((node.left, node.right), (node.right, node.left)):
+                string_bound = _string_length_bound(string_node)
+                if string_bound is None:
+                    continue
+                count = _fold_constant_int(count_node)
+                if count is None:
+                    return None
+                if count <= 0:
+                    return 0
+                if string_bound > _MAX_REPEATED_STRING_CHARS or count == _HUGE_CONSTANT:
+                    return _HUGE_CONSTANT
+                return string_bound * count
+            return None
+        if isinstance(node.op, ast.Add):
+            left = _string_length_bound(node.left)
+            right = _string_length_bound(node.right)
+            if left is None or right is None:
+                return None
+            return left + right
+    return None
+
+
+def _validate_string_repetition(tree: ast.AST) -> None:
+    """Reject constant string repetitions that would build a giant value.
+
+    ``"a" * 10 ** 9`` never returns a usable frame: pandas evaluates the
+    repetition eagerly, so a short formula can demand gigabytes per cell and
+    take the worker (and the persisted working copy) with it. Only constant
+    repetitions are checked here; the bound is per produced value, matching
+    the power-bounds check for giant integers.
+    """
+    for node in ast.walk(tree):
+        bound = _string_length_bound(node)
+        if bound is not None and bound > _MAX_REPEATED_STRING_CHARS:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"String repetition would produce a value longer than {_MAX_REPEATED_STRING_CHARS} characters"),
+            )
+
+
 def _normalize_string_literal(literal: str) -> str:
     """Return a string literal in the double-quoted form pandas' parser wants.
 
@@ -287,6 +413,8 @@ def prepare_formula_expression(expression: str, columns: list[str]) -> str:
             raise HTTPException(status_code=400, detail=f"Unknown column or name '{node.id}' in formula")
         if isinstance(node, ast.Constant) and not isinstance(node.value, int | float | str | bool):
             raise HTTPException(status_code=400, detail="Formula literals must be numbers, strings, or booleans")
+
+    _validate_string_repetition(tree)
 
     # Longest placeholder first: "_dataloom_col_1" is a prefix of "_dataloom_col_10".
     executable = sanitized
@@ -505,6 +633,8 @@ def prepare_query_expression(expression: str, columns: list[str]) -> str:
             )
         if isinstance(node, ast.Constant) and not isinstance(node.value, int | float | str | bool | None):
             raise HTTPException(status_code=400, detail="Query literals must be numbers, strings, booleans, or None")
+
+    _validate_string_repetition(tree)
 
     return _swap_placeholders_outside_literals(sanitized, placeholders)
 
