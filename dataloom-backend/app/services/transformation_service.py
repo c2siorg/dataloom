@@ -1200,6 +1200,84 @@ def scale_numeric(
     return result_df
 
 
+def extract_date_part(
+    df: pd.DataFrame,
+    column: str,
+    component: str = "year",
+    output_column: str | None = None,
+) -> pd.DataFrame:
+    """Extract a temporal component (year, month, day, day_of_week, hour, quarter) from a datetime column.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name containing dates or timestamps.
+        component: Temporal component name: 'year', 'month', 'day', 'day_of_week', 'hour', or 'quarter'.
+        output_column: Destination column name. Defaults to '{column}_{component}'.
+            Pass the column name itself to overwrite in-place.
+
+    Returns:
+        Transformed DataFrame.
+
+    Raises:
+        TransformationError: If the column is missing, component is invalid, values cannot be
+            parsed as dates, or output column collides with an existing column.
+    """
+    column_stripped = column.strip()
+    stripped_to_original = {col.strip(): col for col in df.columns}
+    if column_stripped not in stripped_to_original:
+        available = list(df.columns)
+        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+    column = stripped_to_original[column_stripped]
+
+    valid_components = {"year", "month", "day", "day_of_week", "hour", "quarter"}
+    comp_str = str(component).lower().strip()
+    if comp_str not in valid_components:
+        raise TransformationError(
+            f"Unknown date component: '{component}'. Supported components: {sorted(valid_components)}"
+        )
+
+    target_col = f"{column}_{comp_str}"
+    if output_column is not None:
+        out_col_clean = output_column.strip()
+        if not out_col_clean:
+            raise TransformationError("output_column must not be empty or whitespace only.")
+        if out_col_clean in stripped_to_original and out_col_clean != column_stripped:
+            raise TransformationError(
+                f"Output column '{out_col_clean}' already exists in DataFrame. Please specify a distinct output_column."
+            )
+        target_col = column if out_col_clean == column_stripped else out_col_clean
+
+    series = df[column]
+    if pd.api.types.is_bool_dtype(series) or pd.api.types.is_numeric_dtype(series):
+        raise TransformationError(
+            f"Column '{column}' is numeric or boolean. "
+            "Date component extraction requires a date, timestamp, or string column."
+        )
+
+    try:
+        parsed_dates = pd.to_datetime(series, errors="coerce", utc=True)
+    except Exception as err:
+        raise TransformationError(f"Column '{column}' could not be parsed as datetime: {err}") from err
+
+    non_null_original = series.dropna()
+    if not non_null_original.empty and parsed_dates.dropna().empty:
+        raise TransformationError(f"Column '{column}' could not be parsed as datetime.")
+
+    _getters = {
+        "year": lambda dt: dt.year,
+        "month": lambda dt: dt.month,
+        "day": lambda dt: dt.day,
+        "day_of_week": lambda dt: dt.dayofweek,
+        "hour": lambda dt: dt.hour,
+        "quarter": lambda dt: dt.quarter,
+    }
+
+    extracted = _getters[comp_str](parsed_dates.dt)
+    result_df = df.copy()
+    result_df[target_col] = extracted.astype("Int64")
+    return result_df
+
+
 def string_replace(df: pd.DataFrame, column: str, find_value: str, replace_value: str) -> pd.DataFrame:
     """Replace occurrences of a substring in a column.
 
@@ -1906,6 +1984,18 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             d["scale_numeric_params"].get("target_min", 0.0),
             d["scale_numeric_params"].get("target_max", 1.0),
             d["scale_numeric_params"].get("output_column"),
+        ),
+        reusable=True,
+    ),
+    OperationType.extractDatePart: TransformationSpec(
+        func="extract_date_part",
+        label="Extract datetime component",
+        params_field="extract_date_part_params",
+        missing_error="Extract date part parameters required",
+        build_args=lambda d: (
+            d["extract_date_part_params"]["column"],
+            d["extract_date_part_params"].get("component", "year"),
+            d["extract_date_part_params"].get("output_column"),
         ),
         reusable=True,
     ),

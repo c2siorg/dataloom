@@ -51,6 +51,7 @@ class OperationType(StrEnum):
     mergeDataset = "mergeDataset"
     handleOutliers = "handleOutliers"
     scaleNumeric = "scaleNumeric"
+    extractDatePart = "extractDatePart"
 
 
 class DropDup(StrEnum):
@@ -290,6 +291,25 @@ class ScaleNumericParams(BaseModel):
         return self
 
 
+class DateComponent(StrEnum):
+    """Supported datetime component fields."""
+
+    year = "year"
+    month = "month"
+    day = "day"
+    day_of_week = "day_of_week"
+    hour = "hour"
+    quarter = "quarter"
+
+
+class ExtractDatePartParams(BaseModel):
+    """Parameters for extracting individual date or time components."""
+
+    column: str
+    component: DateComponent = DateComponent.year
+    output_column: str | None = None
+
+
 class TrimWhitespaceParams(BaseModel):
     """Parameters for trimming whitespace from columns."""
 
@@ -449,6 +469,7 @@ class TransformationInput(BaseModel):
     standardize_dates_params: StandardizeDatesParams | None = None
     outlier_params: OutlierParams | None = None
     scale_numeric_params: ScaleNumericParams | None = None
+    extract_date_part_params: ExtractDatePartParams | None = None
 
 
 class BasicQueryResponse(BaseModel):
