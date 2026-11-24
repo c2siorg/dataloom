@@ -28,6 +28,8 @@ export const ROUTES = {
   settingsAccount: "/settings/account",
   /** User preference settings path */
   settingsPreferences: "/settings/preferences",
+  /** Saved pipelines settings path */
+  settingsPipelines: "/settings/pipelines",
   /**
    * Generate settings path for a specific project.
    * @param id - The project UUID.
