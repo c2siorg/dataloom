@@ -1262,6 +1262,9 @@ class MergeAnalysisResponse(BaseModel):
     sample_unmatched_right_keys: list[JsonValue]
 
 
+MAX_MERGE_ROWS_LIMIT = 1_000_000
+
+
 class MergeExecuteRequest(BaseModel):
     """Request payload to execute a relational dataset merge."""
 
@@ -1270,4 +1273,9 @@ class MergeExecuteRequest(BaseModel):
     right_on: list[str] | str | None = None
     how: JoinType = JoinType.inner
     suffixes: tuple[str, str] = ("_left", "_right")
-    max_rows_limit: int | None = Field(default=1_000_000, description="Cartesian safety ceiling")
+    max_rows_limit: int = Field(
+        default=MAX_MERGE_ROWS_LIMIT,
+        ge=1,
+        le=MAX_MERGE_ROWS_LIMIT,
+        description="Cartesian safety ceiling",
+    )

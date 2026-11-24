@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from app.schemas import JoinType
+from app.schemas import MAX_MERGE_ROWS_LIMIT, JoinType
 from app.services.transformation_service import TransformationError
 from app.utils.pandas_helpers import map_dtype
 
@@ -355,7 +355,7 @@ def merge_dataframes(
     right_on: list[str] | str | None = None,
     how: str | JoinType = JoinType.INNER,
     suffixes: tuple[str, str] = ("_left", "_right"),
-    max_rows_limit: int | None = 1_000_000,
+    max_rows_limit: int = MAX_MERGE_ROWS_LIMIT,
 ) -> pd.DataFrame:
     """Execute a relational join between two DataFrames with type safety and Cartesian limits.
 
@@ -374,6 +374,13 @@ def merge_dataframes(
     Raises:
         MergeError: On missing keys, type incompatibility, or Cartesian explosion exceeding safety limits.
     """
+    if (
+        isinstance(max_rows_limit, bool)
+        or not isinstance(max_rows_limit, int)
+        or not 1 <= max_rows_limit <= MAX_MERGE_ROWS_LIMIT
+    ):
+        raise MergeError(f"max_rows_limit must be an integer between 1 and {MAX_MERGE_ROWS_LIMIT}.")
+
     how_str = how.value if hasattr(how, "value") else str(how).lower()
     valid_joins = {j.value for j in JoinType}
     if how_str not in valid_joins:
@@ -381,23 +388,22 @@ def merge_dataframes(
 
     left_keys, right_keys = validate_merge_keys(left_df, right_df, left_on, right_on, how_str)
 
-    # Pre-merge row limit check to prevent out-of-memory crashes on Cartesian explosions
-    if max_rows_limit is not None and max_rows_limit > 0:
-        if how_str in (JoinType.cross, JoinType.CROSS, "cross"):
-            est_rows = len(left_df) * len(right_df)
-            if est_rows > max_rows_limit:
-                raise MergeError(
-                    f"Cross join would produce {est_rows:,} rows, exceeding the safety limit of {max_rows_limit:,}."
-                )
-        else:
-            analysis = analyze_merge(left_df, right_df, left_on=left_keys, right_on=right_keys, how=how_str)
-            est_rows = analysis.get("estimated_output_rows", 0)
-            if est_rows > max_rows_limit:
-                raise MergeError(
-                    f"Merge is estimated to produce {est_rows:,} rows, "
-                    f"exceeding the safety ceiling of {max_rows_limit:,} rows. "
-                    "Check for duplicate keys causing a Cartesian explosion."
-                )
+    # Pre-merge row limit check to prevent out-of-memory crashes on Cartesian explosions.
+    if how_str in (JoinType.cross, JoinType.CROSS, "cross"):
+        est_rows = len(left_df) * len(right_df)
+        if est_rows > max_rows_limit:
+            raise MergeError(
+                f"Cross join would produce {est_rows:,} rows, exceeding the safety limit of {max_rows_limit:,}."
+            )
+    else:
+        analysis = analyze_merge(left_df, right_df, left_on=left_keys, right_on=right_keys, how=how_str)
+        est_rows = analysis.get("estimated_output_rows", 0)
+        if est_rows > max_rows_limit:
+            raise MergeError(
+                f"Merge is estimated to produce {est_rows:,} rows, "
+                f"exceeding the safety ceiling of {max_rows_limit:,} rows. "
+                "Check for duplicate keys causing a Cartesian explosion."
+            )
 
     if how_str in (JoinType.cross, JoinType.CROSS, "cross"):
         try:
@@ -438,7 +444,7 @@ def merge_dataframes(
                         cols.insert(orig_idx, k)
                         result = result[cols]
 
-    if max_rows_limit is not None and len(result) > max_rows_limit:
+    if len(result) > max_rows_limit:
         raise MergeError(
             f"Merge produced {len(result):,} rows, exceeding the safety ceiling of {max_rows_limit:,} rows. "
             "Check for duplicate keys causing a Cartesian explosion."
