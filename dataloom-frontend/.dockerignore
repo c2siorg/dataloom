@@ -1,2 +1,31 @@
 node_modules
 dist
+.git
+**/.git/
+.DS_Store
+
+# Environment files and secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local database files and dumps
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite-*
+**/*.sqlite3
+**/*.sqlite3-*
+**/*.sql
+**/*.dump
+**/pgdata/
+
+# Generated test and build artifacts
+coverage/
+**/coverage/
+test-results/
+**/test-results/
+playwright-report/
+**/playwright-report/
