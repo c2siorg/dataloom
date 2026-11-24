@@ -8,7 +8,6 @@ endpoint layer. This mirrors DataLoom's ``transformation_service`` and
 
 from __future__ import annotations
 
-import uuid
 from enum import StrEnum
 from typing import Any
 
@@ -84,10 +83,10 @@ def validate_merge_keys(
     return left_keys, right_keys
 
 
-def _build_shadow_keys(df: pd.DataFrame, keys: list[str], prefix: str) -> pd.Series:
+def _build_shadow_keys(df: pd.DataFrame, keys: list[str]) -> pd.Series:
     """Build comparable shadow keys for matching where NaNs never equal NaNs and types align cleanly.
 
-    - Generates unique non-matching tokens for every NaN value so missing keys never compare equal or join.
+    - Generates unique non-matching object tokens for every NaN value so missing keys never join.
     - Preserves string keys with leading zeros (e.g. '007') as exact text without converting to numbers.
     - Handles single and composite multi-column keys identically with tuple aggregation.
     """
@@ -95,7 +94,7 @@ def _build_shadow_keys(df: pd.DataFrame, keys: list[str], prefix: str) -> pd.Ser
     def _format_component(series: pd.Series) -> pd.Series:
         def _fmt(val):
             if pd.isna(val):
-                return f"__loom_null_{prefix}_{uuid.uuid4().hex}__"
+                return object()
             if isinstance(val, (int, np.integer)):
                 return str(val)
             if isinstance(val, (float, np.floating)):
@@ -232,16 +231,11 @@ def analyze_merge(
         }
 
     # Extract key series and compute match rates using shadow keys
-    l_series = _build_shadow_keys(left_df, left_keys, "L")
-    r_series = _build_shadow_keys(right_df, right_keys, "R")
+    l_series = _build_shadow_keys(left_df, left_keys)
+    r_series = _build_shadow_keys(right_df, right_keys)
 
-    def _is_valid_key(val):
-        if isinstance(val, tuple):
-            return not any(isinstance(x, str) and x.startswith("__loom_null_") for x in val)
-        return not (isinstance(val, str) and val.startswith("__loom_null_"))
-
-    left_valid_mask = l_series.map(_is_valid_key)
-    right_valid_mask = r_series.map(_is_valid_key)
+    left_valid_mask = left_df[left_keys].notna().all(axis=1)
+    right_valid_mask = right_df[right_keys].notna().all(axis=1)
 
     left_unique_keys = set(l_series[left_valid_mask].unique())
     right_unique_keys = set(r_series[right_valid_mask].unique())
@@ -413,8 +407,8 @@ def merge_dataframes(
     else:
         left_m = left_df.copy()
         right_m = right_df.copy()
-        left_m["__loom_shadow_L"] = _build_shadow_keys(left_df, left_keys, "L")
-        right_m["__loom_shadow_R"] = _build_shadow_keys(right_df, right_keys, "R")
+        left_m["__loom_shadow_L"] = _build_shadow_keys(left_df, left_keys)
+        right_m["__loom_shadow_R"] = _build_shadow_keys(right_df, right_keys)
 
         try:
             result = pd.merge(
