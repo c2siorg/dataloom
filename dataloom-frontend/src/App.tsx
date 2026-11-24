@@ -17,6 +17,7 @@ import SettingsPage from "./pages/settings/SettingsPage";
 import SettingsAccountPage from "./pages/settings/SettingsAccountPage";
 import SettingsPreferencesPage from "./pages/settings/SettingsPreferencesPage";
 import SettingsProjectPage from "./pages/settings/SettingsProjectPage";
+import SettingsPipelinesPage from "./pages/settings/SettingsPipelinesPage";
 import { ROUTES } from "./constants/routes";
 import { ThemeProvider } from "./context/ThemeContext";
 
@@ -61,6 +62,7 @@ export default function App() {
                         <Route index element={<Navigate to={ROUTES.settingsAccount} replace />} />
                         <Route path="account" element={<SettingsAccountPage />} />
                         <Route path="preferences" element={<SettingsPreferencesPage />} />
+                        <Route path="pipelines" element={<SettingsPipelinesPage />} />
                         <Route path="projects/:projectId" element={<SettingsProjectPage />} />
                       </Route>
 

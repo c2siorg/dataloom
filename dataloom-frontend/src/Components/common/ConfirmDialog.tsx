@@ -10,6 +10,10 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   /** Callback on cancellation. */
   onCancel: () => void;
+  /** Disable confirmation while the requested action is pending. */
+  confirmDisabled?: boolean;
+  /** Optional label shown on the confirmation button. */
+  confirmLabel?: string;
 }
 
 /**
@@ -20,6 +24,8 @@ export default function ConfirmDialog({
   message,
   onConfirm,
   onCancel,
+  confirmDisabled = false,
+  confirmLabel = "Confirm",
 }: ConfirmDialogProps) {
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title="Confirm">
@@ -28,8 +34,8 @@ export default function ConfirmDialog({
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-        <Button variant="danger" onClick={onConfirm}>
-          Confirm
+        <Button variant="danger" onClick={onConfirm} disabled={confirmDisabled}>
+          {confirmLabel}
         </Button>
       </div>
     </Modal>

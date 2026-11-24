@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  Workflow,
 } from "lucide-react";
 import { getProjects, searchProjects } from "../../api/projects";
 import { ROUTES } from "../../constants/routes";
@@ -26,6 +27,7 @@ const PAGE_SIZE = 50;
 const NAV_ITEMS: NavItem[] = [
   { to: ROUTES.settingsAccount, label: "Account", icon: UserRound },
   { to: ROUTES.settingsPreferences, label: "Preferences", icon: SlidersHorizontal },
+  { to: ROUTES.settingsPipelines, label: "Saved Pipelines", icon: Workflow },
 ];
 
 export default function SettingsPage() {
