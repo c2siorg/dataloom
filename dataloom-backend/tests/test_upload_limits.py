@@ -15,10 +15,16 @@ LIMIT_DETAIL = "File exceeds the maximum upload size of 0.5MB."
 BOUNDARY = "dataloom-test-boundary"
 MULTIPART_HEADERS = {"Content-Type": f"multipart/form-data; boundary={BOUNDARY}"}
 
+MERGE_UPLOAD_PATHS = [
+    f"/projects/{uuid.uuid4()}/merge/analyze-file",
+    f"/projects/{uuid.uuid4()}/merge/file",
+]
+
 UPLOAD_PATHS = [
     "/projects/upload",
     f"/projects/{uuid.uuid4()}/files",
     f"/projects/{uuid.uuid4()}/files/preview",
+    *MERGE_UPLOAD_PATHS,
 ]
 
 
@@ -198,6 +204,18 @@ class TestThroughApp:
             "/projects/upload", content=_streamed(body) if streamed else body, headers=MULTIPART_HEADERS
         )
 
+        assert response.status_code == 413
+        assert response.json() == {"detail": LIMIT_DETAIL}
+
+    @pytest.mark.parametrize("path", MERGE_UPLOAD_PATHS)
+    @pytest.mark.parametrize("streamed", [False, True], ids=["content-length", "streamed"])
+    def test_anonymous_over_budget_merge_upload_gets_413_before_multipart_parsing(self, anon_client, path, streamed):
+        body = _multipart(BUDGET)
+
+        response = anon_client.post(path, content=_streamed(body) if streamed else body, headers=MULTIPART_HEADERS)
+
+        if streamed:
+            assert "content-length" not in {k.lower() for k in response.request.headers}
         assert response.status_code == 413
         assert response.json() == {"detail": LIMIT_DETAIL}
 

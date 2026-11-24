@@ -21,8 +21,9 @@ from app.utils.security import format_size_limit
 # non-file field at 1 MiB.
 UPLOAD_BODY_OVERHEAD_BYTES = 2 * 1024 * 1024
 
-# POST /projects/upload, /projects/{id}/files and /projects/{id}/files/preview.
-_UPLOAD_PATH = re.compile(r"^/projects/(?:upload|[^/]+/files(?:/preview)?)$")
+# POST /projects/upload, /projects/{id}/files, /projects/{id}/files/preview,
+# /projects/{id}/merge/analyze-file and /projects/{id}/merge/file.
+_UPLOAD_PATH = re.compile(r"^/projects/(?:upload|[^/]+/files(?:/preview)?|[^/]+/merge/(?:analyze-file|file))$")
 
 
 class UploadTooLarge(HTTPException):
