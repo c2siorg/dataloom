@@ -1,4 +1,47 @@
 __pycache__
+**/__pycache__/
 *.pyc
+**/*.pyc
 .venv
+**/.venv/
 .pytest_cache
+**/.pytest_cache/
+.ruff_cache
+**/.ruff_cache/
+.git
+**/.git/
+.DS_Store
+
+# Environment files and secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+
+# User uploads
+uploads/
+**/uploads/
+
+# Local database files and dumps
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite-*
+**/*.sqlite3
+**/*.sqlite3-*
+**/*.sql
+**/*.dump
+**/pgdata/
+
+# Tests and generated artifacts
+tests/
+**/tests/
+.coverage*
+**/.coverage*
+htmlcov/
+**/htmlcov/
+.tox/
+**/.tox/
+.mypy_cache/
+**/.mypy_cache/
