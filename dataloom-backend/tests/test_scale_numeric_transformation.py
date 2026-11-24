@@ -265,6 +265,23 @@ class TestValidationAndGuardrails:
         with pytest.raises(TransformationError, match="boolean"):
             scale_numeric(df, column="is_active")
 
+    @pytest.mark.parametrize("method", ["minmax", "standard", "robust", "maxabs"])
+    @pytest.mark.parametrize("bad_value", [float("inf"), float("-inf")])
+    def test_non_finite_values_rejected(self, method, bad_value):
+        """A column holding inf/-inf is rejected: every method's statistics go
+        inf or NaN, so finite rows would collapse onto one value and the inf
+        rows would come back NaN — silently wrong data instead of an error."""
+        df = pd.DataFrame({"val": [10.0, 20.0, bad_value]})
+        with pytest.raises(TransformationError, match="non-finite"):
+            scale_numeric(df, column="val", method=method)
+
+    def test_non_finite_in_other_column_ignored(self):
+        """inf in an unrelated column does not block scaling the requested column."""
+        df = pd.DataFrame({"val": [10.0, 20.0, 30.0], "other": [1.0, float("inf"), 3.0]})
+        result = scale_numeric(df, column="val", method="minmax")
+        assert np.allclose(result["val"], [0.0, 0.5, 1.0])
+        assert result["other"].iloc[1] == float("inf")
+
     def test_invalid_scaling_method_raises_error(self, sample_numeric_df):
         """Unsupported scaling algorithm name raises TransformationError with supported methods."""
         with pytest.raises(TransformationError, match="Unknown scaling method"):
@@ -406,3 +423,24 @@ class TestPipelineAndHttpLifecycle:
         redone = client.get(f"/projects/get/{proj_id}").json()
         redone_prices = [row[redone["columns"].index("price")] for row in redone["rows"]]
         assert np.allclose(redone_prices, [0.0, 0.25, 0.5, 0.75, 1.0])
+
+    def test_http_non_finite_column_rejected(self, client, monkeypatch):
+        """HTTP: scaling a column holding inf returns 400 instead of silently
+        collapsing the finite rows to 0.0 and the inf row to null."""
+        monkeypatch.setattr("os.fsync", lambda fd: None)
+        csv_data = "id,price\n1,10.0\n2,20.0\n3,inf\n"
+        upload_res = client.post(
+            "/projects/upload",
+            files={"file": ("inf_test.csv", csv_data.encode("utf-8"), "text/csv")},
+            data={"projectName": "Non-finite Scale Test", "projectDescription": "Test fixture"},
+        )
+        assert upload_res.status_code == 200
+        proj_id = upload_res.json()["project_id"]
+
+        payload = {
+            "operation_type": "scaleNumeric",
+            "scale_numeric_params": {"column": "price", "method": "minmax", "target_min": 0.0, "target_max": 1.0},
+        }
+        res = client.post(f"/projects/{proj_id}/transform", params={"preview": "true"}, json=payload)
+        assert res.status_code == 400
+        assert "non-finite" in res.text
