@@ -7,10 +7,13 @@ column conflict handling, type coercion, and Cartesian safety guardrails.
 
 from __future__ import annotations
 
+from inspect import signature
+
 import numpy as np
 import pandas as pd
 import pytest
 
+from app.schemas import MAX_MERGE_ROWS_LIMIT
 from app.services.merge_service import (
     MergeError,
     RelationshipType,
@@ -295,10 +298,40 @@ class TestSafetyGuardrails:
         with pytest.raises(MergeError, match="exceeding the safety ceiling of 1,000 rows"):
             merge_dataframes(df1, df2, left_on="key", right_on="key", how="inner", max_rows_limit=1_000)
 
-    def test_pre_merge_row_limit_aborts_non_cross_cartesian_explosion(self):
+    @pytest.mark.parametrize("max_rows_limit", [1, MAX_MERGE_ROWS_LIMIT, None], ids=["minimum", "ceiling", "default"])
+    def test_valid_row_limit_boundaries_are_accepted(self, max_rows_limit):
+        df1 = pd.DataFrame({"key": [1]})
+        df2 = pd.DataFrame({"key": [1]})
+        kwargs = {} if max_rows_limit is None else {"max_rows_limit": max_rows_limit}
+
+        if max_rows_limit is None:
+            assert signature(merge_dataframes).parameters["max_rows_limit"].default == MAX_MERGE_ROWS_LIMIT
+
+        result = merge_dataframes(df1, df2, left_on="key", right_on="key", **kwargs)
+
+        assert len(result) == 1
+
+    @pytest.mark.parametrize("max_rows_limit", [None, 0, -1, MAX_MERGE_ROWS_LIMIT + 1])
+    def test_invalid_row_limits_are_rejected_before_merge(self, max_rows_limit, monkeypatch):
+        df1 = pd.DataFrame({"key": [1]})
+        df2 = pd.DataFrame({"key": [1]})
+
+        def unexpected_merge(*args, **kwargs):
+            pytest.fail("pandas.merge must not run for an invalid row limit")
+
+        monkeypatch.setattr("app.services.merge_service.pd.merge", unexpected_merge)
+        with pytest.raises(MergeError, match="max_rows_limit must be an integer"):
+            merge_dataframes(df1, df2, left_on="key", right_on="key", max_rows_limit=max_rows_limit)
+
+    def test_pre_merge_row_limit_aborts_non_cross_cartesian_explosion(self, monkeypatch):
         """Pre-merge analysis aborts before pd.merge materialization when row ceiling is exceeded."""
         df1 = pd.DataFrame({"key": [1] * 500, "val1": range(500)})
         df2 = pd.DataFrame({"key": [1] * 500, "val2": range(500)})
+
+        def unexpected_merge(*args, **kwargs):
+            pytest.fail("pandas.merge must not run when the estimated output exceeds the limit")
+
+        monkeypatch.setattr("app.services.merge_service.pd.merge", unexpected_merge)
         # 500 * 500 = 250,000 rows
         with pytest.raises(MergeError, match="exceeding the safety ceiling of 10,000 rows"):
             merge_dataframes(df1, df2, left_on="key", right_on="key", how="inner", max_rows_limit=10_000)

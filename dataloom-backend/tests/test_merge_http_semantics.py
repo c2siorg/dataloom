@@ -12,6 +12,7 @@ import uuid
 import pytest
 
 from app import models
+from app.schemas import MAX_MERGE_ROWS_LIMIT, MergeExecuteRequest
 from app.services.auth_service import create_access_token
 
 
@@ -156,6 +157,16 @@ class TestMergeAnalyzeEndpoints:
 class TestMergeExecuteEndpoints:
     """Tests for executing joins in preview and commit modes."""
 
+    def test_merge_request_accepts_row_limit_boundaries_and_defaults(self):
+        base_payload = {"target_project_id": str(uuid.uuid4())}
+
+        assert MergeExecuteRequest.model_validate({**base_payload, "max_rows_limit": 1}).max_rows_limit == 1
+        assert (
+            MergeExecuteRequest.model_validate({**base_payload, "max_rows_limit": MAX_MERGE_ROWS_LIMIT}).max_rows_limit
+            == MAX_MERGE_ROWS_LIMIT
+        )
+        assert MergeExecuteRequest.model_validate(base_payload).max_rows_limit == MAX_MERGE_ROWS_LIMIT
+
     def test_merge_project_preview_does_not_mutate_dataset_or_create_logs(
         self, client, left_customers_project, right_orders_project
     ):
@@ -268,6 +279,27 @@ class TestMergeExecuteEndpoints:
         )
         assert response.status_code == 400
         assert "exceeding the safety limit" in response.json()["detail"]
+
+    @pytest.mark.parametrize("preview", [True, False], ids=["preview", "commit"])
+    @pytest.mark.parametrize("max_rows_limit", [None, 0, -1, MAX_MERGE_ROWS_LIMIT + 1])
+    def test_merge_project_rejects_invalid_row_limits(
+        self, client, left_customers_project, right_orders_project, preview, max_rows_limit
+    ):
+        payload = {
+            "target_project_id": right_orders_project,
+            "left_on": ["cust_id"],
+            "right_on": ["cust_id"],
+            "how": "inner",
+            "max_rows_limit": max_rows_limit,
+        }
+
+        response = client.post(
+            f"/projects/{left_customers_project}/merge",
+            params={"preview": str(preview).lower()},
+            json=payload,
+        )
+
+        assert response.status_code == 422
 
     def test_merge_file_preview_and_commit(self, client, left_customers_project):
         """Merging directly from an uploaded file supports preview and persistent commit."""
