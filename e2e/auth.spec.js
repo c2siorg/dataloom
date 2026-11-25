@@ -233,7 +233,7 @@ test.describe("SignIn page", () => {
     await expect(page.getByText("Invalid email or password.")).toBeVisible();
   });
 
-  test("shows generic toast when API returns a non-string detail (FastAPI 422)", async ({
+  test("shows validation error toast when API returns a FastAPI 422 array detail", async ({
     page,
   }) => {
     await mockValidation422(page);
@@ -242,9 +242,7 @@ test.describe("SignIn page", () => {
 
     await stableClick(page.getByRole("button", { name: "Continue" }));
 
-    await expect(
-      page.getByText("Could not sign in. Please try again."),
-    ).toBeVisible();
+    await expect(page.getByText("field required")).toBeVisible();
   });
 
   // Loading state
@@ -452,7 +450,7 @@ test.describe("SignUp page", () => {
     ).toBeVisible();
   });
 
-  test("shows generic toast when API returns a non-string detail (FastAPI 422)", async ({
+  test("shows validation error toast when API returns a FastAPI 422 array detail", async ({
     page,
   }) => {
     await mockValidation422(page);
@@ -461,9 +459,7 @@ test.describe("SignUp page", () => {
 
     await stableClick(page.getByRole("button", { name: "Continue" }));
 
-    await expect(
-      page.getByText("Could not create your account. Please try again."),
-    ).toBeVisible();
+    await expect(page.getByText("field required")).toBeVisible();
   });
 
   // Loading state

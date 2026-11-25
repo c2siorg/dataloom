@@ -7,6 +7,7 @@ import DataLoomLogo from "../Components/common/DataLoomLogo";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { ROUTES } from "../constants/routes";
+import { getErrorMessage } from "../utils/errorUtils";
 
 const INPUT_CLASS =
   "block w-full rounded-lg border border-app-border bg-surface px-3.5 py-2.5 text-sm text-foreground " +
@@ -40,20 +41,12 @@ export default function SignUpPage() {
       showToast("Password is too long (max 72 characters).", "error");
       return;
     }
-
     setSubmitting(true);
     try {
       await signup(email, password);
       navigate(next || ROUTES.home, { replace: true });
     } catch (err: unknown) {
-      // `detail` is a string for most errors, but an array of objects for
-      // FastAPI 422 validation failures — only a string is safe to render.
-      const detail = (err as { response?: { data?: { detail?: unknown } } } | null)?.response?.data
-        ?.detail;
-      showToast(
-        typeof detail === "string" ? detail : "Could not create your account. Please try again.",
-        "error",
-      );
+      showToast(getErrorMessage(err, "Could not create your account. Please try again."), "error");
     } finally {
       setSubmitting(false);
     }
