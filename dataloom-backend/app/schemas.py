@@ -639,6 +639,26 @@ class CorrelationResponse(BaseModel):
     matrix: list[list[float | None]]
 
 
+class OperationSuggestion(BaseModel):
+    """A rule-based exploration suggestion derived from a column profile.
+
+    Mirrors ``QualityRemediation`` (``column``, ``suggestion``, ``operation``)
+    and adds ``signal`` naming the profile condition that triggered it, so the
+    frontend can wire both through the same transform flow.
+    """
+
+    column: str | None
+    suggestion: str
+    operation: str | None
+    signal: str
+
+
+class OperationSuggestionsResponse(BaseModel):
+    """Rule-based operation suggestions derived from the dataset's column profiles."""
+
+    suggestions: list[OperationSuggestion]
+
+
 # --- Quality assessment schemas ---
 
 

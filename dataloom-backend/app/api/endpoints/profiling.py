@@ -1,8 +1,9 @@
 """Data profiling API endpoints.
 
-Three read-only routes over a project's current working copy: a dataset
-summary, a per-column profile, and a numeric correlation matrix. All are
-descriptive — quality assessment is out of scope here.
+Read-only routes over a project's current working copy: a dataset summary,
+per-column profiles, a numeric correlation matrix, and rule-based operation
+suggestions derived from the column profiles. Quality assessment is out of
+scope here.
 """
 
 import uuid
@@ -11,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app import models, schemas
 from app.api.dependencies import get_project_or_404, load_project_df
-from app.services import profiling_service
+from app.services import profiling_service, recommendation_service
 
 router = APIRouter()
 
@@ -69,3 +70,14 @@ def get_correlation_matrix(
     """Return the pairwise Pearson correlation over numeric columns."""
     df = load_project_df(project)
     return profiling_service.correlation_matrix(df)
+
+
+@router.get("/{project_id}/profile/suggestions", response_model=schemas.OperationSuggestionsResponse)
+def get_profile_suggestions(
+    project_id: uuid.UUID,
+    project: models.Project = Depends(get_project_or_404),
+):
+    """Return rule-based operation suggestions derived from the column profiles."""
+    df = load_project_df(project)
+    profiles = profiling_service.all_column_profiles(df)["profiles"]
+    return {"suggestions": recommendation_service.suggest_operations(profiles)}
