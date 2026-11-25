@@ -875,3 +875,58 @@ def test_transform_pivot_with_colliding_column_values_returns_400(client, tmp_pa
     )
     assert response.status_code == 400, response.text
     assert "duplicate column names" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("strategy", ["mean", "median"])
+def test_transform_fill_empty_stat_on_parquet_nullable_int64_returns_200(client, tmp_path, strategy):
+    """Parquet uploads preserve nullable Int64; fractional mean/median fills must succeed, not 500."""
+    import pandas as pd
+
+    parquet_path = tmp_path / "nullable_ints.parquet"
+    pd.DataFrame({"val": pd.Series([1, 2, pd.NA], dtype="Int64")}).to_parquet(parquet_path, index=False)
+    with open(parquet_path, "rb") as f:
+        upload = client.post(
+            "/projects/upload",
+            files={"file": ("nullable_ints.parquet", f, "application/octet-stream")},
+            data={"projectName": f"Parquet {strategy}", "projectDescription": "fixture"},
+        )
+    assert upload.status_code == 200, upload.text
+    pid = upload.json()["project_id"]
+
+    response = client.post(
+        f"/projects/{pid}/transform",
+        json={
+            "operation_type": "fillEmpty",
+            "fill_empty_params": {"index": 0, "strategy": strategy},
+        },
+    )
+    assert response.status_code == 200, response.text
+    rows = response.json()["rows"]
+    assert [row[0] for row in rows] == [1.0, 2.0, 1.5]
+
+
+def test_transform_handle_outliers_clip_on_parquet_nullable_int64_returns_200(client, tmp_path):
+    """Parquet uploads preserve nullable Int64; clipping to fractional IQR fences must succeed, not 500."""
+    import pandas as pd
+
+    parquet_path = tmp_path / "nullable_outliers.parquet"
+    pd.DataFrame({"val": pd.Series([1, 2, 3, 5, 100, pd.NA], dtype="Int64")}).to_parquet(parquet_path, index=False)
+    with open(parquet_path, "rb") as f:
+        upload = client.post(
+            "/projects/upload",
+            files={"file": ("nullable_outliers.parquet", f, "application/octet-stream")},
+            data={"projectName": "Parquet Outliers", "projectDescription": "fixture"},
+        )
+    assert upload.status_code == 200, upload.text
+    pid = upload.json()["project_id"]
+
+    response = client.post(
+        f"/projects/{pid}/transform",
+        json={
+            "operation_type": "handleOutliers",
+            "outlier_params": {"column": "val", "method": "iqr", "action": "clip"},
+        },
+    )
+    assert response.status_code == 200, response.text
+    rows = response.json()["rows"]
+    assert [row[0] for row in rows] == [1.0, 2.0, 3.0, 5.0, 9.5, None]

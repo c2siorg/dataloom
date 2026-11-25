@@ -880,8 +880,42 @@ class TestFillEmpty:
         result = fill_empty(df, column_index=0, strategy="median")
         assert result["score"].iloc[1] == 15.33
 
-        # datetime column
+    @pytest.mark.parametrize("strategy", ["mean", "median"])
+    def test_fill_empty_stat_fractional_on_nullable_int64_promotes_to_float(self, strategy):
+        df = pd.DataFrame({"val": pd.Series([1, 2, pd.NA], dtype="Int64")})
+        result = fill_empty(df, column_index=0, strategy=strategy)
+        assert result["val"].tolist() == [1.0, 2.0, 1.5]
+        assert pd.api.types.is_float_dtype(result["val"])
 
+    @pytest.mark.parametrize("strategy", ["mean", "median"])
+    def test_fill_empty_stat_integral_on_nullable_int64_preserves_dtype(self, strategy):
+        df = pd.DataFrame({"val": pd.Series([1, 3, pd.NA], dtype="Int64")})
+        result = fill_empty(df, column_index=0, strategy=strategy)
+        assert result["val"].tolist() == [1, 3, 2]
+        assert str(result["val"].dtype) == "Int64"
+
+    @pytest.mark.parametrize("strategy", ["mean", "median"])
+    def test_fill_empty_stat_no_nulls_on_nullable_int64_preserves_dtype(self, strategy):
+        df = pd.DataFrame({"val": pd.Series([1, 2], dtype="Int64")})
+        result = fill_empty(df, column_index=0, strategy=strategy)
+        assert result["val"].tolist() == [1, 2]
+        assert str(result["val"].dtype) == "Int64"
+
+    def test_replay_cast_to_integer_then_fill_empty_mean(self):
+        df = pd.DataFrame({"val": ["1", "2", None]})
+        df = apply_logged_transformation(
+            df, "castDataType", {"cast_data_type_params": {"column": "val", "target_type": "integer"}}
+        )
+        df = apply_logged_transformation(df, "fillEmpty", {"fill_empty_params": {"index": 0, "strategy": "mean"}})
+        assert df["val"].tolist() == [1.0, 2.0, 1.5]
+
+    def test_replay_add_row_then_fill_empty_mean(self):
+        df = pd.DataFrame({"val": [1, 2]})
+        df = apply_logged_transformation(df, "addRow", {"row_params": {"index": 2}})
+        df = apply_logged_transformation(df, "fillEmpty", {"fill_empty_params": {"index": 0, "strategy": "mean"}})
+        assert df["val"].tolist() == [1.0, 2.0, 1.5]
+
+    # datetime column
     def test_datetime_cell_with_valid_date_preserves_dtype(self):
         df = pd.DataFrame(
             {

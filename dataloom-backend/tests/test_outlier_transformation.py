@@ -347,6 +347,76 @@ class TestOutlierValidationAndEdgeCases:
         assert result["count"].dtype == "Int64"
         assert result["count"].iloc[-1] is pd.NA
 
+    def test_outlier_clip_fractional_fence_on_nullable_int64_promotes_to_float(self):
+        """clip promotes nullable Int64 to float when an outlier clips to a fractional fence."""
+        df = pd.DataFrame({"val": pd.Series([1, 2, 3, 5, 100, pd.NA], dtype="Int64")})
+        result = handle_outliers(df, column="val", method="iqr", action="clip")
+        assert pd.api.types.is_float_dtype(result["val"])
+        assert result["val"].iloc[:5].tolist() == [1.0, 2.0, 3.0, 5.0, 9.5]
+        assert pd.isna(result["val"].iloc[5])
+
+    def test_outlier_clip_fractional_lower_fence_on_nullable_int64_promotes_to_float(self):
+        """clip also promotes nullable Int64 when a low outlier clips to a fractional lower fence."""
+        df = pd.DataFrame({"val": pd.Series([-100, 1, 3, 4, 5, pd.NA], dtype="Int64")})
+        result = handle_outliers(df, column="val", method="iqr", action="clip")
+        assert pd.api.types.is_float_dtype(result["val"])
+        assert result["val"].iloc[0] == pytest.approx(-3.5)
+        assert pd.isna(result["val"].iloc[5])
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"method": "zscore", "sensitivity": 1.5},
+            {"method": "percentile", "lower_percentile": 0.0, "upper_percentile": 0.9},
+        ],
+    )
+    def test_outlier_clip_zscore_and_percentile_on_nullable_int64(self, kwargs):
+        """zscore and percentile clip actions handle fractional bounds on nullable Int64."""
+        df = pd.DataFrame({"val": pd.Series([1, 2, 3, 5, 100, pd.NA], dtype="Int64")})
+        result = handle_outliers(df, column="val", action="clip", **kwargs)
+        assert pd.api.types.is_float_dtype(result["val"])
+        assert result["val"].iloc[4] < 100.0
+        assert pd.isna(result["val"].iloc[5])
+
+    def test_outlier_clip_integral_fence_on_nullable_int64_preserves_dtype(self):
+        """clip keeps nullable Int64 when the triggered fence is an exact integer."""
+        df = pd.DataFrame({"val": pd.Series([1, 2, 3, 4, 100, pd.NA], dtype="Int64")})
+        result = handle_outliers(df, column="val", method="iqr", action="clip")
+        assert str(result["val"].dtype) == "Int64"
+        assert result["val"].iloc[:5].tolist() == [1, 2, 3, 4, 7]
+        assert result["val"].iloc[5] is pd.NA
+
+    def test_outlier_clip_no_outliers_on_nullable_int64_preserves_dtype(self):
+        """clip keeps nullable Int64 untouched when no values exceed fractional fences."""
+        df = pd.DataFrame({"val": pd.Series([1, 2, 3, 5, 6, pd.NA], dtype="Int64")})
+        result = handle_outliers(df, column="val", method="iqr", action="clip")
+        assert str(result["val"].dtype) == "Int64"
+        assert result["val"].iloc[:5].tolist() == [1, 2, 3, 5, 6]
+        assert result["val"].iloc[5] is pd.NA
+
+    def test_pipeline_replay_cast_int_and_add_row_with_outlier_clip(self):
+        """In-memory replay after castDataType(integer) or addRow handles handleOutliers(clip)."""
+        from app.services.pipeline_service import apply_pipeline, check_steps_compatibility
+
+        clip_step = ("handleOutliers", {"outlier_params": {"column": "val", "method": "iqr", "action": "clip"}})
+
+        add_row_df = pd.DataFrame({"val": [1, 2, 3, 5, 100]})
+        add_row_steps = [("addRow", {"row_params": {"index": 5}}), clip_step]
+        assert check_steps_compatibility(add_row_df, add_row_steps).compatible is True
+        add_row_result = apply_pipeline(add_row_df, add_row_steps)
+        assert add_row_result["val"].iloc[4] == 9.5
+        assert pd.isna(add_row_result["val"].iloc[5])
+
+        cast_df = pd.DataFrame({"val": ["1", "2", "3", "5", "100", None]})
+        cast_steps = [
+            ("castDataType", {"cast_data_type_params": {"column": "val", "target_type": "integer"}}),
+            clip_step,
+        ]
+        assert check_steps_compatibility(cast_df, cast_steps).compatible is True
+        cast_result = apply_pipeline(cast_df, cast_steps)
+        assert cast_result["val"].iloc[4] == 9.5
+        assert pd.isna(cast_result["val"].iloc[5])
+
     def test_outlier_zscore_constant_column_clip_untouched(self):
         """Z-score method with clip action on constant column leaves values untouched."""
         df = pd.DataFrame({"const": [42.0, 42.0, 42.0, 42.0, 42.0]})

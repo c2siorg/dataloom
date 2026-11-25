@@ -627,6 +627,24 @@ def _is_non_numeric_for_statistics(series: pd.Series) -> bool:
     return len(non_null) > 0 and all(isinstance(v, bool) for v in non_null)
 
 
+def _is_nullable_integer_dtype(dtype) -> bool:
+    """Return True for pandas nullable integer extension dtypes (Int8..Int64, UInt8..UInt64)."""
+    return isinstance(dtype, pd.api.extensions.ExtensionDtype) and pd.api.types.is_integer_dtype(dtype)
+
+
+def _fillna_numeric_stat(series: pd.Series, fill_value: float) -> pd.Series:
+    """Fill nulls with a computed float statistic, promoting nullable integers when needed.
+
+    Pandas nullable integer dtypes (``Int64``, ``UInt8``, etc.) keep their dtype
+    when no nulls are filled or when ``fill_value`` is an exact integer, but
+    raise ``TypeError`` on fractional floats such as ``1.5``. Promote to
+    ``float`` in that case so behaviour matches standard numeric columns.
+    """
+    if _is_nullable_integer_dtype(series.dtype) and series.isna().any() and not fill_value.is_integer():
+        return series.astype(float).fillna(fill_value)
+    return series.fillna(fill_value)
+
+
 def fill_empty(
     df: pd.DataFrame,
     fill_value=None,
@@ -677,7 +695,7 @@ def fill_empty(
                 raise TransformationError(f"Cannot compute mean on column '{column_name}': contains non-numeric values")
 
             computed_fill_value = round(float(numeric_series.mean()), 2)
-            df[column_name] = series.fillna(computed_fill_value)
+            df[column_name] = _fillna_numeric_stat(series, computed_fill_value)
 
         elif strategy == "median":
             if _is_non_numeric_for_statistics(series):
@@ -694,7 +712,7 @@ def fill_empty(
                 )
 
             computed_fill_value = round(float(numeric_series.median()), 2)
-            df[column_name] = series.fillna(computed_fill_value)
+            df[column_name] = _fillna_numeric_stat(series, computed_fill_value)
 
         elif strategy == "mode":
             mode_value = series.mode(dropna=True)
@@ -1056,15 +1074,22 @@ def handle_outliers(
 
     if action_str == "clip":
         if lower_bound is not None and upper_bound is not None:
-            result_df[column] = series.clip(lower=lower_bound, upper=upper_bound)
+            target = series
+            if _is_nullable_integer_dtype(series.dtype):
+                clipped_low = bool((series < lower_bound).fillna(False).any())
+                clipped_high = bool((series > upper_bound).fillna(False).any())
+                if (clipped_low and not float(lower_bound).is_integer()) or (
+                    clipped_high and not float(upper_bound).is_integer()
+                ):
+                    target = series.astype(float)
+            result_df[column] = target.clip(lower=lower_bound, upper=upper_bound)
 
     elif action_str == "drop":
         result_df = result_df[~outlier_mask].reset_index(drop=True)
 
     elif action_str == "set_null":
         if outlier_mask.any():
-            col_dtype = result_df[column].dtype
-            if isinstance(col_dtype, pd.api.extensions.ExtensionDtype) and pd.api.types.is_integer_dtype(col_dtype):
+            if _is_nullable_integer_dtype(result_df[column].dtype):
                 result_df.loc[outlier_mask, column] = pd.NA
             else:
                 if pd.api.types.is_integer_dtype(result_df[column]):
