@@ -4,6 +4,7 @@ import hashlib
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import bcrypt
 import jwt
@@ -210,6 +211,10 @@ def delete_user_account(db: Session, user: models.User, password: str) -> None:
 
     project_ids = [project.project_id for project in user.projects]
     file_paths = [project.file_path for project in user.projects]
+    inventory_paths = [
+        row[0]
+        for row in db.query(models.ProjectFile.file_path).filter(models.ProjectFile.project_id.in_(project_ids)).all()
+    ]
 
     try:
         db.query(models.ProjectChangeLog).filter(models.ProjectChangeLog.project_id.in_(project_ids)).delete(
@@ -217,6 +222,9 @@ def delete_user_account(db: Session, user: models.User, password: str) -> None:
         )
         db.query(models.UndoStep).filter(models.UndoStep.project_id.in_(project_ids)).delete(synchronize_session=False)
         db.query(models.Checkpoint).filter(models.Checkpoint.project_id.in_(project_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(models.ProjectFile).filter(models.ProjectFile.project_id.in_(project_ids)).delete(
             synchronize_session=False
         )
         # Explicit rather than left to the FK cascade, which SQLite does not enforce.
@@ -238,6 +246,13 @@ def delete_user_account(db: Session, user: models.User, password: str) -> None:
             delete_project_files(file_path)
         except OSError:
             logger.exception("Failed to delete project files during account deletion: file_path=%s", file_path)
+    for inventory_path in inventory_paths:
+        try:
+            Path(inventory_path).unlink()
+        except FileNotFoundError:
+            logger.warning("Inventory file already missing during account deletion: %s", inventory_path)
+        except OSError:
+            logger.exception("Failed to delete inventory file during account deletion: path=%s", inventory_path)
     for project_id in project_ids:
         delete_project_snapshots(project_id)
 
