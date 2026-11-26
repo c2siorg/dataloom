@@ -1265,6 +1265,16 @@ class MergeAnalysisResponse(BaseModel):
 MAX_MERGE_ROWS_LIMIT = 1_000_000
 
 
+def validate_merge_suffixes(value: tuple[str, str]) -> tuple[str, str]:
+    """Reject suffixes that would produce duplicate or unnamed merge columns."""
+    left, right = value
+    if not left or not right:
+        raise ValueError("Merge suffixes must be non-empty strings.")
+    if left == right:
+        raise ValueError("Merge suffixes must be different: identical suffixes would create duplicate column names.")
+    return value
+
+
 class MergeExecuteRequest(BaseModel):
     """Request payload to execute a relational dataset merge."""
 
@@ -1279,3 +1289,8 @@ class MergeExecuteRequest(BaseModel):
         le=MAX_MERGE_ROWS_LIMIT,
         description="Cartesian safety ceiling",
     )
+
+    @model_validator(mode="after")
+    def _check_suffixes(self) -> "MergeExecuteRequest":
+        validate_merge_suffixes(self.suffixes)
+        return self

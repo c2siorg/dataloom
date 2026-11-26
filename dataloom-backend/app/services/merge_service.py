@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from app.schemas import MAX_MERGE_ROWS_LIMIT, JoinType
+from app.schemas import MAX_MERGE_ROWS_LIMIT, JoinType, validate_merge_suffixes
 from app.services.transformation_service import TransformationError
 from app.utils.pandas_helpers import map_dtype
 
@@ -375,6 +375,15 @@ def merge_dataframes(
     ):
         raise MergeError(f"max_rows_limit must be an integer between 1 and {MAX_MERGE_ROWS_LIMIT}.")
 
+    # Identical or empty suffixes make pandas emit duplicate column names:
+    # the key-recombination block then fails with an uncatchable-at-endpoint
+    # ValueError (HTTP 500), and a committed cross join poisons the project
+    # with duplicate labels. Validate here so replay paths are covered too.
+    try:
+        suffixes = tuple(validate_merge_suffixes(tuple(suffixes)))
+    except ValueError as e:
+        raise MergeError(str(e)) from e
+
     how_str = how.value if hasattr(how, "value") else str(how).lower()
     valid_joins = {j.value for j in JoinType}
     if how_str not in valid_joins:
@@ -425,18 +434,24 @@ def merge_dataframes(
         result.drop(columns=["__loom_shadow_L", "__loom_shadow_R"], inplace=True)
 
         if left_keys == right_keys:
-            for k in left_keys:
-                c_l = f"{k}{suffixes[0]}"
-                c_r = f"{k}{suffixes[1]}"
-                if c_l in result.columns and c_r in result.columns:
-                    result[k] = result[c_l].combine_first(result[c_r])
-                    result.drop(columns=[c_l, c_r], inplace=True)
-                    if k in left_df.columns:
-                        cols = list(result.columns)
-                        cols.remove(k)
-                        orig_idx = min(list(left_df.columns).index(k), len(cols))
-                        cols.insert(orig_idx, k)
-                        result = result[cols]
+            # Recombine the duplicated key columns back into one. A pandas
+            # failure here (e.g. overlapping suffix handling on an unusual
+            # schema) must surface as a client error, not escape as a 500.
+            try:
+                for k in left_keys:
+                    c_l = f"{k}{suffixes[0]}"
+                    c_r = f"{k}{suffixes[1]}"
+                    if c_l in result.columns and c_r in result.columns:
+                        result[k] = result[c_l].combine_first(result[c_r])
+                        result.drop(columns=[c_l, c_r], inplace=True)
+                        if k in left_df.columns:
+                            cols = list(result.columns)
+                            cols.remove(k)
+                            orig_idx = min(list(left_df.columns).index(k), len(cols))
+                            cols.insert(orig_idx, k)
+                            result = result[cols]
+            except (ValueError, TypeError, MemoryError) as exc:
+                raise MergeError(f"Failed to reconcile merge key columns: {exc}") from exc
 
     if len(result) > max_rows_limit:
         raise MergeError(

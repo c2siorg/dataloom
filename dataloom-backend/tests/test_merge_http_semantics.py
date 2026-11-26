@@ -452,3 +452,92 @@ class TestMergeAuthAndSecurity:
         res = client.post(f"/projects/{left_customers_project}/merge/analyze", json=payload)
         # Should return 404 to avoid leaking existence of other user's resource
         assert res.status_code == 404
+
+
+class TestMergeSuffixValidation:
+    """Identical or empty suffixes are rejected with 400 before the merge runs.
+
+    Identical suffixes made pandas emit duplicate column names: non-cross
+    merges crashed with an uncaught ValueError (HTTP 500) in the key
+    recombination block, and a committed cross merge saved duplicate labels
+    into the project's working copy.
+    """
+
+    @pytest.mark.parametrize("suffixes", [["_x", "_x"], ["", "_x"], ["_x", ""]])
+    def test_project_merge_rejects_bad_suffixes_with_400(
+        self, client, left_customers_project, right_orders_project, suffixes
+    ):
+        response = client.post(
+            f"/projects/{left_customers_project}/merge",
+            params={"preview": "true"},
+            json={
+                "target_project_id": right_orders_project,
+                "left_on": ["cust_id"],
+                "right_on": ["cust_id"],
+                "how": "inner",
+                "suffixes": suffixes,
+            },
+        )
+        assert response.status_code == 422, response.text
+
+    def test_file_merge_rejects_bad_suffixes_with_400(self, client, left_customers_project):
+        response = client.post(
+            f"/projects/{left_customers_project}/merge/file",
+            params={"preview": "true"},
+            files={"file": ("orders.csv", b"cust_id,order_id\n1,1001\n", "text/csv")},
+            data={
+                "left_on": "cust_id",
+                "right_on": "cust_id",
+                "how": "inner",
+                "suffix_left": "_x",
+                "suffix_right": "_x",
+            },
+        )
+        assert response.status_code == 400, response.text
+        assert "suffix" in response.json()["detail"].lower()
+
+    def test_analyze_file_merge_rejects_identical_suffixes_with_400(self, client, left_customers_project):
+        response = client.post(
+            f"/projects/{left_customers_project}/merge/analyze-file",
+            files={"file": ("orders.csv", b"cust_id,order_id\n1,1001\n", "text/csv")},
+            data={
+                "left_on": "cust_id",
+                "right_on": "cust_id",
+                "how": "inner",
+                "suffix_left": "_x",
+                "suffix_right": "_x",
+            },
+        )
+        assert response.status_code == 400, response.text
+        assert "suffix" in response.json()["detail"].lower()
+
+    def test_file_merge_cross_with_identical_suffixes_is_rejected(self, client, left_customers_project):
+        """The cross-join path must not commit duplicate column names either."""
+        response = client.post(
+            f"/projects/{left_customers_project}/merge/file",
+            params={"preview": "false"},
+            files={"file": ("orders.csv", b"order_id,total\n1,100\n", "text/csv")},
+            data={"how": "cross", "suffix_left": "_x", "suffix_right": "_x"},
+        )
+        assert response.status_code == 400, response.text
+
+        # The project must be untouched: no merge columns, no duplicate labels.
+        proj = client.get(f"/projects/get/{left_customers_project}").json()
+        assert proj["columns"] == ["cust_id", "name", "city"]
+
+    def test_valid_suffixes_still_work(self, client, left_customers_project, right_orders_project):
+        response = client.post(
+            f"/projects/{left_customers_project}/merge",
+            params={"preview": "true"},
+            json={
+                "target_project_id": right_orders_project,
+                "left_on": ["cust_id"],
+                "right_on": ["cust_id"],
+                "how": "inner",
+                "suffixes": ["_l", "_r"],
+            },
+        )
+        assert response.status_code == 200, response.text
+        columns = response.json()["columns"]
+        assert len(columns) == len(set(columns))
+        assert "cust_id" in columns and "order_id" in columns
