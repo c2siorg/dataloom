@@ -233,6 +233,7 @@ def execute_project_merge(
             "right_on": request.right_on,
             "how": request.how.value if hasattr(request.how, "value") else str(request.how),
             "suffixes": list(request.suffixes),
+            "max_rows_limit": request.max_rows_limit,
             "result_rows": len(merged_df),
         }
         commit_undoable_change(

@@ -452,3 +452,87 @@ class TestMergeAuthAndSecurity:
         res = client.post(f"/projects/{left_customers_project}/merge/analyze", json=payload)
         # Should return 404 to avoid leaking existence of other user's resource
         assert res.status_code == 404
+
+
+class TestMergeReplayRowLimit:
+    """Project merge logs persist max_rows_limit so replay reuses the original request limit."""
+
+    @staticmethod
+    def _logged_merge_details(db, project_id: str) -> dict:
+        log = (
+            db.query(models.ProjectChangeLog)
+            .filter(models.ProjectChangeLog.project_id == uuid.UUID(project_id))
+            .order_by(models.ProjectChangeLog.change_log_id.desc())
+            .first()
+        )
+        assert log is not None, "merge commit should write a user log"
+        return log.action_details
+
+    def test_project_merge_logs_custom_max_rows_limit(self, client, db, left_customers_project, right_orders_project):
+        """Committed project merge stores the effective max_rows_limit in action_details."""
+        response = client.post(
+            f"/projects/{left_customers_project}/merge",
+            params={"preview": "false"},
+            json={
+                "target_project_id": right_orders_project,
+                "left_on": ["cust_id"],
+                "right_on": ["cust_id"],
+                "how": "inner",
+                "max_rows_limit": 10,
+            },
+        )
+        assert response.status_code == 200, response.text
+
+        details = self._logged_merge_details(db, left_customers_project)
+        assert details["max_rows_limit"] == 10
+
+    def test_project_merge_logs_default_max_rows_limit(self, client, db, left_customers_project, right_orders_project):
+        """Omitting max_rows_limit records the schema default rather than nothing."""
+        response = client.post(
+            f"/projects/{left_customers_project}/merge",
+            params={"preview": "false"},
+            json={
+                "target_project_id": right_orders_project,
+                "left_on": ["cust_id"],
+                "right_on": ["cust_id"],
+                "how": "inner",
+            },
+        )
+        assert response.status_code == 200, response.text
+
+        details = self._logged_merge_details(db, left_customers_project)
+        assert details["max_rows_limit"] == MAX_MERGE_ROWS_LIMIT
+
+    def test_file_merge_log_has_no_max_rows_limit(self, client, db, left_customers_project):
+        """Uploaded-file merge behavior is unchanged: its log carries no row limit."""
+        file_content = "cust_id,total\n1,100\n2,200\n"
+        response = client.post(
+            f"/projects/{left_customers_project}/merge/file",
+            params={"preview": "false"},
+            files={"file": ("totals.csv", file_content.encode("utf-8"), "text/csv")},
+            data={"left_on": "cust_id", "right_on": "cust_id", "how": "inner"},
+        )
+        assert response.status_code == 200, response.text
+
+        details = self._logged_merge_details(db, left_customers_project)
+        assert "filename" in details
+        assert "max_rows_limit" not in details
+
+    def test_replay_forwards_recorded_max_rows_limit(self, client, left_customers_project, right_orders_project):
+        """Redo after undo replays a merge that was committed with a custom limit."""
+        commit_res = client.post(
+            f"/projects/{left_customers_project}/merge",
+            params={"preview": "false"},
+            json={
+                "target_project_id": right_orders_project,
+                "left_on": ["cust_id"],
+                "right_on": ["cust_id"],
+                "how": "inner",
+                "max_rows_limit": 10,
+            },
+        )
+        assert commit_res.status_code == 200, commit_res.text
+        assert client.post(f"/projects/{left_customers_project}/undo").status_code == 200
+        redo_res = client.post(f"/projects/{left_customers_project}/redo")
+        assert redo_res.status_code == 200, redo_res.text
+        assert "total" in redo_res.json()["columns"]
