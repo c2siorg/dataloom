@@ -115,6 +115,18 @@ def _parse_form_keys(key_str: str | None) -> list[str] | None:
     return keys if keys else None
 
 
+def _validate_form_suffixes(suffix_left: str, suffix_right: str) -> tuple[str, str]:
+    """Validate suffix form fields the same way MergeExecuteRequest does.
+
+    Form endpoints cannot reuse the pydantic validator directly, so a bad pair
+    becomes a 400 instead of a pandas failure deeper in the merge (HTTP 500).
+    """
+    try:
+        return schemas.validate_merge_suffixes((suffix_left, suffix_right))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 @router.post(
     "/{project_id}/merge/analyze-file",
     response_model=schemas.MergeAnalysisResponse,
@@ -137,6 +149,7 @@ async def analyze_file_merge(
 
     left_keys = _parse_form_keys(left_on)
     right_keys = _parse_form_keys(right_on)
+    suffixes = _validate_form_suffixes(suffix_left, suffix_right)
 
     try:
         return await run_in_threadpool(
@@ -146,7 +159,7 @@ async def analyze_file_merge(
             left_on=left_keys,
             right_on=right_keys,
             how=how,
-            suffixes=(suffix_left, suffix_right),
+            suffixes=suffixes,
         )
     except MergeError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -335,6 +348,7 @@ async def execute_file_merge(
     right_df = await run_in_threadpool(_read_upload_df, file)
     left_keys = _parse_form_keys(left_on)
     right_keys = _parse_form_keys(right_on)
+    suffixes = _validate_form_suffixes(suffix_left, suffix_right)
 
     if preview:
         left_df = await run_in_threadpool(load_project_df, project)
@@ -346,7 +360,7 @@ async def execute_file_merge(
                 left_on=left_keys,
                 right_on=right_keys,
                 how=how,
-                suffixes=(suffix_left, suffix_right),
+                suffixes=suffixes,
             )
         except MergeError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
@@ -362,7 +376,7 @@ async def execute_file_merge(
         left_keys,
         right_keys,
         how,
-        (suffix_left, suffix_right),
+        suffixes,
         page,
         page_size,
     )

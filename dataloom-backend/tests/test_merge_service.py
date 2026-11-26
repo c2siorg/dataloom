@@ -469,3 +469,32 @@ class TestPreMergeAnalysis:
         assert "city_left" in col_names
         assert "city_right" in col_names
         assert "name" in col_names
+
+
+class TestMergeSuffixValidation:
+    """merge_dataframes rejects suffix pairs that would create duplicate columns."""
+
+    def test_identical_suffixes_raise_merge_error_not_value_error(self):
+        left = pd.DataFrame({"k": [1, 2], "v": [10, 20]})
+        right = pd.DataFrame({"k": [1, 2], "v": [100, 200]})
+        with pytest.raises(MergeError, match="suffixes must be different"):
+            merge_dataframes(left, right, left_on=["k"], right_on=["k"], how="inner", suffixes=("_x", "_x"))
+
+    def test_identical_suffixes_rejected_on_cross_join(self):
+        left = pd.DataFrame({"k": [1], "v": [10]})
+        right = pd.DataFrame({"x": [1], "v": [100]})
+        with pytest.raises(MergeError, match="suffixes must be different"):
+            merge_dataframes(left, right, how="cross", suffixes=("_x", "_x"))
+
+    def test_empty_suffixes_raise_merge_error(self):
+        left = pd.DataFrame({"k": [1], "v": [10]})
+        right = pd.DataFrame({"k": [1], "v": [100]})
+        with pytest.raises(MergeError, match="non-empty"):
+            merge_dataframes(left, right, left_on=["k"], right_on=["k"], how="inner", suffixes=("", "_x"))
+
+    def test_valid_suffixes_produce_no_duplicate_columns(self):
+        left = pd.DataFrame({"k": [1, 2], "v": [10, 20]})
+        right = pd.DataFrame({"k": [1, 2], "v": [100, 200]})
+        result = merge_dataframes(left, right, left_on=["k"], right_on=["k"], how="inner", suffixes=("_l", "_r"))
+        assert not result.columns.duplicated().any()
+        assert "v_l" in result.columns and "v_r" in result.columns
