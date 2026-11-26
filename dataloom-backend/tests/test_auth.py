@@ -2,7 +2,9 @@
 
 import hashlib
 import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 from app import models
@@ -231,6 +233,27 @@ class TestProfileManagement:
         assert response.status_code == 200, response.text
         assert db.query(models.User).filter(models.User.id == test_user.id).first() is None
         assert db.query(models.Project).count() == 0
+
+    def test_delete_account_removes_project_inventory_files(self, client, test_user, db):
+        """Deleting an account must remove ProjectFile rows and stored inventory files on disk."""
+        project_id = _upload(client)
+        add_resp = client.post(
+            f"/projects/{project_id}/files",
+            files={"file": ("extra.csv", b"name,age\nBob,25\n", "text/csv")},
+        )
+        assert add_resp.status_code == 200, add_resp.text
+
+        project_file = db.query(models.ProjectFile).filter_by(project_id=uuid.UUID(project_id)).one()
+        stored_path = Path(project_file.file_path)
+        assert stored_path.exists()
+
+        response = client.request("DELETE", "/auth/me", json={"password": "testpassword"})
+
+        assert response.status_code == 200, response.text
+        assert db.query(models.User).filter(models.User.id == test_user.id).first() is None
+        assert db.query(models.Project).count() == 0
+        assert db.query(models.ProjectFile).filter_by(project_id=uuid.UUID(project_id)).count() == 0
+        assert not stored_path.exists()
 
     def test_delete_account_requires_auth(self, anon_client):
         response = anon_client.request(
