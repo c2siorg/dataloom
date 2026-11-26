@@ -18,7 +18,7 @@ from pathlib import Path
 import pandas as pd
 from fastapi import HTTPException
 
-from app.schemas import FillStrategy, MeltParams, OperationType
+from app.schemas import MAX_MERGE_ROWS_LIMIT, FillStrategy, MeltParams, OperationType
 from app.services.append_service import append_dataframes
 from app.utils.logging import get_logger
 from app.utils.pandas_helpers import parse_datetime_column, read_table_safe
@@ -1931,6 +1931,7 @@ def apply_merge_dataset(
     right_on: list[str] | str | None = None,
     how: str = "inner",
     suffixes: list[str] | tuple[str, str] = ("_left", "_right"),
+    max_rows_limit: int | None = None,
 ) -> pd.DataFrame:
     """Replay a mergeDataset transformation from an immutable stored file.
 
@@ -1941,6 +1942,8 @@ def apply_merge_dataset(
         right_on: Right key column(s).
         how: Relational join type.
         suffixes: Overlapping column suffixes.
+        max_rows_limit: Row limit recorded when the merge was committed. ``None``
+            (historical logs without the field) falls back to the default limit.
 
     Returns:
         The merged DataFrame with normalized columns and index.
@@ -1955,7 +1958,10 @@ def apply_merge_dataset(
         raise TransformationError("Stored file for this merge is missing or unreadable") from e
     from app.services.merge_service import merge_dataframes
 
-    return merge_dataframes(df, right_df, left_on=left_on, right_on=right_on, how=how, suffixes=tuple(suffixes))
+    limit = MAX_MERGE_ROWS_LIMIT if max_rows_limit is None else max_rows_limit
+    return merge_dataframes(
+        df, right_df, left_on=left_on, right_on=right_on, how=how, suffixes=tuple(suffixes), max_rows_limit=limit
+    )
 
 
 @dataclass(frozen=True)
@@ -2213,6 +2219,7 @@ TRANSFORMATION_REGISTRY: dict[OperationType, TransformationSpec] = {
             (d.get("merge_params") or d).get("right_on"),
             (d.get("merge_params") or d).get("how", "inner"),
             (d.get("merge_params") or d).get("suffixes", ("_left", "_right")),
+            (d.get("merge_params") or d).get("max_rows_limit"),
         ),
         reusable=False,
     ),
