@@ -41,6 +41,17 @@ def sample_df():
 
 
 class TestFilter:
+    def test_filter_equals_mixed_type_object_column(self):
+        df = pd.DataFrame({"id": pd.Series([1, "2", 3, 4], dtype=object), "city": ["Paris", "London", "Rome", "Oslo"]})
+        assert apply_filter(df, "id", "=", "1")["city"].tolist() == ["Paris"]
+        assert apply_filter(df, "id", "=", "3")["city"].tolist() == ["Rome"]
+        assert apply_filter(df, "id", "=", "2")["city"].tolist() == ["London"]
+
+    def test_filter_not_equals_mixed_type_object_column(self):
+        df = pd.DataFrame({"id": pd.Series([1, "2", 3, 4], dtype=object)})
+        assert len(apply_filter(df, "id", "!=", "2")) == 3
+        assert len(apply_filter(df, "id", "!=", "1")) == 3
+
     def test_filter_equals_string_case_insensitive(self, sample_df):
         df = pd.DataFrame({"Payment_Type": ["Cash", "CASH", "cash", "CARD"]})
         result = apply_filter(df, "Payment_Type", "=", "cash")

@@ -169,12 +169,12 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     ops = {
         "=": lambda col, val: (
             df[col.notna() & (col.astype(str).str.lower() == val.lower())]
-            if pd.api.types.is_string_dtype(col)
+            if pd.api.types.is_string_dtype(col) or pd.api.types.is_object_dtype(col)
             else df[col == val]
         ),
         "!=": lambda col, val: (
             df[col.isna() | (col.astype(str).str.lower() != val.lower())]
-            if pd.api.types.is_string_dtype(col)
+            if pd.api.types.is_string_dtype(col) or pd.api.types.is_object_dtype(col)
             else df[col != val]
         ),
         ">": lambda col, val: df[col > val],
