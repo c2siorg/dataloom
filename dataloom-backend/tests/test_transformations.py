@@ -619,6 +619,50 @@ class TestChangeCellValue:
         # Column is upcast to object so None can coexist with remaining ints.
         assert result["age"].dtype == object
 
+    def test_clear_boolean_cell_stores_missing_value_and_keeps_dtype(self):
+        df = pd.DataFrame(
+            {
+                "name": ["A", "B", "C"],
+                "active": [True, False, True],
+            }
+        )
+
+        result = change_cell_value(df, 1, 2, "")
+
+        # The cleared cell is a real missing value, and the column stays boolean
+        # (pandas' nullable boolean dtype) instead of raising.
+        assert pd.isna(result.iloc[1]["active"])
+        assert bool(result.iloc[0]["active"]) is True
+        assert bool(result.iloc[2]["active"]) is True
+        assert pd.api.types.is_bool_dtype(result["active"].dtype)
+
+    def test_clear_boolean_cell_accepts_none(self):
+        df = pd.DataFrame({"active": [True, False]})
+
+        result = change_cell_value(df, 0, 1, None)
+
+        assert pd.isna(result.iloc[0]["active"])
+        assert pd.api.types.is_bool_dtype(result["active"].dtype)
+
+    def test_clear_cell_on_nullable_boolean_column_keeps_missing_value(self):
+        df = pd.DataFrame({"active": pd.array([True, None, False], dtype="boolean")})
+
+        result = change_cell_value(df, 2, 1, "")
+
+        assert pd.isna(result.iloc[1]["active"])
+        assert pd.isna(result.iloc[2]["active"])
+        assert bool(result.iloc[0]["active"]) is True
+        assert result["active"].dtype == "boolean"
+
+    def test_replay_clear_boolean_cell(self):
+        df = pd.DataFrame({"active": [True, False, True]})
+        details = {"change_cell_value": {"row_index": 1, "col_index": 1, "fill_value": ""}}
+
+        result = apply_logged_transformation(df, "changeCellValue", details)
+
+        assert pd.isna(result.iloc[1]["active"])
+        assert pd.api.types.is_bool_dtype(result["active"].dtype)
+
     def test_decimal_edit_preserves_large_integers(self):
         df = pd.DataFrame(
             {

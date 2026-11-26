@@ -394,6 +394,11 @@ def change_cell_value(
         # path, even though NaN would fit natively).
         if pd.api.types.is_integer_dtype(col_dtype) or pd.api.types.is_float_dtype(col_dtype):
             df[column_name] = df[column_name].astype(object)
+        elif pd.api.types.is_bool_dtype(col_dtype):
+            # A plain numpy bool column has no null sentinel either, and
+            # assigning None raises. Use pandas' nullable boolean dtype (the
+            # same one add_row uses) so the column stays boolean.
+            df[column_name] = df[column_name].astype("boolean")
 
         value = None
     else:
