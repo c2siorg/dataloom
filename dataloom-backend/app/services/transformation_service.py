@@ -1153,6 +1153,15 @@ def scale_numeric(
         target_col = column if out_col_clean == column_stripped else out_col_clean
 
     non_null = series.dropna()
+    # Non-finite values (inf/-inf) silently corrupt every scaling method:
+    # min/max, mean/std and the quartiles all become inf or NaN, so finite
+    # rows collapse onto a single value and inf rows come back NaN. Reject
+    # them instead of returning silently wrong data. NaN stays allowed —
+    # it is excluded from the statistics and preserved in place below.
+    if ((non_null == float("inf")) | (non_null == float("-inf"))).any():
+        raise TransformationError(
+            f"Column '{column}' contains non-finite values (inf or -inf). Feature scaling requires finite values."
+        )
     result_df = df.copy()
 
     if non_null.empty:
