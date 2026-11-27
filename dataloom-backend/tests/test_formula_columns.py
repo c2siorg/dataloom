@@ -110,6 +110,40 @@ class TestPrepareFormulaExpression:
         with pytest.raises(HTTPException):
             prepare_formula_expression("_dataloom_col_0 * 2", ["unit cost"])
 
+    def test_small_string_repetition_allowed(self):
+        assert prepare_formula_expression('"a" * 3', ["price"]) == '"a" * 3'
+
+    def test_string_repetition_at_cap_allowed(self):
+        assert prepare_formula_expression('"a" * 100000', ["price"]) == '"a" * 100000'
+
+    def test_huge_string_repetition_rejected(self):
+        with pytest.raises(HTTPException) as exc_info:
+            prepare_formula_expression('"a" * 100001', ["price"])
+        assert "100000" in exc_info.value.detail
+
+    def test_power_folded_repetition_rejected(self):
+        with pytest.raises(HTTPException):
+            prepare_formula_expression('"a" * 10 ** 9', ["price"])
+
+    def test_subtraction_folded_repetition_rejected(self):
+        # 10 ** 9 - 1 folds to a value just under a billion; it must still
+        # read as huge, not as the 100,000 the sentinel arithmetic would
+        # otherwise produce.
+        with pytest.raises(HTTPException):
+            prepare_formula_expression('"a" * (10 ** 9 - 1)', ["price"])
+
+    def test_nested_repetition_rejected(self):
+        with pytest.raises(HTTPException):
+            prepare_formula_expression('("a" * 1000) * 101', ["price"])
+
+    def test_reversed_repetition_rejected(self):
+        with pytest.raises(HTTPException):
+            prepare_formula_expression('100001 * "a"', ["price"])
+
+    def test_concatenated_repetitions_rejected(self):
+        with pytest.raises(HTTPException):
+            prepare_formula_expression('"a" * 60000 + "b" * 60000', ["price"])
+
 
 class TestAddFormulaColumn:
     def test_arithmetic(self, sample_df):
@@ -259,6 +293,22 @@ class TestAddFormulaColumn:
         direct = add_formula_column(sample_df, "total", "price * quantity")
         pd.testing.assert_frame_equal(replayed, direct)
 
+    def test_small_string_repetition_evaluates(self, sample_df):
+        result = add_formula_column(sample_df, "pad", '"a" * 3')
+        assert result["pad"].tolist() == ["aaa", "aaa", "aaa"]
+
+    def test_string_repetition_at_cap_evaluates(self, sample_df):
+        result = add_formula_column(sample_df, "pad", '"a" * 100000')
+        assert all(len(v) == 100000 for v in result["pad"])
+
+    def test_huge_string_repetition_rejected(self, sample_df):
+        with pytest.raises(HTTPException, match="100000"):
+            add_formula_column(sample_df, "pad", '"a" * 100001')
+
+    def test_power_folded_repetition_rejected(self, sample_df):
+        with pytest.raises(HTTPException):
+            add_formula_column(sample_df, "pad", '"a" * 10 ** 9')
+
 
 @pytest.fixture
 def project_id(client, sample_csv):
@@ -326,3 +376,11 @@ class TestFormulaColumnEndpoint:
             json=self._payload(name="", expression=""),
         )
         assert response.status_code == 422
+
+    def test_huge_string_repetition_returns_400(self, client, project_id):
+        response = client.post(
+            f"/projects/{project_id}/transform?preview=true",
+            json=self._payload(name="pad", expression='"a" * 100001'),
+        )
+        assert response.status_code == 400
+        assert "100000" in response.json()["detail"]
