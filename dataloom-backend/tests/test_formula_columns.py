@@ -110,6 +110,26 @@ class TestPrepareFormulaExpression:
         with pytest.raises(HTTPException):
             prepare_formula_expression("_dataloom_col_0 * 2", ["unit cost"])
 
+    def test_giant_constant_power_rejected(self):
+        # 10 ** 10 ** 8 asks pandas to build a hundred-million-digit integer
+        # and stalls the worker; the validator must reject it, not evaluate it.
+        with pytest.raises(HTTPException) as exc_info:
+            prepare_formula_expression("10 ** 10 ** 8", ["price"])
+        assert "too large" in exc_info.value.detail
+
+    def test_power_exponent_above_limit_rejected(self):
+        with pytest.raises(HTTPException):
+            prepare_formula_expression("10 ** 1001", ["price"])
+
+    def test_nested_constant_power_result_rejected(self):
+        # Each exponent is within the limit, but the result has ~1M digits.
+        with pytest.raises(HTTPException):
+            prepare_formula_expression("(10 ** 999) ** 1000", ["price"])
+
+    def test_ordinary_powers_still_allowed(self):
+        assert prepare_formula_expression("price ** 2", ["price"]) == "price ** 2"
+        assert prepare_formula_expression("2 ** 70", ["price"]) == "2 ** 70"
+
 
 class TestAddFormulaColumn:
     def test_arithmetic(self, sample_df):
@@ -161,7 +181,7 @@ class TestAddFormulaColumn:
         # the true result is ~30M digits and cannot fit int64, so this is
         # an overflow, not a value worth materialising.
         df = pd.DataFrame({"a": [2, 3]})
-        with pytest.raises(TransformationError, match="overflows"):
+        with pytest.raises(HTTPException, match="Power exponent is too large"):
             add_formula_column(df, "c", "a ** 99999999")
 
     def test_giant_column_exponent_rejected(self):
@@ -221,6 +241,18 @@ class TestAddFormulaColumn:
         result = add_formula_column(df, "c", "a + 1")
         assert result["c"].tolist() == [3, pd.NA]
 
+    def test_string_power_operand_returns_400_not_500(self):
+        # `10 ** -\"a\"` is rejected at evaluation; validation itself must
+        # not crash folding the string operand.
+        df = pd.DataFrame({"a": [2, 3]})
+        with pytest.raises(TransformationError, match="could not be evaluated"):
+            add_formula_column(df, "c", '10 ** -"a"')
+
+    def test_comparison_exponent_evaluates(self):
+        df = pd.DataFrame({"a": [1, 2]})
+        result = add_formula_column(df, "c", "2 ** (1 < 2)")
+        assert result["c"].tolist() == [2, 2]
+
     def test_blank_name_raises(self, sample_df):
         with pytest.raises(TransformationError, match="empty"):
             add_formula_column(sample_df, "   ", "price * 2")
@@ -252,6 +284,11 @@ class TestAddFormulaColumn:
         df = sample_df.assign(status=["unit cost", "other", "unit cost"])
         result = add_formula_column(df, "is_unit_cost", 'status == "unit cost"')
         assert result["is_unit_cost"].tolist() == [True, False, True]
+
+    def test_giant_constant_power_rejected_without_evaluating(self, sample_df):
+        # Must fail fast at validation: evaluating 10 ** 10 ** 8 hangs.
+        with pytest.raises(HTTPException):
+            add_formula_column(sample_df, "huge", "10 ** 10 ** 8")
 
     def test_replay_matches_direct_apply(self, sample_df):
         details = {"formula_col_params": {"column_name": "total", "expression": "price * quantity"}}
@@ -312,6 +349,14 @@ class TestFormulaColumnEndpoint:
             json=self._payload(name="evil", expression="__import__('os').system('true')"),
         )
         assert response.status_code == 400
+
+    def test_giant_power_returns_400_without_hanging(self, client, project_id):
+        response = client.post(
+            f"/projects/{project_id}/transform?preview=true",
+            json=self._payload(name="huge", expression="10 ** 10 ** 8"),
+        )
+        assert response.status_code == 400
+        assert "too large" in response.json()["detail"]
 
     def test_unknown_column_returns_400(self, client, project_id):
         response = client.post(

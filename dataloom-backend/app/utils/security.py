@@ -2,6 +2,7 @@
 
 import ast
 import keyword
+import operator
 import re
 import uuid
 from pathlib import Path
@@ -226,6 +227,333 @@ def _substitute_column_names(expression: str, quoted_cols: list[str]) -> tuple[s
     return "".join(parts), placeholders
 
 
+# Powers are the one allowlisted operator that can turn a short expression
+# into an unbounded computation: ``10 ** 10 ** 8`` asks pandas to build a
+# hundred-million-digit integer, which stalls the worker for minutes. No
+# formula or filter legitimately needs a constant exponent above 1000, or a
+# constant power result above ~6,000 digits, so both are rejected with a 400
+# instead of being evaluated.
+_MAX_POWER_EXPONENT = 1000
+_MAX_POWER_RESULT_BITS = 20000  # ~6,000 decimal digits
+# Sentinels for the constant folder below. _TOO_BIG means the expression is a
+# constant integer too large to evaluate exactly; _RAISES means it is
+# constant but evaluation raises (``0 ** -1``, ``1 // 0``, a bitwise op on a
+# float) instead of producing a value. Neither can yield a giant integer by
+# surprise: _TOO_BIG always trips the bound checks, _RAISES is skipped
+# because the expression never returns at all.
+_TOO_BIG = object()
+_RAISES = object()
+# String constants are folded only up to this length: folding must never build
+# a large string out of a short expression, and a string power operand raises
+# at evaluation anyway, so anything longer is treated as raising.
+_MAX_FOLDED_STR_LEN = 128
+
+
+def _is_constant_expression(node: ast.AST) -> bool:
+    """True when a subtree holds no column reference.
+
+    Placeholders for backtick-wrapped columns are ast.Name nodes too, so a
+    column-driven exponent or base is never mistaken for a constant one.
+    """
+    return not any(isinstance(child, ast.Name) for child in ast.walk(node))
+
+
+def _cap_int(value: int) -> int | object:
+    """Collapse a folded integer above the guard's bit bound to _TOO_BIG.
+
+    Anything above _MAX_POWER_RESULT_BITS is already too large to be a
+    legitimate power operand; collapsing it keeps folding itself bounded
+    while still tripping every check downstream.
+    """
+    if abs(value).bit_length() > _MAX_POWER_RESULT_BITS:
+        return _TOO_BIG
+    return value
+
+
+def _fold_power(left: int | float | str | object, right: int | float | str | object) -> int | float | object:
+    """Fold a constant power, or _RAISES when it cannot yield a giant int."""
+    if left is _RAISES or right is _RAISES:
+        return _RAISES
+    if isinstance(left, str) or isinstance(right, str):
+        return _RAISES
+    if isinstance(left, float) or isinstance(right, float):
+        try:
+            return float(left) ** float(right)
+        except (OverflowError, ZeroDivisionError, ValueError):
+            return _RAISES
+    # Both operands are ints from here.
+    if left is _TOO_BIG:
+        return 1 if right == 0 else _TOO_BIG
+    if right is _TOO_BIG:
+        return _TOO_BIG
+    if right < 0:
+        # A negative exponent yields a float, never a giant integer.
+        try:
+            return float(left) ** right
+        except (OverflowError, ZeroDivisionError, ValueError):
+            return _RAISES
+    if right > _MAX_POWER_EXPONENT:
+        return _TOO_BIG
+    if right * max(1, abs(left).bit_length()) > _MAX_POWER_RESULT_BITS:
+        return _TOO_BIG
+    return left**right
+
+
+_COMPARE_OPS = {
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+}
+
+
+def _constant_int(node: ast.AST) -> int | float | str | object | None:
+    """Fold a constant expression to its value, or None when it is not one.
+
+    Returns the int, float or short-string value for a constant expression;
+    _TOO_BIG when it is a constant integer too large to evaluate exactly;
+    _RAISES when it is constant but evaluation raises; and None when the
+    expression references a column or uses syntax this folder does not model
+    (lists, ``in`` checks). Bool operands fold as 0/1, ``and``/``or`` follow
+    Python short-circuit semantics, and bitwise ops and ``~`` fold like the
+    arithmetic ops — a constant exponent written any of those ways is a
+    constant exponent, so the power guard must see its value rather than
+    skip it. Comparisons fold to 0/1; ``not`` folds like ``~`` because that
+    is how pandas evaluates it. A float anywhere in the expression (``/``, a
+    negative exponent) makes the result a float, never a giant integer.
+
+    Folding itself can never hang on the input it exists to reject:
+    integer intermediates are capped at _MAX_POWER_RESULT_BITS and powers
+    return _TOO_BIG instead of computing a giant result.
+    """
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, bool):
+            return int(node.value)
+        if isinstance(node.value, int | float):
+            return node.value
+        if isinstance(node.value, str):
+            return node.value if len(node.value) <= _MAX_FOLDED_STR_LEN else _RAISES
+        return _RAISES
+    if isinstance(node, ast.Name):
+        return None
+    if isinstance(node, ast.UnaryOp):
+        value = _constant_int(node.operand)
+        if value is None or value is _RAISES or value is _TOO_BIG:
+            return value
+        if isinstance(node.op, ast.Invert):
+            return ~value if isinstance(value, int) else _RAISES
+        if isinstance(node.op, ast.Not):
+            # pandas eval implements `not` as bitwise inversion, not Python's
+            # boolean negation: `not 0` evaluates to -1.
+            return ~value if isinstance(value, int) else _RAISES
+        if isinstance(node.op, (ast.USub, ast.UAdd)):
+            if not isinstance(value, int | float):
+                return _RAISES
+            return -value if isinstance(node.op, ast.USub) else value
+        return None
+    if isinstance(node, ast.Compare):
+        values = [_constant_int(node.left)] + [_constant_int(c) for c in node.comparators]
+        if any(value is None for value in values):
+            return None
+        if any(value is _RAISES for value in values):
+            return _RAISES
+        left = values[0]
+        for op, right in zip(node.ops, values[1:], strict=True):
+            try:
+                compared = _COMPARE_OPS[type(op)](left, right)
+            except KeyError:
+                return None
+            except TypeError:
+                return _RAISES
+            if not compared:
+                return 0
+            left = right
+        return 1
+    if isinstance(node, ast.BoolOp):
+        values = [_constant_int(v) for v in node.values]
+        if any(v is None for v in values):
+            return None
+        if isinstance(node.op, ast.And):
+            for value in values:
+                if value is _RAISES:
+                    return _RAISES
+                if not value:
+                    return value
+            return values[-1]
+        if isinstance(node.op, ast.Or):
+            for value in values:
+                if value is _RAISES:
+                    return _RAISES
+                if value:
+                    return value
+            return values[-1]
+        return None
+    if isinstance(node, ast.BinOp):
+        left = _constant_int(node.left)
+        right = _constant_int(node.right)
+        if left is None or right is None:
+            return None
+        if left is _RAISES or right is _RAISES:
+            return _RAISES
+        if isinstance(node.op, ast.BitAnd):
+            if left is _TOO_BIG or right is _TOO_BIG:
+                return _TOO_BIG
+            return left & right if isinstance(left, int) and isinstance(right, int) else _RAISES
+        if isinstance(node.op, ast.BitOr):
+            if left is _TOO_BIG or right is _TOO_BIG:
+                return _TOO_BIG
+            return left | right if isinstance(left, int) and isinstance(right, int) else _RAISES
+        if isinstance(node.op, ast.Add):
+            if isinstance(left, str) and isinstance(right, str):
+                joined = left + right
+                return joined if len(joined) <= _MAX_FOLDED_STR_LEN else _RAISES
+            if isinstance(left, str) or isinstance(right, str):
+                return _RAISES
+            if left is _TOO_BIG or right is _TOO_BIG:
+                return _TOO_BIG
+            if isinstance(left, float) or isinstance(right, float):
+                try:
+                    return float(left) + float(right)
+                except OverflowError:
+                    return _RAISES
+            return _cap_int(left + right)
+        if isinstance(node.op, ast.Sub):
+            if isinstance(left, str) or isinstance(right, str):
+                return _RAISES
+            if left is _TOO_BIG or right is _TOO_BIG:
+                return _TOO_BIG
+            if isinstance(left, float) or isinstance(right, float):
+                try:
+                    return float(left) - float(right)
+                except OverflowError:
+                    return _RAISES
+            return _cap_int(left - right)
+        if isinstance(node.op, ast.Mult):
+            if isinstance(left, str) and isinstance(right, int):
+                if not left or right <= 0:
+                    return ""
+                if len(left) * right > _MAX_FOLDED_STR_LEN:
+                    return _RAISES
+                return left * right
+            if isinstance(right, str) and isinstance(left, int):
+                if not right or left <= 0:
+                    return ""
+                if len(right) * left > _MAX_FOLDED_STR_LEN:
+                    return _RAISES
+                return right * left
+            if isinstance(left, str) or isinstance(right, str):
+                return _RAISES
+            if left == 0 or right == 0:
+                return 0
+            if left is _TOO_BIG or right is _TOO_BIG:
+                return _TOO_BIG
+            if isinstance(left, float) or isinstance(right, float):
+                try:
+                    return float(left) * float(right)
+                except OverflowError:
+                    return _RAISES
+            return _cap_int(left * right)
+        if isinstance(node.op, ast.Div):
+            if left is _TOO_BIG or right is _TOO_BIG:
+                return _RAISES
+            try:
+                return float(left) / float(right)
+            except (OverflowError, ZeroDivisionError, ValueError, TypeError):
+                return _RAISES
+        if isinstance(node.op, ast.FloorDiv):
+            if isinstance(left, str) or isinstance(right, str):
+                return _RAISES
+            if right == 0:
+                return _RAISES
+            if left is _TOO_BIG or right is _TOO_BIG:
+                return _TOO_BIG
+            try:
+                result = left // right
+            except (OverflowError, ZeroDivisionError, ValueError, TypeError):
+                return _RAISES
+            return _cap_int(result) if isinstance(result, int) else result
+        if isinstance(node.op, ast.Mod):
+            if isinstance(left, str) or isinstance(right, str):
+                return _RAISES
+            if right == 0:
+                return _RAISES
+            if left is _TOO_BIG or right is _TOO_BIG:
+                return _TOO_BIG
+            try:
+                result = left % right
+            except (OverflowError, ZeroDivisionError, ValueError, TypeError):
+                return _RAISES
+            return _cap_int(result) if isinstance(result, int) else result
+        if isinstance(node.op, ast.Pow):
+            return _fold_power(left, right)
+    return None
+
+
+def _validate_power_bounds(tree: ast.AST) -> None:
+    """Reject constant powers that would build a giant integer.
+
+    ``10 ** 10 ** 8`` never returns: pandas evaluates the power eagerly with
+    arbitrary-precision ints. Column-driven powers (``10 ** x``) cannot be
+    bounded statically and are left to evaluation; only constant exponents
+    and constant results are checked here. A constant exponent or base the
+    folder cannot evaluate to an integer is rejected rather than skipped —
+    skipping it would fail open and leave the hang reachable. Negative
+    exponents are harmless — they yield floats, never giant ints — so they
+    skip both checks, as do float, string and raising operands.
+    """
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+            exponent = _constant_int(node.right)
+            if exponent is _TOO_BIG:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Power exponent is too large (maximum {_MAX_POWER_EXPONENT})",
+                )
+            if exponent is None:
+                if _is_constant_expression(node.right):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Power exponent could not be evaluated as a constant integer",
+                    )
+                continue
+            if not isinstance(exponent, int):
+                # A float or string exponent, or one that raises, can never
+                # build a giant integer; leave it to evaluation.
+                continue
+            if exponent < 0:
+                # A negative exponent yields a float, never a giant integer.
+                continue
+            if exponent > _MAX_POWER_EXPONENT:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Power exponent is too large (maximum {_MAX_POWER_EXPONENT})",
+                )
+            base = _constant_int(node.left)
+            if base is _TOO_BIG:
+                if exponent == 0:
+                    continue
+                raise HTTPException(
+                    status_code=400,
+                    detail="Power would produce a number with too many digits",
+                )
+            if base is None:
+                if _is_constant_expression(node.left):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Power base could not be evaluated as a constant integer",
+                    )
+                continue
+            if not isinstance(base, int):
+                continue
+            if exponent * max(1, abs(base).bit_length()) > _MAX_POWER_RESULT_BITS:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Power would produce a number with too many digits",
+                )
+
+
 def prepare_formula_expression(expression: str, columns: list[str]) -> str:
     """Validate a computed-column formula and return the string to evaluate.
 
@@ -287,6 +615,8 @@ def prepare_formula_expression(expression: str, columns: list[str]) -> str:
             raise HTTPException(status_code=400, detail=f"Unknown column or name '{node.id}' in formula")
         if isinstance(node, ast.Constant) and not isinstance(node.value, int | float | str | bool):
             raise HTTPException(status_code=400, detail="Formula literals must be numbers, strings, or booleans")
+
+    _validate_power_bounds(tree)
 
     # Longest placeholder first: "_dataloom_col_1" is a prefix of "_dataloom_col_10".
     executable = sanitized
@@ -505,6 +835,8 @@ def prepare_query_expression(expression: str, columns: list[str]) -> str:
             )
         if isinstance(node, ast.Constant) and not isinstance(node.value, int | float | str | bool | None):
             raise HTTPException(status_code=400, detail="Query literals must be numbers, strings, booleans, or None")
+
+    _validate_power_bounds(tree)
 
     return _swap_placeholders_outside_literals(sanitized, placeholders)
 

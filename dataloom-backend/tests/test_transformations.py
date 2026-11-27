@@ -1063,6 +1063,13 @@ class TestAdvancedQuery:
         result = advanced_query(sample_df, "age in [25, 35]")
         assert len(result) == 2
 
+    def test_query_giant_constant_power_rejected_without_evaluating(self, sample_df):
+        # Must fail fast at validation: evaluating 10 ** 10 ** 8 hangs.
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException):
+            advanced_query(sample_df, "age > 10 ** 10 ** 8")
+
     def test_query_arithmetic_and_boolean(self, sample_df):
         result = advanced_query(sample_df, "age * 2 > 65")
         assert len(result) == 1
