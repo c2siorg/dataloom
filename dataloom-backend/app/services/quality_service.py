@@ -59,6 +59,11 @@ def _parses_as_date(values: pd.Series) -> pd.Series:
     return pd.to_datetime(values, errors="coerce", format="mixed").notna()
 
 
+def _parses_as_number(values: pd.Series) -> pd.Series:
+    """The numeric parse the detectors run, as a predicate for the sampled gate."""
+    return pd.to_numeric(values, errors="coerce").notna()
+
+
 def _sample_rows(mask: pd.Series) -> list[int]:
     """Return up to SAMPLE_ROWS_LIMIT 0-based positions where ``mask`` is True."""
     positions = mask.reset_index(drop=True)
@@ -217,6 +222,13 @@ def detect_type_mismatches(df: pd.DataFrame) -> list[dict[str, Any]]:
         non_null = series.dropna()
         total = len(non_null)
         if total == 0:
+            continue
+
+        # Every issue below needs a numeric or date rate of at least
+        # TYPE_PARSE_THRESHOLD: the date checks run only when nothing parses as
+        # numeric, and they skip on this same date sample. So a sample that
+        # rules out both means no issue can fire; skip the full-column parses.
+        if sample_rules_out_rate(non_null, _parses_as_number) and sample_rules_out_rate(non_null, _parses_as_date):
             continue
 
         numeric = pd.to_numeric(non_null, errors="coerce")
@@ -391,8 +403,9 @@ def detect_inconsistent_formats(df: pd.DataFrame) -> list[dict[str, Any]]:
                 )
             )
 
-        numeric_rate = pd.to_numeric(strings, errors="coerce").notna().sum() / len(strings)
-        if numeric_rate == 0 and not sample_rules_out_rate(strings, _parses_as_date):
+        # The date sample is cheap, so check it before parsing the whole column
+        # as numeric; both must pass, so the order does not change the result.
+        if not sample_rules_out_rate(strings, _parses_as_date) and not _parses_as_number(strings).any():
             dates = pd.to_datetime(strings, errors="coerce", format="mixed")
             if dates.notna().sum() / len(strings) >= TYPE_PARSE_THRESHOLD:
                 shapes = strings[dates.notna()].map(lambda v: re.sub(r"\d+", "#", v.strip()))

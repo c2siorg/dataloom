@@ -210,6 +210,61 @@ class TestDetectInconsistentFormats:
         assert qs.detect_inconsistent_formats(df) == []
 
 
+class TestSampledGatesOnLargeColumns:
+    """Columns longer than the sample size take the sampled-gate paths.
+
+    The cases above use a handful of rows, so they never reach the gates.
+    """
+
+    ROWS = 5000
+
+    def _numbers(self, count):
+        return [str(index % 997) for index in range(count)]
+
+    def _dates(self, count):
+        return [str(day.date()) for day in pd.date_range("2020-01-01", periods=count, freq="D")]
+
+    def test_mostly_numeric_column_still_flags_offenders(self):
+        values = self._numbers(self.ROWS - 50) + ["oops"] * 50
+        issues = qs.detect_type_mismatches(pd.DataFrame({"v": values}))
+        assert len(issues) == 1
+        assert issues[0]["severity"] == "high"
+        assert issues[0]["count"] == 50
+
+    def test_fully_numeric_text_column_is_still_castable(self):
+        issues = qs.detect_type_mismatches(pd.DataFrame({"v": self._numbers(self.ROWS)}))
+        assert len(issues) == 1
+        assert issues[0]["severity"] == "medium"
+
+    def test_mostly_dates_column_still_flags_offenders(self):
+        values = self._dates(self.ROWS - 50) + ["not a date"] * 50
+        issues = qs.detect_type_mismatches(pd.DataFrame({"v": values}))
+        assert len(issues) == 1
+        assert issues[0]["severity"] == "high"
+        assert issues[0]["count"] == 50
+
+    def test_mixed_date_formats_still_flagged(self):
+        values = [d.replace("-", "/") if index % 3 == 0 else d for index, d in enumerate(self._dates(self.ROWS))]
+        issues = qs.detect_inconsistent_formats(pd.DataFrame({"d": values}))
+        assert len([i for i in issues if "date format" in i["detail"]]) == 1
+
+    def test_text_column_is_only_parsed_on_the_sample(self, monkeypatch):
+        parsed_lengths = []
+        real_to_numeric = pd.to_numeric
+
+        def spy(values, *args, **kwargs):
+            parsed_lengths.append(len(values))
+            return real_to_numeric(values, *args, **kwargs)
+
+        monkeypatch.setattr(pd, "to_numeric", spy)
+        df = pd.DataFrame({"order_id": [f"ORD-{index:07d}" for index in range(self.ROWS)]})
+
+        assert qs.detect_type_mismatches(df) == []
+        assert qs.detect_inconsistent_formats(df) == []
+        assert parsed_lengths
+        assert max(parsed_lengths) < self.ROWS
+
+
 # --- Service: scoring, remediations, assess_quality ---
 
 
