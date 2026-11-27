@@ -104,11 +104,56 @@ def get_column_type(df: pd.DataFrame, column: str) -> str:
     return "unknown"
 
 
+def _resolve_column(df: pd.DataFrame, column: str) -> str:
+    """Resolve a requested column name to the DataFrame's actual column label.
+
+    An exact match always wins. Otherwise the name is matched after stripping
+    surrounding whitespace, but only when exactly one column matches. Names
+    such as "Score " and "Score" both strip to "Score", so a stripped lookup
+    alone cannot tell which one the caller meant.
+
+    Args:
+        df: Source DataFrame.
+        column: Column name as sent by the client.
+
+    Returns:
+        The matching label from ``df.columns``.
+
+    Raises:
+        TransformationError: If no column matches, or if several columns match
+            after stripping whitespace.
+    """
+    if column in df.columns:
+        return column
+
+    column_stripped = column.strip()
+    matches = [col for col in df.columns if col.strip() == column_stripped]
+    if len(matches) > 1:
+        raise TransformationError(
+            f"Column '{column}' is ambiguous: several column names match after trimming whitespace "
+            f"({', '.join(repr(c) for c in matches)}). Rename the columns to make them unique."
+        )
+    if len(matches) == 1:
+        return matches[0]
+
+    available = list(df.columns)
+    raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
+
+
+def _has_stripped_column(df: pd.DataFrame, name: str) -> bool:
+    """Return True if any column's stripped name equals ``name`` stripped.
+
+    Used to decide whether a *new* column name would collide with an existing
+    column, which is stricter than resolving an existing column.
+    """
+    return any(col.strip() == name.strip() for col in df.columns)
+
+
 def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> pd.DataFrame:
     """Filter DataFrame rows by a column condition.
 
     Automatically casts value to float for numeric columns.
-    Column names are matched after stripping whitespace.
+    Column names are matched exactly, or by their stripped form when that is unambiguous.
 
     Args:
         df: Source DataFrame.
@@ -122,16 +167,7 @@ def apply_filter(df: pd.DataFrame, column: str, condition: str, value: str) -> p
     Raises:
         TransformationError: If column not found or condition unsupported.
     """
-    # Strip whitespace from column name and create a mapping of stripped -> original
-    column_stripped = column.strip()
-    stripped_to_original = {col.strip(): col for col in df.columns}
-
-    if column_stripped not in stripped_to_original:
-        available = list(df.columns)
-        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
-
-    # Use the original column name from the DataFrame
-    column = stripped_to_original[column_stripped]
+    column = _resolve_column(df, column)
 
     # Cast value to numeric or boolean if the column is (for comparison operators)
     col_type = get_column_type(df, column)
@@ -968,12 +1004,7 @@ def handle_outliers(
     Raises:
         TransformationError: If the column is missing, non-numeric, or parameters are invalid.
     """
-    column_stripped = column.strip()
-    stripped_to_original = {col.strip(): col for col in df.columns}
-    if column_stripped not in stripped_to_original:
-        available = list(df.columns)
-        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
-    column = stripped_to_original[column_stripped]
+    column = _resolve_column(df, column)
 
     series = df[column]
     if pd.api.types.is_bool_dtype(series):
@@ -999,7 +1030,7 @@ def handle_outliers(
     flag_col = None
     if action_str == "flag":
         flag_col = flag_column.strip() if flag_column and flag_column.strip() else f"{column}_is_outlier"
-        if flag_col in stripped_to_original:
+        if _has_stripped_column(df, flag_col):
             raise TransformationError(
                 f"Flag column '{flag_col}' already exists in DataFrame. Please specify a different flag_column name."
             )
@@ -1113,12 +1144,7 @@ def scale_numeric(
         TransformationError: If the column is missing, non-numeric, boolean,
             parameters are invalid, or output_column collides with existing columns.
     """
-    column_stripped = column.strip()
-    stripped_to_original = {col.strip(): col for col in df.columns}
-    if column_stripped not in stripped_to_original:
-        available = list(df.columns)
-        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
-    column = stripped_to_original[column_stripped]
+    column = _resolve_column(df, column)
 
     series = df[column]
     if pd.api.types.is_bool_dtype(series):
@@ -1146,7 +1172,8 @@ def scale_numeric(
         out_col_clean = output_column.strip()
         if not out_col_clean:
             raise TransformationError("output_column must not be empty or whitespace only.")
-        if out_col_clean in stripped_to_original and out_col_clean != column_stripped:
+        column_stripped = column.strip()
+        if _has_stripped_column(df, out_col_clean) and out_col_clean != column_stripped:
             raise TransformationError(
                 f"Output column '{out_col_clean}' already exists in DataFrame. Please specify a distinct output_column."
             )
@@ -1227,12 +1254,7 @@ def clip_numeric(
         TransformationError: If the column is missing, non-numeric, bounds are invalid,
             or output column collides with an existing column.
     """
-    column_stripped = column.strip()
-    stripped_to_original = {col.strip(): col for col in df.columns}
-    if column_stripped not in stripped_to_original:
-        available = list(df.columns)
-        raise TransformationError(f"Column '{column}' not found. Available columns: {available}")
-    column = stripped_to_original[column_stripped]
+    column = _resolve_column(df, column)
 
     if lower is not None and (math.isnan(lower) or math.isinf(lower)):
         raise TransformationError("Lower bound must not be NaN or Inf.")
@@ -1265,7 +1287,8 @@ def clip_numeric(
         out_col_clean = output_column.strip()
         if not out_col_clean:
             raise TransformationError("output_column must not be empty or whitespace only.")
-        if out_col_clean in stripped_to_original and out_col_clean != column_stripped:
+        column_stripped = column.strip()
+        if _has_stripped_column(df, out_col_clean) and out_col_clean != column_stripped:
             raise TransformationError(
                 f"Output column '{out_col_clean}' already exists in DataFrame. Please specify a distinct output_column."
             )
