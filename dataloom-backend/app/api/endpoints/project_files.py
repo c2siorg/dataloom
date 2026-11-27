@@ -48,7 +48,7 @@ def _read_upload_df(file: UploadFile):
     extension, then cleans up. Parse failures surface as a clean 400 — a
     malformed upload is a client error, not a server fault.
     """
-    suffix = Path(file.filename).suffix.lower()
+    suffix = Path(file.filename or "").suffix.lower()
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         shutil.copyfileobj(file.file, tmp)
         tmp_path = Path(tmp.name)
@@ -181,16 +181,16 @@ async def add_file(
     except HTTPException as e:
         with suppress(FileNotFoundError):
             stored_path.unlink()
-        ext = Path(file.filename).suffix.lower()
+        ext = Path(file.filename or "").suffix.lower()
         if e.status_code >= 500:
             raise HTTPException(status_code=400, detail=f"Could not parse the uploaded {ext} file.") from e
         raise
 
-    project_file = create_project_file(db, project.project_id, str(stored_path), file.filename)
+    project_file = create_project_file(db, project.project_id, str(stored_path), file.filename or "")
     # _append_and_log blocks on the project write lock and rewrites the working
     # copy; keep it off the event loop.
     return await run_in_threadpool(
-        _append_and_log, db, project, str(stored_path), file.filename, project_file.id, page, page_size
+        _append_and_log, db, project, str(stored_path), file.filename or "", project_file.id, page, page_size
     )
 
 

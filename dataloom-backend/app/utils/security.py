@@ -52,7 +52,7 @@ async def validate_upload_file(file: UploadFile) -> None:
     """
     settings = get_settings()
 
-    ext = Path(file.filename).suffix.lower()
+    ext = Path(file.filename or "").suffix.lower()
     if ext not in settings.allowed_extensions:
         raise HTTPException(
             status_code=400, detail=f"File type '{ext}' not allowed. Allowed: {settings.allowed_extensions}"
@@ -78,7 +78,7 @@ def resolve_upload_path(filename: str) -> Path:
     upload_dir = Path(settings.upload_dir).resolve()
     upload_dir.mkdir(parents=True, exist_ok=True)
     target = (upload_dir / filename).resolve()
-    if not str(target).startswith(str(upload_dir)):
+    if not target.is_relative_to(upload_dir) or target == upload_dir:
         raise HTTPException(status_code=400, detail="Invalid file path")
     return target
 

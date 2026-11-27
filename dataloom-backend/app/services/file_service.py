@@ -46,11 +46,12 @@ def _validated_write(file) -> Path:
     settings = get_settings()
     max_bytes = settings.max_upload_size_bytes
 
-    ext = Path(file.filename).suffix.lower()
+    filename = file.filename or ""
+    ext = Path(filename).suffix.lower()
     if ext not in supported_extensions():
         raise ValueError(f"Unsupported file format '{ext}'. Supported: {supported_extensions()}")
 
-    target_path = resolve_upload_path(sanitize_filename(file.filename))
+    target_path = resolve_upload_path(sanitize_filename(filename))
     part_path = target_path.with_name(target_path.name + ".part")
 
     try:

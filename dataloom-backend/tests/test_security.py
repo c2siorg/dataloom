@@ -7,7 +7,7 @@ by the security module. The test strings are never evaluated.
 import pytest
 from fastapi import HTTPException
 
-from app.utils.security import prepare_query_expression, sanitize_filename, validate_query_string
+from app.utils.security import prepare_query_expression, resolve_upload_path, sanitize_filename, validate_query_string
 
 
 class TestSanitizeFilename:
@@ -99,3 +99,35 @@ class TestPrepareQueryExpression:
     def test_subscript_blocked(self):
         with pytest.raises(HTTPException):
             prepare_query_expression("age[0] > 3", ["age"])
+
+
+class TestResolveUploadPath:
+    """Verify that resolve_upload_path confines targets inside upload_dir."""
+
+    @pytest.fixture()
+    def upload_dir(self, tmp_path, monkeypatch):
+        path = (tmp_path / "uploads").resolve()
+        monkeypatch.setattr("app.utils.security.get_settings", lambda: type("S", (), {"upload_dir": str(path)})())
+        return path
+
+    def test_valid_filename_resolves_inside_upload_dir(self, upload_dir):
+        assert resolve_upload_path("data.csv") == upload_dir / "data.csv"
+
+    def test_nested_snapshot_path_resolves_inside_upload_dir(self, upload_dir):
+        assert resolve_upload_path("snapshots/proj/snap.csv") == upload_dir / "snapshots" / "proj" / "snap.csv"
+
+    def test_parent_traversal_blocked(self, upload_dir):
+        with pytest.raises(HTTPException) as exc:
+            resolve_upload_path("../outside.csv")
+        assert exc.value.status_code == 400
+
+    def test_sibling_prefix_traversal_blocked(self, upload_dir):
+        with pytest.raises(HTTPException) as exc:
+            resolve_upload_path("../uploads_evil/secret.csv")
+        assert exc.value.status_code == 400
+
+    @pytest.mark.parametrize("filename", ["", "."])
+    def test_upload_dir_itself_blocked(self, upload_dir, filename):
+        with pytest.raises(HTTPException) as exc:
+            resolve_upload_path(filename)
+        assert exc.value.status_code == 400
