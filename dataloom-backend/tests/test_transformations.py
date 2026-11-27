@@ -41,6 +41,26 @@ def sample_df():
 
 
 class TestFilter:
+    def test_filter_uses_exact_column_when_names_differ_by_whitespace(self):
+        df = pd.DataFrame([[1, 10], [2, 20], [3, 30]], columns=["Score ", "Score"])
+
+        first = apply_filter(df, "Score ", "=", "1")
+        second = apply_filter(df, "Score", "=", "10")
+
+        assert first.to_dict("records") == [{"Score ": 1, "Score": 10}]
+        assert second.to_dict("records") == [{"Score ": 1, "Score": 10}]
+
+    def test_filter_ambiguous_stripped_name_raises(self):
+        df = pd.DataFrame([[1, 10]], columns=["Score ", " Score"])
+
+        with pytest.raises(TransformationError, match="ambiguous"):
+            apply_filter(df, "Score", "=", "1")
+
+    def test_filter_matches_stripped_name_when_unique(self):
+        df = pd.DataFrame({"Score ": [1, 2]})
+
+        assert apply_filter(df, "Score", "=", "2")["Score "].tolist() == [2]
+
     def test_filter_equals_string_case_insensitive(self, sample_df):
         df = pd.DataFrame({"Payment_Type": ["Cash", "CASH", "cash", "CARD"]})
         result = apply_filter(df, "Payment_Type", "=", "cash")
