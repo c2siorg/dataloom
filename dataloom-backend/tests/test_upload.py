@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.config import get_settings
+from app.services.file_service import store_added_file
 from app.utils.security import validate_upload_file
 
 
@@ -108,3 +109,17 @@ class TestValidateUploadFile:
         content = b"a" * settings.max_upload_size_bytes
         file = MockUploadFileNoSize("exact_no_size.csv", content)
         await validate_upload_file(file)  # must not raise
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("filename", [None, ""])
+    async def test_missing_or_empty_filename_rejected_cleanly(self, filename):
+        file = MockUploadFile(filename)
+        with pytest.raises(HTTPException) as exc:
+            await validate_upload_file(file)
+        assert exc.value.status_code == 400
+
+    @pytest.mark.parametrize("filename", [None, ""])
+    def test_store_added_file_missing_filename_raises_value_error(self, filename):
+        file = MockUploadFile(filename)
+        with pytest.raises(ValueError, match="Unsupported file format"):
+            store_added_file(file)

@@ -108,7 +108,7 @@ async def upload_project(
         # not a server fault. Discard the orphaned files and report a clean 400.
         delete_project_files(str(copy_path))
         if e.status_code >= 500:
-            ext = Path(file.filename).suffix.lower()
+            ext = Path(file.filename or "").suffix.lower()
             raise HTTPException(status_code=400, detail=f"Could not parse the uploaded {ext} file.") from e
         raise
 
