@@ -1153,6 +1153,10 @@ def scale_numeric(
         target_col = column if out_col_clean == column_stripped else out_col_clean
 
     non_null = series.dropna()
+    if non_null.map(math.isinf).any():
+        raise TransformationError(
+            f"Column '{column}' contains infinity (inf/-inf). Feature scaling requires finite values."
+        )
     result_df = df.copy()
 
     if non_null.empty:
