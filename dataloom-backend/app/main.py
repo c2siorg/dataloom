@@ -3,12 +3,14 @@
 Configures middleware, exception handlers, and mounts all API routers.
 """
 
+import math
 import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -135,6 +137,39 @@ async def active_job_conflict_handler(request: Request, exc: job_service.ActiveJ
 
 
 app.add_exception_handler(AppException, app_exception_handler)
+
+
+def _json_safe(value):
+    """Return a JSON-serializable copy of a validation-error input value.
+
+    Pydantic lets NaN/Inf floats through validation and its error payloads echo
+    the raw ``input`` back; Starlette's JSON encoder (``allow_nan=False``) then
+    crashes rendering the 422 itself, surfacing as an unhandled 500 (issue #738).
+    Replace non-finite values with their string reprs and stringify any
+    non-serializable context (e.g. the ValueError pydantic embeds in ``ctx``) so
+    the client still gets a proper 422 describing the offending field.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return repr(value)
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, (str, int, bool)) or value is None:
+        return value
+    return str(value)
+
+
+@app.exception_handler(RequestValidationError)
+async def json_safe_validation_handler(request: Request, exc: RequestValidationError):
+    """Serve 422s whose payloads are always JSON-serializable (see _json_safe)."""
+    errors = exc.errors()
+    for err in errors:
+        if "input" in err:
+            err["input"] = _json_safe(err["input"])
+        if "ctx" in err:
+            err["ctx"] = _json_safe(err["ctx"])
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(projects.router, prefix="/projects", tags=["projects"])

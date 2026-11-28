@@ -251,9 +251,9 @@ class OutlierParams(BaseModel):
     column: str
     method: OutlierTransformMethod = OutlierTransformMethod.iqr
     action: OutlierAction = OutlierAction.clip
-    sensitivity: float | None = Field(default=None, gt=0.0)
-    lower_percentile: float | None = Field(default=None, ge=0.0, le=1.0)
-    upper_percentile: float | None = Field(default=None, ge=0.0, le=1.0)
+    sensitivity: float | None = Field(default=None, gt=0.0, allow_inf_nan=False)
+    lower_percentile: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    upper_percentile: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
     flag_column: str | None = None
 
     @model_validator(mode="after")
