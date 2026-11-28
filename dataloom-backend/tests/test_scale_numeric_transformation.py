@@ -406,3 +406,22 @@ class TestPipelineAndHttpLifecycle:
         redone = client.get(f"/projects/get/{proj_id}").json()
         redone_prices = [row[redone["columns"].index("price")] for row in redone["rows"]]
         assert np.allclose(redone_prices, [0.0, 0.25, 0.5, 0.75, 1.0])
+
+
+class TestScaleNumericNonFiniteRejection:
+    """inf/-inf must be rejected: it poisons min/max, mean/std and the quartiles."""
+
+    @pytest.mark.parametrize("method", ["minmax", "standard", "robust", "maxabs"])
+    def test_scale_numeric_rejects_inf(self, method):
+        df = pd.DataFrame({"price": [10.0, 20.0, float("inf")]})
+        with pytest.raises(TransformationError, match="infinity"):
+            scale_numeric(df, "price", method=method)
+
+    def test_scale_numeric_allows_nan_and_unrelated_inf(self):
+        df = pd.DataFrame({"price": [10.0, 20.0, float("nan")], "other": [float("inf"), 1.0, 2.0]})
+        out = scale_numeric(df, "price", method="minmax")
+        assert out["price"].iloc[0] == 0.0
+        assert out["price"].iloc[1] == 1.0
+        assert pd.isna(out["price"].iloc[2])
+        # inf in an unrelated column is untouched and does not block scaling
+        assert out["other"].iloc[0] == float("inf")
