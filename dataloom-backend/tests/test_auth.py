@@ -485,3 +485,20 @@ def test_rate_limit_http_429(anon_client, monkeypatch):
     assert "Retry-After" in r3.headers
     retry_after = int(r3.headers["Retry-After"])
     assert retry_after > 0
+
+
+def test_signup_race_returns_409_not_500(client):
+    """Concurrent signups with the same email must never produce a 500 (#TOCTOU)."""
+    import concurrent.futures
+
+    payload = {"email": "race-toc@example.com", "password": "Str0ngPass!123"}
+
+    def signup(_):
+        return client.post("/auth/signup", json=payload).status_code
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        codes = list(pool.map(signup, range(8)))
+
+    assert 500 not in codes
+    assert codes.count(201) == 1
+    assert codes.count(409) == len(codes) - 1
