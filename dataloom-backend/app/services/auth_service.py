@@ -7,7 +7,8 @@ from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
-from sqlalchemy.exc import SQLAlchemyError
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import Session
 
 from app import models
@@ -73,10 +74,21 @@ def get_user_by_id(db: Session, user_id: uuid.UUID) -> models.User | None:
 
 
 def create_user(db: Session, email: str, password: str) -> models.User:
-    """Create and persist a new user with a hashed password."""
+    """Create and persist a new user with a hashed password.
+
+    Raises:
+        HTTPException: 409 if the email is already taken. Covers the signup
+            TOCTOU race where two concurrent signups both pass the caller's
+            existence check before either insert commits.
+    """
     user = models.User(email=email, password_hash=hash_password(password))
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        logger.info("Signup race for email=%s: unique constraint hit, returning 409.", email)
+        raise HTTPException(status_code=409, detail="An account with this email already exists") from None
     db.refresh(user)
     logger.info("Created user: id=%s", user.id)
     return user
