@@ -981,6 +981,14 @@ def handle_outliers(
             f"Column '{column}' is boolean. Outlier detection requires continuous or discrete numeric data."
         )
     if not pd.api.types.is_numeric_dtype(series):
+        # Datetime and timedelta columns are not numeric, but pd.to_numeric
+        # converts them to nanosecond integers instead of NaN, so the guard
+        # below would let them through and the column would come back as raw
+        # integers. Reject them here, before the coercion (the same trap
+        # _is_non_numeric_for_statistics guards for the fillEmpty
+        # mean/median strategies).
+        if pd.api.types.is_datetime64_any_dtype(series) or pd.api.types.is_timedelta64_dtype(series):
+            raise TransformationError(f"Column '{column}' is {series.dtype}. Outlier detection requires numeric data.")
         numeric_series = pd.to_numeric(series.dropna(), errors="coerce")
         if numeric_series.isna().any() or numeric_series.empty:
             raise TransformationError(f"Column '{column}' is not numeric. Outlier detection requires numeric data.")

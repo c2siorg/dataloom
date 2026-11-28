@@ -236,6 +236,36 @@ class TestOutlierValidationAndEdgeCases:
         with pytest.raises(TransformationError, match="is not numeric"):
             handle_outliers(sample_numeric_df, column="category")
 
+    @pytest.mark.parametrize("method", ["iqr", "zscore", "percentile"])
+    @pytest.mark.parametrize("action", ["clip", "drop", "set_null", "flag"])
+    def test_datetime_column_raises(self, method, action):
+        """A datetime column must be rejected, not silently rewritten as
+        nanosecond integers: pd.to_numeric converts datetimes to ints
+        instead of NaN, so the coercion guard used to let them through and
+        every date came back as 1704067200000000."""
+        df = pd.DataFrame(
+            {
+                "when": pd.to_datetime(
+                    ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-06-01"]
+                )
+            }
+        )
+        with pytest.raises(TransformationError, match="requires numeric data"):
+            handle_outliers(df, column="when", method=method, action=action)
+
+    def test_timedelta_column_raises(self):
+        """Timedeltas hit the same to_numeric trap as datetimes."""
+        df = pd.DataFrame({"span": pd.to_timedelta(["1 days", "2 days", "3 days", "4 days", "5 days"])})
+        with pytest.raises(TransformationError, match="requires numeric data"):
+            handle_outliers(df, column="span", method="iqr", action="clip")
+
+    def test_datetime_column_with_few_values_raises(self):
+        """The fewer-than-4-values early return also rewrote the column, so
+        the guard must sit before the coercion, not after it."""
+        df = pd.DataFrame({"when": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-06-01"])})
+        with pytest.raises(TransformationError, match="requires numeric data"):
+            handle_outliers(df, column="when", method="iqr", action="clip")
+
     def test_whitespace_in_column_name_trimmed(self, sample_numeric_df):
         """Leading/trailing whitespace in target column name is resolved gracefully."""
         result = handle_outliers(sample_numeric_df, column="  score  ", method="iqr", action="drop")
@@ -471,3 +501,25 @@ class TestOutlierPipelineAndHttpSemantics:
         assert redone["total_rows"] == 5
         redone_vals = [row[val_idx] for row in redone["rows"]]
         assert 1000 not in redone_vals
+
+    def test_http_outliers_on_datetime_column_returns_400(self, client, monkeypatch):
+        """handleOutliers on a date column must be a 400, not a 200 that
+        rewrites every date as a nanosecond integer."""
+        monkeypatch.setattr("os.fsync", lambda fd: None)
+        csv_data = "id,event_date\n1,2024-01-01\n2,2024-01-02\n3,2024-01-03\n4,2024-01-04\n5,2024-01-05\n6,2024-06-01\n"
+        upload_res = client.post(
+            "/projects/upload",
+            files={"file": ("dates.csv", csv_data.encode("utf-8"), "text/csv")},
+            data={"projectName": "Outlier Dates", "projectDescription": "Test fixture"},
+        )
+        assert upload_res.status_code == 200
+        proj_id = upload_res.json()["project_id"]
+        res = client.post(
+            f"/projects/{proj_id}/transform",
+            json={
+                "operation_type": "handleOutliers",
+                "outlier_params": {"column": "event_date", "method": "iqr", "action": "clip"},
+            },
+        )
+        assert res.status_code == 400, res.text
+        assert "requires numeric data" in res.json()["detail"]
