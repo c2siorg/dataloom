@@ -406,3 +406,20 @@ class TestPipelineAndHttpLifecycle:
         redone = client.get(f"/projects/get/{proj_id}").json()
         redone_prices = [row[redone["columns"].index("price")] for row in redone["rows"]]
         assert np.allclose(redone_prices, [0.0, 0.25, 0.5, 0.75, 1.0])
+
+
+class TestScaleNumericNanBounds:
+    """NaN target bounds must be rejected: they poison the whole column to null with HTTP 200."""
+
+    @pytest.mark.parametrize("bound", ["target_min", "target_max"])
+    def test_scale_numeric_rejects_nan_bounds(self, bound):
+        df = pd.DataFrame({"price": [10.0, 20.0, 30.0]})
+        kwargs = {"target_min": 0.0, "target_max": 1.0}
+        kwargs[bound] = float("nan")
+        with pytest.raises(TransformationError, match="must not be NaN"):
+            scale_numeric(df, "price", method="minmax", **kwargs)
+
+    def test_scale_numeric_valid_bounds_still_work(self):
+        df = pd.DataFrame({"price": [10.0, 20.0, 30.0]})
+        out = scale_numeric(df, "price", method="minmax", target_min=0.0, target_max=1.0)
+        assert out["price"].tolist() == [0.0, 0.5, 1.0]

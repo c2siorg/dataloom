@@ -1138,6 +1138,8 @@ def scale_numeric(
     if method_str not in valid_methods:
         raise TransformationError(f"Unknown scaling method: '{method}'. Supported methods: {sorted(valid_methods)}")
 
+    if math.isnan(target_min) or math.isnan(target_max):
+        raise TransformationError("target_min and target_max must not be NaN.")
     if method_str == "minmax" and target_min >= target_max:
         raise TransformationError(f"target_min ({target_min}) must be strictly less than target_max ({target_max}).")
 
